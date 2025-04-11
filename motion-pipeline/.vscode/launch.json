@@ -308,6 +308,23 @@
                     "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poses-segmented",
                 ]
             }
+        },
+        {
+            "name": "Combine user study 2 ratings files",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/motion_extraction/scripts/process_study2_ratings.py",
+            "console": "integratedTerminal",
+            "args": [
+                // "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup",
+                // "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup-poses"
+            ],
+            "osx": {
+                "args": [
+                    "/Users/julien/dev/dance-teacher-xr-unity/svelte-web-frontend/src/lib/ai/motionmetrics/testdata/user2_segment_ratings.xlsx",
+                    "/Users/julien/dev/dance-teacher-xr-unity/svelte-web-frontend/src/lib/ai/motionmetrics/testdata/study2_humanratings.csv",
+                ]
+            }
         }
     ]
 }

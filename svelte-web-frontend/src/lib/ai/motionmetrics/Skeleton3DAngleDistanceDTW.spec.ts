@@ -11,48 +11,26 @@ import Jules2DSkeletonSimilarityMetric from "./Jules2DSkeletonSimilarityMetric";
 import KinematicErrorMetric from "./KinematicErrorMetric";
 import { runLiveEvaluationMetricOnTestTrack, type TestTrack } from "./testdata/metricTestingUtils";
 import Skeleton3dVectorAngleSimilarityMetric from "./Skeleton3dVectorAngleSimilarityMetric";
+import { N } from "vitest/dist/chunks/reporters.nr4dxCkA.js";
 
-type Study1RatingsRaw = {
-    "seg id": string; // segment id, formatted as "<userID>_<clipNumber>"
-    "Rater H": number; // first rater (out of 3)
-    "Rater L": number; // second rater (out of 3)
-    "Rater T": number; // third rater (out of 3)
-    Note: string; // note
-}
-type Study1RatingsProcessed = {
-    row_id: number;
+type HumanRating = {
+    study: number;
+    dance: DanceName;
     userId: number;
-    clipNumber: number;
-    ratings: number[];
-    meanRatingPercentage: number;
-}
+    segmentId: number;
+    avgRatingsPercentile: number;
+    rating1: number;
+    rating2: number;
+    rating3: number;
+};
 
-async function loadStudy1RatingsCsv(filepath: string): Promise<Study1RatingsProcessed[]> {
-    const file = await readFile(filepath, { encoding: "utf-8" });
-    const data = await (new Promise((resolve, reject) => {
-        Papa.parse(file, {
-            header: true,
-            dynamicTyping: true,
-            complete: (results) => {
-                resolve(results.data.filter((row: any) => (row["seg id"] && row["Rater T"])) as unknown as Study1RatingsRaw[]);
-            },
-            error: (error: Error) => {
-                reject(error);
-            }
-        });
-    }) as Promise<Study1RatingsRaw[]>);
-
-    
-    const processedData = data.map((row: Study1RatingsRaw, i) => {
-        if (!row["seg id"]) {
-            throw new Error(`Row ${i} is missing seg id in ${filepath}`);
-        }
-        const [userId, clipNumber] = row["seg id"].split("_").map(Number);
-        const ratings = [row["Rater H"], row["Rater L"], row["Rater T"]].map(Number);
-        const meanRatingPercentage = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-        return { row_id: i, userId, clipNumber, ratings, meanRatingPercentage } as Study1RatingsProcessed;
-    });
-    return processedData.filter((row) => row.userId !== 0 && !isNaN(row.meanRatingPercentage));
+function getClipHumanRatings(
+    allRatings: Awaited<ReturnType<typeof loadHumanRatings>>,
+    danceName: DanceName,
+    userId: number,
+    clipNumber: number
+) {
+    return allRatings.get(Study.Study1)?.get(danceName)?.get(userId)?.get(clipNumber);
 }
 
 /**
@@ -69,28 +47,45 @@ async function loadStudy1RatingsCsv(filepath: string): Promise<Study1RatingsProc
  * const meanRating = (await loadUserStudy1SegRatings()).get("mad-at-disney")?.get(42)?.[1]?.meanRatingPercentage;
  * ```
  */
-async function loadUserStudy1SegRatings() {
-    const filepaths: Record<DanceName, string> = {
-        "mad-at-disney": "src/lib/ai/motionmetrics/testdata/user1_seg_ratings--mad-at-disney.csv",
-        "last-christmas": "src/lib/ai/motionmetrics/testdata/user1_seg_ratings--last-christmas.csv",
-        "pajama-party": "src/lib/ai/motionmetrics/testdata/user1_seg_ratings--pajama-party.csv",
-        "bartender": "",
-    }
-    // load all the csv files
-    // access a clip's ratings with allRatings.get(danceName)?.get(userID)?.[clipNumber]
-    const allRatings = new Map<DanceName, Map<number, Study1RatingsProcessed[]>>();
-    for (const danceName in filepaths) {
-        const filepath = filepaths[danceName as DanceName];
-        if (!filepath) continue;
-        const ratings = await loadStudy1RatingsCsv(filepath);
-        const danceRatings = new Map<number, Study1RatingsProcessed[]>();
-        ratings.forEach((rating) => {
-            const userRatings = danceRatings.get(rating.userId) || [];
-            userRatings.push(rating);
-            danceRatings.set(rating.userId, userRatings);
+async function loadHumanRatings() {
+    const filepath = "src/lib/ai/motionmetrics/testdata/humanratings.csv";
+  
+    const file = await readFile(filepath, { encoding: "utf-8" });
+    const data = await (new Promise((resolve, reject) => {
+        Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            complete: (results) => {
+                resolve(results.data as any as HumanRating[]);
+            },
+            error: (error: Error) => {
+                reject(error);
+            }
         });
-        allRatings.set(danceName as DanceName, danceRatings);
-    }
+    }) as Promise<HumanRating[]>);
+
+    // access a clip's ratings with allRatings.get(study)?.get(danceName)?.get(userID)?.get(clipNumber)
+    const allRatings = new Map<Study, Map<DanceName, Map<number, Map<number, HumanRating>>>>();
+
+    // create a map of ratings for easy lookup
+    data.forEach((rating) => {
+        const danceName = rating.dance as DanceName;
+        const userId = rating.userId;
+        const clipNumber = rating.segmentId;
+        const study = rating.study == 1 ? Study.Study1 : Study.Study2;
+        if (!allRatings.has(study)) {
+            allRatings.set(study, new Map<DanceName, Map<number, Map<number, HumanRating>>>());
+        }
+       
+        const danceRatings = allRatings.get(study)!.get(danceName) || new Map<number, Map<number, HumanRating>>();
+        // there are typically 5 clips, create an array so we can place ratings in the correct order
+        const ratingIndex = clipNumber;
+        const clipRatings = danceRatings.get(userId) || new Map<number, HumanRating>();
+        clipRatings.set(clipNumber, rating);
+        danceRatings.set(userId, clipRatings);
+        allRatings.get(study)!.set(danceName, danceRatings);
+    });
+
     return allRatings;
 }
 
@@ -123,7 +118,7 @@ describe('Skeleton3DAngleDistanceDTW', {}, async () => {
 
     describe.concurrent('study 2', async () => {
 
-        const allPoses = await loadPoses(Study.Study2Segmented);
+        const allPoses = await loadPoses(Study.Study2);
 
         it.concurrent('can compute metric for a single pose file', {}, async ({ expect }) => {
 
@@ -177,11 +172,11 @@ describe('Skeleton3DAngleDistanceDTW', {}, async () => {
     it.concurrent('study 1 dtw processing', {
         timeout: 1000 * 60 * 25, // 25 minutes
     }, async ({ expect }) => {
-        const allPoses = await loadPoses(Study.Study1Segmented, (clipInfo) => {
+        const allPoses = await loadPoses(Study.Study1, (clipInfo) => {
             const studyInfo = clipInfo as SegmentInfo;
             return studyInfo.study1phase == "performance"; // skip slowed down clips
         });
-        const allRatings = await loadUserStudy1SegRatings();
+        const allRatings = await loadHumanRatings();
         const n = Infinity; // number of clips to process (i.e. all of them)
 
 
@@ -202,7 +197,7 @@ describe('Skeleton3DAngleDistanceDTW', {}, async () => {
             for await (const poseData of takeAsnc(allPoses, n)) {
                 i++;
                 const segmentData = poseData as StudySegmentData;
-                const ratings = allRatings.get(segmentData.segmentInfo.danceName)?.get(segmentData.segmentInfo.userId)?.[segmentData.segmentInfo.clipNumber];
+                const ratings = getClipHumanRatings(allRatings, segmentData.segmentInfo.danceName, segmentData.segmentInfo.userId, segmentData.segmentInfo.clipNumber);
 
                 console.log(`Processing clip ${i} ${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.danceName}_${segmentData.segmentInfo.clipNumber}...`);
 
@@ -219,10 +214,10 @@ describe('Skeleton3DAngleDistanceDTW', {}, async () => {
                     frameCount: segmentData.poses.length,
                     ...summary,
                     userId: ratings.userId,
-                    humanRating: ratings.meanRatingPercentage / 3, // scale from 0-3 to 0-1
-                    rating1: ratings.ratings.at(0),
-                    rating2: ratings.ratings.at(1),
-                    rating3: ratings.ratings.at(2),
+                    humanRating: ratings.avgRatingsPercentile, // scale from 0-3 to 0-1
+                    rating1: ratings.rating1,
+                    rating2: ratings.rating2,
+                    rating3: ratings.rating3,
                 };
             }
         }
