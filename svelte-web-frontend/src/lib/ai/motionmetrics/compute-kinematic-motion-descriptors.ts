@@ -58,8 +58,26 @@ function calculateJointVels(pose: Pose2DPixelLandmarks, pPose: Pose2DPixelLandma
     });
 }
 
-function calculateJointDerivs(cur: UserRefPair<Vec2DVis[]>, prev: UserRefPair<Vec2DVis[]>, dt: number[]) {
-    
+/**
+ * Calculates the instantenous derivitive of a kinematic metric along an array of joints.
+ * Given velocities, this function calculates the instantaneous acceleration.
+ * Given accelerations, this function calculates the instantaneous jerk.
+ * @param cur The array of joint metrics at the current frame
+ * @param prev The array of joint metrics at the previous frame
+ * @param dt The time delta between the two frames
+ * @returns The array of joint metrics representing the instantaneous derivitive.
+ */
+function calculateJointDerivs(cur: Vec2DVis[], prev: Vec2DVis[], dt: number) {
+    if (cur.length !== prev.length) throw new Error("Mismatched array lengths between current and previous joint metrics.");
+
+    return cur.map((landmark, j) => {
+        const prevLandmark = prev[j];
+        return {
+            x: (landmark.x - prevLandmark.x) / dt,
+            y: (landmark.y - prevLandmark.y) / dt,
+            visibility: (landmark.visibility + prevLandmark.visibility) / 2,
+        } as Vec2DVis;
+    });
 }
 
 /**
@@ -115,8 +133,11 @@ export function calculateKinematicErrorDescriptors(
                 ref: referencePoses[i],
             };
             let curVelocities: UserRefPair<Vec2DVis[]> | undefined = undefined;
+            let curVelocitiesError: number[] | undefined = undefined;
             let curAccelerations: UserRefPair<Vec2DVis[]> | undefined = undefined;
+            let curAccelerationsError: number[] | undefined = undefined;
             let curJerks: UserRefPair<Vec2DVis[]> | undefined = undefined;
+            let curJerksError: number[] | undefined = undefined;
             
             const frameTime = frameTimes[i];
             const dt = frameTime - (pFrameTimes[i - 1] ?? 0);
@@ -144,15 +165,40 @@ export function calculateKinematicErrorDescriptors(
                 curVelocities = { user: usrVelocities, ref: refVelocities };
             }
 
-            if (pVelocities) {
-                const pUserVelocities = pVelocities.user;
-                const pRefVelocities = pVelocities.ref;
+            if (pVelocities && curVelocities) {
+                const usrAccelerations = calculateJointDerivs(pVelocities.user, curVelocities.user, dt);
+                const refAccelerations = calculateJointDerivs(pVelocities.ref, curVelocities.ref, dt);
 
-                const usrAccelerations = calculateJointVels(curVelocities.user, pUserVelocities, dt, usrFrameScale);
-                const refAccelerations = calculateJointVels(curVelocities.ref, pRefVelocities, dt, refFrameScale);
-
+                // todo: weigh errors by visibility?
+                // todo: weigh errors by joint importance? 
+                curVelocitiesError = curVelocities.user.map((landmark, j) => {
+                    const refLandmark = curVelocities.ref[j];
+                    return (
+                        getMagnitude2DVec([
+                            landmark.x - refLandmark.x,
+                            landmark.y - refLandmark.y
+                        ])
+                    );
+                });
                 curAccelerations = { user: usrAccelerations, ref: refAccelerations };
             }
+
+            if (pAccelerations && curAccelerations) {
+                const usrJerks = calculateJointDerivs(pAccelerations.user, curAccelerations.user, dt);
+                const refJerks = calculateJointDerivs(pAccelerations.ref, curAccelerations.ref, dt);
+
+                curJerks = { user: usrJerks, ref: refJerks };
+                curAccelerationsError = curAccelerations.user.map((landmark, j) => {
+                    const refLandmark = curAccelerations.ref[j];
+                    return (
+                        getMagnitude2DVec([
+                            landmark.x - refLandmark.x,
+                            landmark.y - refLandmark.y
+                        ])
+                    );
+                });
+            }
+
 
             pPoses = curPoses;
             pVelocities = curVelocities;
@@ -162,7 +208,7 @@ export function calculateKinematicErrorDescriptors(
 
             yield { 
                 // instantaneous velocity for each landmark in the frame (user)
-                xyVels:  [],
+                xyVels:  curVelocities?.user,
                 scalarVelErr: [],
 
                 // instantaneous acceleration for each landmark in the frame
