@@ -30,6 +30,20 @@ export function GetVectorPNorm(v: number[], pnorm = 2) {
     return Math.pow(sum, 1 / pnorm)
 }
 
+export function GetVectorAbsDifferences<
+    T extends [number, number] | [number, number, number] | (number[])>
+    (v1: T, v2: T): T 
+{
+    if (v1.length !== v2.length) throw new Error("Vectors must have the same length");
+    return v1.map((val, index) => Math.abs(val - v2[index])) as T
+}
+
+export const GetVectorNorm = GetVectorPNorm;
+
+export function GetVectorError(v1: number[], v2: number[]) {
+    return GetVectorNorm(GetVectorAbsDifferences<number[]>(v1, v2));
+}
+
 export function GetPNormalizedVector(v: number[], pnorm = 2) {
     const mag = GetVectorPNorm(v, pnorm);
     return v.map((val) => val / mag);

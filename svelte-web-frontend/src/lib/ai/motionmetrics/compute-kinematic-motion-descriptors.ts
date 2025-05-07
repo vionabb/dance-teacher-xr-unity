@@ -1,11 +1,13 @@
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from "$lib/webcam/mediapipe-utils";
-import { Get2DScaleIndicator, getMatricesMAE, getMatricesRMSE, getMagnitude2DVec } from "../EvaluationCommonUtils";
+import type { Landmark } from "@mediapipe/tasks-vision";
+import { Get2DScaleIndicator, getMatricesMAE, getMatricesRMSE, GetVectorNorm, Get3DScaleIndicator, GetVectorError } from "../EvaluationCommonUtils";
 
-
-export type Vec2<T> = [T, T];
-export type Vec2DVis = {
-    x: number,
-    y: number,
+export type VecWithVisibility = {
+    vals: number[],
+    visibility: number,
+}
+export type ScalarWithVisibility = {
+    value: number,
     visibility: number,
 }
 export type Vec3<T> = [T, T, T];
@@ -16,45 +18,45 @@ export type UserRefPair<T> = {
     ref: T,
 };
 
-function makeUndefinedVec8Frame2D() {
-    return makeUndefined2DMatrix(8, 2) as Vec8<Vec2<undefined>>;
+function is2DPose(
+    pose: Pose2DPixelLandmarks | Pose3DLandmarkFrame
+): pose is Pose2DPixelLandmarks {
+    return (pose as any)?.[0]?.dist_from_camera === undefined;
 }
 
-function makeUndefinedVec8Frame3D() {
-    return makeUndefined2DMatrix(8, 3) as Vec8<Vec3<undefined>>;
-}
-
-function makeUndefinedArray(length: number): undefined[] {
-    return new Array(length).fill(undefined);
-}
-function makeUndefinedMatrix(dims: number[]): any {
-
-    if (dims.length === 1) {
-        return makeUndefinedArray(dims[0])
+function getVectorError(vecs: UserRefPair<VecWithVisibility[]>): ScalarWithVisibility[] {
+    const { user, ref } = vecs;
+    if (user.length !== ref.length) {
+        throw new Error("Mismatched array lengths between user and reference vectors.");
     }
-
-    const matrix = [];
-    for (let i = 0; i < dims[0]; i++) {
-        matrix.push(makeUndefinedMatrix(dims.slice(1)));
-    }
-    return matrix;
-}
-function makeUndefined2DMatrix(m: number, n: number) {
-    return makeUndefinedMatrix([m, n]) as undefined[][]
+    return user.map((landmark, j) => {
+        const refLandmark = ref[j];
+        return {
+            value: GetVectorError(landmark.vals, refLandmark.vals),
+            visibility: (landmark.visibility + refLandmark.visibility) / 2,
+        } as ScalarWithVisibility;
+    });
 }
 
-function replaceNaNsWithUndefined(num: number) {
-    return isNaN(num) ? undefined : num;
-}
-
-function calculateJointVels(pose: Pose2DPixelLandmarks, pPose: Pose2DPixelLandmarks, dt: number, scale: number) {
+function calculateJointVels<T extends Pose2DPixelLandmarks | Pose3DLandmarkFrame>(pose: T, pPose: T, dt: number, scale: number) {
+    const is2D = is2DPose(pose);
     return pose.map((landmark, j) => {
         const prevLandmark = pPose[j];
+        const x = (landmark.x - prevLandmark.x) / (dt * scale);
+        const y = (landmark.y - prevLandmark.y) / (dt * scale);
+        let velocity: number[];
+        if (is2D) {
+            velocity = [x, y];
+        } else {
+            // 3D case
+            const lm = landmark as Landmark;
+            const z = (lm.z - lm.z) / (dt * scale);
+            velocity = [x, y, z];
+        }
         return {
-            x: (landmark.x - prevLandmark.x) / (dt * scale),
-            y: (landmark.y - prevLandmark.y) / (dt * scale),
+            vals: velocity,
             visibility: landmark.visibility,
-        } as Vec2DVis;
+        } as VecWithVisibility;
     });
 }
 
@@ -67,46 +69,45 @@ function calculateJointVels(pose: Pose2DPixelLandmarks, pPose: Pose2DPixelLandma
  * @param dt The time delta between the two frames
  * @returns The array of joint metrics representing the instantaneous derivitive.
  */
-function calculateJointDerivs(cur: Vec2DVis[], prev: Vec2DVis[], dt: number) {
+function calculateJointDerivs(cur: VecWithVisibility[], prev: VecWithVisibility[], dt: number) {
     if (cur.length !== prev.length) throw new Error("Mismatched array lengths between current and previous joint metrics.");
 
-    return cur.map((landmark, j) => {
-        const prevLandmark = prev[j];
+    return cur.map((curVec, j) => {
+        const prevVec = prev[j];
+        if (curVec.vals.length !== prevVec.vals.length) {
+            throw new Error(`Mismatched array lengths between current and previous joint metrics.`);
+        }
+
         return {
-            x: (landmark.x - prevLandmark.x) / dt,
-            y: (landmark.y - prevLandmark.y) / dt,
-            visibility: (landmark.visibility + prevLandmark.visibility) / 2,
-        } as Vec2DVis;
+            vals: curVec.vals.map((val, i) => {
+                const prevVal = prevVec.vals[i];
+                return (val - prevVal) / dt;
+            }),
+            visibility: (curVec.visibility + prevVec.visibility) / 2,
+        } as VecWithVisibility;
     });
 }
 
+export type KinematicValues = ReturnType<typeof calculateKinematicValues>;
+
 /**
- * Calculates the MAE and RMSE for velocity, acceleration, and jerk between matchingUserPoses and referencePoses.
- *
- * @param {Pose2DPixelLandmarks[]} matchingUserPoses - Array of adjusted user poses.
- * @param {Pose2DPixelLandmarks[]} referencePoses - Array of reference poses.
- * @param {number[]} frameTimes - Array of unique frame times corresponding to the poses.
- * @returns {[number, number, number, number, number, number]} MSE and RMSE between user and reference motion descriptors.
- * Both MAE and RMSE measure the how different the user's poses are from the refence poses.
- * Mean Absolute Error (MAE):
- *  Intuitive Interpretation: MAE is straightforward to understand. It measures the average absolute difference between the values in two arrays.
- *  Robustness to Outliers: MAE is less sensitive to extreme outliers compared to RMSE because it doesn't square the differences.
- *  Easy to Compute: It involves simple arithmetic operations and doesn't require complex calculations.
- * Root Mean Square Error (RMSE):
- *  Sensitivity to Large Errors: RMSE gives higher weight to larger errors due to squaring the differences. This makes it more suitable when large errors need to be penalized more.
- *  Differentiability: RMSE is differentiable at all points, which can be important for optimization problems.
- * approximate range:
- *  jerksMAE Range: Approximately 170,000 to 240,000
- *  jerksRSME Range: Approximately 14,000 to 75,000
- * accsMAE Range: Approximately 2,500 to 5,600
- *  accsRSME Range: Approximately 500 to 1,600
- *  velsMAE Range: Approximately 95 to 180
- *  velsRSME Range: Approximately 18 to 40
- * @throws {Error} Throws an error if there is invalid input data, mismatched array lengths, or bad unique frametimes.
+ * Calculates the kinematic values (velocities, accelerations, jerks) for a given set of user and reference poses. 
+ * The function tracks the visibility of each pose and its landmarks, retaining this information in the output 
+ * so that it can be user for later weighing purposes. 
+ * 
+ * @template T - The type of the poses (either Pose2DPixelLandmarks or Pose3DLandmarkFrame).
+ * @param matchingUserPoses - The user poses to match against the reference poses.
+ * @param referencePoses - The reference poses to match against the user poses.
+ * @param frameTimes - The frame times for the poses.
+ * @param usrScale - The scale factor for the user poses (optional).
+ * @param refScale - The scale factor for the reference poses (optional).
+ * @returns An object containing the kinematic values (velocities, accelerations, jerks) for each frame.
+ * 
+ * @throws Error if the input data is invalid or if the lengths of the arrays do not match.
  */
-export function calculateKinematicErrorDescriptors(
-    matchingUserPoses: Pose2DPixelLandmarks[],
-    referencePoses: Pose2DPixelLandmarks[],
+export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3DLandmarkFrame>(
+    matchingUserPoses: T[],
+    referencePoses: T[],
     frameTimes: number[],
     usrScale?: number,
     refScale?: number
@@ -120,27 +121,49 @@ export function calculateKinematicErrorDescriptors(
     }
 
 
+    const makeEmptyVector = (num_landmarks: number, dimension: number) => {
+        return new Array(num_landmarks).fill(0).map(() => ({
+            vals: new Array(dimension).fill(0),
+            visibility: 0,
+        } as VecWithVisibility));
+    }
+    const makeEmptyScalar = (num_landmarks: number) => {
+        return new Array(num_landmarks).fill(0).map(() => ({
+            value: 0,
+            visibility: 0,
+        } as ScalarWithVisibility));
+    }
+    const makeEmptyUserRefPair = (num_landmarks: number, dimension: number) => {
+        return {
+            user: makeEmptyVector(num_landmarks, dimension),
+            ref: makeEmptyVector(num_landmarks, dimension),
+        } as UserRefPair<VecWithVisibility[]>;
+    }
+
     function* processFrames() {
-        let pPoses: UserRefPair<Pose2DPixelLandmarks> | undefined = undefined;
-        let pVelocities: UserRefPair<Vec2DVis[]> | undefined = undefined;
-        let pAccelerations: UserRefPair<Vec2DVis[]> | undefined = undefined;
-        let pJerks: UserRefPair<Vec2DVis[]> | undefined = undefined;
+        let pPoses: UserRefPair<T> | undefined = undefined;
+        let pVelocities: UserRefPair<VecWithVisibility[]> | undefined = undefined;
+        let pAccelerations: UserRefPair<VecWithVisibility[]> | undefined = undefined;
+        let pJerks: UserRefPair<VecWithVisibility[]> | undefined = undefined;
         let pFrameTimes: number[] = [];
 
         for (let i = 0; i < matchingUserPoses.length; i++) {
-            const curPoses: UserRefPair<Pose2DPixelLandmarks> = {
+            const curPoses: UserRefPair<T> = {
                 user: matchingUserPoses[i],
                 ref: referencePoses[i],
             };
-            let curVelocities: UserRefPair<Vec2DVis[]> | undefined = undefined;
-            let curVelocitiesError: number[] | undefined = undefined;
-            let curAccelerations: UserRefPair<Vec2DVis[]> | undefined = undefined;
-            let curAccelerationsError: number[] | undefined = undefined;
-            let curJerks: UserRefPair<Vec2DVis[]> | undefined = undefined;
-            let curJerksError: number[] | undefined = undefined;
+            let curVelocities: UserRefPair<VecWithVisibility[]> | undefined = undefined;
+            let curVelocitiesError: ScalarWithVisibility[] | undefined = undefined;
+            let curAccelerations: UserRefPair<VecWithVisibility[]> | undefined = undefined;
+            let curAccelerationsError: ScalarWithVisibility[] | undefined = undefined;
+            let curJerks: UserRefPair<VecWithVisibility[]> | undefined = undefined;
+            let curJerksError: ScalarWithVisibility[] | undefined = undefined;
             
             const frameTime = frameTimes[i];
             const dt = frameTime - (pFrameTimes[i - 1] ?? 0);
+            const is2D = is2DPose(curPoses.user);
+            const dimension = is2D ? 2 : 3;
+            const landmarkCount = curPoses.user.length;
 
             if (curPoses.user.length !== curPoses.ref.length) {
                 throw new Error("Mismatched array lengths between user and reference poses.");
@@ -152,8 +175,16 @@ export function calculateKinematicErrorDescriptors(
             }
 
             // Normalize the velocities based on the scale factor
-            const usrFrameScale = usrScale ?? Get2DScaleIndicator(curPoses.user);
-            const refFrameScale = refScale ?? Get2DScaleIndicator(curPoses.ref);
+            // QUESTION: Should we update this scale factor every frame or keep it constant?
+            
+            const usrFrameScale = usrScale ?? 
+                (is2D ? 
+                    Get2DScaleIndicator(curPoses.user as Pose2DPixelLandmarks) :
+                    Get3DScaleIndicator(curPoses.user as Pose3DLandmarkFrame));
+            const refFrameScale = refScale ?? 
+                (is2D ? 
+                    Get2DScaleIndicator(curPoses.ref as Pose2DPixelLandmarks) :
+                    Get3DScaleIndicator(curPoses.ref as Pose3DLandmarkFrame));
 
 
             if (pPoses) {
@@ -171,15 +202,7 @@ export function calculateKinematicErrorDescriptors(
 
                 // todo: weigh errors by visibility?
                 // todo: weigh errors by joint importance? 
-                curVelocitiesError = curVelocities.user.map((landmark, j) => {
-                    const refLandmark = curVelocities.ref[j];
-                    return (
-                        getMagnitude2DVec([
-                            landmark.x - refLandmark.x,
-                            landmark.y - refLandmark.y
-                        ])
-                    );
-                });
+                curVelocitiesError = getVectorError(curVelocities)
                 curAccelerations = { user: usrAccelerations, ref: refAccelerations };
             }
 
@@ -188,17 +211,12 @@ export function calculateKinematicErrorDescriptors(
                 const refJerks = calculateJointDerivs(pAccelerations.ref, curAccelerations.ref, dt);
 
                 curJerks = { user: usrJerks, ref: refJerks };
-                curAccelerationsError = curAccelerations.user.map((landmark, j) => {
-                    const refLandmark = curAccelerations.ref[j];
-                    return (
-                        getMagnitude2DVec([
-                            landmark.x - refLandmark.x,
-                            landmark.y - refLandmark.y
-                        ])
-                    );
-                });
+                curAccelerationsError = getVectorError(curAccelerations);
             }
 
+            if (pJerks && curJerks) {
+                curJerksError = getVectorError(curJerks);
+            }
 
             pPoses = curPoses;
             pVelocities = curVelocities;
@@ -207,31 +225,52 @@ export function calculateKinematicErrorDescriptors(
             pFrameTimes.push(frameTime);
 
             yield { 
+                frameTime,
+                poses: curPoses,
                 // instantaneous velocity for each landmark in the frame (user)
-                xyVels:  curVelocities?.user,
-                scalarVelErr: [],
+                vels:  curVelocities ?? makeEmptyUserRefPair(landmarkCount, dimension),
+                velError: curVelocitiesError ?? makeEmptyScalar(landmarkCount),
 
                 // instantaneous acceleration for each landmark in the frame
-                accels: [],
+                accels: curAccelerations ?? makeEmptyUserRefPair(landmarkCount, dimension),
+                accelError: curAccelerationsError ?? makeEmptyScalar(landmarkCount),
+
+                jerks: curJerks ?? makeEmptyUserRefPair(landmarkCount, dimension),
+                jerkError: curJerksError ?? makeEmptyScalar(landmarkCount),
             };
         }
     }
 
     const results = [...processFrames()];
 
-    // const velsMAE = getMatricesMAE(usrScalarVels, refScalarVels) ?? null;
-    // const velsRSME = getMatricesRMSE(usrScalarVels, refScalarVels) ?? null;
-    // const accsMAE = getMatricesMAE(usrScalarAccs, refScalarAccs) ?? null;
-    // const accsRSME = getMatricesRMSE(usrScalarAccs, refScalarAccs) ?? null;
-    // const jerksMAE = getMatricesMAE(usrScalarJerks, refScalarJerks) ?? null;
-    // const jerksRSME = getMatricesRMSE(usrScalarJerks, refScalarJerks) ?? null;
+    // Reformat each value into an array of values
+    return {
+        poses: results.map((result) => result.poses),
+        vels: results.map((result) => result.vels),
+        velErrors: results.map((result) => result.velError),
+        accels: results.map((result) => result.accels),
+        accelErrors: results.map((result) => result.accelError),
+        jerks: results.map((result) => result.jerks),
+        jerkErrors: results.map((result) => result.jerkError),
+    };
+}
+
+
+export function calculateKinematicErrorDescriptors(kinematicValues: KinematicValues, landmarkWeights?: number[]) {
+    const { poses, vels, velErrors, accels, accelErrors, jerks, jerkErrors } = kinematicValues;
+    
+    const numFrames = poses.length;
+    const numLandmarks = poses[0].user.length;
+    const numLandmarkDimensions = is2DPose(poses[0].user) ? 2 : 3;
+
+    const velMAE = new Array(numLandmarks).fill(0).map((_a, lm_i) => {
+        // Open question; how to handle visibility?
+        //   * how to do we rescale so that less-visible frames are less important, 
+        //     without affecting the scale of the metric?
+    });
 
     return {
-        velsMAE,
-        velsRSME,
-        accsMAE,
-        accsRSME,
-        jerksMAE,
-        jerksRSME,
-    };
+        velMAE: velMAE
+    }
+
 }
