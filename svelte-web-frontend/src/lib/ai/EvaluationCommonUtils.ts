@@ -53,6 +53,28 @@ export function GetMean(v: number[]) {
     return v.reduce((sum, val) => sum + val, 0) / v.length;
 }
 
+export function ComputeMAE(errors: number[]) {
+    return errors.reduce((sum, val) => sum + Math.abs(val), 0) / errors.length;
+}
+export function ComputeRMSE(errors: number[]) {
+    return Math.sqrt(errors.reduce((sum, val) => sum + Math.pow(val, 2), 0) / errors.length);
+}
+
+export function getPoseType(
+    pose: Pose2DPixelLandmarks | Pose3DLandmarkFrame | null
+): '2D' | '3D' | 'invalid' {
+    if (!pose || !Array.isArray(pose) || pose.length === 0) {
+        return 'invalid';
+    }
+    if ((pose as any)?.[0]?.dist_from_camera !== undefined) {
+        return '2D';
+    }
+    if ((pose as any)?.[0]?.z !== undefined) {
+        return '3D';
+    }
+    return 'invalid';
+}
+
 /**
  * Calculates an average of the vector elements, normalized by the vector length.
  * @param v 1D vector as an array
@@ -112,7 +134,6 @@ export function Get2DScaleIndicator(pixelLandmarks: Readonly<Pose2DPixelLandmark
            0.25 * rightTorsoHeight +
            0.5 * shoulderWidth
 }
-
 
 export function Get3DScaleIndicator(pixelLandmarks: Readonly<Pose3DLandmarkFrame>){
 

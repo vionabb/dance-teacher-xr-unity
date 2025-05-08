@@ -4,10 +4,84 @@ import fs from 'fs';
 import * as utils from "./EvaluationCommonUtils";
 import Papa from "papaparse";
 import { ensureDirectoryExistence } from "./motionmetrics/testdata/metricTestingUtils";
+import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from "$lib/webcam/mediapipe-utils";
 
 const randomTrialCount = 40;
 
-describe('GetVectorPNorm', () => {
+
+describe.concurrent('getPoseType', () => {
+    it.concurrent('should return "2D" for a 2D pose', ({ expect }) => {
+      const pose = [{ x: 10, y: 20, dist_from_camera: 0, visibility: 0.9 }];
+      expect(utils.getPoseType(pose)).toBe('2D');
+    });
+  
+    it.concurrent('should return "3D" for a 3D pose', ({ expect }) => {
+      const pose: Pose3DLandmarkFrame = [{ x: 10, y: 20, z: 30, visibility: 0.9 }];
+      expect(utils.getPoseType(pose)).toBe('3D');
+    });
+  
+    it.concurrent('should return "invalid" for an empty pose array', ({ expect }) => {
+      const pose: Pose2DPixelLandmarks = [];
+      expect(utils.getPoseType(pose)).toBe('invalid');
+    });
+  
+    it.concurrent('should return "invalid" for invalid input', ({ expect }) => {
+      const pose = null;
+      expect(utils.getPoseType(pose as any)).toBe('invalid');
+    });
+  });
+
+describe.concurrent('GetVectorAbsDifferences', () => {
+    it.concurrent('should return absolute differences between two vectors', ({ expect }) => {
+        expect(utils.GetVectorAbsDifferences([3, 4], [1, 5])).toEqual([2, 1]);
+        expect(utils.GetVectorAbsDifferences([3, 4, 5], [5, 1, 2])).toEqual([2, 3, 3]);
+        expect(utils.GetVectorAbsDifferences<[number, number]>([10, 20], [5, 25])).toEqual([5, 5]);
+    });
+
+    it.concurrent('should handle negative values correctly', ({ expect }) => {
+        expect(utils.GetVectorAbsDifferences([-3, 4], [1, -5])).toEqual([4, 9]);
+        expect(utils.GetVectorAbsDifferences([-5, -10], [-2, -8])).toEqual([3, 2]);
+    });
+
+    it.concurrent('should throw an error for vectors of different lengths', ({ expect }) => {
+        expect(() => utils.GetVectorAbsDifferences([1, 2, 3], [1, 2] as any)).toThrow();
+    });
+
+    it.concurrent('should handle zero differences', ({ expect }) => {
+        expect(utils.GetVectorAbsDifferences([5, 10], [5, 10])).toEqual([0, 0]);
+    });
+});
+
+describe.concurrent('GetVectorError', () => {
+    it.concurrent('should calculate the norm of the absolute differences', ({ expect }) => {
+        expect(utils.GetVectorError([3, 4], [0, 0])).toBe(5); // sqrt(3^2 + 4^2) = 5
+        expect(utils.GetVectorError([1, 1], [0, 0])).toBe(Math.sqrt(2));
+        expect(utils.GetVectorError([5, 5, 5], [5, 5, 5])).toBe(0);
+    });
+
+    it.concurrent('should handle various vector inputs', ({ expect }) => {
+        expect(utils.GetVectorError([10, 20], [7, 24])).toBeCloseTo(5);
+        expect(utils.GetVectorError([-3, 4], [1, -5])).toBeCloseTo(Math.sqrt(4*4 + 9*9));
+    });
+
+    it.concurrent('should throw an error for vectors of different lengths', ({ expect }) => {
+        expect(() => utils.GetVectorError([1, 2, 3], [1, 2])).toThrow();
+    });
+
+    it.concurrent('should be consistent with manual calculation', ({ expect }) => {
+        for(let i = 0; i < randomTrialCount; i++) {
+            const v1 = [Math.random() * 100, Math.random() * 100];
+            const v2 = [Math.random() * 100, Math.random() * 100];
+            
+            const diffs = utils.GetVectorAbsDifferences(v1, v2);
+            const errorManual = Math.sqrt(diffs[0]*diffs[0] + diffs[1]*diffs[1]);
+            
+            expect(utils.GetVectorError(v1, v2)).toBeCloseTo(errorManual);
+        }
+    });
+});
+
+describe.concurrent('GetVectorPNorm', () => {
 
     it.concurrent('should return 0 for empty vector', ({ expect }) => {
         expect(utils.GetVectorPNorm([], 2)).toBe(0);
@@ -56,7 +130,7 @@ describe('GetVectorPNorm', () => {
 });
 
 
-describe('MeanComparisons', () => {
+describe.concurrent('MeanComparisons', () => {
     it.concurrent('should output vector norms', ( { expect }) => {
         
         function makeRandomVector(count: number, min: number, max: number) {
