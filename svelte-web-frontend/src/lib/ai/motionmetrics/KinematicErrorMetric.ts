@@ -1,6 +1,8 @@
 import type { SummaryMetric, TrackHistory } from "./MotionMetric";
-import { calculate3DKinematicErrorDescriptors } from "./compute-kinematic-motion-descriptors-3D";
-import { calculateKinematicErrorDescriptors } from "./compute-kinematic-motion-descriptors";
+import { 
+    calculateKinematicValues,
+    calculateKinematicErrorDescriptors
+ } from "./compute-kinematic-motion-descriptors";
 
 
 function prependObjectKeys<T extends Record<string, any>, prefixT extends string>(obj: T, prefix: prefixT): { [K in keyof T as `${prefixT}${Extract<K, string>}`]: T[K]}  {
@@ -16,12 +18,12 @@ function prependObjectKeys<T extends Record<string, any>, prefixT extends string
 }
 
 type KinematicErrorMetricOutputForSomeDimension = {
-    jerksMAE: number | null; 
-    jerksRSME: number | null; 
-    accsMAE: number | null; 
-    accsRSME: number | null; 
-    velsMAE: number | null; 
-    velsRSME: number | null;
+    jerkMAE: number | null; 
+    jerkRMSE: number | null; 
+    accelMAE: number | null; 
+    accelRMSE: number | null; 
+    velMAE: number | null; 
+    velRMSE: number | null;
 };
 
 
@@ -35,15 +37,33 @@ type KinematicErrorMetricFormattedOutput = ReturnType<KinematicErrorMetric['form
 export default class KinematicErrorMetric implements SummaryMetric<KinematicErrorMetricOutput, KinematicErrorMetricFormattedOutput> {
 
     summarizeMetric(history: TrackHistory): KinematicErrorMetricOutput {
-        const summary3D = calculate3DKinematicErrorDescriptors(
+        const vals3d = calculateKinematicValues(
             history.user3DFrameHistory,
             history.ref3DFrameHistory,
-            history.videoFrameTimesInSecs
+            history.videoFrameTimesInSecs,
+            {
+                scaleBehavior: 'scaleByFrame',
+            }
         );
-        const summary2D = calculateKinematicErrorDescriptors(
+        const summary3D = calculateKinematicErrorDescriptors(
+            vals3d,
+            {
+                visibilityBehavior: 'scale',
+            }
+        );
+        const vals2d = calculateKinematicValues(
             history.user2DFrameHistory,
             history.ref2DFrameHistory,
-            history.videoFrameTimesInSecs
+            history.videoFrameTimesInSecs,
+            {
+                scaleBehavior: 'scaleByFrame',
+            }
+        );
+        const summary2D = calculateKinematicErrorDescriptors(
+            vals2d,
+            {
+                visibilityBehavior: 'scale',
+            }
         );
 
         // Combine the 2D and 3D summaries into a single summary object

@@ -25,8 +25,9 @@ export function getFrameError(vecs: UserRefPair<VecWithVisibility[]>): ScalarWit
     }
     return user.map((landmark, j) => {
         const refLandmark = ref[j];
+        const error = GetVectorError(landmark.vals, refLandmark.vals);
         return {
-            value: GetVectorError(landmark.vals, refLandmark.vals),
+            value: error,
             visibility: (landmark.visibility + refLandmark.visibility) / 2,
         } as ScalarWithVisibility;
     });
@@ -187,28 +188,30 @@ export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3D
                 (typeof opts.scaleIndicatorFn === 'function' ? opts.scaleIndicatorFn(curPoses.ref) : opts.scaleIndicatorFn.ref(curPoses.ref)) :
                 defaultScaleIndicatorFn(curPoses.ref as any);
 
-            if (pPoses) {
-                const pUserPose = pPoses.user;
-                const pRefPose = pPoses.ref;
-                const usrVelocities = calculateJointVels(curPoses.user, pUserPose, dt, usrFrameScale);
-                const refVelocities = calculateJointVels(curPoses.ref, pRefPose, dt, refFrameScale);
-                curVelocities = { user: usrVelocities, ref: refVelocities };
-                curVelocitiesError = getFrameError(curVelocities)
-            }
+            if (dt > 0) {
+                if (pPoses) {
+                    const pUserPose = pPoses.user;
+                    const pRefPose = pPoses.ref;
+                    const usrVelocities = calculateJointVels(curPoses.user, pUserPose, dt, usrFrameScale);
+                    const refVelocities = calculateJointVels(curPoses.ref, pRefPose, dt, refFrameScale);
+                    curVelocities = { user: usrVelocities, ref: refVelocities };
+                    curVelocitiesError = getFrameError(curVelocities)
+                }
 
-            if (pVelocities && curVelocities) {
-                const usrAccelerations = calculateJointDerivs(pVelocities.user, curVelocities.user, dt);
-                const refAccelerations = calculateJointDerivs(pVelocities.ref, curVelocities.ref, dt);
-                curAccelerations = { user: usrAccelerations, ref: refAccelerations };
-                curAccelerationsError = getFrameError(curAccelerations);
-            }
+                if (pVelocities && curVelocities) {
+                    const usrAccelerations = calculateJointDerivs(pVelocities.user, curVelocities.user, dt);
+                    const refAccelerations = calculateJointDerivs(pVelocities.ref, curVelocities.ref, dt);
+                    curAccelerations = { user: usrAccelerations, ref: refAccelerations };
+                    curAccelerationsError = getFrameError(curAccelerations);
+                }
 
-            if (pAccelerations && curAccelerations) {
-                const usrJerks = calculateJointDerivs(pAccelerations.user, curAccelerations.user, dt);
-                const refJerks = calculateJointDerivs(pAccelerations.ref, curAccelerations.ref, dt);
+                if (pAccelerations && curAccelerations) {
+                    const usrJerks = calculateJointDerivs(pAccelerations.user, curAccelerations.user, dt);
+                    const refJerks = calculateJointDerivs(pAccelerations.ref, curAccelerations.ref, dt);
 
-                curJerks = { user: usrJerks, ref: refJerks };
-                curJerksError = getFrameError(curJerks);
+                    curJerks = { user: usrJerks, ref: refJerks };
+                    curJerksError = getFrameError(curJerks);
+                }
             }
 
             pPoses = curPoses;
@@ -236,7 +239,7 @@ export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3D
     const results = [...processFrames()];
 
     // Reformat each value into an array of values
-    return {
+     return {
         poses: results.map((result) => result.poses),
         vels: results.map((result) => result.vels),
         velErrors: results.map((result) => result.velError),
