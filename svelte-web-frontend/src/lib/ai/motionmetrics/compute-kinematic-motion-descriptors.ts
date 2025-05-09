@@ -26,9 +26,10 @@ export function getFrameError(vecs: UserRefPair<VecWithVisibility[]>): ScalarWit
     return user.map((landmark, j) => {
         const refLandmark = ref[j];
         const error = GetVectorError(landmark.vals, refLandmark.vals);
+        const visibility = 0.5 * ((landmark.visibility ?? 1.0) + (refLandmark.visibility ?? 1.0));
         return {
             value: error,
-            visibility: (landmark.visibility + refLandmark.visibility) / 2,
+            visibility 
         } as ScalarWithVisibility;
     });
 }
@@ -37,21 +38,23 @@ export function calculateJointVels<T extends Pose2DPixelLandmarks | Pose3DLandma
     const is2D = getPoseType(pose) === '2D';
     return pose.map((landmark, j) => {
         const prevLandmark = pPose[j];
-        const x = (landmark.x - prevLandmark.x) / (dt * scale);
-        const y = (landmark.y - prevLandmark.y) / (dt * scale);
+        const denominator = dt * scale;
+        const x = (landmark.x - prevLandmark.x) / denominator;
+        const y = (landmark.y - prevLandmark.y) / denominator;
         let velocity: number[];
+        const avgVisibility = 0.5 * ((prevLandmark.visibility ?? 1.0) + (landmark.visibility ?? 1.0));
         if (is2D) {
             velocity = [x, y];
         } else {
             // 3D case
             const lm = landmark as Landmark;
             const prevLm = prevLandmark as Landmark;
-            const z = (lm.z - prevLm.z) / (dt * scale);
+            const z = (lm.z - prevLm.z) / denominator;
             velocity = [x, y, z];
         }
         return {
             vals: velocity,
-            visibility: landmark.visibility,
+            visibility: avgVisibility,
         } as VecWithVisibility;
     });
 }

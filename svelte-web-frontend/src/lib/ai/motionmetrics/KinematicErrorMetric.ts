@@ -37,6 +37,20 @@ type KinematicErrorMetricFormattedOutput = ReturnType<KinematicErrorMetric['form
 export default class KinematicErrorMetric implements SummaryMetric<KinematicErrorMetricOutput, KinematicErrorMetricFormattedOutput> {
 
     summarizeMetric(history: TrackHistory): KinematicErrorMetricOutput {
+
+        // Current issue: getting lots of NaN values for the
+        //  kinematic values (due to releated frames with same tiemstamp,
+        //  this might be fixed now). Also, some visibility things 
+        // appear to be undefined, which may cause issues as well.
+        //
+        // Next steps:
+        //   * Define & document behavior for when frames are repeated or visbility is missing
+        //       > repeated frames are ignored!
+        //   * Add tests for these cases
+        //   * Validate the test in the test track, make sure all visibilty values etc are importing correctly
+        //   * Support output of the trends from the metric, perhaps by including the raw kinematic values in the 
+        //     non-formatted summary output. Create charts based on this and add to thesis document.
+        // 
         const vals3d = calculateKinematicValues(
             history.user3DFrameHistory,
             history.ref3DFrameHistory,
