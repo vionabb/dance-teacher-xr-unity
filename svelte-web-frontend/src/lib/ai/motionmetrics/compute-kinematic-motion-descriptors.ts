@@ -277,6 +277,8 @@ export function calculateKinematicErrorDescriptors(
 
     const weighErrorValues = (allFrames: ScalarWithVisibility[][]) => {
         let weightedVals: number[][];
+        let avgVisibility: number = 0;
+
         if (visibilityBehavior === 'none') {
             weightedVals= allFrames.map((frameVals) => frameVals.map((v, landmark_i) => v.value));
         }
@@ -296,12 +298,17 @@ export function calculateKinematicErrorDescriptors(
             throw new Error(`Invalid visibilityBehavior: ${visibilityBehavior}`);
         }
 
-        return weightedVals.map((frameVals) => {
-            // weigh each row by landmark weights
-            return frameVals
-                .reduce((acc, lmVal, lmIndex) => acc + lmVal * landmarkWeights[lmIndex], 0) 
-                / landmarkWeightsTotal;
-        });
+        return {
+            weightedValues: weightedVals.map((frameVals) => {
+                // weigh each row by landmark weights
+                return frameVals
+                    .reduce((acc, lmVal, lmIndex) => acc + lmVal * landmarkWeights[lmIndex], 0) 
+                    / landmarkWeightsTotal;
+            }),
+
+            // TODO
+            visibility: avgVisibility,
+        };
     }
     
     const velErrorsWeighted = weighErrorValues(velErrors);
