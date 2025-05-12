@@ -311,9 +311,9 @@ export function calculateKinematicErrorDescriptors(
         };
     }
     
-    const velErrorsWeighted = weighErrorValues(velErrors);
-    const accelErrorsWeighted = weighErrorValues(accelErrors);
-    const jerkErrorsWeighted = weighErrorValues(jerkErrors);
+    const { weightedValues: velErrorsWeighted } = weighErrorValues(velErrors);
+    const { weightedValues: accelErrorsWeighted } = weighErrorValues(accelErrors);
+    const { weightedValues: jerkErrorsWeighted } = weighErrorValues(jerkErrors);
 
     return {
         velMAE: ComputeMAE(velErrorsWeighted),

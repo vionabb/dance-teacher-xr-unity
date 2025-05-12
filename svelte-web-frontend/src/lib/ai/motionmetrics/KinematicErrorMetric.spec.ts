@@ -19,12 +19,12 @@ describe('KinematicErrorMetric', () => {
             track,
         );
         
-        expect(summary?.summary2D?.accelMAE).toMatchInlineSnapshot('35.04371748697044');
-        expect(summary?.summary2D?.accelRMSE).toMatchInlineSnapshot('66.0219538282359');
-        expect(summary?.summary2D?.jerkMAE).toMatchInlineSnapshot('1527.287960036425');
-        expect(summary?.summary2D?.jerkRMSE).toMatchInlineSnapshot('2854.5514189008704');
-        expect(summary?.summary2D?.velMAE).toMatchInlineSnapshot('1.2096341768203411');
-        expect(summary?.summary2D?.velRMSE).toMatchInlineSnapshot('2.29461575412213');
+        expect(summary?.summary2D?.accelMAE).toMatchInlineSnapshot(`0.13088664859343946`);
+        expect(summary?.summary2D?.accelRMSE).toMatchInlineSnapshot(`0.22883839190869076`);
+        expect(summary?.summary2D?.jerkMAE).toMatchInlineSnapshot(`5.470679961827343`);
+        expect(summary?.summary2D?.jerkRMSE).toMatchInlineSnapshot(`13.053079876195707`);
+        expect(summary?.summary2D?.velMAE).toMatchInlineSnapshot(`0.004708051987392097`);
+        expect(summary?.summary2D?.velRMSE).toMatchInlineSnapshot(`0.006357906691281181`);
     });
 
     it('publishing metric outputs should not throw', ({ expect }) => {
