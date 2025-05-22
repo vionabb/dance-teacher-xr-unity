@@ -308,12 +308,12 @@ function runNonDTWMetricsOnClips(userData: StudySegmentData, referenceClip: Tikt
         "angle3D DTW Distance": angle3dDTWOutput.dtwDistance,
         "angle3D DTW Dist Avg.": angle3dDTWOutput.dtwDistance / angle3dDTWOutput.dtwPath.length,
         "angle3D warpingFactor": angle3dDTWOutput.warpingFactor,
-        "velocity 3d MAE": kinematicErrorOutput.summary3D.velsMAE,
-        "accel 3d MAE": kinematicErrorOutput.summary3D.accsMAE,
-        "jerk 3d MAE": kinematicErrorOutput.summary3D.jerksMAE,
-        "velocity 2d MAE": kinematicErrorOutput.summary2D.velsMAE,
-        "accel 2d MAE": kinematicErrorOutput.summary2D.accsMAE,
-        "jerk 2d MAE": kinematicErrorOutput.summary2D.jerksMAE,
+        "velocity 3d MAE": kinematicErrorOutput.summary3D.velMAE,
+        "accel 3d MAE": kinematicErrorOutput.summary3D.accelMAE,
+        "jerk 3d MAE": kinematicErrorOutput.summary3D.jerkMAE,
+        "velocity 2d MAE": kinematicErrorOutput.summary2D.velMAE,
+        "accel 2d MAE": kinematicErrorOutput.summary2D.accelMAE,
+        "jerk 2d MAE": kinematicErrorOutput.summary2D.jerkMAE,
     }
     return flattenedSummaries;
 }
