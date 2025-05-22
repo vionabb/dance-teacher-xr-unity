@@ -1,5 +1,6 @@
 import type { TerminalFeedbackBodyPart, TerminalFeedbackBodyPartIndex } from "$lib/model/TerminalFeedback";
 import {PoseLandmarkIds, type PoseLandmarkIndex, type Pose2DPixelLandmarks, PoseLandmarkKeys, type Pose3DLandmarkFrame } from  "$lib/webcam/mediapipe-utils";
+import type { StudySegmentData, SegmentInfo, TiktokDanceClipData } from "./motionmetrics/PoseDataTestFile";
 
 export type PoseVectorIdPair = [PoseLandmarkIndex, PoseLandmarkIndex]
 export type VectorAngleComparisonInfo = { vec1: PoseVectorIdPair, vec2: PoseVectorIdPair, rangeOfMotion: number};
@@ -521,3 +522,49 @@ export function Get3DNormalizedVector(
     const [vec_x, vec_y, vec_z] = Get3DVector(landmarks, srcLandmark, destLandmark)
     return GetPNormalizedVector([vec_x, vec_y, vec_z], 2) as [number, number, number]
 }
+
+/**
+ * Creates a track history object for user and reference clip data.
+ */
+export function createTrackHistoryForClips(userPoseData: StudySegmentData, referenceClip: TiktokDanceClipData) {
+    const fps = 30;
+    const shortestClipLength = Math.min(userPoseData.poses.length, referenceClip.poses.length);
+    return {
+        videoFrameTimesInSecs: referenceClip.poses.map((_, i) => i / fps).slice(0, shortestClipLength),
+        actualTimesInMs: referenceClip.poses.map((_, i) => i / (userPoseData.segmentInfo.performanceSpeed * fps)).slice(0, shortestClipLength),
+        ref3DFrameHistory: referenceClip.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
+        ref2DFrameHistory: referenceClip.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
+        user3DFrameHistory: userPoseData.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
+        user2DFrameHistory: referenceClip.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
+    };
+}
+
+/**
+ * Retrieves the reference clip for a given segment.
+ */
+export function getReferenceClip(segmentInfo: SegmentInfo, tiktokClipPoses: Map<string, TiktokDanceClipData[]>) {
+    return tiktokClipPoses.get(segmentInfo.danceName)?.[segmentInfo.clipNumber];
+}
+
+
+export async function* takeAsnc<T>(
+    iterable: AsyncIterable<T>,
+    n: number
+): AsyncGenerator<T, void, unknown> {
+    let count = 0;
+    for await (const item of iterable) {
+        if (count++ >= n) break;
+        yield item;
+    }
+}
+
+export async function fromAsync<T>(asyncIterable: AsyncIterable<T>, printFn?: (item: T, i: number) => void): Promise<T[]> {
+    const result: T[] = [];
+    let i = 0;
+    for await (const item of asyncIterable) {
+        result.push(item);
+        printFn?.(item, i);
+        i++;
+    }
+    return result;
+};
