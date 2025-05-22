@@ -1,93 +1,32 @@
 import { describe, it } from "vitest";
 import { readFile, writeFile } from "fs/promises";
-import { loadPoses, loadTikTokClipPoses, loadTiktokWholePoses, OtherPoseSource, Study, type StudySegmentData, type DanceName, type SegmentInfo, type TiktokDanceClipData } from "./PoseDataTestFile";
-import Skeleton3DAngleDistanceDTW from "./Skeleton3DAngleDistanceDTW";
-import type { LiveEvaluationMetric, TrackHistory } from "./MotionMetric";
-import type { Dance } from "$lib/data/dances-store";
+import fs from "fs";
 import Papa from "papaparse";
+import {
+  loadPoses,
+  OtherPoseSource,
+  Study,
+  type StudySegmentData,
+  type SegmentInfo,
+  type TiktokDanceClipData,
+  loadTikTokClipPoses,
+  loadTiktokWholePoses,
+  getClipHumanRatings,
+  loadHumanRatings
+} from "./PoseDataTestFile";
+import {
+  runLiveEvaluationMetricOnTestTrack,
+  type TestTrack
+} from "./testdata/metricTestingUtils";
+import { loadDB } from "./testdata/metricdb";
 import Qijia2DSkeletonSimilarityMetric from "./Qijia2DSkeletonSimilarityMetric";
-import TemporalAlignmentMetric from "./TemporalAlignmentMetric";
 import Jules2DSkeletonSimilarityMetric from "./Jules2DSkeletonSimilarityMetric";
-import KinematicErrorMetric from "./KinematicErrorMetric";
-import { runLiveEvaluationMetricOnTestTrack, type TestTrack } from "./testdata/metricTestingUtils";
 import Skeleton3dVectorAngleSimilarityMetric from "./Skeleton3dVectorAngleSimilarityMetric";
-import { fromAsync, takeAsnc } from "../EvaluationCommonUtils";
-
-type HumanRating = {
-    study: number;
-    dance: DanceName;
-    userId: number;
-    segmentId: number;
-    avgRatingsPercentile: number;
-    rating1: number;
-    rating2: number;
-    rating3: number;
-};
-
-function getClipHumanRatings(
-    allRatings: Awaited<ReturnType<typeof loadHumanRatings>>,
-    danceName: DanceName,
-    userId: number,
-    clipNumber: number
-) {
-    return allRatings.get(Study.Study1)?.get(danceName)?.get(userId)?.get(clipNumber);
-}
-
-/**
- * Load the user study 1 segment ratings from the csv files
- * @returns a map of dance names to a map of user IDs to a map of clip numbers to ratings
- * @example
- * ```
- * const allRatings = await loadUserStudy1SegRatings();
- * const user42Ratings = allRatings.get("mad-at-disney")?.get(42);
- * const clip1Ratings = user42Ratings?.[1];
- * const meanRating = clip1Ratings?.meanRatingPercentage;
- * 
- * # or, in a single line
- * const meanRating = (await loadUserStudy1SegRatings()).get("mad-at-disney")?.get(42)?.[1]?.meanRatingPercentage;
- * ```
- */
-async function loadHumanRatings() {
-    const filepath = "src/lib/ai/motionmetrics/testdata/humanratings.csv";
-  
-    const file = await readFile(filepath, { encoding: "utf-8" });
-    const data = await (new Promise((resolve, reject) => {
-        Papa.parse(file, {
-            header: true,
-            dynamicTyping: true,
-            complete: (results) => {
-                resolve(results.data as any as HumanRating[]);
-            },
-            error: (error: Error) => {
-                reject(error);
-            }
-        });
-    }) as Promise<HumanRating[]>);
-
-    // access a clip's ratings with allRatings.get(study)?.get(danceName)?.get(userID)?.get(clipNumber)
-    const allRatings = new Map<Study, Map<DanceName, Map<number, Map<number, HumanRating>>>>();
-
-    // create a map of ratings for easy lookup
-    data.forEach((rating) => {
-        const danceName = rating.dance as DanceName;
-        const userId = rating.userId;
-        const clipNumber = rating.segmentId;
-        const study = rating.study == 1 ? Study.Study1 : Study.Study2;
-        if (!allRatings.has(study)) {
-            allRatings.set(study, new Map<DanceName, Map<number, Map<number, HumanRating>>>());
-        }
-       
-        const danceRatings = allRatings.get(study)!.get(danceName) || new Map<number, Map<number, HumanRating>>();
-        // there are typically 5 clips, create an array so we can place ratings in the correct order
-        const ratingIndex = clipNumber;
-        const clipRatings = danceRatings.get(userId) || new Map<number, HumanRating>();
-        clipRatings.set(clipNumber, rating);
-        danceRatings.set(userId, clipRatings);
-        allRatings.get(study)!.set(danceName, danceRatings);
-    });
-
-    return allRatings;
-}
+import { fromAsync, getReferenceClip, takeAsnc } from "../EvaluationCommonUtils";
+import TemporalAlignmentMetric from "./TemporalAlignmentMetric";
+import Skeleton3DAngleDistanceDTW from "./Skeleton3DAngleDistanceDTW";
+import KinematicErrorMetric from "./KinematicErrorMetric";
+import type { TrackHistory } from "./MotionMetric";
 
 function createTrackHistoryForClips(userPoseData: StudySegmentData, referenceClip: TiktokDanceClipData) {
 
@@ -105,19 +44,10 @@ function createTrackHistoryForClips(userPoseData: StudySegmentData, referenceCli
     return trackHistory;
 }
 
-function runNonDTWMetricsOnClips(userData: StudySegmentData, referenceClip: TiktokDanceClipData) {
-    const metricsLive = {
-        qijia2D: new Qijia2DSkeletonSimilarityMetric(),
-        jules2D: new Jules2DSkeletonSimilarityMetric(),
-        vectorAngle3D: new Skeleton3dVectorAngleSimilarityMetric()
-    }
-    const metricsSummary = {
-        temporalAlignment: new TemporalAlignmentMetric(),
-        angle3dDTW: new Skeleton3DAngleDistanceDTW(),
-        kinematicError: new KinematicErrorMetric(),
-    }
+type MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => Record<string, number>;
 
-    
+function runMetricOnClip(userData: StudySegmentData, referenceClip: TiktokDanceClipData, metric: MetricRunner) {
+
     const fps = 30
     const shortestClipLength = Math.min(userData.poses.length, referenceClip.poses.length);
     const testTrack: TestTrack = {
@@ -135,60 +65,31 @@ function runNonDTWMetricsOnClips(userData: StudySegmentData, referenceClip: Tikt
     }
     const trackHistory = createTrackHistoryForClips(userData, referenceClip);
 
-    const qijia2dOutput = runLiveEvaluationMetricOnTestTrack(metricsLive.qijia2D, testTrack);
-    const jules2dOutput = runLiveEvaluationMetricOnTestTrack(metricsLive.jules2D, testTrack);
-    const vectorAngle3DOutput = runLiveEvaluationMetricOnTestTrack(metricsLive.vectorAngle3D, testTrack);
-    const temporalAlignmentOutput = metricsSummary.temporalAlignment.summarizeMetric(trackHistory);
-    const angle3dDTWOutput = metricsSummary.angle3dDTW.summarizeMetric(trackHistory);
-    const kinematicErrorOutput = metricsSummary.kinematicError.summarizeMetric(trackHistory);
-
-    // create an object flattening the formattedSummaries, with the keys prepended with the metric name
-    const flattenedSummaries = {
-        invalidFrameCout: angle3dDTWOutput.invalidFramesCount,
-        invalidPercent: angle3dDTWOutput.invalidPercent,
-        qijia2d: qijia2dOutput.summary.overallScore / 5, // scale from 0-5 to 0-1
-        jules2d: jules2dOutput.summary.overallScore,     // already scaled 0-1
-        vectorAngle3D: vectorAngle3DOutput.summary.overallScore,
-        temporalAlignmentSecs: temporalAlignmentOutput.temporalOffsetSecs,
-        "angle3D DTW Distance": angle3dDTWOutput.dtwDistance,
-        "angle3D DTW Dist Avg.": angle3dDTWOutput.dtwDistance / angle3dDTWOutput.dtwPath.length,
-        "angle3D warpingFactor": angle3dDTWOutput.warpingFactor,
-        "velocity 3d MAE": kinematicErrorOutput.summary3D.velMAE,
-        "accel 3d MAE": kinematicErrorOutput.summary3D.accelMAE,
-        "jerk 3d MAE": kinematicErrorOutput.summary3D.jerkMAE,
-        "velocity 2d MAE": kinematicErrorOutput.summary2D.velMAE,
-        "accel 2d MAE": kinematicErrorOutput.summary2D.accelMAE,
-        "jerk 2d MAE": kinematicErrorOutput.summary2D.jerkMAE,
-    }
-    return flattenedSummaries;
+    const result = metric(testTrack, trackHistory);
+    return result;
 }
 
 describe.concurrent("AllMetricsComparison", async () => {
 
     const tiktokClipPoses = await loadTikTokClipPoses();
-    function getReferenceClip(segmentInfo: SegmentInfo) {
-        return tiktokClipPoses.get(segmentInfo.danceName)?.[segmentInfo.clipNumber];
-    }
     const tiktokWholePoses = await loadTiktokWholePoses();
+    const allRatings = await loadHumanRatings();
+    const metricDb = await loadDB();
 
-
-    it.concurrent('study 1 processing', {
-        timeout: 1000 * 60 * 25, // 25 minutes
-    }, async ({ expect }) => {
+    async function updateDbWithMetric(metric: MetricRunner) {
         const allPoses = await loadPoses(Study.Study1, (clipInfo) => {
             const studyInfo = clipInfo as SegmentInfo;
             return studyInfo.study1phase == "performance"; // skip slowed down clips
         });
-        const allRatings = await loadHumanRatings();
+        
         const n = Infinity; // number of clips to process (i.e. all of them)
-
 
         //  process a clip, returning the formatted summary
         function processClip(poseData: StudySegmentData) {
-            const referenceClip = getReferenceClip(poseData.segmentInfo);
+            const referenceClip = getReferenceClip(poseData.segmentInfo, tiktokClipPoses);
             if (!referenceClip) return undefined;
-
-            const summary = runNonDTWMetricsOnClips(poseData, referenceClip);
+        
+            const summary = runMetricOnClip(poseData, referenceClip, metric);
             return summary;
         }
 
@@ -211,27 +112,125 @@ describe.concurrent("AllMetricsComparison", async () => {
                 
                 const summary = processClip(segmentData);
 
+                // yield information for the generator consumer to use
+                // to update the db with
                 yield { 
-                    ...segmentData.segmentInfo, 
-                    frameCount: segmentData.poses.length,
-                    ...summary,
-                    userId: ratings.userId,
-                    humanRating: ratings.avgRatingsPercentile, // scale from 0-3 to 0-1
-                    rating1: ratings.rating1,
-                    rating2: ratings.rating2,
-                    rating3: ratings.rating3,
+                    rowData: {
+                        ...segmentData.segmentInfo,
+                        frameCount: segmentData.poses.length,
+                        humanRating: ratings.avgRatingsPercentile, // scale from 0-3 to 0-1
+                        rating1: ratings.rating1,
+                        rating2: ratings.rating2,
+                        rating3: ratings.rating3,
+                    },
+                    metricData: summary,
                 };
             }
         }
+        
+        // TODO: update the db instead of doing csv shenanigans.
+        
+        // Load existing CSV file if it exists
+        if (fs.existsSync(csvPath)) {
+            const existingCsv = await readFile(csvPath, { encoding: "utf-8" });
+            const parsedCsv = Papa.parse(existingCsv, { header: true }) as unknown as Record<string, any>[];
+            for (const row of parsedCsv) {
+                const keys = Object.keys(row);
+                const data = Object.values(row);
+                const rowData = {};
+                for (let i = 0; i < keys.length; i++) {
+                    rowData[keys[i]] = data[i];
+                }
+                csvData.push(rowData);
+            }
+        }
+        
+        function updateCsv(csvPath: string, updates: {keys: Record<string, any>, data: Record<string, any>}[]) {
 
-        const processedClips = await fromAsync(processClips());
-        expect(processedClips).not.toBe(null);
-        expect(processedClips?.length).toBeGreaterThan(0);
+            
+        }
+
+        const updatesToMake = await fromAsync(processClips());
 
         // write csv
         const csv = Papa.unparse(processedClips);
         await writeFile("artifacts/study1-usersegments-metrics-2.csv", csv, {
             encoding: "utf-8",
         });
+    }
+
+    it('angle3dDTWOutput', {}, async ({ expect }) => {
+        const metric = new Skeleton3DAngleDistanceDTW();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+            const summary = metric.summarizeMetric(trackHistory);
+            return {
+                invalidFrameCount: summary.invalidFramesCount,
+                invalidPercent: summary.invalidPercent,
+                "angle3D DTW Distance": summary.dtwDistance,
+                "angle3D DTW Dist Avg.": summary.dtwDistance / summary.dtwPath.length,
+                "angle3D warpingFactor": summary.warpingFactor,
+            }
+        }
+        await updateCsvWithMetric(metricRunner);
+    });
+
+    it('qijia2d', {}, async ({ expect }) => {
+        const metric = new Qijia2DSkeletonSimilarityMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+            const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
+            return {
+                qijia2d: summary.summary.overallScore / 5, // scale from 0-5 to 0-1
+            }
+        }
+        await updateCsvWithMetric(metricRunner);
+    });
+
+    it('jules2d', {}, async ({ expect }) => {
+        const metric = new Jules2DSkeletonSimilarityMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+            const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
+            return {
+                jules2d: summary.summary.overallScore,     // already scaled 0-1
+            }
+        }
+        await updateCsvWithMetric(metricRunner);
+    });
+
+    it('vectorAngle3D', {}, async ({ expect }) => {
+        const metric = new Skeleton3dVectorAngleSimilarityMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+            const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
+            return {
+                vectorAngle3D: summary.summary.overallScore,
+            }
+        }
+        await updateCsvWithMetric(metricRunner);
+    });
+
+    it('temporalAlignment', {}, async ({ expect }) => {
+        const metric = new TemporalAlignmentMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+            const summary = metric.summarizeMetric(trackHistory);
+            return {
+                temporalAlignmentSecs: summary.temporalOffsetSecs,
+            }
+        }
+        await updateCsvWithMetric(metricRunner);
+    });
+
+    it('kinematicsError', {}, async ({ expect }) => {
+        const metric = new KinematicErrorMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+            const summary = metric.summarizeMetric(trackHistory);
+            return {
+                "velocity 3d MAE": summary.summary3D.velMAE ?? NaN,
+                "accel 3d MAE": summary.summary3D.accelMAE ?? NaN,
+                "jerk 3d MAE": summary.summary3D.jerkMAE ?? NaN,
+                "velocity 2d MAE": summary.summary2D.velMAE ?? NaN,
+                "accel 2d MAE": summary.summary2D.accelMAE ?? NaN,
+                "jerk 2d MAE": summary.summary2D.jerkMAE ?? NaN,
+            }
+        }
+        await updateCsvWithMetric(metricRunner);
     });
 });

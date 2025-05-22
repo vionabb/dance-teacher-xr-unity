@@ -348,3 +348,80 @@ export async function loadTiktokWholePoses() {
     const poseMap = new Map(studyDances.map((danceData) => [danceData.danceName, danceData]));
     return poseMap;
 }
+
+
+export type HumanRating = {
+    study: number;
+    dance: DanceName;
+    userId: number;
+    segmentId: number;
+    avgRatingsPercentile: number;
+    rating1: number;
+    rating2: number;
+    rating3: number;
+};
+
+export function getClipHumanRatings(
+    allRatings: Awaited<ReturnType<typeof loadHumanRatings>>,
+    danceName: DanceName,
+    userId: number,
+    clipNumber: number
+) {
+    return allRatings.get(Study.Study1)?.get(danceName)?.get(userId)?.get(clipNumber);
+}
+
+/**
+ * Load the user study 1 segment ratings from the csv files
+ * @returns a map of dance names to a map of user IDs to a map of clip numbers to ratings
+ * @example
+ * ```
+ * const allRatings = await loadUserStudy1SegRatings();
+ * const user42Ratings = allRatings.get("mad-at-disney")?.get(42);
+ * const clip1Ratings = user42Ratings?.[1];
+ * const meanRating = clip1Ratings?.meanRatingPercentage;
+ * 
+ * # or, in a single line
+ * const meanRating = (await loadUserStudy1SegRatings()).get("mad-at-disney")?.get(42)?.[1]?.meanRatingPercentage;
+ * ```
+ */
+export async function loadHumanRatings() {
+    const filepath = "src/lib/ai/motionmetrics/testdata/humanratings.csv";
+  
+    const file = await readFile(filepath, { encoding: "utf-8" });
+    const data = await (new Promise((resolve, reject) => {
+        Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            complete: (results) => {
+                resolve(results.data as any as HumanRating[]);
+            },
+            error: (error: Error) => {
+                reject(error);
+            }
+        });
+    }) as Promise<HumanRating[]>);
+
+    // access a clip's ratings with allRatings.get(study)?.get(danceName)?.get(userID)?.get(clipNumber)
+    const allRatings = new Map<Study, Map<DanceName, Map<number, Map<number, HumanRating>>>>();
+
+    // create a map of ratings for easy lookup
+    data.forEach((rating) => {
+        const danceName = rating.dance as DanceName;
+        const userId = rating.userId;
+        const clipNumber = rating.segmentId;
+        const study = rating.study == 1 ? Study.Study1 : Study.Study2;
+        if (!allRatings.has(study)) {
+            allRatings.set(study, new Map<DanceName, Map<number, Map<number, HumanRating>>>());
+        }
+       
+        const danceRatings = allRatings.get(study)!.get(danceName) || new Map<number, Map<number, HumanRating>>();
+        // there are typically 5 clips, create an array so we can place ratings in the correct order
+        const ratingIndex = clipNumber;
+        const clipRatings = danceRatings.get(userId) || new Map<number, HumanRating>();
+        clipRatings.set(clipNumber, rating);
+        danceRatings.set(userId, clipRatings);
+        allRatings.get(study)!.set(danceName, danceRatings);
+    });
+
+    return allRatings;
+}
