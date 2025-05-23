@@ -12,7 +12,8 @@ import {
   loadTikTokClipPoses,
   loadTiktokWholePoses,
   getClipHumanRatings,
-  loadHumanRatings
+  loadHumanRatings,
+  type HumanRating
 } from "./PoseDataTestFile";
 import {
   runLiveEvaluationMetricOnTestTrack,
@@ -44,32 +45,32 @@ function createTrackHistoryForClips(userPoseData: StudySegmentData, referenceCli
     return trackHistory;
 }
 
-type MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => Record<string, number>;
+type MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings?: HumanRating | undefined) => Record<string, number>;
 
-function runMetricOnClip(userData: StudySegmentData, referenceClip: TiktokDanceClipData, metric: MetricRunner) {
+function runMetricOnClip(segmentData: StudySegmentData, referenceClip: TiktokDanceClipData, ratings: HumanRating | undefined, metric: MetricRunner) {
 
     const fps = 30
-    const shortestClipLength = Math.min(userData.poses.length, referenceClip.poses.length);
+    const shortestClipLength = Math.min(segmentData.poses.length, referenceClip.poses.length);
     const testTrack: TestTrack = {
-        id: `${userData.segmentInfo.userId}_${userData.segmentInfo.clipNumber}`,
-        danceRelativeStem: userData.segmentInfo.danceName,
-        segmentDescription: userData.segmentInfo.clipNumber.toString(),
+        id: `${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.clipNumber}`,
+        danceRelativeStem: segmentData.segmentInfo.danceName,
+        segmentDescription: segmentData.segmentInfo.clipNumber.toString(),
         creationDate: "",
-        trackDescription: userData.segmentInfo.danceName,
+        trackDescription: segmentData.segmentInfo.danceName,
         videoFrameTimesInSecs: referenceClip.poses.map((_, i) => i / fps).slice(0, shortestClipLength),
-        actualTimesInMs: referenceClip.poses.map((_, i) => i / (fps * userData.segmentInfo.performanceSpeed)).slice(0, shortestClipLength),
+        actualTimesInMs: referenceClip.poses.map((_, i) => i / (fps * segmentData.segmentInfo.performanceSpeed)).slice(0, shortestClipLength),
         ref2dPoses: referenceClip.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
         ref3dPoses: referenceClip.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
-        user2dPoses: userData.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
-        user3dPoses: userData.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
+        user2dPoses: segmentData.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
+        user3dPoses: segmentData.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
     }
-    const trackHistory = createTrackHistoryForClips(userData, referenceClip);
+    const trackHistory = createTrackHistoryForClips(segmentData, referenceClip);
 
-    const result = metric(testTrack, trackHistory);
+    const result = metric(testTrack, trackHistory, ratings);
     return result;
 }
 
-describe.concurrent("AllMetricsComparison", async () => {
+describe.concurrent("AllMetricsComparison", {}, async () => {
 
     const tiktokClipPoses = await loadTikTokClipPoses();
     const tiktokWholePoses = await loadTiktokWholePoses();
@@ -85,11 +86,11 @@ describe.concurrent("AllMetricsComparison", async () => {
         const n = Infinity; // number of clips to process (i.e. all of them)
 
         //  process a clip, returning the formatted summary
-        function processClip(poseData: StudySegmentData) {
-            const referenceClip = getReferenceClip(poseData.segmentInfo, tiktokClipPoses);
+        function processClip(studySegmentData: StudySegmentData, ratings: HumanRating | undefined) {
+            const referenceClip = getReferenceClip(studySegmentData.segmentInfo, tiktokClipPoses);
             if (!referenceClip) return undefined;
         
-            const summary = runMetricOnClip(poseData, referenceClip, metric);
+            const summary = runMetricOnClip(studySegmentData, referenceClip, ratings, metric);
             return summary;
         }
 
@@ -110,7 +111,7 @@ describe.concurrent("AllMetricsComparison", async () => {
                     continue;
                 }
                 
-                const summary = processClip(segmentData);
+                const summary = processClip(segmentData, ratings);
 
                 // yield information for the generator consumer to use
                 // to update the db with
@@ -118,10 +119,10 @@ describe.concurrent("AllMetricsComparison", async () => {
                     rowData: {
                         ...segmentData.segmentInfo,
                         frameCount: segmentData.poses.length,
-                        humanRating: ratings.avgRatingsPercentile, // scale from 0-3 to 0-1
-                        rating1: ratings.rating1,
-                        rating2: ratings.rating2,
-                        rating3: ratings.rating3,
+                        // humanRating: ratings.avgRatingsPercentile, // scale from 0-3 to 0-1
+                        // rating1: ratings.rating1,
+                        // rating2: ratings.rating2,
+                        // rating3: ratings.rating3,
                     },
                     metricData: summary,
                 };
@@ -237,10 +238,23 @@ describe.concurrent("AllMetricsComparison", async () => {
         await updateDbWithMetric('kinematicsError', metricRunner);
     });
 
+    it('humanRating', { timeout: testTimeout }, async ({ expect }) => {
+        const metric = new KinematicErrorMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings: HumanRating | undefined) => {
+            return {
+                humanRating: ratings?.avgRatingsPercentile ?? NaN,
+                rating1: ratings?.rating1 ?? NaN,
+                rating2: ratings?.rating2 ?? NaN,
+                rating3: ratings?.rating3 ?? NaN,
+            }
+        }
+        await updateDbWithMetric('humanRating', metricRunner);
+    });
+
+
     it('exportDb', {}, async ({ expect }) => {
         await exportCSV(metricDb);
         console.log("Exported db to CSV");
-
     });
 
     afterAll(() => {

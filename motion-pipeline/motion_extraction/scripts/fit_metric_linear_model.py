@@ -20,6 +20,8 @@ from sklearn.preprocessing import MinMaxScaler
 import argparse
 import pathlib
 
+CSV_COL_NAMES = ["userId", "danceId", "studyName", "workflowId", "clipNumber", "collectionId", "danceName", "condition", "performanceSpeed", "frameCount", "qijia2d", "jules2d", "vectorAngle3D", "temporalAlignmentSecs", "invalidFrameCount", "angle3D", "invalidPercent", "angle3D_warping_factor", "angle3D_dtw_distance", "angle3D_dtw_dist_avg", "velocity_3d_MAE", "accel_3d_MAE", "jerk_2d_MAE", "jerk_3d_MAE", "accel_2d_MAE", "velocity_2d_MAE"]
+CSV_PATH = ["../svelte-web-frontend/artifacts/motion_metrics.csv"]
 parser = argparse.ArgumentParser(description="Fit a linear model to predict human ratings from metrics.")
 parser.add_argument("--data_path", type=pathlib.Path, default="", help="Path to the CSV data file.")
 parser.add_argument("--target_col", type=pathlib.Path, default="", help="Column name for human ratings.")
