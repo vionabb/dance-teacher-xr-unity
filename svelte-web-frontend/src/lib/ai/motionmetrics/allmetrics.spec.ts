@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { afterAll, describe, it } from "vitest";
 import { readFile, writeFile } from "fs/promises";
 import fs from "fs";
 import Papa from "papaparse";
@@ -18,7 +18,7 @@ import {
   runLiveEvaluationMetricOnTestTrack,
   type TestTrack
 } from "./testdata/metricTestingUtils";
-import { loadDB } from "./testdata/metricdb";
+import { ensureMetricColumnInTable, exportCSV, loadDB, upsertMetricDbRow, type RowData } from "./testdata/metricdb";
 import Qijia2DSkeletonSimilarityMetric from "./Qijia2DSkeletonSimilarityMetric";
 import Jules2DSkeletonSimilarityMetric from "./Jules2DSkeletonSimilarityMetric";
 import Skeleton3dVectorAngleSimilarityMetric from "./Skeleton3dVectorAngleSimilarityMetric";
@@ -76,7 +76,7 @@ describe.concurrent("AllMetricsComparison", async () => {
     const allRatings = await loadHumanRatings();
     const metricDb = await loadDB();
 
-    async function updateDbWithMetric(metric: MetricRunner) {
+    async function updateDbWithMetric(metricName: string, metric: MetricRunner) {
         const allPoses = await loadPoses(Study.Study1, (clipInfo) => {
             const studyInfo = clipInfo as SegmentInfo;
             return studyInfo.study1phase == "performance"; // skip slowed down clips
@@ -128,35 +128,37 @@ describe.concurrent("AllMetricsComparison", async () => {
             }
         }
         
-        // TODO: update the db instead of doing csv shenanigans.
         
-        // Load existing CSV file if it exists
-        if (fs.existsSync(csvPath)) {
-            const existingCsv = await readFile(csvPath, { encoding: "utf-8" });
-            const parsedCsv = Papa.parse(existingCsv, { header: true }) as unknown as Record<string, any>[];
-            for (const row of parsedCsv) {
-                const keys = Object.keys(row);
-                const data = Object.values(row);
-                const rowData = {};
-                for (let i = 0; i < keys.length; i++) {
-                    rowData[keys[i]] = data[i];
+        // Update db with this new metric row
+        let clipCount = 0;
+        let hasEnsuredColumnsInTable = false;
+
+        for await (const clipData of processClips()) {
+            if (!clipData.metricData) { continue; }
+
+            if (!hasEnsuredColumnsInTable) {
+                for(const key in clipData.metricData) {
+                   ensureMetricColumnInTable(metricDb, key);
                 }
-                csvData.push(rowData);
+                hasEnsuredColumnsInTable = true;
             }
-        }
-        
-        function updateCsv(csvPath: string, updates: {keys: Record<string, any>, data: Record<string, any>}[]) {
 
-            
-        }
-
-        const updatesToMake = await fromAsync(processClips());
-
-        // write csv
-        const csv = Papa.unparse(processedClips);
-        await writeFile("artifacts/study1-usersegments-metrics-2.csv", csv, {
-            encoding: "utf-8",
-        });
+            clipCount++;
+            const rowData: RowData = {
+                userId: clipData.rowData.userId,
+                danceId: clipData.rowData.danceName,
+                studyName: Study.Study1,
+                workflowId: clipData.rowData.workflowId,
+                clipNumber: clipData.rowData.clipNumber,
+                collectionId: clipData.rowData.study1phase ?? "N/A",
+                danceName: clipData.rowData.danceName,
+                condition: clipData.rowData.condition,
+                performanceSpeed: clipData.rowData.performanceSpeed,
+                frameCount: clipData.rowData.frameCount
+            }
+            upsertMetricDbRow(metricDb, rowData, clipData.metricData);
+            console.log(`\t[${clipCount}]\tUpdated db with ${metricName} for ${rowData.userId}_${rowData.danceName}_${rowData.clipNumber}`); 
+        }        
     }
 
     it('angle3dDTWOutput', {}, async ({ expect }) => {
@@ -171,7 +173,7 @@ describe.concurrent("AllMetricsComparison", async () => {
                 "angle3D warpingFactor": summary.warpingFactor,
             }
         }
-        await updateCsvWithMetric(metricRunner);
+        await updateDbWithMetric('anle3dDTW', metricRunner);
     });
 
     it('qijia2d', {}, async ({ expect }) => {
@@ -182,7 +184,7 @@ describe.concurrent("AllMetricsComparison", async () => {
                 qijia2d: summary.summary.overallScore / 5, // scale from 0-5 to 0-1
             }
         }
-        await updateCsvWithMetric(metricRunner);
+        await updateDbWithMetric('qijia2d', metricRunner);
     });
 
     it('jules2d', {}, async ({ expect }) => {
@@ -193,7 +195,7 @@ describe.concurrent("AllMetricsComparison", async () => {
                 jules2d: summary.summary.overallScore,     // already scaled 0-1
             }
         }
-        await updateCsvWithMetric(metricRunner);
+        await updateDbWithMetric('jules2d', metricRunner);
     });
 
     it('vectorAngle3D', {}, async ({ expect }) => {
@@ -204,7 +206,7 @@ describe.concurrent("AllMetricsComparison", async () => {
                 vectorAngle3D: summary.summary.overallScore,
             }
         }
-        await updateCsvWithMetric(metricRunner);
+        await updateDbWithMetric('vectorAngle3D', metricRunner);
     });
 
     it('temporalAlignment', {}, async ({ expect }) => {
@@ -215,7 +217,7 @@ describe.concurrent("AllMetricsComparison", async () => {
                 temporalAlignmentSecs: summary.temporalOffsetSecs,
             }
         }
-        await updateCsvWithMetric(metricRunner);
+        await updateDbWithMetric('temporalAlignment', metricRunner);
     });
 
     it('kinematicsError', {}, async ({ expect }) => {
@@ -231,6 +233,20 @@ describe.concurrent("AllMetricsComparison", async () => {
                 "jerk 2d MAE": summary.summary2D.jerkMAE ?? NaN,
             }
         }
-        await updateCsvWithMetric(metricRunner);
+        await updateDbWithMetric('kinematicsError', metricRunner);
+    });
+
+    it('exportDb', {}, async ({ expect }) => {
+        exportCSV(metricDb);
+        console.log("Exported db to CSV");
+
+    });
+
+    afterAll(() => {
+        // Close the database connection to prevent resource leaks
+        if (metricDb) {
+            metricDb.close();
+            console.log("Database connection closed");
+        }
     });
 });

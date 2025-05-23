@@ -9,9 +9,14 @@ import sqlite3 from "sqlite3";
 import { readFile, writeFile } from "fs/promises";
 import fs from "fs";
 import Papa from "papaparse";
+import { promisify } from "util";
 
 const DB_NAME = "motion_metrics.db"; // hosted at cwd
 const TABLE_NAME = "motion_metrics";
+
+const dbRun = promisify(sqlite3.Database.prototype.run);
+const dbGet = promisify(sqlite3.Database.prototype.get);
+const dbAll = promisify(sqlite3.Database.prototype.all);
 
 type ID_COLS = {
     userId: number;
@@ -131,6 +136,27 @@ export type RowData = {
 }
 
 /**
+ * Add a column to the motion metrics table if it doesn't exist (type=REAL)
+ * @param db Metric Database
+ * @param columnName The name of the column to ensure exists
+ */
+export function ensureMetricColumnInTable(db: sqlite3.Database, columnName: string) {
+    const sql = `ALTER TABLE ${TABLE_NAME} ADD COLUMN ${columnName} REAL`;
+
+    db.run(sql, (err: any) => {
+        if (err) {
+            if (err.message.includes("duplicate column name")) {
+                return; // Column already exists, do nothing
+            } else {
+                console.error('Error adding column ' + err.message);
+            }
+        } else {
+            console.log(`Column ${columnName} added to metricDB successfully.`);
+        }
+    });
+}
+
+/**
  * Add or update a motion metric row in the database. Will create a column for each
  * entry in the metricData object if it doesn't exist. Otherwise, it will be updated.
  * Columns not present for this metric wil be left alone.
@@ -138,8 +164,44 @@ export type RowData = {
  * @param rowData Fixed motion clip data (not from a motion metric)
  * @param metricData Computed metric data (from a motion metric)
  */
-export async function upsertMetricRow(db: sqlite3.Database, rowData: RowData, metricData: Record<string, number>) {
+export async function upsertMetricDbRow(db: sqlite3.Database, rowData: RowData, metricData: Record<string, number>) {
     
+    const { userId, danceId, studyName, workflowId, clipNumber, collectionId } = rowData;
+
+    // Check if the row already exists
+    const sqlCheck = `SELECT * FROM ${TABLE_NAME} WHERE userId = ? AND danceId = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
+    db.get(sqlCheck, [userId, danceId, workflowId, clipNumber, collectionId], (err: any, row: any) => {
+        if (err) {
+            console.error('Error checking row existence ' + err.message);
+            return;
+        }
+
+        if (row) {
+            // Row exists, update it
+            const updateSql = `UPDATE ${TABLE_NAME} SET ${Object.keys(metricData).map(key => `${key} = ?`).join(', ')} WHERE userId = ? AND danceId = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
+            const params = [...Object.values(metricData), userId, danceId, workflowId, clipNumber, collectionId];
+            db.run(updateSql, params, (err: any) => {
+                if (err) {
+                    console.error('Error updating row ' + err.message);
+                } else {
+                    console.log('Row updated successfully.');
+                }
+            });
+        } else {
+            // Row does not exist, insert it
+            const insertSql = `INSERT INTO ${TABLE_NAME} (${Object.keys(rowData).concat(Object.keys(metricData)).join(', ')}) VALUES (${[...Array(Object.keys(rowData).length + Object.keys(metricData).length)].map(() => '?').join(', ')})`;
+            const params = [...Object.values(rowData), ...Object.values(metricData)];
+            db.run(insertSql, params, (err: any) => {
+                if (err) {
+                    console.error('Error inserting row ' + err.message);
+                } else {
+                    // no-op
+                    // console.log('Row inserted successfully.');
+                }
+            });
+        }
+    });
+
 }
 
 export async function exportCSV(db: sqlite3.Database) {
