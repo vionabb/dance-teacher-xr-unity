@@ -34,7 +34,9 @@ export function getFrameError(vecs: UserRefPair<VecWithVisibility[]>): ScalarWit
     });
 }
 
-export function calculateJointVels<T extends Pose2DPixelLandmarks | Pose3DLandmarkFrame>(pose: T, pPose: T, dt: number, scale: number) {
+export function calculateJointVels<T extends Pose2DPixelLandmarks | Pose3DLandmarkFrame>(pose: T, pPose: T, dt: number, scale: number, opts?: {
+    visibilityBehavior?: 'avg' | 'min',
+}) {
     const is2D = getPoseType(pose) === '2D';
     return pose.map((landmark, j) => {
         const prevLandmark = pPose[j];
@@ -42,7 +44,13 @@ export function calculateJointVels<T extends Pose2DPixelLandmarks | Pose3DLandma
         const x = (landmark.x - prevLandmark.x) / denominator;
         const y = (landmark.y - prevLandmark.y) / denominator;
         let velocity: number[];
-        const avgVisibility = 0.5 * ((prevLandmark.visibility ?? 1.0) + (landmark.visibility ?? 1.0));
+        const prevVisibility = prevLandmark.visibility ?? 1.0;
+        const curVisibility = landmark.visibility ?? 1.0;
+        const visibilityBehavior = opts?.visibilityBehavior ?? 'avg';
+        const visibility = visibilityBehavior === 'avg' ?
+            0.5 * (prevVisibility + curVisibility) :
+            Math.min(prevVisibility, curVisibility);
+
         if (is2D) {
             velocity = [x, y];
         } else {
@@ -54,7 +62,7 @@ export function calculateJointVels<T extends Pose2DPixelLandmarks | Pose3DLandma
         }
         return {
             vals: velocity,
-            visibility: avgVisibility,
+            visibility,
         } as VecWithVisibility;
     });
 }
@@ -68,7 +76,9 @@ export function calculateJointVels<T extends Pose2DPixelLandmarks | Pose3DLandma
  * @param dt The time delta between the two frames
  * @returns The array of joint metrics representing the instantaneous derivitive.
  */
-export function calculateJointDerivs(cur: VecWithVisibility[], prev: VecWithVisibility[], dt: number) {
+export function calculateJointDerivs(cur: VecWithVisibility[], prev: VecWithVisibility[], dt: number, opts?: {
+    visibilityBehavior?: 'avg' | 'min',
+}) {
     if (cur.length !== prev.length) throw new Error("Mismatched array lengths between current and previous joint metrics.");
 
     return cur.map((curVec, j) => {
@@ -76,13 +86,17 @@ export function calculateJointDerivs(cur: VecWithVisibility[], prev: VecWithVisi
         if (curVec.vals.length !== prevVec.vals.length) {
             throw new Error(`Mismatched array lengths between current and previous joint metrics.`);
         }
+        const behavior = opts?.visibilityBehavior ?? 'avg';
+        const visibility = behavior === 'avg' ?
+            0.5 * ((curVec.visibility ?? 1.0) + (prevVec.visibility ?? 1.0)) :
+            Math.min(curVec.visibility ?? 1.0, prevVec.visibility ?? 1.0);
 
         return {
             vals: curVec.vals.map((val, i) => {
                 const prevVal = prevVec.vals[i];
                 return (val - prevVal) / dt;
             }),
-            visibility: (curVec.visibility + prevVec.visibility) / 2,
+            visibility,
         } as VecWithVisibility;
     });
 }
@@ -111,10 +125,11 @@ export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3D
     opts?: {
         scaleBehavior?: 'none' | 'scaleByFrame',
         scaleIndicatorFn?: ((pose: T) => number) | UserRefPair<(pose:T) => number>,
+        visibilityBehavior?: 'avg' | 'min',
     }
 ) {
-    const { scaleBehavior = 'none' } = opts || {};
-
+    const { scaleBehavior = 'none', visibilityBehavior = 'avg' } = opts || {};
+    
     if (!matchingUserPoses || !referencePoses || !frameTimes) {
         throw new Error("Invalid input data. Either matchingUserPoses or referencePoses is null.");
     }
@@ -195,22 +210,22 @@ export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3D
                 if (pPoses) {
                     const pUserPose = pPoses.user;
                     const pRefPose = pPoses.ref;
-                    const usrVelocities = calculateJointVels(curPoses.user, pUserPose, dt, usrFrameScale);
-                    const refVelocities = calculateJointVels(curPoses.ref, pRefPose, dt, refFrameScale);
+                    const usrVelocities = calculateJointVels(curPoses.user, pUserPose, dt, usrFrameScale, { visibilityBehavior });
+                    const refVelocities = calculateJointVels(curPoses.ref, pRefPose, dt, refFrameScale, { visibilityBehavior });
                     curVelocities = { user: usrVelocities, ref: refVelocities };
                     curVelocitiesError = getFrameError(curVelocities)
                 }
 
                 if (pVelocities && curVelocities) {
-                    const usrAccelerations = calculateJointDerivs(pVelocities.user, curVelocities.user, dt);
-                    const refAccelerations = calculateJointDerivs(pVelocities.ref, curVelocities.ref, dt);
+                    const usrAccelerations = calculateJointDerivs(pVelocities.user, curVelocities.user, dt, { visibilityBehavior });
+                    const refAccelerations = calculateJointDerivs(pVelocities.ref, curVelocities.ref, dt, { visibilityBehavior });
                     curAccelerations = { user: usrAccelerations, ref: refAccelerations };
                     curAccelerationsError = getFrameError(curAccelerations);
                 }
 
                 if (pAccelerations && curAccelerations) {
-                    const usrJerks = calculateJointDerivs(pAccelerations.user, curAccelerations.user, dt);
-                    const refJerks = calculateJointDerivs(pAccelerations.ref, curAccelerations.ref, dt);
+                    const usrJerks = calculateJointDerivs(pAccelerations.user, curAccelerations.user, dt, { visibilityBehavior });
+                    const refJerks = calculateJointDerivs(pAccelerations.ref, curAccelerations.ref, dt, { visibilityBehavior });
 
                     curJerks = { user: usrJerks, ref: refJerks };
                     curJerksError = getFrameError(curJerks);
@@ -280,7 +295,16 @@ export function calculateKinematicErrorDescriptors(
         let avgVisibility: number = 0;
 
         if (visibilityBehavior === 'none') {
-            weightedVals= allFrames.map((frameVals) => frameVals.map((v, landmark_i) => v.value));
+            weightedVals = allFrames.map((frameVals) => {
+                let frameVisibility = 0;
+                const vals = frameVals.map((v, landmark_i) => {
+                    frameVisibility += v.visibility;
+                    return v.value
+                })
+                avgVisibility += frameVisibility / numLandmarks;
+                return vals;
+            });
+            avgVisibility /= allFrames.length;
         }
         else if (visibilityBehavior === 'scale') {
             let visibilityTotals = new Array(numLandmarks).fill(0);
@@ -294,6 +318,7 @@ export function calculateKinematicErrorDescriptors(
                     // Divide by the total visibility to rescale the values
                     return v / visibilityTotals[landmark_i];
                 }));
+            avgVisibility = visibilityTotals.reduce((a, b) => a + b, 0) / (numLandmarks * allFrames.length);
         } else {
             throw new Error(`Invalid visibilityBehavior: ${visibilityBehavior}`);
         }

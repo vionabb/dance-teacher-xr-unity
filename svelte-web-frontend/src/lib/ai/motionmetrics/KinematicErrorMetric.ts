@@ -47,7 +47,7 @@ export default class KinematicErrorMetric implements SummaryMetric<KinematicErro
         //   * Define & document behavior for when frames are repeated or visbility is missing
         //       > repeated frames are ignored!
         //   * Report visibility in kinematic metric computations
-        //   * Consider adopting "min-visibility" behavior when computing derivatives and/or when computing errors.
+        //   * ✅ Consider adopting "min-visibility" behavior when computing derivatives and/or when computing errors.
         //   * Add tests for these cases
         //   * Validate the test in the test track, make sure all visibilty values etc are importing correctly
         //   * Support output of the trends from the metric, perhaps by including the raw kinematic values in the 
