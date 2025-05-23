@@ -9,14 +9,39 @@ import sqlite3 from "sqlite3";
 import { readFile, writeFile } from "fs/promises";
 import fs from "fs";
 import Papa from "papaparse";
-import { promisify } from "util";
 
 const DB_NAME = "motion_metrics.db"; // hosted at cwd
 const TABLE_NAME = "motion_metrics";
 
-const dbRun = promisify(sqlite3.Database.prototype.run);
-const dbGet = promisify(sqlite3.Database.prototype.get);
-const dbAll = promisify(sqlite3.Database.prototype.all);
+// Helper function to promisify database operations for a specific database instance
+function getPromisifiedDb(db: sqlite3.Database) {
+    return {
+        run: (sql: string, ...params: any[]) => {
+            return new Promise<void>((resolve, reject) => {
+                db.run(sql, params, function(this: sqlite3.RunResult, err: Error | null) {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
+        },
+        get: (sql: string, ...params: any[]) => {
+            return new Promise((resolve, reject) => {
+                db.get(sql, params, (err: Error | null, row: any) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+            });
+        },
+        all: (sql: string, ...params: any[]) => {
+            return new Promise((resolve, reject) => {
+                db.all(sql, params, (err: Error | null, rows: any[]) => {
+                    if (err) reject(err);
+                    else resolve(rows);
+                });
+            });
+        }
+    };
+}
 
 type ID_COLS = {
     userId: number;
@@ -39,59 +64,48 @@ type FIXED_COLS = ID_COLS & {
 // each metric that is run. Metrics can add multiple columns if they 
 // output multiple quantitative values for a single metric.
 async function createTableIfNecessary(db: sqlite3.Database) {
+    const promiseDb = getPromisifiedDb(db);
 
-    // abort if the table already exists
-    const tableExists = await new Promise((resolve) => {
-        db.get(`SELECT name FROM sqlite_master WHERE type='table' AND name='${TABLE_NAME}'`, (err: any, row: any) => {
-            if (err) {
-                console.error('Error checking table existence ' + err.message);
-                resolve(false);
-            } else {
-                resolve(row !== undefined);
-            }
-        });
-    }) as boolean;
-
-    if (tableExists) {
-        console.log('Table already exists, skipping creation.');
-        return;
-    }
-
-    const sql = `
-        CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
-            userId INTEGER,
-            danceId TEXT,
-            studyName TEXT,
-            workflowId TEXT,
-            clipNumber INTEGER,
-            collectionId TEXT,
-            danceName TEXT,
-            condition TEXT,
-            performanceSpeed REAL,
-            frameCount INTEGER
+    try {
+        // Check if table exists
+        const row = await promiseDb.get(
+            `SELECT name FROM sqlite_master WHERE type='table' AND name='${TABLE_NAME}'`
         );
-    `;
 
-    db.run(sql, (err: any) => {
-        if (err) {
-            console.error('Error creating table ' + err.message);
-        } else {
-            console.log('Table created or already exists.');
+        if (row !== undefined) {
+            console.log('Table already exists, skipping creation.');
+            return;
         }
-    });
 
-    // Now, define the composite primary key constraint:
-    const compositeKeyConstraint = "PRIMARY KEY (userId, danceId, workflowId, clipNumber, collectionId)";
+        // Create table
+        const sql = `
+            CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
+                userId INTEGER,
+                danceId TEXT,
+                studyName TEXT,
+                workflowId TEXT,
+                clipNumber INTEGER,
+                collectionId TEXT,
+                danceName TEXT,
+                condition TEXT,
+                performanceSpeed REAL,
+                frameCount INTEGER
+            );
+        `;
 
-    const addConstraintSQL = `ALTER TABLE ${TABLE_NAME} ADD CONSTRAINT ${compositeKeyConstraint};`;
+        await promiseDb.run(sql);
+        console.log('Table created successfully.');
 
-    db.run(addConstraintSQL, (err: any) => {
-        if (err) {
-            console.error('Error adding composite primary key constraint ' + err.message);
-        } else {
-            console.log('Composite primary key constraint added.');
-        }
-    });
+        // Add composite primary key constraint
+        const compositeKeyConstraint = "PRIMARY KEY (userId, danceId, workflowId, clipNumber, collectionId)";
+        const addConstraintSQL = `ALTER TABLE ${TABLE_NAME} ADD CONSTRAINT ${compositeKeyConstraint};`;
+        
+        await promiseDb.run(addConstraintSQL);
+        console.log('Composite primary key constraint added.');
+    } catch (err) {
+        console.error('Error in createTableIfNecessary:', err);
+        throw err;
+    }
 }
 
 export async function loadDB() {
@@ -140,20 +154,20 @@ export type RowData = {
  * @param db Metric Database
  * @param columnName The name of the column to ensure exists
  */
-export function ensureMetricColumnInTable(db: sqlite3.Database, columnName: string) {
+export async function ensureMetricColumnInTable(db: sqlite3.Database, columnName: string) {
+    const promiseDb = getPromisifiedDb(db);
     const sql = `ALTER TABLE ${TABLE_NAME} ADD COLUMN ${columnName} REAL`;
 
-    db.run(sql, (err: any) => {
-        if (err) {
-            if (err.message.includes("duplicate column name")) {
-                return; // Column already exists, do nothing
-            } else {
-                console.error('Error adding column ' + err.message);
-            }
-        } else {
-            console.log(`Column ${columnName} added to metricDB successfully.`);
+    try {
+        await promiseDb.run(sql);
+        console.log(`Column ${columnName} added to metricDB successfully.`);
+    } catch (err: any) {
+        if (err.message.includes("duplicate column name")) {
+            return; // Column already exists, do nothing
         }
-    });
+        console.error('Error adding column:', err);
+        throw err;
+    }
 }
 
 /**
@@ -165,42 +179,30 @@ export function ensureMetricColumnInTable(db: sqlite3.Database, columnName: stri
  * @param metricData Computed metric data (from a motion metric)
  */
 export async function upsertMetricDbRow(db: sqlite3.Database, rowData: RowData, metricData: Record<string, number>) {
-    
+    const promiseDb = getPromisifiedDb(db);
     const { userId, danceId, studyName, workflowId, clipNumber, collectionId } = rowData;
 
     // Check if the row already exists
     const sqlCheck = `SELECT * FROM ${TABLE_NAME} WHERE userId = ? AND danceId = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
-    db.get(sqlCheck, [userId, danceId, workflowId, clipNumber, collectionId], (err: any, row: any) => {
-        if (err) {
-            console.error('Error checking row existence ' + err.message);
-            return;
-        }
+    try {
+        // Check if the row already exists using promisified db
+        const row = await promiseDb.get(sqlCheck, userId, danceId, workflowId, clipNumber, collectionId);
 
         if (row) {
             // Row exists, update it
             const updateSql = `UPDATE ${TABLE_NAME} SET ${Object.keys(metricData).map(key => `${key} = ?`).join(', ')} WHERE userId = ? AND danceId = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
             const params = [...Object.values(metricData), userId, danceId, workflowId, clipNumber, collectionId];
-            db.run(updateSql, params, (err: any) => {
-                if (err) {
-                    console.error('Error updating row ' + err.message);
-                } else {
-                    console.log('Row updated successfully.');
-                }
-            });
+            await promiseDb.run(updateSql, ...params);
         } else {
             // Row does not exist, insert it
             const insertSql = `INSERT INTO ${TABLE_NAME} (${Object.keys(rowData).concat(Object.keys(metricData)).join(', ')}) VALUES (${[...Array(Object.keys(rowData).length + Object.keys(metricData).length)].map(() => '?').join(', ')})`;
             const params = [...Object.values(rowData), ...Object.values(metricData)];
-            db.run(insertSql, params, (err: any) => {
-                if (err) {
-                    console.error('Error inserting row ' + err.message);
-                } else {
-                    // no-op
-                    // console.log('Row inserted successfully.');
-                }
-            });
+            await promiseDb.run(insertSql, ...params);
         }
-    });
+    } catch (err) {
+        console.error('Error in upsertMetricDbRow:', err);
+        throw err;
+    }
 
 }
 

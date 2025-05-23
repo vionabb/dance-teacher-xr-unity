@@ -156,27 +156,28 @@ describe.concurrent("AllMetricsComparison", async () => {
                 performanceSpeed: clipData.rowData.performanceSpeed,
                 frameCount: clipData.rowData.frameCount
             }
-            upsertMetricDbRow(metricDb, rowData, clipData.metricData);
+            await upsertMetricDbRow(metricDb, rowData, clipData.metricData);
             console.log(`\t[${clipCount}]\tUpdated db with ${metricName} for ${rowData.userId}_${rowData.danceName}_${rowData.clipNumber}`); 
         }        
     }
-
-    it('angle3dDTWOutput', {}, async ({ expect }) => {
+    // Set high test timeout for each test
+    const testTimeout = 20 * 60 * 1000; // 20 minutes in milliseconds
+    it('angle3dDTWOutput', { timeout: testTimeout }, async ({ expect }) => {
         const metric = new Skeleton3DAngleDistanceDTW();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = metric.summarizeMetric(trackHistory);
             return {
                 invalidFrameCount: summary.invalidFramesCount,
                 invalidPercent: summary.invalidPercent,
-                "angle3D DTW Distance": summary.dtwDistance,
-                "angle3D DTW Dist Avg.": summary.dtwDistance / summary.dtwPath.length,
-                "angle3D warpingFactor": summary.warpingFactor,
+                angle3D_dtw_distance: summary.dtwDistance,
+                angle3D_dtw_dist_avg: summary.dtwDistance / summary.dtwPath.length,
+                angle3D_warping_factor: summary.warpingFactor,
             }
         }
         await updateDbWithMetric('anle3dDTW', metricRunner);
     });
 
-    it('qijia2d', {}, async ({ expect }) => {
+    it('qijia2d', { timeout: testTimeout }, async ({ expect }) => {
         const metric = new Qijia2DSkeletonSimilarityMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
@@ -187,7 +188,7 @@ describe.concurrent("AllMetricsComparison", async () => {
         await updateDbWithMetric('qijia2d', metricRunner);
     });
 
-    it('jules2d', {}, async ({ expect }) => {
+    it('jules2d', { timeout: testTimeout }, async ({ expect }) => {
         const metric = new Jules2DSkeletonSimilarityMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
@@ -198,7 +199,7 @@ describe.concurrent("AllMetricsComparison", async () => {
         await updateDbWithMetric('jules2d', metricRunner);
     });
 
-    it('vectorAngle3D', {}, async ({ expect }) => {
+    it('vectorAngle3D', { timeout: testTimeout }, async ({ expect }) => {
         const metric = new Skeleton3dVectorAngleSimilarityMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
@@ -209,7 +210,7 @@ describe.concurrent("AllMetricsComparison", async () => {
         await updateDbWithMetric('vectorAngle3D', metricRunner);
     });
 
-    it('temporalAlignment', {}, async ({ expect }) => {
+    it('temporalAlignment', { timeout: testTimeout }, async ({ expect }) => {
         const metric = new TemporalAlignmentMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = metric.summarizeMetric(trackHistory);
@@ -220,24 +221,24 @@ describe.concurrent("AllMetricsComparison", async () => {
         await updateDbWithMetric('temporalAlignment', metricRunner);
     });
 
-    it('kinematicsError', {}, async ({ expect }) => {
+    it('kinematicsError', { timeout: testTimeout }, async ({ expect }) => {
         const metric = new KinematicErrorMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = metric.summarizeMetric(trackHistory);
             return {
-                "velocity 3d MAE": summary.summary3D.velMAE ?? NaN,
-                "accel 3d MAE": summary.summary3D.accelMAE ?? NaN,
-                "jerk 3d MAE": summary.summary3D.jerkMAE ?? NaN,
-                "velocity 2d MAE": summary.summary2D.velMAE ?? NaN,
-                "accel 2d MAE": summary.summary2D.accelMAE ?? NaN,
-                "jerk 2d MAE": summary.summary2D.jerkMAE ?? NaN,
+                "velocity_3d_MAE": summary.summary3D.velMAE ?? NaN,
+                "accel_3d_MAE": summary.summary3D.accelMAE ?? NaN,
+                "jerk_3d_MAE": summary.summary3D.jerkMAE ?? NaN,
+                "velocity_2d_MAE": summary.summary2D.velMAE ?? NaN,
+                "accel_2d_MAE": summary.summary2D.accelMAE ?? NaN,
+                "jerk_2d_MAE": summary.summary2D.jerkMAE ?? NaN,
             }
         }
         await updateDbWithMetric('kinematicsError', metricRunner);
     });
 
     it('exportDb', {}, async ({ expect }) => {
-        exportCSV(metricDb);
+        await exportCSV(metricDb);
         console.log("Exported db to CSV");
 
     });
