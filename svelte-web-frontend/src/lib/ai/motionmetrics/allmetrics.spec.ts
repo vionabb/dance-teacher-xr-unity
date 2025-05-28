@@ -70,7 +70,7 @@ function runMetricOnClip(segmentData: StudySegmentData, referenceClip: TiktokDan
     return result;
 }
 
-describe.concurrent("AllMetricsComparison", {}, async () => {
+describe("AllMetricsComparison", {}, async () => {
 
     const tiktokClipPoses = await loadTikTokClipPoses();
     const tiktokWholePoses = await loadTiktokWholePoses();
