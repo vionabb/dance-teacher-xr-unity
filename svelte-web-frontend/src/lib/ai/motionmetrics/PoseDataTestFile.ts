@@ -355,7 +355,7 @@ export type HumanRating = {
     dance: DanceName;
     userId: number;
     segmentId: number;
-    avgRatingsPercentile: number;
+    avgRatingPercentile: number;
     rating1: number;
     rating2: number;
     rating3: number;

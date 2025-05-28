@@ -242,7 +242,7 @@ describe.concurrent("AllMetricsComparison", {}, async () => {
         const metric = new KinematicErrorMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings: HumanRating | undefined) => {
             return {
-                humanRating: ratings?.avgRatingsPercentile ?? NaN,
+                humanRating: ratings?.avgRatingPercentile ?? NaN,
                 rating1: ratings?.rating1 ?? NaN,
                 rating2: ratings?.rating2 ?? NaN,
                 rating3: ratings?.rating3 ?? NaN,
