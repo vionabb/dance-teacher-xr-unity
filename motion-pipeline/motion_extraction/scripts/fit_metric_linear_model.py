@@ -201,7 +201,7 @@ for col in all_metrics:
     print(f"Created scatterplot {rel_path}")
 
 # Optional: Predict human ratings using all metrics (linear regression)
-model_choice = "Ridge"
+model_choice = "LienarRegression"
 if model_choice == "LinearRegression":
     full_model_name = "Linear Regression"
     model = LinearRegression()  # the version fitted on a subset of data, for cross-validation
@@ -215,6 +215,20 @@ elif model_choice == "Ridge":
     from sklearn.linear_model import Ridge
     model = Ridge()
     full_model = Ridge()
+# Nonlinear models -- will need to update coefficients extraction
+# elif model_choice == "PolynomialRegression":
+#     from sklearn.preprocessing import PolynomialFeatures
+#     from sklearn.pipeline import make_pipeline
+#     full_model_name = "Polynomial Regression"
+#     degree = 2
+#     model = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+# elif model_choice == "RandomForest":
+#     from sklearn.ensemble import RandomForestRegressor
+#     full_model_name = "Random Forest"
+#     model = RandomForestRegressor(random_state=42)
+#     full_model = RandomForestRegressor(random_state=42)
+else:
+    raise ValueError(f"Unknown model choice: {model_choice}. Supported: LinearRegression, ElasticNet, Ridge, PolynomialRegression, RandomForest.")
 
 X = normalized_df[all_metrics].values
 y = df[target_col].values
