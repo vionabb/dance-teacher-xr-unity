@@ -201,19 +201,31 @@ for col in all_metrics:
     print(f"Created scatterplot {rel_path}")
 
 # Optional: Predict human ratings using all metrics (linear regression)
-model = ElasticNet(random_state=42)
+model_choice = "Ridge"
+if model_choice == "LinearRegression":
+    full_model_name = "Linear Regression"
+    model = LinearRegression()  # the version fitted on a subset of data, for cross-validation
+    full_model = LinearRegression()  # the version fitted on all data
+elif model_choice == "ElasticNet":
+    full_model_name = "ElasticNet"
+    model = ElasticNet(random_state=42)      # the version fitted on a subset of data, for cross-validation
+    full_model = ElasticNet(random_state=42) # the version fitted on all data
+elif model_choice == "Ridge":
+    full_model_name = "Ridge Regression"
+    from sklearn.linear_model import Ridge
+    model = Ridge()
+    full_model = Ridge()
+
 X = normalized_df[all_metrics].values
 y = df[target_col].values
 
 cv = KFold(n_splits=5, shuffle=True, random_state=42)
 scores = cross_val_score(model, X, y, cv=cv, scoring="r2")
 
-print("\n=== Linear Regression Prediction (ElasticNet) ===")
+print("\n=== Linear Regression Prediction [model={full_model_name}] ===")
 print(f"Mean R²: {np.mean(scores):.3f} ± {np.std(scores):.3f}")
 
 
-# Fit the model on all data to get the coefficients
-full_model = ElasticNet(random_state=42)
 full_model.fit(X, y)
 
 # Create a DataFrame with the feature names and their coefficients
@@ -226,7 +238,7 @@ coef_df = pd.DataFrame({
 coef_df['AbsCoefficient'] = coef_df['Coefficient'].abs()
 coef_df = coef_df.sort_values('AbsCoefficient', ascending=False)
 
-print("\n=== Feature Importance (Regression Weights) ===")
+print(f"\n=== Feature Importance (Regression Weights)[model={full_model_name}] ===")
 print(coef_df[['Metric', 'Coefficient']])
 
 # Optional: show intercept
