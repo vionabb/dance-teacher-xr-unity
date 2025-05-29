@@ -543,8 +543,7 @@ export function createTrackHistoryForClips(userPoseData: StudySegmentData, refer
  * Retrieves the reference clip for a given segment.
  */
 export function getReferenceClip(segmentInfo: SegmentInfo, tiktokClipPoses: Map<string, TiktokDanceClipData[]>) {
-    // NOTE: user clips start at 1, and reference clips start at 0
-    const refClipNumber = segmentInfo.clipNumber - 1;
+    const refClipNumber = segmentInfo.clipNumber;
     return tiktokClipPoses.get(segmentInfo.danceName)?.[refClipNumber];
 }
 
