@@ -306,8 +306,13 @@
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poses-segmented",
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-videos-segmented",
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poses-segmented",
-                    "/Users/julien/Desktop/test/flipped_clips/flipped",
-                    "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/tiktok-flipped-clip-poses",
+                    // "/Users/julien/Desktop/test/flipped_clips/flipped",
+                    // "/Users/julien/Desktop/test/output",
+                    "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored",
+                    "/Users/julien/Desktop/test/output-poses",
+                    "${workspaceFolder}/data/tiktok-clip-frames/",
+                    "-o",
+                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/tiktok-flipped-clip-poses",
                 ]
             }
         },
