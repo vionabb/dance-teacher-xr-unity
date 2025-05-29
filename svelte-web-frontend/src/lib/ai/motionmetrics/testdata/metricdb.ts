@@ -77,6 +77,8 @@ async function createTableIfNecessary(db: sqlite3.Database) {
             return;
         }
 
+        console.log('Creating table...');
+
         // Create table
         const sql = `
             CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
@@ -108,10 +110,11 @@ async function createTableIfNecessary(db: sqlite3.Database) {
     }
 }
 
+export const dbPath = `${process.cwd()}/artifacts/${DB_NAME}`;
+
 export async function loadDB() {
 
     // Db will be created if it doesn't exist
-    const dbPath = `${process.cwd()}/artifacts/${DB_NAME}`;
     const db = new sqlite3.Database(dbPath, (err: any) => {
         if (err) {
             console.error('Error opening database ' + err.message);
@@ -206,8 +209,10 @@ export async function upsertMetricDbRow(db: sqlite3.Database, rowData: RowData, 
 
 }
 
+export const motionMetricsCsvPath = `artifacts/motion_metrics.csv`;
+
 export async function exportCSV(db: sqlite3.Database) {
-    const csvPath = `${process.cwd()}/artifacts/motion_metrics.csv`;
+    const csvPath = motionMetricsCsvPath;
     const sql = `SELECT * FROM ${TABLE_NAME}`;
     const csvData: string[] = [];
 

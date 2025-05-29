@@ -77,13 +77,13 @@ function computeSkeleton2DDissimilarityJulesMethod(
             magnitude: magnitudePercentileDifferential, 
             angle: innerAnglePercentileDifferential,
             pAngle: percentOfMetricToComputeFromAngle,
-            score: compoundDissimilarityPercentile
+            dissimilarity: compoundDissimilarityPercentile
         };
     });
 
     return {
         // Score is scaled between 0 and 1 - 0 is the best and 1 is the worst.
-        overallScore: GetArithmeticMean(vectorScoreInfos.map((s) => s.score)),
+        overallDissimilarity: GetArithmeticMean(vectorScoreInfos.map((s) => s.dissimilarity)),
         vectorByVectorScores: vectorScoreInfos
     };
 }
@@ -93,7 +93,7 @@ type JulesMetricSingleFrameOutput = ReturnType<typeof computeSkeleton2DDissimila
 type JulesMetricSummaryOutput = {
     minPossibleScore: number;
     maxPossibleScore: number;
-    overallScore: number;
+    avgDissimilarity: number;
     vectorByVectorScore: Record<string, number>;
 }
 
@@ -116,8 +116,8 @@ export default class Jules2DSkeletonSimilarityMetric implements LiveEvaluationMe
 
     summarizeMetric(_history: Readonly<TrackHistory>, metricHistory: Readonly<JulesMetricSingleFrameOutput[]>): JulesMetricSummaryOutput {
         
-        const overallScore = GetArithmeticMean(metricHistory
-            .map(m => m.overallScore)
+        const avgDissimilarity = GetArithmeticMean(metricHistory
+            .map(m => m.overallDissimilarity)
             .filter((n) => !isNaN(n))
         );
         const arrayOfVecScores = metricHistory.map(m => m.vectorByVectorScores);
@@ -125,7 +125,7 @@ export default class Jules2DSkeletonSimilarityMetric implements LiveEvaluationMe
         const vectorScoreKeyValues = QijiaMethodComparisonVectors.map((_vec, i) => {
             const key = QijiaMethodComparisionVectorNames[i];
             const thisVecScores = arrayOfVecScores
-                .map(vecbyVecScores => vecbyVecScores[i].score)
+                .map(vecbyVecScores => vecbyVecScores[i].dissimilarity)
                 .filter((n) => !isNaN(n));
             const meanScore = GetArithmeticMean(thisVecScores);
             return [key, meanScore] as [string, number];
@@ -133,7 +133,7 @@ export default class Jules2DSkeletonSimilarityMetric implements LiveEvaluationMe
         const byVectorScores = Object.fromEntries(vectorScoreKeyValues) as Record<string, number>;
 
         return {
-            overallScore: overallScore,
+            avgDissimilarity: avgDissimilarity,
             vectorByVectorScore: byVectorScores,
             minPossibleScore: 0,
             maxPossibleScore: 1.0,
@@ -142,7 +142,7 @@ export default class Jules2DSkeletonSimilarityMetric implements LiveEvaluationMe
 
     formatSummary(summary: Readonly<JulesMetricSummaryOutput>) {
         return {
-            "overall": summary.overallScore,
+            "avgDissimilarity": summary.avgDissimilarity,
             ...summary.vectorByVectorScore,
         }
     }

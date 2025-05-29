@@ -61,7 +61,10 @@ function computeSkeletonDissimilarityQijiaMethod(
     const TARGET_WORST = 0.0
 
     function scaleScore(s: number) {
-        return lerp(s, SRC_DISSIMILARITY_BEST, SRC_DISSIMILARITY_WORST, QIJIA_SKELETON_SIMILARITY_MAX_SCORE, TARGET_WORST)
+        return lerp(s, 
+            SRC_DISSIMILARITY_BEST, SRC_DISSIMILARITY_WORST, 
+            QIJIA_SKELETON_SIMILARITY_MAX_SCORE, TARGET_WORST
+        )
     }
 
     const overallScore = scaleScore(rawOverallDisimilarityScore)

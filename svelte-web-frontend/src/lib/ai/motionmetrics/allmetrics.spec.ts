@@ -19,7 +19,7 @@ import {
   runLiveEvaluationMetricOnTestTrack,
   type TestTrack
 } from "./testdata/metricTestingUtils";
-import { ensureMetricColumnInTable, exportCSV, loadDB, upsertMetricDbRow, type RowData } from "./testdata/metricdb";
+import { dbPath, ensureMetricColumnInTable, exportCSV, loadDB, motionMetricsCsvPath, upsertMetricDbRow, type RowData } from "./testdata/metricdb";
 import Qijia2DSkeletonSimilarityMetric from "./Qijia2DSkeletonSimilarityMetric";
 import Jules2DSkeletonSimilarityMetric from "./Jules2DSkeletonSimilarityMetric";
 import Skeleton3dVectorAngleSimilarityMetric from "./Skeleton3dVectorAngleSimilarityMetric";
@@ -194,7 +194,9 @@ describe("AllMetricsComparison", {}, async () => {
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
             return {
-                jules2d: summary.summary.overallScore,     // already scaled 0-1
+                // We want the output to be an accuracy score, with 1 being the best and 0 being the worst.
+                // Jules2D returns a dissimilarity score, so we reverse it to get an accuracy score.
+                jules2d: 1 - summary.summary.avgDissimilarity,
             }
         }
         await updateDbWithMetric('jules2d', metricRunner);
@@ -252,9 +254,16 @@ describe("AllMetricsComparison", {}, async () => {
     });
 
 
+    // Export the database to a CSV file
     it('exportDb', {}, async ({ expect }) => {
+        // remove existing CSV file if it exists
+        if (fs.existsSync(motionMetricsCsvPath)) {
+            console.log("Removing existing csv file at ", motionMetricsCsvPath);
+            fs.unlinkSync(motionMetricsCsvPath);
+        }
         await exportCSV(metricDb);
-        console.log("Exported db to CSV");
+        console.log("Exported db to CSV: ", motionMetricsCsvPath);
+        expect(fs.existsSync(motionMetricsCsvPath)).toBe(true);
     });
 
     afterAll(() => {
