@@ -43,31 +43,30 @@ import type { PracticePlan } from '$lib/model/PracticePlan';
 	import PlayableVideoWithSkeleton from '$lib/elements/PlayableVideoWithSkeleton.svelte';
 const supabase = getContext('supabase') as SupabaseClient;
 
+interface Props {
+    mirrorForEvaluation?: boolean;
+    dance: Dance;
+    practiceStep: PracticeStep | null;
+    practicePlan?: PracticePlan | undefined;
+    pageActive?: boolean;
+    flipVideo?: boolean;
+    continueBtnTitle?: string;
+    continueBtnIcon?: any;
+    progressBarProps?: SegmentedProgressBarPropsWithoutCurrentTime | undefined;
+}
 
+let {
+    mirrorForEvaluation = true,
+    dance,
+    practiceStep = $bindable(null as PracticeStep | null),
+    practicePlan = undefined,
+    pageActive = false,
+    flipVideo = false,
+    continueBtnTitle = 'Continue',
+    continueBtnIcon = 'check' as 'nextarrow' | 'check',
+    progressBarProps = undefined
+}: Props = $props();
 
-    interface Props {
-        mirrorForEvaluation?: boolean;
-        dance: Dance;
-        practiceStep: PracticeStep | null;
-        practicePlan?: PracticePlan | undefined;
-        pageActive?: boolean;
-        flipVideo?: boolean;
-        continueBtnTitle?: string;
-        continueBtnIcon?: any;
-        progressBarProps?: SegmentedProgressBarPropsWithoutCurrentTime | undefined;
-    }
-
-    let {
-        mirrorForEvaluation = true,
-        dance,
-        practiceStep,
-        practicePlan = undefined,
-        pageActive = false,
-        flipVideo = false,
-        continueBtnTitle = 'Continue',
-        continueBtnIcon = 'check' as 'nextarrow' | 'check',
-        progressBarProps = undefined
-    }: Props = $props();
 let mainContinueButton: HTMLButtonElement | undefined = $state();
 let hasProgressBar = $derived(progressBarProps !== undefined);
 
@@ -77,7 +76,7 @@ let skeletonDrawingEnabled: boolean = $derived(practiceStep?.showUserSkeleton ??
 let terminalFeedbackEnabled: boolean = $derived(practiceStep?.terminalFeedbackEnabled ?? true);
 
 let isDoingSomeSortOfFeedback = $derived(
-    (practiceStep?.terminalFeedbackEnabled ?? false)
+    (terminalFeedbackEnabled ?? false)
         || (skeletonDrawingEnabled && interfaceSettings.referenceVideo.visibility === 'visible' && interfaceSettings.referenceVideo.skeleton === 'user')
         || (skeletonDrawingEnabled && interfaceSettings.userVideo.visibility === 'visible' && interfaceSettings.userVideo.skeleton === 'user')
 );

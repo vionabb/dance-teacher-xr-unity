@@ -201,7 +201,7 @@ for col in all_metrics:
     print(f"Created scatterplot {rel_path}")
 
 # Optional: Predict human ratings using all metrics (linear regression)
-model_choice = "LienarRegression"
+model_choice = "LinearRegression"
 if model_choice == "LinearRegression":
     full_model_name = "Linear Regression"
     model = LinearRegression()  # the version fitted on a subset of data, for cross-validation

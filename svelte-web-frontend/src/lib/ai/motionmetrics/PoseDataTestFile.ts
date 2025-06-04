@@ -7,10 +7,9 @@ import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from '$lib/webcam/medi
 import type { ValueOf } from '$lib/data/dances-store';
 import { dances, loadPoseInformation, GetPixelLandmarksFromPose2DRow, GetPixelLandmarksFromPose3DRow, type Dance } from '$lib/data/dances-store';
 
-export const STUDY_1_SEGMENTED_POSES_FOLDER = "../motion-pipeline/data/study-poses/study1-poses-segmented/";
-export const STUDY_2_SEGMENTED_POSES_FOLDER = "../motion-pipeline/data/study-poses/study2-poses-segmented/";
-export const STUDY_2_WHOLE_POSES_FOLDER = "src/lib/ai/motionmetrics/testdata/study-poses/study2-whole/";
-export const TIKTOK_CLIPS_POSES_FOLDER = "../motion-pipeline/data/study-poses/tiktok-clip-poses/";
+export const STUDY_1_SEGMENTED_POSES_FOLDER = "testResults/study1-pixelposes-segmented/";
+export const STUDY_2_SEGMENTED_POSES_FOLDER = "testResults/study2-pixelposes-segmented/";
+export const TIKTOK_CLIPS_POSES_FOLDER = "testResults/tiktoks-pixelposes-segmented/";
 export const TIKTOK_WHOLE_POSES_FOLDER_2D = "static/bundle/pose2d_data/";
 export const TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC = "static/bundle/holistic_data/";
 

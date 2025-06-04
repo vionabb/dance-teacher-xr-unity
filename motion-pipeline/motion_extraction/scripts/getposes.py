@@ -10,8 +10,14 @@ from functools import reduce
 import time
 
 flat_map = lambda f, xs: reduce(lambda a, b: a + b, map(f, xs))
+
+# Per mediapipe documentation, the landmarks are normalized to the image size and the z coordinate takes the same approx scale as x,
+# with a greater values being further away from the camera (greater depth).
+get_props_2d = lambda lm, width, height: [lm.x * width, lm.y * height, lm.z * width, lm.visibility]
 get_props = lambda lm: [lm.x, lm.y, lm.z, lm.visibility]
+
 map_props = lambda lms: flat_map(get_props, lms)
+map_props_2d = lambda lms, width, height: flat_map(lambda lm: get_props_2d(lm, width, height), lms)
 
 def write_mediapipe_landmarks_to_img(frame, pose_landmarks):
     visible_line_color = (255, 0, 0, 1)  # Blue color for visible landmarks, full opacity
@@ -57,7 +63,7 @@ def write_mediapipe_landmarks_to_img(frame, pose_landmarks):
         cv2.putText(frame, str(lm_index), (x - 15, y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, black, 1, cv2.LINE_AA)
     return frame
 
-def process_video(pose_landmarker, video_path, csv_output_path, frame_dir: Path | None = None):
+def process_video(pose_landmarker, video_path, csv_output_path, frame_dir: Path | None = None, output_normalized_coords: bool = False):
 
     start_time = time.time_ns()
 
@@ -81,7 +87,8 @@ def process_video(pose_landmarker, video_path, csv_output_path, frame_dir: Path 
             if not ret:
                 # End of video reached
                 break
-            
+
+            width, height = frame.shape[1], frame.shape[0]
             timestamp = fps * frame_idx
             timestamp_ns = int(timestamp * 1e9)
             # per https://github.com/google-ai-edge/mediapipe/issues/5265,
@@ -98,7 +105,10 @@ def process_video(pose_landmarker, video_path, csv_output_path, frame_dir: Path 
                 PERSON_ID = 0 # only one person in the video
                 csvwriter.writerow(
                     [frame_idx, timestamp, True] + 
-                    map_props(results.pose_landmarks[PERSON_ID]) +
+                    (map_props_2d(results.pose_landmarks[PERSON_ID], width, height) 
+                        if not output_normalized_coords else
+                        map_props(results.pose_landmarks[PERSON_ID])
+                    ) +
                     map_props(results.pose_world_landmarks[PERSON_ID])
                 )
             
@@ -138,14 +148,16 @@ def main():
     parser = argparse.ArgumentParser(description='Process videos to extract pose estimations.')
     parser.add_argument('input_dir', type=Path, help='Input directory containing .mp4 files')
     parser.add_argument('output_dir', type=Path, help='Output directory to save .pose.csv files')
-    parser.add_argument('frame_dir', type=Path, help='Directory to save frames (not required)')
+    parser.add_argument('-f', '--frame_dir', type=Path, default=None, help='Optional directory to save frames with pose visualizations')
     parser.add_argument('-o', '--overwrite', action='store_true', help='Overwrite existing pose files')
-    
+    parser.add_argument('-n', '--normalized', action='store_true', help='Use normalized coordinates for pose landmarks (default is pixel coordinates)')
+
     args = parser.parse_args()
     input_dir: Path = args.input_dir
     output_dir: Path = args.output_dir
     frame_dir: Path | None = args.frame_dir if hasattr(args, 'frame_dir') else None
     overwrite: bool = args.overwrite
+    output_normalized_coords: bool = args.normalized
 
     file_list = list(input_dir.rglob('*.mp4'));
     relative_paths = [input_path.relative_to(input_dir) for input_path in file_list]
@@ -175,10 +187,12 @@ def main():
 
     # Disable non-fatal logging from the glog system
     os.environ['GLOG_minloglevel'] = '3'
+    pose_type = 'norm_cords' if output_normalized_coords else 'pixel_cords'
 
     for file_i, relative_path in enumerate(relative_paths):
         input_path = input_dir / relative_path
-        output_path = output_dir / relative_path.with_suffix('.pose.csv')
+
+        output_path = output_dir / relative_path.with_suffix(f'.{pose_type}.pose.csv')
         padded_relative_path = str(relative_path).ljust(longest_relpath_len, ' ')
         print(f'{str(file_i+1).zfill(num_files_digits)}/{num_files}: {padded_relative_path} ', end='')
         if not overwrite and output_path.exists():
@@ -194,7 +208,7 @@ def main():
 
         with PoseLandmarker.create_from_options(options) as pose:    
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            process_video(pose, input_path, output_path, frame_dir), 
+            process_video(pose, input_path, output_path, frame_dir, output_normalized_coords), 
 
 if __name__ == '__main__':
     main()
