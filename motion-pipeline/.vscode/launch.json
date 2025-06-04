@@ -296,10 +296,16 @@
             "request": "launch",
             "program": "${workspaceFolder}/motion_extraction/scripts/getposes.py",
             "console": "integratedTerminal",
-            "args": [
-                "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup",
-                "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup-poses"
-            ],
+            "windows": {
+                "args": [
+                    // "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup",
+                    // "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup-poses"
+                    "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\Tiktok Video Clips\\fixed-and-horz-mirrored",
+                    "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\Tiktok Video Clips\\fixed-and-horz-mirrored\\tiktoks-pixelposes-segmented",
+                    "-f",
+                    "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\Tiktok Video Clips\\fixed-and-horz-mirrored\\tiktoks-poseframes-segmented",
+                ],  
+            },
             "osx": {
                 "args": [
                     //// VIDEO FOLDER and then POSE FOLDER arguments
@@ -314,9 +320,10 @@
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-segmented",
 
                     "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored",
-                    "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/pixelposes",
+                    "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/tiktoks-pixelposes-segmented",
                     "-f",
-                    "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/poseframes",
+                    "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/tiktoks-poseframes-segmented",
+
                     // "/Users/julien/Desktop/test/flipped_clips/flipped",
                     // "/Users/julien/Desktop/test/output",
                     // "/Users/julien/Desktop/test/output-poses-participants",
