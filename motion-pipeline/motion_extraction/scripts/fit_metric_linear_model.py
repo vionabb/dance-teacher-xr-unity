@@ -74,38 +74,6 @@ error_metrics = [
 all_metrics = accuracy_metrics + error_metrics
 target_col = args.target_col
 
-# Create a figure with histogram of all metrics
-histogram_metric_count = len(all_metrics) + 1
-rows, cols = histogram_metric_count, 1
-# if theres 1-3 metrics, use 1 col, if thers 4-6 metrics, use 2 cols, if there are more than 6 metrics, use 3 cols
-if histogram_metric_count <= 3:
-    rows, cols = histogram_metric_count, 1
-elif histogram_metric_count <= 6:
-    rows, cols = (histogram_metric_count + 1) // 2, 2
-else:
-    rows, cols = (histogram_metric_count + 2) // 3, 3
-# 3in per column, 1.5in per row
-fig, axes = plt.subplots(rows, cols, figsize=(cols * 3, rows * 1.5), constrained_layout=True)
-# Flatten axes for easy iteration
-axes = axes.flatten() if histogram_metric_count > 1 else [axes]
-# Plot histograms for each metric
-for i, col in enumerate(all_metrics + [target_col]):
-    if col in df.columns:
-        color = 'blue' if col in all_metrics else 'green'
-        axes[i].hist(df[col].dropna(), bins=30, color=color, alpha=0.7)
-        axes[i].set_title(col)
-        axes[i].set_xlabel('Value')
-        axes[i].set_ylabel('Frequency')
-    else:
-        axes[i].axis('off')  # Hide unused subplots
-plt.suptitle('Distribution of Metrics', fontsize=16)
-# Save the histogram figure
-histogram_path = output_dir / "metric_histograms.pdf"
-histogram_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure output directory exists
-plt.savefig(str(histogram_path), dpi=300, bbox_inches='tight')
-plt.close()
-print(f"Saved metric histograms to {histogram_path.relative_to(output_dir)}")
-
 # Normalize metrics (invert error metrics to turn them into "accuracy-like" metrics)
 normalized_df = df.copy()
 for col in error_metrics:
@@ -114,7 +82,57 @@ for col in error_metrics:
         normalized_df[col] = 1 / (1 + normalized_df[col])  # Adding 1 to avoid division by zero
 
 scaler = RobustScaler()
-normalized_df[error_metrics] = scaler.fit_transform(normalized_df[error_metrics])
+normalized_df[all_metrics] = scaler.fit_transform(normalized_df[all_metrics])
+
+
+
+# Remove outliers from the normalized DataFrame
+# Using the IQR method to remove outliers
+for col in normalized_df.columns:
+    if col in all_metrics:
+        Q1 = normalized_df[col].quantile(0.25)
+        Q3 = normalized_df[col].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+        normalized_df = normalized_df[(normalized_df[col] >= lower_bound) & (normalized_df[col] <= upper_bound)]
+
+# Create a figure with histogram of all metrics
+for method in ["normalized", "unnormalized"]:
+    histogram_metric_count = len(all_metrics) + 1
+    rows, cols = histogram_metric_count, 1
+    # if theres 1-3 metrics, use 1 col, if thers 4-6 metrics, use 2 cols, if there are more than 6 metrics, use 3 cols
+    if histogram_metric_count <= 3:
+        rows, cols = histogram_metric_count, 1
+    elif histogram_metric_count <= 6:
+        rows, cols = (histogram_metric_count + 1) // 2, 2
+    else:
+        rows, cols = (histogram_metric_count + 2) // 3, 3
+    # 3in per column, 1.5in per row
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 3, rows * 1.5), constrained_layout=True)
+    # Flatten axes for easy iteration
+    axes = axes.flatten() if histogram_metric_count > 1 else [axes]
+    # Plot histograms for each metric
+    for i, col in enumerate(all_metrics + [target_col]):
+        if col in df.columns:
+            dataframe = normalized_df if method == "normalized" else df
+            color = 'blue' if col in all_metrics else 'green'
+            axes[i].hist(dataframe[col].dropna(), bins=30, color=color, alpha=0.7)
+            axes[i].set_title(col)
+            axes[i].set_xlabel('Value')
+            axes[i].set_ylabel('Frequency')
+        else:
+            axes[i].axis('off')  # Hide unused subplots
+    plt.suptitle('Distribution of Metrics' + (" (normalized)" if method == 'normalized' else ""), fontsize=16)
+    # Save the histogram figure
+    histogram_path = output_dir / f"metric_histograms.{method}.pdf"
+    histogram_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure output directory exists
+    plt.savefig(str(histogram_path), dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Saved {method} metric histograms to {histogram_path.relative_to(output_dir)}")
+
+
+
 
 # Check for NaN values and create a mask for valid rows
 
