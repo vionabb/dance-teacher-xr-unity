@@ -15,6 +15,10 @@ from scipy.stats import spearmanr, pearsonr
 from sklearn.linear_model import LinearRegression, ElasticNet
 from sklearn.model_selection import cross_val_score, KFold
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import Ridge
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
 
 import argparse
 import pathlib
@@ -125,8 +129,8 @@ print(correlations_df)
 print("\n=== Spearman Correlation Matrix Between Metrics ===")
 
 # Create figure with two subplots with custom width ratios
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6), 
-                              gridspec_kw={'width_ratios': [2, 1]})  # Left plot twice as wide as right
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 6), 
+                              gridspec_kw={'width_ratios': [4, 1]})  # Left plot twice as wide as right
 
 # First subplot: Metric-to-metric correlations
 metric_corr_matrix = df[all_metrics].corr(method="spearman")
@@ -201,20 +205,27 @@ for col in all_metrics:
     print(f"Created scatterplot {rel_path}")
 
 # Optional: Predict human ratings using all metrics (linear regression)
-model_choice = "LinearRegression"
-if model_choice == "LinearRegression":
-    full_model_name = "Linear Regression"
-    model = LinearRegression()  # the version fitted on a subset of data, for cross-validation
-    full_model = LinearRegression()  # the version fitted on all data
-elif model_choice == "ElasticNet":
-    full_model_name = "ElasticNet"
-    model = ElasticNet(random_state=42)      # the version fitted on a subset of data, for cross-validation
-    full_model = ElasticNet(random_state=42) # the version fitted on all data
-elif model_choice == "Ridge":
-    full_model_name = "Ridge Regression"
-    from sklearn.linear_model import Ridge
-    model = Ridge()
-    full_model = Ridge()
+models = [
+    lambda: LinearRegression(),
+    lambda: ElasticNet(random_state=42),
+    lambda: Ridge(),
+    lambda: make_pipeline(PolynomialFeatures(2), LinearRegression()),
+    lambda: RandomForestRegressor(random_state=42)
+]
+# model_choice = "LinearRegression"
+# if model_choice == "LinearRegression":
+#     full_model_name = "Linear Regression"
+#     model = LinearRegression()  # the version fitted on a subset of data, for cross-validation
+#     full_model = LinearRegression()  # the version fitted on all data
+# elif model_choice == "ElasticNet":
+#     full_model_name = "ElasticNet"
+#     model = ElasticNet(random_state=42)      # the version fitted on a subset of data, for cross-validation
+#     full_model = ElasticNet(random_state=42) # the version fitted on all data
+# elif model_choice == "Ridge":
+#     full_model_name = "Ridge Regression"
+#     from sklearn.linear_model import Ridge
+#     model = Ridge()
+#     full_model = Ridge()
 # Nonlinear models -- will need to update coefficients extraction
 # elif model_choice == "PolynomialRegression":
 #     from sklearn.preprocessing import PolynomialFeatures
@@ -227,66 +238,99 @@ elif model_choice == "Ridge":
 #     full_model_name = "Random Forest"
 #     model = RandomForestRegressor(random_state=42)
 #     full_model = RandomForestRegressor(random_state=42)
-else:
-    raise ValueError(f"Unknown model choice: {model_choice}. Supported: LinearRegression, ElasticNet, Ridge, PolynomialRegression, RandomForest.")
+# else:
+    # raise ValueError(f"Unknown model choice: {model_choice}. Supported: LinearRegression, ElasticNet, Ridge, PolynomialRegression, RandomForest.")
 
-X = normalized_df[all_metrics].values
-y = df[target_col].values
+max_r2 = {}
+model_variant_names = {}
+model_retained_features = {}
 
-cv = KFold(n_splits=5, shuffle=True, random_state=42)
-scores = cross_val_score(model, X, y, cv=cv, scoring="r2")
+for model_constructor in models:
+    model = model_constructor()
+    full_model_name = model.__class__.__name__
+    print(f"\n=== Fitting {full_model_name} ===")
+    X = normalized_df[all_metrics].values
+    y = df[target_col].values
 
-print("\n=== Linear Regression Prediction [model={full_model_name}] ===")
-print(f"Mean R²: {np.mean(scores):.3f} ± {np.std(scores):.3f}")
+    cv = KFold(n_splits=5, shuffle=True, random_state=42)
+    scores = cross_val_score(model, X, y, cv=cv, scoring="r2")
+
+    # print(f"\n=== Regression Prediction [full_model_name] ===")
+    print(f"Mean R²: {np.mean(scores):.3f} ± {np.std(scores):.3f}")
 
 
-full_model.fit(X, y)
+    model.fit(X, y)
 
-# Create a DataFrame with the feature names and their coefficients
-coef_df = pd.DataFrame({
-    'Metric': all_metrics,
-    'Coefficient': full_model.coef_
-})
+    is_linear_model = isinstance(model, (LinearRegression, ElasticNet, Ridge))
+    max_r2[full_model_name] = np.mean(scores)
+    model_variant_names[full_model_name] = full_model_name
+    # model_retained_features[full_model_name] = all_metrics.copy()
 
-# Sort by absolute coefficient value to see most impactful features
-coef_df['AbsCoefficient'] = coef_df['Coefficient'].abs()
-coef_df = coef_df.sort_values('AbsCoefficient', ascending=False)
+    if is_linear_model:
+        # Create a DataFrame with the feature names and their coefficients
+        coef_df = pd.DataFrame({
+            'Metric': all_metrics,
+            'Coefficient': model.coef_
+        })
 
-print(f"\n=== Feature Importance (Regression Weights)[model={full_model_name}] ===")
-print(coef_df[['Metric', 'Coefficient']])
+        # Sort by absolute coefficient value to see most impactful features
+        coef_df['AbsCoefficient'] = coef_df['Coefficient'].abs()
+        coef_df = coef_df.sort_values('AbsCoefficient', ascending=False)
 
-# Optional: show intercept
-print(f"\nIntercept: {full_model.intercept_:.3f}")
+        # print(f"\n=== Feature Importance (Regression Weights)[model={full_model_name}] ===")
+        # print(coef_df[['Metric', 'Coefficient']])
 
-# Incremental feature elimination to see how model performs with fewer metrics
-print("\n=== Incremental Feature Elimination ===")
-print("Testing performance with fewer and fewer features")
+        # Optional: show intercept
+        # print(f"\nIntercept: {model.intercept_:.3f}")
 
-# Sort features by absolute coefficient value
-sorted_features = coef_df['Metric'].tolist()
-n_features = len(sorted_features)
+        # Incremental feature elimination to see how model performs with fewer metrics
+        # print("\n=== Incremental Feature Elimination ===")
+        # print("Testing performance with fewer and fewer features")
 
-elimination_results = []
+        # Sort features by absolute coefficient value
+        sorted_features = coef_df['Metric'].tolist()
+        n_features = len(sorted_features)
 
-# Test models with decreasing number of features
-for i in range(n_features, 0, -1):
-    selected_features = sorted_features[:i]
-    X_selected = normalized_df[selected_features].values
-    
-    # Cross-validate with selected features
-    cv_scores = cross_val_score(ElasticNet(random_state=42), X_selected, y, cv=cv, scoring="r2")
-    mean_r2 = np.mean(cv_scores)
-    std_r2 = np.std(cv_scores)
-    
-    elimination_results.append({
-        'num_features': i,
-        'features': selected_features,
-        'mean_r2': mean_r2,
-        'std_r2': std_r2
-    })
-    
-    print(f"{i} features: R² = {mean_r2:.3f} ± {std_r2:.3f}")
-    print(f"   Features used: {', '.join(selected_features)}")
+        elimination_results = []
 
-# Create DataFrame with results
-elimination_df = pd.DataFrame(elimination_results)
+        # Test models with decreasing number of features
+        for i in range(n_features, 0, -1):
+            selected_features = sorted_features[:i]
+            X_selected = normalized_df[selected_features].values
+            
+            # Cross-validate with selected features
+            cv_scores = cross_val_score(model_constructor(), X_selected, y, cv=cv, scoring="r2")
+            mean_r2 = np.mean(cv_scores)
+            std_r2 = np.std(cv_scores)
+            
+            elimination_results.append({
+                'num_features': i,
+                'features': selected_features,
+                'mean_R²': mean_r2,
+                'std_R²': std_r2
+            })
+
+            if mean_r2 > max_r2[full_model_name]:
+                max_r2[full_model_name] = mean_r2
+                model_variant_names[full_model_name] = f"{full_model_name} (using {i}/{len(all_metrics)} features)"
+                model_retained_features[full_model_name] = selected_features
+
+            # print(f"{i} features: R² = {mean_r2:.3f} ± {std_r2:.3f}")
+            # print(f"   Features used: {', '.join(selected_features)}")
+
+        # Create DataFrame with results
+        elimination_df = pd.DataFrame(elimination_results)
+        print(f"\n=== Incremental Feature Elimination Results ({full_model_name})===")
+        print(elimination_df[['num_features', 'mean_R²', 'std_R²', 'features']])
+
+# Print max R² for each model
+print("\n=== Maximum R² for Each Model ===")
+model_variant_df = pd.DataFrame.from_dict(max_r2, orient='index', columns=['Max R²'])
+model_variant_df.index.name = 'Model'
+model_variant_df = model_variant_df.reset_index()
+model_variant_df = model_variant_df.sort_values(by='Max R²', ascending=False)
+print(model_variant_df)
+
+print("\n=== Best Model Features ===")
+for model_name, features in model_retained_features.items():
+    print(f"{model_variant_names[model_name]}:\n\t{', '.join(features)}")

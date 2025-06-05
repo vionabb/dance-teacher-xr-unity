@@ -544,7 +544,8 @@ export function createTrackHistoryForClips(userPoseData: StudySegmentData, refer
  */
 export function getReferenceClip(segmentInfo: SegmentInfo, tiktokClipPoses: Map<string, TiktokDanceClipData[]>) {
     const refClipNumber = segmentInfo.clipNumber;
-    return tiktokClipPoses.get(segmentInfo.danceName)?.[refClipNumber];
+    const clipIndex = refClipNumber - 1; // Adjust for zero-based index of arrays
+    return tiktokClipPoses.get(segmentInfo.danceName)?.[clipIndex];
 }
 
 
