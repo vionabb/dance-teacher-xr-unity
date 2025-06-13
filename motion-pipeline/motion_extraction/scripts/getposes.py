@@ -89,7 +89,7 @@ def process_video(pose_landmarker, video_path, csv_output_path, frame_dir: Path 
                 break
 
             width, height = frame.shape[1], frame.shape[0]
-            timestamp = fps * frame_idx
+            timestamp = frame_idx / fps
             timestamp_ns = int(timestamp * 1e9)
             # per https://github.com/google-ai-edge/mediapipe/issues/5265,
             # the metal implementaiton only supports image formats with an alpha channel

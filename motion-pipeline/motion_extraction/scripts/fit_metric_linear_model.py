@@ -68,6 +68,7 @@ error_metrics = [
     "angle3D_dtw_dist_avg", 
     "angle3D_warping_factor",
     "velocity_3d_MAE", 
+    "velocity_3d_MAE_jointweighted",
     "accel_3d_MAE", 
     "jerk_3d_MAE"
 ]

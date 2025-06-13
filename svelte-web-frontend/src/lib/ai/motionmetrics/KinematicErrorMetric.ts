@@ -1,7 +1,10 @@
+import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from "$lib/webcam/mediapipe-utils";
 import type { SummaryMetric, TrackHistory } from "./MotionMetric";
 import { 
     calculateKinematicValues,
-    calculateKinematicErrorDescriptors
+    calculateKinematicErrorDescriptors,
+    type KinematicComputationOptions,
+    type KinematicErrorDescriptorsOptions
  } from "./compute-kinematic-motion-descriptors";
 
 
@@ -36,6 +39,11 @@ type KinematicErrorMetricFormattedOutput = ReturnType<KinematicErrorMetric['form
 
 export default class KinematicErrorMetric implements SummaryMetric<KinematicErrorMetricOutput, KinematicErrorMetricFormattedOutput> {
 
+    constructor(public opts?: {
+        calculateValues?: KinematicComputationOptions<Pose2DPixelLandmarks | Pose3DLandmarkFrame>,
+        calculateDescriptors?: KinematicErrorDescriptorsOptions,
+    }) {}
+
     summarizeMetric(history: TrackHistory): KinematicErrorMetricOutput {
 
         // Current issue: getting lots of NaN values for the
@@ -57,29 +65,21 @@ export default class KinematicErrorMetric implements SummaryMetric<KinematicErro
             history.user3DFrameHistory,
             history.ref3DFrameHistory,
             history.videoFrameTimesInSecs,
-            {
-                scaleBehavior: 'scaleByFrame',
-            }
+            this.opts?.calculateValues
         );
         const summary3D = calculateKinematicErrorDescriptors(
             vals3d,
-            {
-                visibilityBehavior: 'scale',
-            }
+            this.opts?.calculateDescriptors
         );
         const vals2d = calculateKinematicValues(
             history.user2DFrameHistory,
             history.ref2DFrameHistory,
             history.videoFrameTimesInSecs,
-            {
-                scaleBehavior: 'scaleByFrame',
-            }
+            this.opts?.calculateValues
         );
         const summary2D = calculateKinematicErrorDescriptors(
             vals2d,
-            {
-                visibilityBehavior: 'scale',
-            }
+            this.opts?.calculateDescriptors
         );
 
         // Combine the 2D and 3D summaries into a single summary object

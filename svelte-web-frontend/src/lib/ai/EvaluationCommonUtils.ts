@@ -164,6 +164,53 @@ export const QijiaMethodComparisonVectors: Readonly<PoseVectorIdPair[]> = Object
     [PoseLandmarkIds.rightElbow,    PoseLandmarkIds.rightWrist]
 ])
 
+function getWeightsListFromWeightsDict(weightsDict: Record<PoseLandmarkIndex, number>) {
+    const weights = [];
+    const landmarkIndices = [...Object.values(PoseLandmarkIds)] as PoseLandmarkIndex[];
+    for (let i = 0; i < landmarkIndices.length; i++) {
+        const lmId = landmarkIndices[i];
+        if (lmId !== i) throw new Error(`Landmark ID ${lmId} does not match index ${i}`);
+        weights.push(weightsDict[lmId] ?? 0.0);
+    }
+    return Object.freeze(weights);
+}
+
+/** Landmark weighting based on motion energy across the dataset of learner's dances in CHI 2025 
+user  study 2. Landmarks that are visible and move more earn a higher weighing */
+export const LandmarkWeightingDict_MotionEnergy = Object.freeze({
+    
+    // Head landmarks: 0.18 total
+    [PoseLandmarkIds.nose]:       0.18 / 7,
+    [PoseLandmarkIds.leftEye]:    0.18 / 7,
+    [PoseLandmarkIds.rightEye]:   0.18 / 7,
+    [PoseLandmarkIds.mouthLeft]:  0.18 / 7,
+    [PoseLandmarkIds.mouthRight]: 0.18 / 7,
+    [PoseLandmarkIds.leftEar]:    0.18 / 7,
+    [PoseLandmarkIds.rightEar]:   0.18 / 7,
+
+    // Shoulders: 0.10 total
+    [PoseLandmarkIds.leftShoulder]:  0.10 / 2,
+    [PoseLandmarkIds.rightShoulder]: 0.10 / 2,
+
+    // Elbows: 0.15 total
+    [PoseLandmarkIds.leftElbow]:  0.15 / 2,
+    [PoseLandmarkIds.rightElbow]: 0.15 / 2,
+
+    // Hands: 0.44 total (0.22 each)
+    [PoseLandmarkIds.leftWrist]:  0.22 / 3,
+    [PoseLandmarkIds.leftIndex]:  0.22 / 3,
+    [PoseLandmarkIds.leftThumb]:  0.22 / 3,
+    [PoseLandmarkIds.rightWrist]: 0.22 / 3,
+    [PoseLandmarkIds.rightIndex]: 0.22 / 3,
+    [PoseLandmarkIds.rightThumb]: 0.22 / 3,
+
+    // Hips: 0.13 total
+    [PoseLandmarkIds.leftHip]:  0.13 / 2,
+    [PoseLandmarkIds.rightHip]: 0.13 / 2,
+
+} as Record<PoseLandmarkIndex, number>);
+export const LandmarkWeighting_MotionEnergy = getWeightsListFromWeightsDict(LandmarkWeightingDict_MotionEnergy);
+
 /**
  * Names of the comparison vectors for the Qijia method.
  * These names are generated based on the landmark IDs.

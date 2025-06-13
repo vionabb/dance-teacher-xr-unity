@@ -23,7 +23,7 @@ import { dbPath, ensureMetricColumnInTable, exportCSV, loadDB, motionMetricsCsvP
 import Qijia2DSkeletonSimilarityMetric from "./Qijia2DSkeletonSimilarityMetric";
 import Jules2DSkeletonSimilarityMetric from "./Jules2DSkeletonSimilarityMetric";
 import Skeleton3dVectorAngleSimilarityMetric from "./Skeleton3dVectorAngleSimilarityMetric";
-import { fromAsync, getReferenceClip, takeAsnc } from "../EvaluationCommonUtils";
+import { fromAsync, getReferenceClip, LandmarkWeighting_MotionEnergy, takeAsnc } from "../EvaluationCommonUtils";
 import TemporalAlignmentMetric from "./TemporalAlignmentMetric";
 import Skeleton3DAngleDistanceDTW from "./Skeleton3DAngleDistanceDTW";
 import KinematicErrorMetric from "./KinematicErrorMetric";
@@ -225,9 +225,35 @@ describe("AllMetricsComparison", {}, async () => {
     });
 
     it('kinematicsError', { timeout: testTimeout }, async ({ expect }) => {
-        const metric = new KinematicErrorMetric();
+        const metricNoVisibliityScale = new KinematicErrorMetric({
+            calculateValues: {
+                scaleIndicator: null, //no size scaling,
+            },
+            calculateDescriptors: {
+                "visibilityBehavior": 'none'
+            }
+        });
+        const metricByVisiblity = new KinematicErrorMetric({
+            calculateValues: {
+                scaleIndicator: null, //no size scaling
+            },
+            calculateDescriptors: {
+                "visibilityBehavior": 'scale'
+            }
+        })
+        const metricByVisiblityAndPerceptualWeights = new KinematicErrorMetric({
+            calculateValues: {
+                scaleIndicator: null, //no size scaling
+            },
+            calculateDescriptors: {
+                "visibilityBehavior": 'scale',
+                "landmarkWeights": LandmarkWeighting_MotionEnergy,
+            }
+        });
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
-            const summary = metric.summarizeMetric(trackHistory);
+            const summary = metricByVisiblity.summarizeMetric(trackHistory);
+            const summaryNoVisiblity = metricNoVisibliityScale.summarizeMetric(trackHistory);
+            const summaryWithPerceptualWeights = metricByVisiblityAndPerceptualWeights.summarizeMetric(trackHistory);
             return {
                 "velocity_3d_MAE": summary.summary3D.velMAE ?? NaN,
                 "accel_3d_MAE": summary.summary3D.accelMAE ?? NaN,
@@ -235,6 +261,18 @@ describe("AllMetricsComparison", {}, async () => {
                 "velocity_2d_MAE": summary.summary2D.velMAE ?? NaN,
                 "accel_2d_MAE": summary.summary2D.accelMAE ?? NaN,
                 "jerk_2d_MAE": summary.summary2D.jerkMAE ?? NaN,
+                "velocity_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.velMAE ?? NaN,
+                "accel_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.accelMAE ?? NaN,
+                "jerk_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.jerkMAE ?? NaN,
+                "velocity_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.velMAE ?? NaN,
+                "accel_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.accelMAE ?? NaN,
+                "jerk_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.jerkMAE ?? NaN,
+                "velocity_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.velMAE ?? NaN,
+                "accel_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.accelMAE ?? NaN,
+                "jerk_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.jerkMAE ?? NaN,
+                "velocity_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.velMAE ?? NaN,
+                "accel_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.accelMAE ?? NaN,
+                "jerk_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.jerkMAE ?? NaN,
             }
         }
         await updateDbWithMetric('kinematicsError', metricRunner);

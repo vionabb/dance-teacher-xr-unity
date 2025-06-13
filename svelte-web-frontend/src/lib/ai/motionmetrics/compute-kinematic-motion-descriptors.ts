@@ -103,6 +103,13 @@ export function calculateJointDerivs(cur: VecWithVisibility[], prev: VecWithVisi
 
 export type KinematicValues = ReturnType<typeof calculateKinematicValues>;
 
+export type KinematicComputationOptions<T extends Pose2DPixelLandmarks | Pose3DLandmarkFrame> = {
+    scaleBehavior2D?: 'none' | 'scaleByFrame',
+    scaleBehavior3D?: 'none' | 'scaleByFrame',
+    scaleIndicator?: ((pose: T) => number) | UserRefPair<number> | null,
+    visibilityBehavior?: 'avg' | 'min',
+}
+
 /**
  * Calculates the kinematic values (velocities, accelerations, jerks) for a given set of user and reference poses. 
  * The function tracks the visibility of each pose and its landmarks, retaining this information in the output 
@@ -122,13 +129,9 @@ export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3D
     matchingUserPoses: T[],
     referencePoses: T[],
     frameTimes: number[],
-    opts?: {
-        scaleBehavior?: 'none' | 'scaleByFrame',
-        scaleIndicatorFn?: ((pose: T) => number) | UserRefPair<(pose:T) => number>,
-        visibilityBehavior?: 'avg' | 'min',
-    }
+    opts?: KinematicComputationOptions<T>
 ) {
-    const { scaleBehavior = 'none', visibilityBehavior = 'avg' } = opts || {};
+    const { scaleBehavior2D = 'none', scaleBehavior3D = 'none', visibilityBehavior = 'avg' } = opts || {};
     
     if (!matchingUserPoses || !referencePoses || !frameTimes) {
         throw new Error("Invalid input data. Either matchingUserPoses or referencePoses is null.");
@@ -193,17 +196,18 @@ export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3D
 
             // Normalize the velocities based on the scale factor
             // QUESTION: Should we update this scale factor every frame or keep it constant?
+            const scaleBehavior = is2D ? scaleBehavior2D : scaleBehavior3D;
             const defaultScaleIndicatorFn = scaleBehavior == 'none' ? 
                 () => 1.0: // no scaling
                 (is2D ? Get2DScaleIndicator : Get3DScaleIndicator);
                 
 
-            const usrFrameScale = opts?.scaleIndicatorFn ?
-                (typeof opts.scaleIndicatorFn === 'function' ? opts.scaleIndicatorFn(curPoses.user) : opts.scaleIndicatorFn.user(curPoses.user)) :
+            const usrFrameScale = opts?.scaleIndicator ?
+                (typeof opts.scaleIndicator === 'function' ? opts.scaleIndicator(curPoses.user) : (opts.scaleIndicator?.user ?? 1.0)) :
                 defaultScaleIndicatorFn(curPoses.user as any);
 
-            const refFrameScale = opts?.scaleIndicatorFn ?
-                (typeof opts.scaleIndicatorFn === 'function' ? opts.scaleIndicatorFn(curPoses.ref) : opts.scaleIndicatorFn.ref(curPoses.ref)) :
+            const refFrameScale = opts?.scaleIndicator ?
+                (typeof opts.scaleIndicator === 'function' ? opts.scaleIndicator(curPoses.ref) : (opts.scaleIndicator?.ref ?? 1.0)) :
                 defaultScaleIndicatorFn(curPoses.ref as any);
 
             if (dt > 0) {
@@ -268,13 +272,14 @@ export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3D
     };
 }
 
+export type KinematicErrorDescriptorsOptions = {
+    visibilityBehavior?: 'none' | 'scale', 
+    landmarkWeights?: readonly number[]
+}
 
 export function calculateKinematicErrorDescriptors(
     kinematicValues: KinematicValues,
-    options?: {
-        visibilityBehavior?: 'none' | 'scale', 
-        landmarkWeights?: number[]
-    }
+    options?: KinematicErrorDescriptorsOptions
 ) {
     const { poses, vels, velErrors, accels, accelErrors, jerks, jerkErrors } = kinematicValues;
     

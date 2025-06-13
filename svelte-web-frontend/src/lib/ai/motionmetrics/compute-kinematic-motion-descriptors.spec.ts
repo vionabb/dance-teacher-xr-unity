@@ -201,16 +201,14 @@ describe('calculateKinematicValues', () => {
     //  Test with scaleByFrame
     ////
 
-    // Custom scale indicator function
-    const userScaleFn = () => 2.0;
-    const refScaleFn = () => 4.0;
 
     // Test with custom scale indicator function
     const customScaling = calculateKinematicValues(userPoses, referencePoses, frameTimes, {
-      scaleBehavior: 'scaleByFrame',
-      scaleIndicatorFn: {
-        user: userScaleFn,
-        ref: refScaleFn
+      scaleBehavior2D: 'scaleByFrame',
+      scaleBehavior3D: 'scaleByFrame',
+      scaleIndicator: {
+        user: 2.0,
+        ref: 4.0
       }
     });
 
