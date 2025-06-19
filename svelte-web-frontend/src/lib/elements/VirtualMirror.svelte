@@ -10,7 +10,7 @@
 
     const INITIALIZING_FRAME_ID = -1000;
 
-    let poseEstimationWorker: Worker = $state(); //null;
+    let poseEstimationWorker = $state(null as Worker | null); //null;
     
 
 
@@ -47,7 +47,6 @@
         drawSkeleton?: boolean;
         muted?: boolean;
         poseEstimationCheckFunction?: () => boolean;
-        // let poseEstimationWorker: PoseEstimationWorker | null = null;
         customDrawFn?: null | ((ctx: CanvasRenderingContext2D, userPose: null | NormalizedLandmark[]) => void);
         poseEstimationPrimedPromise?: any;
         mirrorHorizontally?: boolean;
