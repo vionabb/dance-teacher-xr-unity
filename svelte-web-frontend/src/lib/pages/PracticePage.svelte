@@ -18,7 +18,7 @@ import { getDanceVideoSrc, load2DPoseInformation, type Dance, type PoseReference
 import { generateFeedbackNoPerformance, generateFeedbackRuleBased, generateFeedbackWithClaudeLLM } from '$lib/ai/feedback';
 import { Draw2dSkeleton } from '$lib/ai/SkeletonFeedbackVisualization'
 import VideoWithSkeleton from "$lib/elements/VideoWithSkeleton.svelte";
-import VirtualMirror from "$lib/elements/VirtualMirror.svelte";
+import VirtualMirror, { type PoseEstimationResultDetail } from "$lib/elements/VirtualMirror.svelte";
 import metronomeClickSoundSrc from '$lib/media/audio/metronome.mp3';
 import { onMount, createEventDispatcher, tick, getContext } from "svelte";
 import { webcamStream } from '$lib/webcam/streams';
@@ -40,7 +40,9 @@ import type { SegmentedProgressBarPropsWithoutCurrentTime } from '$lib/elements/
 import SegmentedProgressBar from '$lib/elements/SegmentedProgressBar.svelte';
 import PerformanceReviewPage from '$lib/pages/PerformanceReviewPage.svelte';
 import type { PracticePlan } from '$lib/model/PracticePlan';
-	import PlayableVideoWithSkeleton from '$lib/elements/PlayableVideoWithSkeleton.svelte';
+import PlayableVideoWithSkeleton from '$lib/elements/PlayableVideoWithSkeleton.svelte';
+
+import BarCharIcon from 'virtual:icons/mdi/bar-chart';
 const supabase = getContext('supabase') as SupabaseClient;
 
 interface Props {
@@ -147,7 +149,7 @@ const defaultCustomSpeedOptions = [0.25, 0.5, 0.75, 0.9, 1]
 let lastEvaluationResult: FrontendLiveEvaluationResult | null = $state(null);
 let evaluator: FrontendDanceEvaluator | null = $state(null);
 let trialId = $state(null as string | null);
-let performanceSummary: FrontendPerformanceSummary | null = $state(null);
+let performanceSummary = $state(null as FrontendPerformanceSummary | null);
 let terminalFeedback: TerminalFeedback | null = $state(null);
 
 let feedbackPromise: Promise<TerminalFeedback | undefined> | null = $state(null);
@@ -405,6 +407,8 @@ async function startCountdown() {
 
 export async function reset(start: boolean = false) {
     console.log('Reseting practice page');
+    showingPerformanceReviewPage = false;
+
     if (unpauseVideoTimeout !== null) {
         clearTimeout(unpauseVideoTimeout);
     }
@@ -492,12 +496,12 @@ let lastPoseEstimationSentTimestamp: Date = new Date();
 const maximumPoseEstimationFrequencyHz = 10;
 const minimumPoseEsstimationIntervalMs = 1000 / maximumPoseEstimationFrequencyHz;
 
-function poseEstimationFrameSent(e: any) {
+function poseEstimationFrameSent(frameId: number, timestampMs: number) {
     // Associate the webcam frame being sent for pose estimation
     // with the current video timestamp, so that we can later
     // compare the user's pose with the dance pose at that time.
     // console.log("poseEstimationFrameSent", e.detail.frameId, videoCurrentTime);
-    poseEstimationCorrespondances.set(e.detail.frameId, {
+    poseEstimationCorrespondances.set(frameId, {
         videoTimeSecs: videoCurrentTime,
         actualTimeInMs: Date.now(),
         pageState: pageState,
@@ -527,17 +531,17 @@ function shouldSendNextPoseEstimationFrame() {
     return true;
 }
 
-function poseEstimationFrameReceived(e: any) {
-    // console.log("poseEstimationFrameReceived", e.detail.frameId, e.detail.result);
+function poseEstimationFrameReceived(detail: PoseEstimationResultDetail) {
+     // console.log("poseEstimationFrameReceived", e.detail.frameId, e.detail.result);
 
     if (!referenceDancePoses2D) {
-        console.log("No dance pose information", e);
+        console.log("No dance pose information", detail);
         return;
     };
     
-    const frameId = e.detail.frameId
+    const frameId = detail.frameId;
     if (!poseEstimationCorrespondances.has(frameId)) {
-        console.log(`No matching correspondance for ${frameId}`, e, "current correspondances: ", poseEstimationCorrespondances)
+        console.log(`No matching correspondance for ${frameId}`, detail, "current correspondances: ", poseEstimationCorrespondances)
         return;
     };
     const {
@@ -548,10 +552,10 @@ function poseEstimationFrameReceived(e: any) {
 
     poseEstimationCorrespondances.delete(frameId);
 
-    const srcWidth = e?.detail?.srcWidth;
-    const srcHeight = e?.detail?.srcHeight;
-    const userNormalizedPose = (e?.detail?.estimated2DPose ?? null) as NormalizedLandmark[] | null;
-    const user3DPose = (e?.detail?.estimated3DPose ?? null) as Pose3DLandmarkFrame | null;
+    const srcWidth = detail.srcWidth;
+    const srcHeight = detail.srcHeight;
+    const userNormalizedPose = (detail.estimated2DPose ?? null) as NormalizedLandmark[] | null;
+    const user3DPose = (detail.estimated3DPose ?? null) as Pose3DLandmarkFrame | null;
     if (!userNormalizedPose || !user3DPose) { return; }
 
     // Flip normalized pose, since the user will be mirroring the dance
@@ -656,7 +660,8 @@ $effect(() => {
                     subsequences,
                     "terminalfeedback-plots"
                 ) ?? null;
-                console.log("saving performance summary", performanceSummary);
+                
+                console.log("saving performance summary", $state.snapshot(performanceSummary));
                 recordedTrack = performanceSummary?.adjustedTrack ?? null;
             }
             trialId = null;
@@ -759,8 +764,8 @@ $effect(() => {
                     const evalResToPass = skeletonDrawingEnabled ? lastEvaluationResult : null;
                     Draw2dSkeleton(ctx, pose, evalResToPass, mirrorForEvaluation);
                 }}
-                on:poseEstimationFrameSent={poseEstimationFrameSent}
-                on:poseEstimationResult={poseEstimationFrameReceived}
+                onPoseEstimationFrameSent={poseEstimationFrameSent}
+                onPoseEstimationResult={poseEstimationFrameReceived}
             />
     </div>
     </div>
@@ -816,6 +821,14 @@ $effect(() => {
                 </button>
             </div>
             <div class="right space-x-4">
+                {#if videoRecording !== undefined && pageState === "feedback" && $practiceActivities__enablePerformanceRecording}
+                <button 
+                    class="daisy-btn" 
+                    onclick={() => {showingPerformanceReviewPage = !showingPerformanceReviewPage}}>
+                    <BarCharIcon class="text-xl" />
+                    Review
+                </button>
+                {/if}
                 <div class="daisy-dropdown  daisy-dropdown-top daisy-dropdown-end"
                     class:daisy-dropdown-open={feedbackDialogOpen}
                     class:hidden={pageState!== "feedback"}>

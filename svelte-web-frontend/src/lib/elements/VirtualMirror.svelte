@@ -1,9 +1,8 @@
 <script lang="ts">
     import { poseEstimation__interFrameIdleTimeMs } from '$lib/model/settings';
 	import { PoseLandmarkKeys, type Pose3DLandmarkFrame, PostMessages as PoseEstimationMessages, ResponseMessages as PoseEsimationResponses } from '$lib/webcam/mediapipe-utils';
-	import PoseEstimationWorker from '$lib/webcam/pose-estimation.worker?worker';
     import type { DrawingUtils, PoseLandmarker, NormalizedLandmark, PoseLandmarkerResult } from "@mediapipe/tasks-vision";
-	import { onMount, tick, createEventDispatcher } from 'svelte';
+	import { onMount, tick } from 'svelte';
     import { webcamStream } from '../webcam/streams';
     import WebcamSelector from "../webcam/WebcamSelector.svelte";
     import { getContentSize } from '$lib/utils/resizing';
@@ -11,36 +10,23 @@
 
     const INITIALIZING_FRAME_ID = -1000;
 
-    const dispatch = createEventDispatcher();
+    let poseEstimationWorker: Worker = $state(); //null;
+    
 
-    export let poseEstimationEnabled: boolean = false;
-    export let drawSkeleton: boolean = false;
-
-    export let muted: boolean = true;
-
-    export let poseEstimationCheckFunction: () => boolean = () => true;
-
-    let poseEstimationWorker: Worker; //null;
-    // let poseEstimationWorker: PoseEstimationWorker | null = null;
-
-    export let customDrawFn: null | ((ctx: CanvasRenderingContext2D, userPose: null | NormalizedLandmark[]) => void) = null;
 
     // Whether the pose estimation has been primed with the first frame.
     // let poseEstimationStartedPriming = false;
     let resolvePoseEstimationPrimed: (() => void) | undefined;
-    export let poseEstimationPrimedPromise = new Promise<void>((res) => resolvePoseEstimationPrimed = res);
-    let resolvePoseEstimationReady: (() => void) | undefined;
-    let poseEstimationReadyPromise = new Promise<void>((res) => resolvePoseEstimationReady = res);
 
-    let webcamConnected = false;
-    let videoElement: HTMLVideoElement | undefined = undefined;
-    let canvasElement: HTMLCanvasElement | undefined = undefined;
-    let containerElement: HTMLDivElement | undefined = undefined;
+    let webcamConnected = $state(false);
+    let videoElement: HTMLVideoElement | undefined = $state(undefined);
+    let canvasElement: HTMLCanvasElement | undefined = $state(undefined);
+    let containerElement: HTMLDivElement | undefined = $state(undefined);
     // let webcamVideoStream: MediaStream | undefined = undefined;
-    let canvasContext: CanvasRenderingContext2D | undefined = undefined;
-    let drawingUtils: DrawingUtils | undefined = undefined;
+    let canvasContext: CanvasRenderingContext2D | undefined = $state(undefined);
+    let drawingUtils: DrawingUtils | undefined = $state(undefined);
 
-    let tasksVisionModule: typeof import('@mediapipe/tasks-vision') | undefined = undefined;
+    let tasksVisionModule: typeof import('@mediapipe/tasks-vision') | undefined = $state(undefined);
     if (browser) {
         import('@mediapipe/tasks-vision').then(m => tasksVisionModule = m);
     }
@@ -49,7 +35,37 @@
     let resolveWebcamStartedPromise: (() => void) | undefined;
     export const webcamStartedPromise = new Promise<void>((res) => resolveWebcamStartedPromise = res);
     
-    export let mirrorHorizontally: boolean = true;
+    export type PoseEstimationResultDetail = {
+        frameId: number;
+        estimated2DPose: NormalizedLandmark[] | null;
+        estimated3DPose: Pose3DLandmarkFrame | null;
+        srcWidth: number;
+        srcHeight: number;
+    };
+    interface Props {
+        poseEstimationEnabled?: boolean;
+        drawSkeleton?: boolean;
+        muted?: boolean;
+        poseEstimationCheckFunction?: () => boolean;
+        // let poseEstimationWorker: PoseEstimationWorker | null = null;
+        customDrawFn?: null | ((ctx: CanvasRenderingContext2D, userPose: null | NormalizedLandmark[]) => void);
+        poseEstimationPrimedPromise?: any;
+        mirrorHorizontally?: boolean;
+        onPoseEstimationResult?: (data: PoseEstimationResultDetail) => void;
+        onPoseEstimationFrameSent?: (frameId: number, timestampMs: number) => void;
+    }
+
+    let {
+        poseEstimationEnabled = false,
+        drawSkeleton = false,
+        muted = $bindable(true),
+        poseEstimationCheckFunction = () => true,
+        customDrawFn = null,
+        poseEstimationPrimedPromise = $bindable(new Promise<void>((res) => resolvePoseEstimationPrimed = res)),
+        mirrorHorizontally = true,
+        onPoseEstimationResult = () => {},
+        onPoseEstimationFrameSent = () => {}
+    }: Props = $props();
 
     let mirrorStartedTime = new Date().getTime();
     let lastFrameSent = -1;
@@ -58,15 +74,19 @@
 
     let lastEstimated2DPose: null | NormalizedLandmark[] = null;
 
-    let videoWidth = 1;
-    let videoHeight = 1;
-    let videoAspectRatio = 1;
-    $: videoAspectRatio = videoWidth / videoHeight;
+    let videoWidth = $state(1);
+    let videoHeight = $state(1);
+    let videoAspectRatio = $state(1);
+    $effect(() => {
+        videoAspectRatio = videoWidth / videoHeight;
+    });
 
-    let containerWidth = 1;
-    let containerHeight = 1;
-    let containerAspectRatio = 1;
-    $: containerAspectRatio = containerWidth / containerHeight;
+    let containerWidth = $state(1);
+    let containerHeight = $state(1);
+    let containerAspectRatio = $state(1);
+    $effect(() => {
+        containerAspectRatio = containerWidth / containerHeight;
+    });
 
     function onLoadedVideoData() {
         if (!videoElement) {
@@ -122,16 +142,16 @@
                 const allDetectedPersons3DLandmarks = landmarkerResult?.worldLandmarks ?? [];
                 const estimated3DPose = allDetectedPersons3DLandmarks[0] ?? null; // get the pose of the first detected person
                 
-                const eventDetail = {
-                    frameId: msg.data.frameId as number,
-                    estimated2DPose: lastEstimated2DPose as NormalizedLandmark[] | null,
-                    estimated3DPose: estimated3DPose as Pose3DLandmarkFrame | null,
-                    srcWidth: msg.data.srcWidth as number,
+                const eventDetail: PoseEstimationResultDetail = {
+                    frameId: msg.data.frameId ?? NaN as number,
+                    estimated2DPose: lastEstimated2DPose ?? null as NormalizedLandmark[] | null,
+                    estimated3DPose: estimated3DPose ?? null as Pose3DLandmarkFrame | null,
+                    srcWidth: msg.data.srcWidth  as number,
                     srcHeight: msg.data.srcHeight as number,
                 }
 
                 // console.log("Got pose estimation result", eventDetail);
-                dispatch('poseEstimationResult', eventDetail);
+                onPoseEstimationResult(eventDetail);
             } else if (msg.data.type === PoseEsimationResponses.error 
                       || msg.data.type === PoseEsimationResponses.resetError
             ) {
@@ -182,11 +202,11 @@
         return poseEstimationPrimedPromise;
     }
 
-    $: {
+    $effect(() => {
         if (poseEstimationEnabled && !poseEstimationWorker) {
-            setupPoseEstimation();
+            setupPoseEstimation()
         }
-    }
+    });
 
     onMount(() => {		
 		
@@ -223,12 +243,16 @@
             resolveWebcamStartedPromise = undefined;
         }
     }
-    $: if ($webcamStream && videoElement) {
-        connectWebcamStream();
-    }
-    $: if (videoWidth && videoHeight && containerWidth && containerHeight) {
-        resizeCanvas();
-    }
+    $effect(() => {
+        if ($webcamStream && videoElement) {
+            connectWebcamStream();
+        }
+    });
+    $effect(() => {
+        if (videoWidth && videoHeight && containerWidth && containerHeight) {
+            resizeCanvas();
+        }
+    });
 
 
     let renderedFrameId = 0;
@@ -292,7 +316,7 @@
         {
             const timeSinceStart = currentTime - mirrorStartedTime;
             lastFrameSent = renderedFrameId;
-            dispatch('poseEstimationFrameSent', { frameId: renderedFrameId, timestampMs: timeSinceStart });
+            onPoseEstimationFrameSent(renderedFrameId, timeSinceStart);
             poseEstimationWorker?.postMessage({
                 type: PoseEstimationMessages.requestPoseEstimation,
                 frameId: renderedFrameId,
@@ -336,17 +360,19 @@
         requestAnimationFrame(renderCanvas);
     }
 
-    $: if (webcamConnected && videoElement && canvasElement) {
-        canvasContext = canvasElement.getContext('2d', {
-            willReadFrequently: true,
-        })!;
+    $effect(() => {
+        if (webcamConnected && videoElement && canvasElement) {
+            canvasContext = canvasElement.getContext('2d', {
+                willReadFrequently: true,
+            })!;
 
-        if (tasksVisionModule) {
-            drawingUtils = new tasksVisionModule.DrawingUtils(canvasContext);
+            if (tasksVisionModule) {
+                drawingUtils = new tasksVisionModule.DrawingUtils(canvasContext);
+            }
+            
+            renderCanvas();
         }
-        
-        renderCanvas();
-    }
+    });
 
     onMount(() => {
         connectWebcamStream();
@@ -356,11 +382,11 @@
 
 <div class="wrapper" bind:this={containerElement}>
     {#if $webcamStream}    
-        <!-- svelte-ignore a11y-media-has-caption -->
+        <!-- svelte-ignore a11y_media_has_caption -->
         <video bind:this={videoElement} autoplay 
             class="rounded"
-            on:play={resizeCanvas}
-            on:loadeddata={onLoadedVideoData}
+            onplay={resizeCanvas}
+            onloadeddata={onLoadedVideoData}
             bind:muted={muted}
             class:flippedHorizontal={mirrorHorizontally}
             ></video>

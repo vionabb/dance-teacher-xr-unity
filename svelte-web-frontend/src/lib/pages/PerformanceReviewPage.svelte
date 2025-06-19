@@ -4,6 +4,10 @@
 	import type { TerminalFeedback } from '$lib/model/TerminalFeedback';
 	import { debugMode } from '$lib/model/settings';
 
+	import SeekToStartIcon from 'virtual:icons/lucide/arrow-left-to-line';
+	import PlayIcon from 'virtual:icons/lucide/play';
+	import PauseIcon from 'virtual:icons/lucide/pause';
+
 	interface Props {
 		referenceVideoUrl: string | undefined;
 		recordingUrl: string | undefined;
@@ -46,11 +50,7 @@
   );
 
 	function togglePlayPauseRecording() {
-		if (isNearPlaybackEnd) {
-			referenceVideoPaused = true;
-			recordingVideoPaused = true;
-			resetToStart();
-		} else if (recordingVideoPaused) {
+		if (recordingVideoPaused) {
 			referenceVideoPaused = false;
 			recordingVideoPaused = false;
 		} else {
@@ -151,15 +151,15 @@
 			</div>
 		{/if}
 
-		<div class="control-row">
-			<button class="daisy-btn" onclick={resetToStart}> &lt;&lt; </button>
+		<div class="control-row space-x-2">
+			<button class="daisy-btn" onclick={resetToStart} aria-label="Reset to start">
+				<SeekToStartIcon />
+			</button>
 			<button class="daisy-btn" onclick={togglePlayPauseRecording}>
-				{#if isNearPlaybackEnd}
-					Reset
-				{:else if recordingVideoPaused}
-					Play
+				{#if recordingVideoPaused}
+					<PlayIcon />
 				{:else}
-					Pause
+					<PauseIcon />
 				{/if}
 			</button>
 		</div>
