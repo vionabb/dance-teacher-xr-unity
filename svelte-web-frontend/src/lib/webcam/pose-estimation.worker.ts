@@ -120,8 +120,21 @@ self.onmessage = async function (event: MessageEvent) {
         const {
             frameId,
             timestampMs,
-            image
+            width,
+            height,
+            colorSpace,
+            imageBuffer, // This should be an ArrayBufferLike object
         } = event.data;
+
+
+        // create ImageData from imageBuffer
+        const image = new ImageData(
+            new Uint8ClampedArray(imageBuffer), // Convert ArrayBufferLike to Uint8ClampedArray
+            width,
+            height,
+            colorSpace ? { colorSpace } : undefined // Optional colorSpace parameter
+        );
+        
 
         if (!frameId || !timestampMs || !image) {
             console.warn("pose-estimation.worker.ts:: Received message without required data", event);

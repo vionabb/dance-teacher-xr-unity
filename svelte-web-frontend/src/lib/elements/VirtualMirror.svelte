@@ -1,18 +1,19 @@
 <script lang="ts">
+    
     import { poseEstimation__interFrameIdleTimeMs } from '$lib/model/settings';
 	import { PoseLandmarkKeys, type Pose3DLandmarkFrame, PostMessages as PoseEstimationMessages, ResponseMessages as PoseEsimationResponses } from '$lib/webcam/mediapipe-utils';
     import type { DrawingUtils, PoseLandmarker, NormalizedLandmark, PoseLandmarkerResult } from "@mediapipe/tasks-vision";
 	import { onMount, tick } from 'svelte';
-    import { webcamStream } from '../webcam/streams';
+    import { webcamStream, webcamStreamId } from '../webcam/streams';
     import WebcamSelector from "../webcam/WebcamSelector.svelte";
     import { getContentSize } from '$lib/utils/resizing';
 	import { browser } from '$app/environment';
 	import type { PoseEstimationResultDetail } from '$lib/services/PoseEstimationService';
+    import poseEstimationService from '$lib/services/PoseEstimationService';
+	import { get } from 'svelte/store';
+	import { render } from 'svelte/server';
 
     const INITIALIZING_FRAME_ID = -1000;
-
-    let poseEstimationWorker = $state(null as Worker | null); //null;
-
 
     // Whether the pose estimation has been primed with the first frame.
     // let poseEstimationStartedPriming = false;
@@ -25,6 +26,7 @@
     // let webcamVideoStream: MediaStream | undefined = undefined;
     let canvasContext: CanvasRenderingContext2D | undefined = $state(undefined);
     let drawingUtils: DrawingUtils | undefined = $state(undefined);
+    let renderingCanvas = $state(false);
 
     let tasksVisionModule: typeof import('@mediapipe/tasks-vision') | undefined = $state(undefined);
     if (browser) {
@@ -105,108 +107,7 @@
         }
     }
 
-    export function setupPoseEstimation() {
-        // poseEstimationWorker = worker;
-		poseEstimationWorker = new Worker(new URL('$lib/webcam/pose-estimation.worker.ts', import.meta.url));
-
-        poseEstimationWorker.onmessage = (msg: any) => {
-            if (!msg.data.type) {
-                console.error("Got message from PoseEstim worker without type", msg);
-                return;
-            }
-
-            if (msg.data.type === PoseEsimationResponses.poseEstimation) {
-
-                lastFrameReceivedTime = new Date().getTime();
-
-                if (msg.data.frameId === INITIALIZING_FRAME_ID) {
-                    // Resolve the pose estimation primed promise, so that 
-                    // anything waiting on it can continue.
-                    resolvePoseEstimationPrimed?.();
-                    return;
-                }
-
-                lastFrameDecoded = msg.data.frameId;
-                const landmarkerResult = msg.data.landmarkerResult as PoseLandmarkerResult | null;
-                const allDetectedPersonsNormalizedLandmarks = landmarkerResult?.landmarks ?? [];
-                const estimated2DPose = allDetectedPersonsNormalizedLandmarks[0] ?? null; // get the pose of the first detected person
-                lastEstimated2DPose = estimated2DPose
-
-                const allDetectedPersons3DLandmarks = landmarkerResult?.worldLandmarks ?? [];
-                const estimated3DPose = allDetectedPersons3DLandmarks[0] ?? null; // get the pose of the first detected person
-                
-                const eventDetail: PoseEstimationResultDetail = {
-                    frameId: msg.data.frameId ?? NaN as number,
-                    estimated2DPose: lastEstimated2DPose ?? null as NormalizedLandmark[] | null,
-                    estimated3DPose: estimated3DPose ?? null as Pose3DLandmarkFrame | null,
-                    srcWidth: msg.data.srcWidth  as number,
-                    srcHeight: msg.data.srcHeight as number,
-                }
-
-                // console.log("Got pose estimation result", eventDetail);
-                onPoseEstimationResult(eventDetail);
-            } else if (msg.data.type === PoseEsimationResponses.error 
-                      || msg.data.type === PoseEsimationResponses.resetError
-            ) {
-                console.error("Got error from PoseEstim", msg.data.type, msg.data.error);
-
-                if (msg.data.frameId === lastFrameSent) {
-                    lastFrameSent = -1;
-                    lastEstimated2DPose = null;
-                }
-            } else if (msg.data.type == PoseEsimationResponses.resetComplete) {
-                console.log("Pose Estimation Reset Complete");
-                lastFrameSent = -1;
-                lastEstimated2DPose = null;
-            }
-        };
-
-        // Send reset message
-        poseEstimationWorker.postMessage({
-            type: PoseEstimationMessages.reset,
-            frameId: new Date().getTime(),
-        });
-
-        return Promise.resolve(); // poseEstimationWorker.ready;
-    }
-
-    /**
-     * Sets flag that will initiate priming the pose estimation
-     * pipeline by performing an estimation on a frame. 
-     */
-    export async function primePoseEstimation() {
-        if (!poseEstimationEnabled || !poseEstimationWorker || !canvasContext || !canvasElement) {
-            throw new Error("Pose estimation not enabled, or not yet ready.");
-        }
-
-        console.log("Priming pose estimation")
-        poseEstimationPrimedPromise = new Promise<void>((res) => resolvePoseEstimationPrimed = res);
-
-        const timeSinceStart = new Date().getTime() - mirrorStartedTime;
-        
-        // Send a single pose estimation request to the worker to make sure it's ready
-        poseEstimationWorker.postMessage({
-            type: PoseEstimationMessages.requestPoseEstimation,
-            frameId: INITIALIZING_FRAME_ID,
-            timestampMs: timeSinceStart, // any negative value should do. Just need to make sure the timestampMs is increasing 
-            image: canvasContext!.getImageData(0, 0, canvasElement!.width, canvasElement!.height)
-        });
-
-        return poseEstimationPrimedPromise;
-    }
-
-    $effect(() => {
-        if (poseEstimationEnabled && !poseEstimationWorker) {
-            setupPoseEstimation()
-        }
-    });
-
     onMount(() => {		
-		
-        // Start pose estimation, if enabled
-        if (poseEstimationEnabled) {
-            setupPoseEstimation();
-        }
 
         // Schedule a canvas resize
         tick().then(resizeCanvas);
@@ -220,7 +121,6 @@
         resizeObserver.observe(containerElement!);
 
 		return () => {
-            poseEstimationWorker?.terminate();
             resizeObserver.unobserve(containerElement!);
 		}
 	});
@@ -247,7 +147,6 @@
         }
     });
 
-
     let renderedFrameId = 0;
     function renderCanvas() {
         if (!canvasElement || !videoElement || !$webcamStream || !canvasContext) {
@@ -256,6 +155,22 @@
 
         if (!browser) return;
         if (!tasksVisionModule) return;
+
+        if (!renderingCanvas) {
+            // if this is the first time we're rendering the canvas,
+            // set up the event listeners and start the rendering loop.
+            renderingCanvas = true;
+            
+            poseEstimationService.addEventListener(
+                "poseEstimationResult",
+                (event: CustomEvent<PoseEstimationResultDetail>) => {
+                    lastFrameReceivedTime = new Date().getTime();
+                    lastEstimated2DPose = event.detail.estimated2DPose;;
+                    onPoseEstimationResult(event.detail);
+                }
+            );
+        }
+        
 
         // canvasElement.width = videoElement.videoWidth;
         // canvasElement.height = videoElement.videoHeight;
@@ -310,15 +225,18 @@
             const timeSinceStart = currentTime - mirrorStartedTime;
             lastFrameSent = renderedFrameId;
             onPoseEstimationFrameSent(renderedFrameId, timeSinceStart);
-            poseEstimationWorker?.postMessage({
-                type: PoseEstimationMessages.requestPoseEstimation,
-                frameId: renderedFrameId,
-                timestampMs: timeSinceStart,
-                image: canvasContext.getImageData(drawX, drawY, drawWidth, drawHeight)
-            });
+
+            poseEstimationService.estimatePose(
+                renderedFrameId,
+                get(webcamStreamId),
+                timeSinceStart,
+                canvasContext.getImageData(drawX, drawY, drawWidth, drawHeight),
+            );
         }
 
-        // Use the custom draw function. This allows for higher specificity
+        // Use the custom draw function. This allows for greater customization
+        // of the canvas rendering, such as drawing additional elements or effects 
+        // (such as color coding, etc).
         customDrawFn?.(canvasContext, lastEstimated2DPose);
 
         // Leave early if we're not drawing the skeleton
@@ -328,14 +246,6 @@
         }
 
         canvasContext.save();
-        // if (videoAspectRatio > canvasAspectRatio) {
-        //     canvasContext.scale(1.0, drawHeight / canvasElement.height);
-        // } else {
-        //     canvasContext.scale(drawWidth / canvasElement.width, 1.0);
-        // }
-
-        // canvasContext.scale(drawWidth / videoElement.videoWidth, drawHeight / videoElement.videoHeight);
-        // canvasContext.translate(drawX, drawY);
 
         if(lastEstimated2DPose && lastEstimated2DPose.length === PoseLandmarkKeys.length) {
             drawingUtils?.drawConnectors(
@@ -359,11 +269,14 @@
                 willReadFrequently: true,
             })!;
 
-            if (tasksVisionModule) {
+            if (tasksVisionModule && !drawingUtils) {
                 drawingUtils = new tasksVisionModule.DrawingUtils(canvasContext);
             }
             
-            renderCanvas();
+            if (!renderingCanvas) {
+                // start render-canvas loop
+                renderCanvas();
+            }
         }
     });
 

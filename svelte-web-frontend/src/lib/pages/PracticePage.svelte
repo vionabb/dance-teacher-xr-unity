@@ -18,7 +18,8 @@ import { getDanceVideoSrc, load2DPoseInformation, type Dance, type PoseReference
 import { generateFeedbackNoPerformance, generateFeedbackRuleBased, generateFeedbackWithClaudeLLM } from '$lib/ai/feedback';
 import { Draw2dSkeleton } from '$lib/ai/SkeletonFeedbackVisualization'
 import VideoWithSkeleton from "$lib/elements/VideoWithSkeleton.svelte";
-import VirtualMirror, { type PoseEstimationResultDetail } from "$lib/elements/VirtualMirror.svelte";
+import VirtualMirror from "$lib/elements/VirtualMirror.svelte";
+import poseEstimationService, { type PoseEstimationResultDetail } from '$lib/services/PoseEstimationService';
 import metronomeClickSoundSrc from '$lib/media/audio/metronome.mp3';
 import { onMount, createEventDispatcher, tick, getContext } from "svelte";
 import { webcamStream } from '$lib/webcam/streams';
@@ -469,10 +470,11 @@ export async function reset(start: boolean = false) {
 
     await tick();
 
-    if (poseEstimationEnabled) {
-        console.log("Triggering pose estimation priming");
-        await virtualMirrorElement.primePoseEstimation();
-    }
+    // TODO: prime pose estimation
+    // if (poseEstimationEnabled) {
+    //     console.log("Triggering pose estimation priming");
+    //     await virtualMirrorElement.primePoseEstimation();
+    // }
 
     await waitSecs(beatDuration);
 
@@ -602,7 +604,7 @@ onMount(() => {
     // after the video starts playing.
     clickAudioElement = new Audio(metronomeClickSoundSrc);
     videoCurrentTime = practiceStep?.startTime ?? 0;
-    poseEstimationReady = virtualMirrorElement?.setupPoseEstimation() ?? Promise.reject("Virtual mirror is undefined or setupPoseEstimation returned a null promise");
+    poseEstimationReady = Promise.resolve(); //virtualMirrorElement?.setupPoseEstimation() ?? Promise.reject("Virtual mirror is undefined or setupPoseEstimation returned a null promise");
     reset();
     isMounted = true;
 

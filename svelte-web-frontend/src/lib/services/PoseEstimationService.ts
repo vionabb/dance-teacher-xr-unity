@@ -3,7 +3,7 @@ import { browser } from '$app/environment';
 import { poseEstimation__interFrameIdleTimeMs } from '$lib/model/settings';
 import { PoseLandmarkKeys, type Pose3DLandmarkFrame, PostMessages as PoseEstimationMessages, ResponseMessages as PoseEsimationResponses, type Pose2DPixelLandmarks } from '$lib/webcam/mediapipe-utils';
 import type { NormalizedLandmark, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
-import { webcamStream } from '../webcam/streams';    
+
 
 const INITIALIZING_FRAME_ID = -1000;
 
@@ -15,13 +15,31 @@ export type PoseEstimationResultDetail = {
     srcHeight: number;
 };
 
+type PoseEstimationEventMap = {
+    poseEstimationResult: PoseEstimationResultDetail;
+};
 
 export class PoseEstimationService {
     lastFrameSent = -1;
     lastFrameReceivedTime = new Date().getTime();
     lastFrameDecoded = -1;
-    lastEstimated2DPose = $state(null as null | NormalizedLandmark[]);
-    worker = $state(null as Worker | null); //null;
+    lastFrameStreamId = undefined as string | undefined;
+    lastEstimated2DPose = null as null | NormalizedLandmark[];
+    worker = null as Worker | null; //null;
+    poseEstimationInProgress = false;
+
+    poseEstimationResetPromise: Promise<void> | null = null;
+    resolvePoseEstimationReset: (() => void) | null = null;
+    rejectPoseEstimationReset: (() => void) | null = null;
+
+    private eventTarget = new EventTarget();
+
+    constructor() {
+        if (!browser) return;
+
+        this.worker = new Worker(new URL('$lib/webcam/pose-estimation.worker.ts', import.meta.url));
+        this.worker.onmessage = this.onWorkerMessage.bind(this);
+    }
 
     onWorkerMessage(msg: any) {
         
@@ -31,7 +49,7 @@ export class PoseEstimationService {
         }
 
         if (msg.data.type === PoseEsimationResponses.poseEstimation) {
-
+            this.poseEstimationInProgress = false;
             this.lastFrameReceivedTime = new Date().getTime();
 
             // if (msg.data.frameId === INITIALIZING_FRAME_ID) {
@@ -45,13 +63,11 @@ export class PoseEstimationService {
             const landmarkerResult = msg.data.landmarkerResult as PoseLandmarkerResult | null;
             const allDetectedPersonsNormalizedLandmarks = landmarkerResult?.landmarks ?? [];
             const estimated2DPose = allDetectedPersonsNormalizedLandmarks[0] ?? null; // get the pose of the first detected person
-
-            // Todo: use event mechanism to publish events
-            this.lastEstimated2DPose = estimated2DPose
-
             const allDetectedPersons3DLandmarks = landmarkerResult?.worldLandmarks ?? [];
             const estimated3DPose = allDetectedPersons3DLandmarks[0] ?? null; // get the pose of the first detected person
             
+            this.lastEstimated2DPose = estimated2DPose;
+
             const eventDetail: PoseEstimationResultDetail = {
                 frameId: msg.data.frameId ?? NaN as number,
                 estimated2DPose: this.lastEstimated2DPose ?? null as NormalizedLandmark[] | null,
@@ -62,33 +78,129 @@ export class PoseEstimationService {
 
             // Todo: use event mechanism to publish events
             this.lastEstimated2DPose = estimated2DPose
-
-            onPoseEstimationResult(eventDetail);
+            const event = new CustomEvent('poseEstimationResult', { detail: eventDetail });
+            this.eventTarget.dispatchEvent(event);
+            // onPoseEstimationResult(eventDetail);
             
-        } else if (msg.data.type === PoseEsimationResponses.error 
-                    || msg.data.type === PoseEsimationResponses.resetError
-        ) {
-            console.error("Got error from PoseEstim", msg.data.type, msg.data.error);
+        } else if (msg.data.type === PoseEsimationResponses.error || msg.data.type === PoseEsimationResponses.resetError) {
+            console.error("PoseEstimationService:: Got error from PoseEstimation worker", msg.data.type, msg.data.error);
 
             if (msg.data.frameId === this.lastFrameSent) {
                 this.lastFrameSent = -1;
                 this.lastEstimated2DPose = null;
             }
         } else if (msg.data.type == PoseEsimationResponses.resetComplete) {
-            console.log("Pose Estimation Reset Complete");
+            console.log("PoseEstimationService:: Pose Estimation Reset Complete");
             this.lastFrameSent = -1;
             this.lastEstimated2DPose = null;
+            this.resolvePoseEstimationReset?.();
         }
-        
     }
 
-    setupPoseEstimation() {
-        if (!browser) return;
-        
-        this.worker = new Worker(new URL('$lib/webcam/pose-estimation.worker.ts', import.meta.url));
-        this.worker.onmessage = this.onWorkerMessage.bind(this);
+    addEventListener<K extends keyof PoseEstimationEventMap>(
+        type: K,
+        listener: (event: CustomEvent<PoseEstimationEventMap[K]>) => void
+    ) {
+        this.eventTarget.addEventListener(type, listener as EventListener);
     }
+    
+    removeEventListener<K extends keyof PoseEstimationEventMap>(
+        type: K,
+        listener: (event: CustomEvent<PoseEstimationEventMap[K]>) => void
+    ) {
+        this.eventTarget.removeEventListener(type, listener as EventListener);
+    }
+
+    async estimatePose(
+        frameId: number,
+        streamId: string,
+        timestampMs: number,
+        imageData: ImageData,
+    ) {
+        if (!this.worker) {
+            console.error("PoseEstimationService:: estimatePose called but worker is not initialized");
+            return;
+        }
+        
+        if (this.poseEstimationInProgress) {
+            // If pose estimation is already in progress, we can skip this frame
+            // to avoid overloading the worker.
+            console.warn("PoseEstimationService:: estimatePose called while pose estimation is in progress. Skipping frame", frameId);
+            return;
+        }
+
+        this.poseEstimationInProgress = true;
+        if (this.lastFrameStreamId !== streamId || this.lastFrameSent < 0 || timestampMs <= this.lastFrameReceivedTime) {
+            this.poseEstimationResetPromise = new Promise<void>((res, rej) => {
+                this.resolvePoseEstimationReset = res;
+                this.rejectPoseEstimationReset = rej;
+            });
+
+            // call reset on the worker if the streamId has changed
+            console.log("PoseEstimationService:: Resetting pose estimation worker due to streamId change or first frame");
+            this.worker?.postMessage({
+                type: PoseEstimationMessages.reset,
+                frameId: new Date().getTime(),
+            });
+
+            await this.poseEstimationResetPromise;
+        }
+        
+
+        this.worker?.postMessage({
+            type: PoseEstimationMessages.requestPoseEstimation,
+            frameId: frameId,
+            timestampMs: timestampMs,
+            width: imageData.width,
+            height: imageData.height,
+            imageBuffer: imageData.data.buffer, // Explicitly assign the transferable object to the "image" property
+            colorSpace: imageData.colorSpace,
+            
+        }, [
+            imageData.data.buffer
+        ]);
+    }
+
+    // queuePoseEstimation(
+    //     frameId: number,
+    //     srcWidth: number,
+    //     srcHeight: number,
+    // ) {
+
+    // }
 }
+
+
+//   /**
+//      * Sets flag that will initiate priming the pose estimation
+//      * pipeline by performing an estimation on a frame. 
+//      */
+//     export async function primePoseEstimation() {
+//         if (!poseEstimationEnabled || !poseEstimationWorker || !canvasContext || !canvasElement) {
+//             throw new Error("Pose estimation not enabled, or not yet ready.");
+//         }
+
+//         console.log("Priming pose estimation")
+//         poseEstimationPrimedPromise = new Promise<void>((res) => resolvePoseEstimationPrimed = res);
+
+//         const timeSinceStart = new Date().getTime() - mirrorStartedTime;
+        
+//         // Send a single pose estimation request to the worker to make sure it's ready
+//         poseEstimationWorker.postMessage({
+//             type: PoseEstimationMessages.requestPoseEstimation,
+//             frameId: INITIALIZING_FRAME_ID,
+//             timestampMs: timeSinceStart, // any negative value should do. Just need to make sure the timestampMs is increasing 
+//             image: canvasContext!.getImageData(0, 0, canvasElement!.width, canvasElement!.height)
+//         });
+
+//         return poseEstimationPrimedPromise;
+//     }
+
+//     $effect(() => {
+//         if (poseEstimationEnabled && !poseEstimationWorker) {
+//             setupPoseEstimation()
+//         }
+//     });
 
 const service = new PoseEstimationService();
 export default service;
