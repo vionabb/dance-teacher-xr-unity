@@ -7,11 +7,11 @@
     import WebcamSelector from "../webcam/WebcamSelector.svelte";
     import { getContentSize } from '$lib/utils/resizing';
 	import { browser } from '$app/environment';
+	import type { PoseEstimationResultDetail } from '$lib/services/PoseEstimationService';
 
     const INITIALIZING_FRAME_ID = -1000;
 
     let poseEstimationWorker = $state(null as Worker | null); //null;
-    
 
 
     // Whether the pose estimation has been primed with the first frame.
@@ -35,13 +35,7 @@
     let resolveWebcamStartedPromise: (() => void) | undefined;
     export const webcamStartedPromise = new Promise<void>((res) => resolveWebcamStartedPromise = res);
     
-    export type PoseEstimationResultDetail = {
-        frameId: number;
-        estimated2DPose: NormalizedLandmark[] | null;
-        estimated3DPose: Pose3DLandmarkFrame | null;
-        srcWidth: number;
-        srcHeight: number;
-    };
+
     interface Props {
         poseEstimationEnabled?: boolean;
         drawSkeleton?: boolean;
