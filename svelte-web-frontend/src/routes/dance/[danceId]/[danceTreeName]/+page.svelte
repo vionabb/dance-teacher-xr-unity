@@ -1,19 +1,20 @@
 <script lang="ts">
+    import { run } from 'svelte/legacy';
+
 	import type { Dance } from "$lib/data/dances-store.js";
 
 	import { navbarProps } from "$lib/elements/NavBar.svelte";
 	import type { PracticePlan } from "$lib/model/PracticePlan";
 	import DanceLandingPage from "./DanceLandingPage.svelte";
+	import { page } from '$app/state';
 
-    export let data;
-    
-    let dance: Dance;
-    $: dance = data.dance;
+    let { data } = $props();
+    let danceId = $derived(page.params.danceId);
+    let danceTreeName = $derived(page.params.danceTreeName);
 
-    let practicePlan: PracticePlan;
-    $: practicePlan = data.practicePlan;
+    let dance = data.dance;
 
-    $: {
+    $effect(() => {
         navbarProps.update(props => ({
             ...props,
             collapsed: false,
@@ -24,7 +25,7 @@
                 title: 'Home',
             },
         }));
-    }
+    });
 </script>
 
 <svelte:head>

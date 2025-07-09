@@ -1,7 +1,8 @@
 import { error } from '@sveltejs/kit';
 
-import { getDanceTreeFromDanceAndTreeName } from '$lib/data/dances-store.js';
-import { GeneratePracticePlan } from '$lib/ai/TeachingAgent/TeachingAgent.js';
+import { getDanceTreeFromDanceAndTreeName, type DanceTree } from '$lib/data/dances-store.js';
+import TeachingAgent, { GeneratePracticePlan } from '$lib/ai/TeachingAgent/TeachingAgent.js';
+import { get } from 'svelte/store';
 
 /** @type {import('./$types').PageLoad} */
 export async function load({ params, parent })  {
@@ -9,13 +10,14 @@ export async function load({ params, parent })  {
     const { dance } = await parent();
     const danceTreeName: string = params.danceTreeName;
     const danceTree = getDanceTreeFromDanceAndTreeName(dance, danceTreeName);
+    const teachingAgent = new TeachingAgent(danceTree as DanceTree, dance);
     
     
     if (!danceTree) {
         error(404, 'Dance Segmentation Not found');
     }
 
-    const practicePlan = GeneratePracticePlan(dance, danceTree);
+    const initialPracticePlan = get(teachingAgent.practicePlan);
     
     // if (!danceTree) {
         // throw  error(404, 'Dance Tree Not found');   
@@ -24,9 +26,9 @@ export async function load({ params, parent })  {
     // const preselectedNodeId = url.searchParams.get('preselectedNodeId');
 
     return {
-        // dance: dance,
+        dance: dance,
         danceTree,
-        practicePlan,
+        iniialPracticePlan: initialPracticePlan,
         // preselectedNodeId: preselectedNodeId,
     }
 }

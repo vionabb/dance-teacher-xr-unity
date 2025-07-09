@@ -389,6 +389,9 @@ async function startCountdown() {
             webcamRecorderMimeType = 'video/webm';
         } else if (MediaRecorder.isTypeSupported('video/mp4')) {
             webcamRecorderMimeType = 'video/mp4';
+        } else {
+            console.warn('No supported MediaRecorder mime type found, defaulting to video/webm');
+            webcamRecorderMimeType = 'video/webm';
         }
         webcamRecorder = new MediaRecorder($webcamStream, { mimeType: webcamRecorderMimeType });
         webcamRecordedChunks = [];

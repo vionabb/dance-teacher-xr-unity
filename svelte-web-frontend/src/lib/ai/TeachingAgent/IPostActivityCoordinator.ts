@@ -1,6 +1,6 @@
 import type { SvelteComponent } from "svelte";
-import type { IPracticePage } from "./IPracticePage";
-import type { FrontendDanceEvaluator } from "./FrontendDanceEvaluator";
+import type { IPracticePage } from "../IPracticePage";
+import type { FrontendDanceEvaluator } from "../FrontendDanceEvaluator";
 
 export interface PostActivityUIContentItem {
     text?: string; 

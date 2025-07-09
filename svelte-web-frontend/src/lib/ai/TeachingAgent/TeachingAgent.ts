@@ -5,6 +5,7 @@ import type { CheckpointActivity, DrillActivity, FinaleActivity, PracticePlan, S
 import { CreateMarkingStep } from './marking-step';
 import { CreateDrillStep } from './drill-step';
 import { CreateFulloutStep } from './fullout-step';
+import { readable } from 'svelte/store';
 
 // export interface UserDancePerformanceLog {
 //     // markingByNode: Map<DanceTreeNode["id"], number>;
@@ -226,3 +227,21 @@ export function GeneratePracticeStep(
 //     },
 //     terminalFeedback: 'enabled',
 // },
+
+class TeachingAgent {
+    
+    private setPracticePlan: (practicePlan: PracticePlan | null) => void = () => { };
+    practicePlan = readable(null as PracticePlan | null, (set) => {
+        this.setPracticePlan = set;
+    });
+
+    constructor(private danceTree: DanceTree, private dance: Dance) {
+        const initialPracticePlan = GeneratePracticePlan(dance, danceTree);
+        this.setPracticePlan(initialPracticePlan);
+    }
+
+
+
+}
+
+export default TeachingAgent;
