@@ -1,8 +1,8 @@
-
 import { browser } from '$app/environment';
 import { poseEstimation__interFrameIdleTimeMs } from '$lib/model/settings';
 import { PoseLandmarkKeys, type Pose3DLandmarkFrame, PostMessages as PoseEstimationMessages, ResponseMessages as PoseEsimationResponses, type Pose2DPixelLandmarks } from '$lib/webcam/mediapipe-utils';
 import type { NormalizedLandmark, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
+import EventHub from '$lib/utils/EventHub';
 
 
 const INITIALIZING_FRAME_ID = -1000;
@@ -32,7 +32,7 @@ export class PoseEstimationService {
     resolvePoseEstimationReset: (() => void) | null = null;
     rejectPoseEstimationReset: (() => void) | null = null;
 
-    private eventTarget = new EventTarget();
+    private eventHub = new EventHub<PoseEstimationEventMap>();
 
     constructor() {
         if (!browser) return;
@@ -78,8 +78,7 @@ export class PoseEstimationService {
 
             // Todo: use event mechanism to publish events
             this.lastEstimated2DPose = estimated2DPose
-            const event = new CustomEvent('poseEstimationResult', { detail: eventDetail });
-            this.eventTarget.dispatchEvent(event);
+            this.eventHub.emit('poseEstimationResult', eventDetail);
             // onPoseEstimationResult(eventDetail);
             
         } else if (msg.data.type === PoseEsimationResponses.error || msg.data.type === PoseEsimationResponses.resetError) {
@@ -100,16 +99,16 @@ export class PoseEstimationService {
 
     addEventListener<K extends keyof PoseEstimationEventMap>(
         type: K,
-        listener: (event: CustomEvent<PoseEstimationEventMap[K]>) => void
-    ) {
-        this.eventTarget.addEventListener(type, listener as EventListener);
+        listener: (payload: PoseEstimationEventMap[K]) => void
+    ): void {
+        this.eventHub.subscribe(type, listener);
     }
-    
+
     removeEventListener<K extends keyof PoseEstimationEventMap>(
         type: K,
-        listener: (event: CustomEvent<PoseEstimationEventMap[K]>) => void
-    ) {
-        this.eventTarget.removeEventListener(type, listener as EventListener);
+        listener: (payload: PoseEstimationEventMap[K]) => void
+    ): void {
+        this.eventHub.unsubscribe(type, listener);
     }
 
     async estimatePose(

@@ -3,7 +3,7 @@
     import { poseEstimation__interFrameIdleTimeMs } from '$lib/model/settings';
 	import { PoseLandmarkKeys, type Pose3DLandmarkFrame, PostMessages as PoseEstimationMessages, ResponseMessages as PoseEsimationResponses } from '$lib/webcam/mediapipe-utils';
     import type { DrawingUtils, PoseLandmarker, NormalizedLandmark, PoseLandmarkerResult } from "@mediapipe/tasks-vision";
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, onDestroy } from 'svelte';
     import { webcamStream, webcamStreamId } from '../webcam/streams';
     import WebcamSelector from "../webcam/WebcamSelector.svelte";
     import { getContentSize } from '$lib/utils/resizing';
@@ -27,6 +27,7 @@
     let canvasContext: CanvasRenderingContext2D | undefined = $state(undefined);
     let drawingUtils: DrawingUtils | undefined = $state(undefined);
     let renderingCanvas = $state(false);
+    let poseResultListener: ((detail: PoseEstimationResultDetail) => void) | null = null;
 
     let tasksVisionModule: typeof import('@mediapipe/tasks-vision') | undefined = $state(undefined);
     if (browser) {
@@ -63,9 +64,9 @@
     }: Props = $props();
 
     let mirrorStartedTime = new Date().getTime();
-    let lastFrameSent = -1;
+    let lastFrameSentId = -1;
     let lastFrameReceivedTime = new Date().getTime();
-    let lastFrameDecoded = -1;
+    let lastFrameReceivedId = -1;
 
     let lastEstimated2DPose: null | NormalizedLandmark[] = null;
 
@@ -160,17 +161,21 @@
             // if this is the first time we're rendering the canvas,
             // set up the event listeners and start the rendering loop.
             renderingCanvas = true;
-            
+        }   
+
+        if (!poseResultListener) {
+            // If the listener is not set up, we can't render the canvas.
+            poseResultListener = (detail: PoseEstimationResultDetail) => {
+                lastFrameReceivedTime = Date.now();
+                lastEstimated2DPose = detail.estimated2DPose;
+				lastFrameReceivedId = detail.frameId;
+                onPoseEstimationResult(detail);
+            };
             poseEstimationService.addEventListener(
-                "poseEstimationResult",
-                (event: CustomEvent<PoseEstimationResultDetail>) => {
-                    lastFrameReceivedTime = new Date().getTime();
-                    lastEstimated2DPose = event.detail.estimated2DPose;;
-                    onPoseEstimationResult(event.detail);
-                }
+                'poseEstimationResult',
+                poseResultListener
             );
         }
-        
 
         // canvasElement.width = videoElement.videoWidth;
         // canvasElement.height = videoElement.videoHeight;
@@ -218,12 +223,12 @@
         const currentTime = new Date().getTime();
         const timeSinceLastFrameReceived = currentTime - lastFrameReceivedTime;
         if (poseEstimationEnabled && 
-            lastFrameDecoded == lastFrameSent && 
+            lastFrameReceivedId == lastFrameSentId && 
             timeSinceLastFrameReceived > $poseEstimation__interFrameIdleTimeMs && 
             poseEstimationCheckFunction()) 
         {
             const timeSinceStart = currentTime - mirrorStartedTime;
-            lastFrameSent = renderedFrameId;
+            lastFrameSentId = renderedFrameId;
             onPoseEstimationFrameSent(renderedFrameId, timeSinceStart);
 
             poseEstimationService.estimatePose(
@@ -284,6 +289,13 @@
         connectWebcamStream();
         return {};
     })
+
+    // Clean up subscription when component is destroyed
+    onDestroy(() => {
+        if (poseResultListener) {
+            poseEstimationService.removeEventListener('poseEstimationResult', poseResultListener);
+        }
+    });
 </script>
 
 <div class="wrapper" bind:this={containerElement}>
