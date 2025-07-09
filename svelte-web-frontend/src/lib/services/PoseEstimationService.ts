@@ -93,6 +93,7 @@ export class PoseEstimationService {
             console.log("PoseEstimationService:: Pose Estimation Reset Complete");
             this.lastFrameSent = -1;
             this.lastEstimated2DPose = null;
+            this.poseEstimationInProgress = false;
             this.resolvePoseEstimationReset?.();
         }
     }
