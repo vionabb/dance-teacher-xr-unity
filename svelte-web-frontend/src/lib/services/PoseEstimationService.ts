@@ -21,8 +21,8 @@ type PoseEstimationEventMap = {
 
 export class PoseEstimationService {
     lastFrameSent = -1;
-    lastFrameReceivedTime = new Date().getTime();
-    lastFrameDecoded = -1;
+    lastFrameSentTimestamp = 0 as number;
+    lastFrameEstimated = -1;
     lastFrameStreamId = undefined as string | undefined;
     lastEstimated2DPose = null as null | NormalizedLandmark[];
     worker = null as Worker | null; //null;
@@ -50,7 +50,7 @@ export class PoseEstimationService {
 
         if (msg.data.type === PoseEsimationResponses.poseEstimation) {
             this.poseEstimationInProgress = false;
-            this.lastFrameReceivedTime = new Date().getTime();
+            // this.lastFrameReceivedTimestamp = new Date().getTime();
 
             // if (msg.data.frameId === INITIALIZING_FRAME_ID) {
             //     // Resolve the pose estimation primed promise, so that 
@@ -59,7 +59,7 @@ export class PoseEstimationService {
             //     return;
             // }
 
-            this.lastFrameDecoded = msg.data.frameId;
+            this.lastFrameEstimated = msg.data.frameId;
             const landmarkerResult = msg.data.landmarkerResult as PoseLandmarkerResult | null;
             const allDetectedPersonsNormalizedLandmarks = landmarkerResult?.landmarks ?? [];
             const estimated2DPose = allDetectedPersonsNormalizedLandmarks[0] ?? null; // get the pose of the first detected person
@@ -130,14 +130,26 @@ export class PoseEstimationService {
         }
 
         this.poseEstimationInProgress = true;
-        if (this.lastFrameStreamId !== streamId || this.lastFrameSent < 0 || timestampMs <= this.lastFrameReceivedTime) {
+
+        const streamIdChange = this.lastFrameStreamId !== streamId;
+        const isFirstFrame = this.lastFrameSent < 0;
+        const isOutOfOrderFrame = timestampMs <= this.lastFrameSentTimestamp;
+
+        if (streamIdChange || isFirstFrame || isOutOfOrderFrame) {
             this.poseEstimationResetPromise = new Promise<void>((res, rej) => {
                 this.resolvePoseEstimationReset = res;
                 this.rejectPoseEstimationReset = rej;
             });
 
             // call reset on the worker if the streamId has changed
-            console.log("PoseEstimationService:: Resetting pose estimation worker due to streamId change or first frame");
+            const reasons = ([] as string[]).concat(
+                streamIdChange ? [`streamId changed (new: ${streamId}, old: ${this.lastFrameStreamId})`] : [],
+                isFirstFrame ? [`first frame`] : [],
+                isOutOfOrderFrame ? [`out of order frame (${timestampMs} <= ${this.lastFrameSentTimestamp}`] : []
+            );
+
+            
+            console.log("PoseEstimationService:: Resetting pose estimation worker due to " + reasons.join(", "));
             this.worker?.postMessage({
                 type: PoseEstimationMessages.reset,
                 frameId: new Date().getTime(),
@@ -146,7 +158,9 @@ export class PoseEstimationService {
             await this.poseEstimationResetPromise;
         }
         
-
+        this.lastFrameSent = frameId;
+        this.lastFrameStreamId = streamId;
+        this.lastFrameSentTimestamp = timestampMs;
         this.worker?.postMessage({
             type: PoseEstimationMessages.requestPoseEstimation,
             frameId: frameId,
@@ -159,6 +173,7 @@ export class PoseEstimationService {
         }, [
             imageData.data.buffer
         ]);
+        
     }
 
     // queuePoseEstimation(
