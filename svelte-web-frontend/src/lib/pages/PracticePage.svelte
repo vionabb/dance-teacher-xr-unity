@@ -21,7 +21,7 @@ import VideoWithSkeleton from "$lib/elements/VideoWithSkeleton.svelte";
 import VirtualMirror from "$lib/elements/VirtualMirror.svelte";
 import poseEstimationService, { type PoseEstimationResultDetail } from '$lib/services/PoseEstimationService';
 import metronomeClickSoundSrc from '$lib/media/audio/metronome.mp3';
-import { onMount, createEventDispatcher, tick, getContext } from "svelte";
+import { onMount, onDestroy, createEventDispatcher, tick, getContext } from "svelte";
 import { webcamStream } from '$lib/webcam/streams';
 import { MirrorXPose, type Pose2DPixelLandmarks } from '$lib/webcam/mediapipe-utils';
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
@@ -43,8 +43,13 @@ import PerformanceReviewPage from '$lib/pages/PerformanceReviewPage.svelte';
 import type { PracticePlan } from '$lib/model/PracticePlan';
 import PlayableVideoWithSkeleton from '$lib/elements/PlayableVideoWithSkeleton.svelte';
 
+
 import BarCharIcon from 'virtual:icons/mdi/bar-chart';
+	import type TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
+	import type { Readable } from 'svelte/store';
 const supabase = getContext('supabase') as SupabaseClient;
+
+let teachingAgent = getContext('teachingAgent') as Readable<TeachingAgent>;
 
 interface Props {
     mirrorForEvaluation?: boolean;
@@ -611,6 +616,12 @@ onMount(() => {
     reset();
     isMounted = true;
 
+    // Subscribe to poseEstimationService event
+    const handlePoseEstimationResult = (detail: PoseEstimationResultDetail) => {
+        poseEstimationFrameReceived(detail);
+    }
+    poseEstimationService.addEventListener('poseEstimationResult', handlePoseEstimationResult);
+
     return () => {
         if (unpauseVideoTimeout) {
             clearTimeout(unpauseVideoTimeout);
@@ -622,6 +633,7 @@ onMount(() => {
             webcamRecorder.stop();
             webcamRecorder = null;
         }
+        poseEstimationService.removeEventListener('poseEstimationResult', handlePoseEstimationResult);
         isMounted = false;
     }
 })
@@ -770,7 +782,6 @@ $effect(() => {
                     Draw2dSkeleton(ctx, pose, evalResToPass, mirrorForEvaluation);
                 }}
                 onPoseEstimationFrameSent={poseEstimationFrameSent}
-                onPoseEstimationResult={poseEstimationFrameReceived}
             />
     </div>
     </div>

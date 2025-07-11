@@ -44,7 +44,7 @@ export let settingsActive: boolean;
         <!-- Container for left-aligned content -->
         {#if $navbarProps.back}
             
-            <a class="daisy-btn" href={$navbarProps.back.url}>
+            <a class="daisy-btn" href={$navbarProps.back.url} data-sveltekit-preload-data="hover">
                 {#if !$navigating}
                     <span class="icon"><Icon icon="icon-park-outline:down" rotate={1} /></span>&nbsp;{$navbarProps.back.title}
                 {:else}

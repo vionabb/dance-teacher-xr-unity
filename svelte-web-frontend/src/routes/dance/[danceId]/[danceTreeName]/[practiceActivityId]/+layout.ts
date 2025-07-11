@@ -6,11 +6,10 @@ import type { PracticePlan } from '$lib/model/PracticePlan';
 /** @type {import('./$types').PageLoad} */
 export async function load({ params, parent })  {
 
+    
+    const { initialPracticePlan } = await parent();
 
-    const { practicePlan } = await parent();
-    // let practicePlan: PracticePlan;
-
-    const allActivities = practicePlan.stages.flatMap((stage) => stage.activities)
+    const allActivities = initialPracticePlan.stages.flatMap((stage) => stage.activities)
     const matchingActivity = allActivities.find((x) => x.id === params.practiceActivityId)
 
     if (!matchingActivity) {

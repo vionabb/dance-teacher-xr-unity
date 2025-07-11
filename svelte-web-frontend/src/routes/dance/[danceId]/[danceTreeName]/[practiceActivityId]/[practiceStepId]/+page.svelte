@@ -7,7 +7,9 @@
 	import { save_activitystep_progress } from '$lib/data/activity-progress.js';
 	import { goto, invalidate } from '$app/navigation';
 	import type PracticeStep from '$lib/model/PracticeStep.js';
-	import type { PracticePlanActivity } from '$lib/model/PracticePlan';
+	import type { PracticePlan, PracticePlanActivity } from '$lib/model/PracticePlan';
+	import type { Readable } from 'svelte/store';
+	import type { Dance } from '$lib/data/dances-store.js';
 
     export let data;
 
@@ -15,9 +17,13 @@
         return Array.from( { length: upTo-from }, (e, i) => i + from );
     }
 
+    const dance = getContext<Readable<Dance>>('dance');
+    // const danceTree = getContext<Readable<DanceTree>>('danceTree');
+    // const teachingAgent = getContext<Readable<TeachingAgent>>('teachingAgent');
+    const practicePlan = getContext<Readable<PracticePlan>>('practicePlan');
+        
     let practicePage: PracticePage | undefined;
-    let practiceActivity: PracticePlanActivity;
-    $: practiceActivity = data.practiceActivity;
+    const practiceActivity = getContext<Readable<PracticePlanActivity>>('practiceActivity');
 
     let supabase: SupabaseClient = getContext('supabase');
 
@@ -41,15 +47,15 @@
 
     let segmentBreaks: number[];
     $: {
-        segmentBreaks = data.practicePlan.demoSegmentation?.segmentBreaks ?? [];
+        segmentBreaks = $practicePlan.demoSegmentation?.segmentBreaks ?? [];
     }
     let segmentIsolateIndex = undefined as undefined | number | number[];
 
     $: if (data.practiceActivity.type === "segment") {
         segmentIsolateIndex = data.practiceActivity.segmentIndex;
     }  else {
-        let segmentStarts = [data.practicePlan.startTime, ...segmentBreaks];
-        let segmentEnds = [...segmentBreaks, data.practicePlan.endTime];
+        let segmentStarts = [$practicePlan.startTime, ...segmentBreaks];
+        let segmentEnds = [...segmentBreaks, $practicePlan.endTime];
         console.log('segment starts:', segmentStarts)
         console.log('segment ends:', segmentEnds)
         console.log(' data.practiceStep.startTime:',  data.practiceStep.startTime)
@@ -69,19 +75,19 @@
 
     let progressBarProps: SegmentedProgressBarPropsWithoutCurrentTime;
     $: progressBarProps = {
-        startTime: data.practicePlan.startTime,
-        endTime: data.practicePlan.endTime,
-        breakpoints: data.practicePlan.demoSegmentation?.segmentBreaks ?? [],
-        labels: data.practicePlan.demoSegmentation?.segmentLabels ?? [],
+        startTime: $practicePlan.startTime,
+        endTime: $practicePlan.endTime,
+        breakpoints: $practicePlan.demoSegmentation?.segmentBreaks ?? [],
+        labels: $practicePlan.demoSegmentation?.segmentLabels ?? [],
         enableSegmentClick: true,
         isolatedSegments: segmentIsolateIndex,
     };
 
     let currentStepIndex: number;
-    $: currentStepIndex = practiceActivity.steps.findIndex(step => step.id === data.practiceStep.id);
+    $: currentStepIndex = $practiceActivity.steps.findIndex(step => step.id === data.practiceStep.id);
 
     let nextStep: PracticeStep | undefined;
-    $: nextStep = practiceActivity.steps[currentStepIndex + 1]
+    $: nextStep = $practiceActivity.steps[currentStepIndex + 1];
 
     async function onNextClicked() {
 
@@ -89,7 +95,7 @@
         save_activitystep_progress(
             supabase,
             data.dance.clipRelativeStem,
-            data.practicePlan.id,
+            $practicePlan.id,
             data.practiceActivity.id,
             data.practiceStep.id, 
             { completed: true }
@@ -116,7 +122,7 @@
         bind:this={practicePage}
         dance={data.dance}    
         practiceStep={data.practiceStep}
-        practicePlan={data.practicePlan}
+        practicePlan={$practicePlan}
         pageActive={true}
         progressBarProps={progressBarProps}
         on:nextClicked={onNextClicked}

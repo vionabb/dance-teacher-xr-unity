@@ -140,7 +140,6 @@
                 <details class="daisy-dropdown" 
                          bind:open={openActivityDropdowns[activity.id]}>
                     <summary
-                        role="button"
                         tabindex="0"                     
                         class="size-32 flex justify-center items-center
                                border-b-4 daisy-btn 

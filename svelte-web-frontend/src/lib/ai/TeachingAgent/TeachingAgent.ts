@@ -5,7 +5,7 @@ import type { CheckpointActivity, DrillActivity, FinaleActivity, PracticePlan, S
 import { CreateMarkingStep } from './marking-step';
 import { CreateDrillStep } from './drill-step';
 import { CreateFulloutStep } from './fullout-step';
-import { readable } from 'svelte/store';
+import { writable, type Writable, type Readable, derived } from 'svelte/store';
 
 // export interface UserDancePerformanceLog {
 //     // markingByNode: Map<DanceTreeNode["id"], number>;
@@ -229,19 +229,19 @@ export function GeneratePracticeStep(
 // },
 
 class TeachingAgent {
-    
-    private setPracticePlan: (practicePlan: PracticePlan | null) => void = () => { };
-    practicePlan = readable(null as PracticePlan | null, (set) => {
-        this.setPracticePlan = set;
-    });
+    private _practicePlan: Writable<PracticePlan>;
+    public practicePlan: Readable<PracticePlan>;
 
     constructor(private danceTree: DanceTree, private dance: Dance) {
-        const initialPracticePlan = GeneratePracticePlan(dance, danceTree);
-        this.setPracticePlan(initialPracticePlan);
+        const initialPlan = GeneratePracticePlan(dance, danceTree);
+        this._practicePlan = writable(initialPlan);
+        this.practicePlan = derived(this._practicePlan, ($plan) => $plan);
+     }
+
+    private updatePracticePlan(newPlan: PracticePlan) {
+        // update internal writable store
+        this._practicePlan.set(newPlan);
     }
+ }
 
-
-
-}
-
-export default TeachingAgent;
+ export default TeachingAgent;

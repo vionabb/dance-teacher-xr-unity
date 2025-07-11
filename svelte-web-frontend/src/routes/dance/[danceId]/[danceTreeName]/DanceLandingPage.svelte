@@ -102,9 +102,11 @@
     }
 
     function onLearningActivityStepClicked(activity: PracticePlanActivity, step: PracticeStep) {
-        
-        goto(`${encodeURIComponent(activity.id)}/${step.id}/`)
-        
+
+        const url = `${encodeURIComponent(activity.id)}/${step.id}/`;
+        console.log('onLearningActivityStepClicked', activity.id, step.id, 'url:', url);
+        goto(url);
+
     }
 
     let practicePlanProgress: PracticePlanProgress | undefined;

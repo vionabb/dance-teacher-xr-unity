@@ -5,6 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
+			"command": "pnpm run dev",
+			"name": "Debug development server",
+			"request": "launch",
+			"type": "node-terminal"
+		},
+        {
             "type": "firefox",
             "request": "launch",
             "name": "Launch Firefox against localhost",
@@ -25,7 +31,7 @@
             "request": "launch",
             "name": "Launch Chrome against localhost",
             "url": "http://localhost:5173",
-            "webRoot": "${workspaceFolder}/src",
+            "webRoot": "${workspaceFolder}",
             "resolveSourceMapLocations": [
                 "${workspaceFolder}/src",
                 "!%{workspaceFolder}/node_modules/**"
