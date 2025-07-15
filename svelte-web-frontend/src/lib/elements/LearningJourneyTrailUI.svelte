@@ -31,7 +31,7 @@
     function isActivityComplete(activity: PracticePlanActivity, progress: PracticePlanProgress) {
         return activity.steps.reduce(
             (acc, step) => acc && (
-                (practicePlanProgress?.[activity.id]?.[step.id]?.completed) ?? false), 
+                (progress?.[activity.id]?.[step.id]?.completed) ?? false), 
                 true
         );
     }

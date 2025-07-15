@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type StepProgressData = {
     completed: boolean;
+    started?: boolean;
 }
 export type ActivityProgress = {
     [step_id: string]: StepProgressData;

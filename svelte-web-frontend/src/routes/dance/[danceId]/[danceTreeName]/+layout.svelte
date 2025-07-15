@@ -24,12 +24,12 @@
         dance.set(data.dance);
         danceTree.set(data.danceTree);
     });
-
-    const teachingAgent = writable<TeachingAgent>(new TeachingAgent($danceTree, $dance));
+    
+    const teachingAgent = writable<TeachingAgent>(new TeachingAgent($danceTree, $dance, data.databackend));
     const teachingAgentReadonly = derived(teachingAgent, (agent): TeachingAgent => agent);
     setContext<Readable<TeachingAgent>>('teachingAgent', teachingAgentReadonly);
     $effect(() => {
-        teachingAgent.set(new TeachingAgent($danceTree, $dance));
+        teachingAgent.set(new TeachingAgent($danceTree, $dance, data.databackend));
     });
 
     const practicePlan = writable<PracticePlan>(get($teachingAgent.practicePlan));

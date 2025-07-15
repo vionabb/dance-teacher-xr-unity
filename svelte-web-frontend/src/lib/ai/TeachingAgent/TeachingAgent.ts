@@ -1,11 +1,13 @@
 import { makeDanceTreeSlug, type Dance, type DanceTree, type DanceTreeNode, getAllLeafNodes } from '../../data/dances-store'
 import type PracticeStep from '$lib/model/PracticeStep';
 import type { PracticeStepModeKey } from '$lib/model/PracticeStep';
-import type { CheckpointActivity, DrillActivity, FinaleActivity, PracticePlan, SegmentActivity } from '$lib/model/PracticePlan';
+import type { CheckpointActivity, DrillActivity, FinaleActivity, PracticePlan, PracticePlanActivity, SegmentActivity } from '$lib/model/PracticePlan';
 import { CreateMarkingStep } from './marking-step';
 import { CreateDrillStep } from './drill-step';
 import { CreateFulloutStep } from './fullout-step';
-import { writable, type Writable, type Readable, derived } from 'svelte/store';
+import { writable, type Writable, type Readable, derived, get } from 'svelte/store';
+import { get_practiceplan_progress, type PracticePlanProgress } from '$lib/data/activity-progress';
+import type { IDataBackend } from '../backend/IDataBackend';
 
 // export interface UserDancePerformanceLog {
 //     // markingByNode: Map<DanceTreeNode["id"], number>;
@@ -212,35 +214,42 @@ export function GeneratePracticeStep(
     }
 }
 
-// {
-//     referenceVideo: {
-//         visibility: 'visible',
-//         skeleton: 'none',
-//         userCanToggleOnOff: false,
-//         skeletonColorCoding: false,
-//     },
-//     userVideo: {
-//         visibility: 'visible',
-//         skeleton: 'user',
-//         userCanToggleOnOff: false,
-//         skeletonColorCoding: true,
-//     },
-//     terminalFeedback: 'enabled',
-// },
+function isActivityComplete(activity: PracticePlanActivity, progress: PracticePlanProgress) {
+    return activity.steps.reduce(
+        (acc, step) => acc && (
+            (progress?.[activity.id]?.[step.id]?.completed) ?? false), 
+            true
+    );
+}
 
 class TeachingAgent {
     private _practicePlan: Writable<PracticePlan>;
     public practicePlan: Readable<PracticePlan>;
 
-    constructor(private danceTree: DanceTree, private dance: Dance) {
+    constructor(private danceTree: DanceTree, private dance: Dance, private dataBackend: IDataBackend) {
         const initialPlan = GeneratePracticePlan(dance, danceTree);
         this._practicePlan = writable(initialPlan);
         this.practicePlan = derived(this._practicePlan, ($plan) => $plan);
-     }
+    }
 
     private updatePracticePlan(newPlan: PracticePlan) {
         // update internal writable store
         this._practicePlan.set(newPlan);
+    }
+
+    nextIncompleteActivity(progress: PracticePlanProgress | undefined) {
+        
+        const plan = get(this.practicePlan);
+        if (progress === undefined) {
+            return plan.stages[0].activities[0];
+        }
+
+        const allActivities = plan.stages.flatMap(stage => stage.activities);
+        const firstIncompleteActivity = allActivities.find(
+            activity => !isActivityComplete(activity, progress!)
+        );
+
+        return firstIncompleteActivity;
     }
  }
 

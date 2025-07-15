@@ -67,8 +67,8 @@ INSERT INTO "auth"."users" ("instance_id", "id", "aud", "role", "email", "encryp
 -- Data for Name: identities; Type: TABLE DATA; Schema: auth; Owner: supabase_auth_admin
 --
 
-INSERT INTO "auth"."identities" ("id", "user_id", "identity_data", "provider", "last_sign_in_at", "created_at", "updated_at") VALUES
-	('ec04f95d-1aea-4d8c-b98d-d476718f2a42', 'ec04f95d-1aea-4d8c-b98d-d476718f2a42', '{"sub": "ec04f95d-1aea-4d8c-b98d-d476718f2a42", "email": "j55blanchet@gmail.com"}', 'email', '2023-10-19 01:32:16.678817+00', '2023-10-19 01:32:16.678856+00', '2023-10-19 01:32:16.678856+00');
+INSERT INTO "auth"."identities" ("id", "user_id", "provider_id", "identity_data", "provider", "last_sign_in_at", "created_at", "updated_at") VALUES
+	('ec04f95d-1aea-4d8c-b98d-d476718f2a42', 'ec04f95d-1aea-4d8c-b98d-d476718f2a42', 'ec04f95d-1aea-4d8c-b98d-d476718f2a42', '{"sub": "ec04f95d-1aea-4d8c-b98d-d476718f2a42", "email": "j55blanchet@gmail.com"}', 'email', '2023-10-19 01:32:16.678817+00', '2023-10-19 01:32:16.678856+00', '2023-10-19 01:32:16.678856+00');
 
 
 --
