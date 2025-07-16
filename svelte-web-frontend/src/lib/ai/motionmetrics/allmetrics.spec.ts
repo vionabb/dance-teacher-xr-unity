@@ -23,7 +23,7 @@ import { dbPath, ensureMetricColumnInTable, exportCSV, loadDB, motionMetricsCsvP
 import Qijia2DSkeletonSimilarityMetric from "./Qijia2DSkeletonSimilarityMetric";
 import Jules2DSkeletonSimilarityMetric from "./Jules2DSkeletonSimilarityMetric";
 import Skeleton3dVectorAngleSimilarityMetric from "./Skeleton3dVectorAngleSimilarityMetric";
-import { fromAsync, getReferenceClip, LandmarkWeighting_MotionEnergy, takeAsnc } from "../EvaluationCommonUtils";
+import { getReferenceClip, LandmarkWeighting_MotionEnergy, takeAsnc } from "../EvaluationCommonUtils";
 import TemporalAlignmentMetric from "./TemporalAlignmentMetric";
 import Skeleton3DAngleDistanceDTW from "./Skeleton3DAngleDistanceDTW";
 import KinematicErrorMetric from "./KinematicErrorMetric";
@@ -78,57 +78,54 @@ describe("AllMetricsComparison", {}, async () => {
     const metricDb = await loadDB();
 
     async function updateDbWithMetric(metricName: string, metric: MetricRunner) {
-        const allPoses = await loadPoses(Study.Study1, (clipInfo) => {
+        // Study 1 had multiple phases, so we need to filter out the slowed down clips
+        const study1PoseFiles = await loadPoses(Study.Study1_BySegment, (clipInfo) => {
             const studyInfo = clipInfo as SegmentInfo;
             return studyInfo.study1phase == "performance"; // skip slowed down clips
-        });
-        
-        const n = Infinity; // number of clips to process (i.e. all of them)
+        }) as AsyncGenerator<StudySegmentData>;
 
-        //  process a clip, returning the formatted summary
-        function processClip(studySegmentData: StudySegmentData, ratings: HumanRating | undefined) {
-            const referenceClip = getReferenceClip(studySegmentData.segmentInfo, tiktokClipPoses);
-            if (!referenceClip) return undefined;
-        
-            const summary = runMetricOnClip(studySegmentData, referenceClip, ratings, metric);
-            return summary;
-        }
+        // Study 2 has only one phase, so we can load all clips
+        const study2PoseFiles = await loadPoses(Study.Study2_BySegment) as AsyncGenerator<StudySegmentData>;
+
+        const n = Infinity; // number of clips to process (i.e. all of them)
 
         // map each item in allPoses generator to a new object with the formatted summary
         // without holding them all in memory at the same time
+        const allPoseFiles = takeAsnc([
+            // study1PoseFiles, 
+            study2PoseFiles
+        ], n);
+
         async function* processClips() {
             let i = 0
-            for await (const poseData of takeAsnc(allPoses, n)) {
+            for await (const poseData of allPoseFiles) {
                 i++;
                 const segmentData = poseData as StudySegmentData;
-                const ratings = getClipHumanRatings(allRatings, segmentData.segmentInfo.danceName, segmentData.segmentInfo.userId, segmentData.segmentInfo.clipNumber);
+                
+                const ratings = getClipHumanRatings(poseData.segmentInfo.studyName, allRatings, segmentData.segmentInfo.danceName, segmentData.segmentInfo.userId, segmentData.segmentInfo.clipNumber);
 
                 console.log(`Processing clip ${i} ${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.danceName}_${segmentData.segmentInfo.clipNumber}...`);
 
-                // we're only using 
+                // we're only interested in the clips that have human ratings
                 if (!ratings) {
-                    console.log(`\tNo ratings found for ${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.danceName}_${segmentData.segmentInfo.clipNumber}`);
+                    console.log(`\tNo ratings found for user ${segmentData.segmentInfo.userId}, ${segmentData.segmentInfo.danceName} (${segmentData.segmentInfo.clipNumber})`);
                     continue;
                 }
                 
-                const summary = processClip(segmentData, ratings);
+                const referenceClip = getReferenceClip(segmentData.segmentInfo, tiktokClipPoses);
+                if (!referenceClip) return undefined;
+            
+                const summary = runMetricOnClip(segmentData, referenceClip, ratings, metric);
 
-                // yield information for the generator consumer to use
-                // to update the db with
                 yield { 
                     rowData: {
                         ...segmentData.segmentInfo,
                         frameCount: segmentData.poses.length,
-                        // humanRating: ratings.avgRatingsPercentile, // scale from 0-3 to 0-1
-                        // rating1: ratings.rating1,
-                        // rating2: ratings.rating2,
-                        // rating3: ratings.rating3,
                     },
                     metricData: summary,
                 };
             }
         }
-        
         
         // Update db with this new metric row
         let clipCount = 0;
@@ -148,7 +145,7 @@ describe("AllMetricsComparison", {}, async () => {
             const rowData: RowData = {
                 userId: clipData.rowData.userId,
                 danceId: clipData.rowData.danceName,
-                studyName: Study.Study1,
+                studyName: Study.Study1_BySegment,
                 workflowId: clipData.rowData.workflowId,
                 clipNumber: clipData.rowData.clipNumber,
                 collectionId: clipData.rowData.study1phase ?? "N/A",

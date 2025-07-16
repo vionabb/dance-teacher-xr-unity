@@ -595,12 +595,22 @@ export function getReferenceClip(segmentInfo: SegmentInfo, tiktokClipPoses: Map<
     return tiktokClipPoses.get(segmentInfo.danceName)?.[clipIndex];
 }
 
-
 export async function* takeAsnc<T>(
-    iterable: AsyncIterable<T>,
+    iterable: AsyncIterable<T> | AsyncIterable<T>[],
     n: number
 ): AsyncGenerator<T, void, unknown> {
     let count = 0;
+
+    if (iterable instanceof Array) {
+        for (const individualIterable of iterable) {
+            for await (const item of individualIterable) {
+                if (count++ >= n) return;
+                yield item;
+            }
+        }
+        return;
+    }
+
     for await (const item of iterable) {
         if (count++ >= n) break;
         yield item;

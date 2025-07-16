@@ -16,9 +16,10 @@ export const TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC = "static/bundle/holistic_dat
 export const LandmarkNames = ['NOSE', 'LEFT_EYE_INNER', 'LEFT_EYE', 'LEFT_EYE_OUTER', 'RIGHT_EYE_INNER', 'RIGHT_EYE', 'RIGHT_EYE_OUTER', 'LEFT_EAR', 'RIGHT_EAR', 'MOUTH_LEFT', 'MOUTH_RIGHT', 'LEFT_SHOULDER', 'RIGHT_SHOULDER', 'LEFT_ELBOW', 'RIGHT_ELBOW', 'LEFT_WRIST', 'RIGHT_WRIST', 'LEFT_PINKY', 'RIGHT_PINKY', 'LEFT_INDEX', 'RIGHT_INDEX', 'LEFT_THUMB', 'RIGHT_THUMB', 'LEFT_HIP', 'RIGHT_HIP', 'LEFT_KNEE', 'RIGHT_KNEE', 'LEFT_ANKLE', 'RIGHT_ANKLE', 'LEFT_HEEL', 'RIGHT_HEEL', 'LEFT_FOOT_INDEX', 'RIGHT_FOOT_INDEX'];
 
 export enum Study {
-    Study1 = "study1",
-    Study2 = "study2",
+    Study1_BySegment = "study1",
+    Study2_BySegment = "study2",
 }
+const Study1Studies = [Study.Study1_BySegment];
 
 export enum OtherPoseSource {
     TikTokClips = "tiktokclips",
@@ -49,7 +50,7 @@ export type SegmentInfo = {
     userId: number;
     danceName: DanceName;
     danceId: DanceId;
-    studyName: string;
+    studyName: "study1" | "study2";
     workflowId: string;
     condition: string;
     clipNumber: number;
@@ -84,7 +85,10 @@ export type PoseFrame = {
 };
 
 function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
-    const isStudy1 = [Study.Study1].includes(study);
+    filename = filename
+        .replace(".pose.csv", "")
+        .replace(".pixel_cords", "")
+    const isStudy1 = Study1Studies.includes(study);
     const targetPartCount = isStudy1 ? 
         5 : 
         4; // study 2, study2 segmented
@@ -97,8 +101,17 @@ function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
     if (isStudy1) {
         // extract the study 1 phase
         study1phase = fileparts.splice(1, 1)[0];
+        if (!filename.includes("study1")) {
+            throw new Error(`Filename ${filename} does not contain "study1" but is being parsed as study 1`);
+        }
+    } else {
+        if (!filename.includes("study2")) {
+            throw new Error(`Filename ${filename} does not contain "study2" but is being parsed as study 2`);
+        }
     }
     // Format (for either study case) is now [user, dance-condition, workflow, clip]
+
+    if (fileparts.length !== 4) throw new Error(`Something is wrong with: ${filename}. Expected 4 parts, got ${fileparts.length}`);
 
     let [userPart, danceConditionPart, workflowPart, clipPart] = fileparts;
     userPart = userPart.replace("user", "");
@@ -106,12 +119,13 @@ function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
     if (Number.isNaN(userId)) return null;
 
     let [studyName, rawDanceName, condition] = danceConditionPart.split(conditionSeparator);
+    
     let workflowId = workflowPart.replace("workflowid-", "");
     let clipNumber = Number.parseInt(clipPart.replace("clip", "").replace(".pose.csv", ""));
     const canonicalResult = canonicalizeDanceName(rawDanceName);
 
     if (!canonicalResult) return null;
-    if ([Study.Study1, Study.Study2].includes(study) &&
+    if ([Study.Study1_BySegment, Study.Study2_BySegment].includes(study) &&
         Number.isNaN(clipNumber)) {
             return null;
     }
@@ -131,11 +145,11 @@ function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
 }
 
 function getTikTokClipInfo(filename: string): TikTokClipInfo | null {
-    let parts = filename.split(".");
-    if (parts.length != 4) {
+    let parts = filename.replace(".pixel_cords.pose.csv", "").split(".");
+    if (parts.length != 2) {
         return null;
     }
-    const [danceName, clipName, _a, _b] = parts;
+    const [danceName, clipName] = parts;
     const clipNumber = Number.parseInt(clipName.replace("clip-", ""));
 
     // if there's an invalud dance name, disregard this segment
@@ -225,9 +239,9 @@ function convertCsvRow(row: Record<string, number>): PoseFrame {
 
 function getPoseFolder(poseSource: Study | OtherPoseSource) {
     switch (poseSource) {
-        case Study.Study1:
+        case Study.Study1_BySegment:
             return path.resolve(STUDY_1_SEGMENTED_POSES_FOLDER);
-        case Study.Study2:
+        case Study.Study2_BySegment:
             return path.resolve(STUDY_2_SEGMENTED_POSES_FOLDER);
         // case Study.Study2Whole:
             // return path.resolve(STUDY_2_WHOLE_POSES_FOLDER);
@@ -361,12 +375,13 @@ export type HumanRating = {
 };
 
 export function getClipHumanRatings(
+    study: "study1" | "study2",
     allRatings: Awaited<ReturnType<typeof loadHumanRatings>>,
     danceName: DanceName,
     userId: number,
     clipNumber: number
 ) {
-    return allRatings.get(Study.Study1)?.get(danceName)?.get(userId)?.get(clipNumber);
+    return allRatings.get(study as Study)?.get(danceName)?.get(userId)?.get(clipNumber);
 }
 
 /**
@@ -408,7 +423,7 @@ export async function loadHumanRatings() {
         const danceName = rating.dance as DanceName;
         const userId = rating.userId;
         const clipNumber = rating.segmentId;
-        const study = rating.study == 1 ? Study.Study1 : Study.Study2;
+        const study = rating.study == 1 ? Study.Study1_BySegment : Study.Study2_BySegment;
         if (!allRatings.has(study)) {
             allRatings.set(study, new Map<DanceName, Map<number, Map<number, HumanRating>>>());
         }

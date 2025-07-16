@@ -37,7 +37,7 @@ describe('Skeleton3DAngleDistanceDTW', {}, async () => {
 
     describe.concurrent('study 2', async () => {
 
-        const allPoses = await loadPoses(Study.Study2);
+        const allPoses = await loadPoses(Study.Study2_BySegment);
 
         it.concurrent('can compute metric for a single pose file', {}, async ({ expect }) => {
 
