@@ -703,18 +703,13 @@ $effect(() => {
     }
 });
 
-$effect(() => {
-    console.log("PracticePage state", pageState);
-    dispatch('stateChanged', pageState);
+$inspect(pageState).with((state) => {
+    console.log("PracticePage state", state);
+    dispatch('stateChanged', state as PracticePageState);
 });
 
-$effect(() => {
-    console.log("VideoDuration", videoDuration);
-});
-
-$effect(() => {
-    console.log("New performance summary", performanceSummary);
-})
+$inspect(videoDuration);
+$inspect(performanceSummary);
 
 $effect(() => {
     // reset the customized playback speed if it's not valid for the current practice step

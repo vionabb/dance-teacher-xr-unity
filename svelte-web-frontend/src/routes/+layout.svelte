@@ -22,18 +22,27 @@
 	}
 
 	let { data, children } = $props();
-	let { session, supabase } = $derived(data);
+	const { supabase } = (data);
+	let { session } = $derived(data);
 
 	// Setting client as context is a convenient way to give non-route Svelve elements
 	// access to the Supabase client -- otherwise, we'd need to make this properties of every
 	// page element that needs it and pass from the route .svelte files.
 	// svelte-ignore state_referenced_locally
-	setContext('supabase', supabase);  // necessary to have access to the client 
-										   // as the child components load (otherwise would be null 
-										   // on first tick)
-	$effect(() => {
-		setContext('supabase', supabase);
-	})
+	import { writable } from 'svelte/store';
+
+	const userStore = writable(data.user ?? null);
+	setContext('user', userStore);
+
+	// Listen for auth state changes and update the user store accordingly
+	const { data: authData } = supabase.auth.onAuthStateChange((_, newSession) => {
+		userStore.set(newSession?.user ?? null);
+		if (newSession?.expires_at !== session?.expires_at) {
+			invalidate('supabase:auth');
+		}
+	});
+
+	setContext('supabase', supabase);
 
 	onMount(() => {
 		const { data } = supabase.auth.onAuthStateChange((_, newSession) => {

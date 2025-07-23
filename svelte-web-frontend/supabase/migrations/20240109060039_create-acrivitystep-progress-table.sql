@@ -38,3 +38,18 @@ DO
         );
     END IF;
 END$$;
+
+DO
+$$BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policy 
+        WHERE polname = 'Enable users to update their own progress' 
+          AND polrelid = 'public.learningstepprogress'::regclass
+    ) THEN
+        CREATE POLICY "Enable users to update their own progress"
+        ON public.learningstepprogress
+        FOR UPDATE
+        USING (auth.uid() = user_id)
+        WITH CHECK (auth.uid() = user_id);
+    END IF;
+END$$;

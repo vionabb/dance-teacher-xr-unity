@@ -3,7 +3,7 @@
 	import { page } from "$app/state";
 	import TeachingAgent from "$lib/ai/TeachingAgent/TeachingAgent";
 	import { setContext } from "svelte";
-	import { derived, get, writable, type Readable } from "svelte/store";
+	import { derived, get, readonly, writable, type Readable } from "svelte/store";
 	import type { Dance, DanceTree } from '$lib/data/dances-store';
 	import type { PracticePlan } from '$lib/model/PracticePlan';
 	// Optionally, create a shared context-types.ts and import from there
@@ -25,8 +25,11 @@
         danceTree.set(data.danceTree);
     });
     
-    const teachingAgent = writable<TeachingAgent>(new TeachingAgent($danceTree, $dance, data.databackend));
-    const teachingAgentReadonly = derived(teachingAgent, (agent): TeachingAgent => agent);
+    const teachingAgent = writable<TeachingAgent>(new TeachingAgent($danceTree, $dance, data.databackend, {
+        initialPracticePlan: data.initialPracticePlan,
+        initialProgress: data.initialPracticePlanProgress
+    }));
+    const teachingAgentReadonly = readonly(teachingAgent);
     setContext<Readable<TeachingAgent>>('teachingAgent', teachingAgentReadonly);
     $effect(() => {
         teachingAgent.set(new TeachingAgent($danceTree, $dance, data.databackend));

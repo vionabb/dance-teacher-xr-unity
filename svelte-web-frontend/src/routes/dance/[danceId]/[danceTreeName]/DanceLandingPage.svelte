@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { error } from '@sveltejs/kit';
+
     import VideoWithSkeleton from '$lib/elements/VideoWithSkeleton.svelte';
 	import LearningJourneyTrail from '$lib/elements/LearningJourneyTrailUI.svelte';
 	import { getDanceVideoSrc, type Dance, danceTrees } from "$lib/data/dances-store";
@@ -9,9 +11,12 @@
 	import Icon from '@iconify/svelte';
 	import { goto } from '$app/navigation';
 	import type PracticeStep from '$lib/model/PracticeStep';
-	import { get_practiceplan_progress, type PracticePlanProgress } from '$lib/data/activity-progress';
+	import { type PracticePlanProgress } from '$lib/data/activity-progress';
+	import { GetTeachingAgent } from '$lib/ai/TeachingAgent/TeachingAgent';
+	import { derived, readable } from 'svelte/store';
     
-    let supabase: SupabaseClient = getContext('supabase');
+    const supabase: SupabaseClient = getContext('supabase');
+    const teachingAgent = GetTeachingAgent(); 
 
     export let dance: Dance;
     export let practicePlan: PracticePlan;
@@ -109,11 +114,15 @@
 
     }
 
-    let practicePlanProgress: PracticePlanProgress | undefined;
-    onMount(() => {
-        practicePlanProgress = get_practiceplan_progress(supabase, dance.clipRelativeStem, practicePlan.id);
-    });
-
+    const computedPracticePlanProgress =  derived(teachingAgent, (agent) => agent.progress);
+    // onMount(async () => {
+    //     try {
+    //         console.log('DanceLandingPage: onMount, refreshing practice plan progress');
+    //         await $teachingAgent.refreshPracticePlanProgress(true);
+    //     } catch (error) {
+    //         console.error('Error refreshing practice plan progress:', error);
+    //     }
+    // })
 </script>
 
 <section class="learning-dashboard p-4 gap-4">
@@ -181,7 +190,7 @@
         
         <LearningJourneyTrail 
             {practicePlan}
-            {practicePlanProgress}
+            practicePlanProgress = {$computedPracticePlanProgress}
             on:practiceStepClicked={(e) => onLearningActivityStepClicked(e.detail.activity, e.detail.step)}/>
     </div>
 

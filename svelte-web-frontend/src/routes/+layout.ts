@@ -5,18 +5,19 @@ import { NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL } from '$env/st
 import { createBrowserClient, createServerClient, isBrowser } from '@supabase/ssr'
 import SupabaseDataBackend from '$lib/ai/backend/SupabaseDatabackend'
 import type { IDataBackend } from '$lib/ai/backend/IDataBackend'
+import type { Database } from '$lib/ai/backend/SupabaseTypes'
 
 export const load: LayoutLoad = async ({ fetch, data, depends }) => {
   depends('supabase:auth')
 
   const supabase = isBrowser()
-    ? createBrowserClient(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+    ? createBrowserClient<Database>(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, {
         global: {
           fetch,
         }
       }
     )
-    : createServerClient(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+    : createServerClient<Database>(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, {
       global: {
         fetch,
       },
@@ -40,7 +41,7 @@ export const load: LayoutLoad = async ({ fetch, data, depends }) => {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const databackend: IDataBackend = new SupabaseDataBackend(supabase);
+  const databackend: IDataBackend = new SupabaseDataBackend(supabase, user?.id ?? null);
 
   return { supabase, session, user, databackend }
 }

@@ -4,12 +4,12 @@
 	import PracticePage from "$lib/pages/PracticePage.svelte";
 	import type { SupabaseClient } from '@supabase/supabase-js';
 	import { getContext } from 'svelte';
-	import { save_activitystep_progress } from '$lib/data/activity-progress.js';
 	import { goto, invalidate } from '$app/navigation';
 	import type PracticeStep from '$lib/model/PracticeStep.js';
 	import type { PracticePlan, PracticePlanActivity } from '$lib/model/PracticePlan';
 	import type { Readable } from 'svelte/store';
 	import type { Dance } from '$lib/data/dances-store.js';
+	import { GetTeachingAgent } from '$lib/ai/TeachingAgent/TeachingAgent.js';
 
     export let data;
 
@@ -26,6 +26,7 @@
     const practiceActivity = getContext<Readable<PracticePlanActivity>>('practiceActivity');
 
     let supabase: SupabaseClient = getContext('supabase');
+    const teachingAgent = GetTeachingAgent();
 
     let parentUrl: string;
     let activityBaseUrl: string;
@@ -91,29 +92,40 @@
 
     async function onNextClicked() {
 
-        // save progress
-        save_activitystep_progress(
-            supabase,
-            data.dance.clipRelativeStem,
-            $practicePlan.id,
-            data.practiceActivity.id,
-            data.practiceStep.id, 
-            { completed: true }
-        );
-
+        try {
+            console.log('onNextClicked: updating activity step progress for', data.practiceActivity.id, data.practiceStep.id);
+            await $teachingAgent.updateActivityStepProgress(
+                data.practiceActivity.id,
+                data.practiceStep.id, 
+                { completed: true },
+            );  
+        } catch (error) {
+            console.trace('Error updating activity step progress:', error);
+        }
+  
         // invalidate('progress:' + data.dance.clipRelativeStem);
         
         if (nextStep) {
+            console.log('onNextClicked: navigating to next step:', nextStep.id);
             const url = activityBaseUrl + encodeURIComponent(nextStep.id) + "/";
-            goto(url, { invalidateAll: true });
+            try {
+                await goto(url, { invalidateAll: true });
+            } catch (error) {
+                console.trace('Error navigating to next step:', error);
+            }
             return;
         }
 
         const queryString = '?completedStep=' + encodeURIComponent(data.practiceActivity.id) + '/' + encodeURIComponent(data.practiceStep.id); 
         console.log('goto', parentUrl + queryString);
-        await goto(parentUrl + queryString, { invalidateAll: true });
+        try {
+            await goto(parentUrl + queryString, { invalidateAll: true });
+        } catch(error) {
+            console.trace('Error navigating to parent URL:', error);
+        }
+
+        console.log('onNextClicked: reset practicePage after navigation');
         practicePage?.reset();
-        // );
     }
 </script>
 

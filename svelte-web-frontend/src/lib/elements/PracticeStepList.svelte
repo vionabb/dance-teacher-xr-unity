@@ -35,7 +35,6 @@
         class:daisy-step-primary={isStepSuggested}
         class:daisy-step-success={!isStepSuggested && isStepComplete}
         on:click={() => onStepClicked(step)}
-        data-sveltekit-preload-code="viewport"
         >   
         <span
 

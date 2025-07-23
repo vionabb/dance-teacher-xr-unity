@@ -84,7 +84,7 @@ async function loadPoseLandmarkerModel() {
 self.onmessage = async function (event: MessageEvent) {
     const data = event.data;
 
-    console.log('Got message in pose estimation worker: ', data);
+    // console.log('Got message in pose estimation worker: ', data);
 
     if (!event.data.type) {
         console.warn("pose-estimation.worker.ts:: Received message without type", event);

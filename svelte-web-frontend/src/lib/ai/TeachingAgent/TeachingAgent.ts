@@ -5,9 +5,10 @@ import type { CheckpointActivity, DrillActivity, FinaleActivity, PracticePlan, P
 import { CreateMarkingStep } from './marking-step';
 import { CreateDrillStep } from './drill-step';
 import { CreateFulloutStep } from './fullout-step';
-import { writable, type Writable, type Readable, derived, get } from 'svelte/store';
-import { get_practiceplan_progress, type PracticePlanProgress } from '$lib/data/activity-progress';
+import { writable, type Writable, type Readable, derived, get, readable, readonly } from 'svelte/store';
+import { type PracticePlanProgress, type StepProgressData } from '$lib/data/activity-progress';
 import type { IDataBackend } from '../backend/IDataBackend';
+import { getContext } from 'svelte';
 
 // export interface UserDancePerformanceLog {
 //     // markingByNode: Map<DanceTreeNode["id"], number>;
@@ -222,19 +223,32 @@ function isActivityComplete(activity: PracticePlanActivity, progress: PracticePl
     );
 }
 
+const PROGRESS_REFRESH_MIN_INTERVAL_SECS = 60 * 10; // 10 minutes
+
 class TeachingAgent {
     private _practicePlan: Writable<PracticePlan>;
     public practicePlan: Readable<PracticePlan>;
 
-    constructor(private danceTree: DanceTree, private dance: Dance, private dataBackend: IDataBackend) {
-        const initialPlan = GeneratePracticePlan(dance, danceTree);
-        this._practicePlan = writable(initialPlan);
-        this.practicePlan = derived(this._practicePlan, ($plan) => $plan);
-    }
+    private lastProgressRefresh: Date = new Date(0); // Initialize to epoch time
+    public _progress: Writable<PracticePlanProgress | null> = writable<PracticePlanProgress | null>(null);
+    public progress: Readable<PracticePlanProgress> = derived(this._progress, ($progress) => $progress ?? {});
 
-    private updatePracticePlan(newPlan: PracticePlan) {
-        // update internal writable store
-        this._practicePlan.set(newPlan);
+    constructor(
+        private danceTree: DanceTree, 
+        private dance: Dance, 
+        private dataBackend: IDataBackend,
+        opts: {
+            initialPracticePlan?: PracticePlan,
+            initialProgress?: PracticePlanProgress | null,
+        } | undefined = undefined,
+    ) {
+        const initialPlan = opts?.initialPracticePlan ?? GeneratePracticePlan(dance, danceTree);
+        this._practicePlan = writable(initialPlan);
+        this.practicePlan = readonly(this._practicePlan );
+
+        if (opts?.initialProgress) {
+            this._progress.set(opts.initialProgress);
+        }
     }
 
     nextIncompleteActivity(progress: PracticePlanProgress | undefined) {
@@ -251,6 +265,71 @@ class TeachingAgent {
 
         return firstIncompleteActivity;
     }
+
+    async updateActivityStepProgress(activityId: string, stepId: string, stepProgress: StepProgressData): Promise<void> {
+        console.log('Updating progress for activity', activityId, 'step:', stepId, 'stepProgress:', stepProgress);
+
+        const curProgress = get(this._progress);
+        if (curProgress === null) {
+            console.warn('Current progress is null, refreshing practice plan progress.');
+            await this.refreshPracticePlanProgress(true);
+        }
+
+        // Update local progress synchronously
+        const newProgress = { ...curProgress };
+        newProgress[activityId] = newProgress[activityId] ?? {};
+        newProgress[activityId][stepId] = stepProgress;
+        this._progress.set(newProgress);
+
+        // Save to backend asynchronously
+        try {
+            await this.dataBackend.SaveActivityStepProgress(
+                this.dance.clipRelativeStem,
+                get(this._practicePlan).id,
+                activityId,
+                stepId,
+                stepProgress
+            );
+        } catch (error) {
+            console.trace('Error saving practice step progress:', error);
+            throw error;
+        }
+    }
+
+    async refreshPracticePlanProgress(forceRefresh: boolean): Promise<void> {
+
+        const now = new Date();
+        if (!forceRefresh && (now.getTime() - this.lastProgressRefresh.getTime())
+            < PROGRESS_REFRESH_MIN_INTERVAL_SECS * 1000) {
+            console.debug('Skipping progress refresh, last refresh was too recent.');
+            return;
+        }
+
+        const loadedProgress = await this.dataBackend.GetPracticePlanProgress(
+            this.dance.clipRelativeStem,
+            get(this._practicePlan).id
+        ) ?? null;
+        this._progress.set(loadedProgress);
+        this.lastProgressRefresh = new Date();
+
+        if (loadedProgress === null) {
+            console.warn('No progress found for practice plan:', get(this._practicePlan).id);
+            this._progress.set({});
+        }
+    }
  }
 
  export default TeachingAgent;
+
+ /**
+  * Gets the current TeachingAgent from the Svelte context.
+  * Current page must be a child of a TeachingAgentProvider.
+  * @returns 
+  */
+ export function GetTeachingAgent() {  
+    const agent = getContext<Readable<TeachingAgent>>('teachingAgent');
+    if (!agent) {
+        throw new Error('TeachingAgent not found in context. Ensure you are within a TeachingAgentProvider.');
+    }
+    return agent;
+ }
