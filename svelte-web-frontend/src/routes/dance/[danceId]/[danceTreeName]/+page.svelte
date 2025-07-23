@@ -6,7 +6,6 @@
 	import DanceLandingPage from "./DanceLandingPage.svelte";
 	import { page } from '$app/state';
 	import { getContext, setContext } from "svelte";
-	import TeachingAgent from "$lib/ai/TeachingAgent/TeachingAgent";
 	import { derived, readable, writable, type Readable } from "svelte/store";
 
     let { data } = $props();
