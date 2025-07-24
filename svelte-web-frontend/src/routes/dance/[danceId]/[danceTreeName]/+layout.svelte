@@ -2,10 +2,11 @@
 
 	import { page } from "$app/state";
 	import TeachingAgent from "$lib/ai/TeachingAgent/TeachingAgent";
-	import { setContext } from "svelte";
-	import { derived, get, readonly, writable, type Readable } from "svelte/store";
+	import { onDestroy, setContext } from "svelte";
+	import { derived, get, readonly, writable, type Readable, type Writable } from "svelte/store";
 	import type { Dance, DanceTree } from '$lib/data/dances-store';
 	import type { PracticePlan } from '$lib/model/PracticePlan';
+	import type { PracticePlanProgress } from "$lib/data/activity-progress";
 	// Optionally, create a shared context-types.ts and import from there
 	// import type { AppContext } from '$lib/context-types';
 
@@ -29,10 +30,28 @@
         initialPracticePlan: data.initialPracticePlan,
         initialProgress: data.initialPracticePlanProgress
     }));
+    console.log('+layout.svelte: teachingAgent initialized:', get(teachingAgent), 'initialProgress:', data.initialPracticePlanProgress);
     const teachingAgentReadonly = readonly(teachingAgent);
     setContext<Readable<TeachingAgent>>('teachingAgent', teachingAgentReadonly);
+
+    const practicePlanProgress: Writable<PracticePlanProgress> = writable(get(get(teachingAgent).progress));
+    setContext<Readable<PracticePlanProgress>>('practicePlanProgress', readonly(practicePlanProgress));
+    
+    let progressUpdaterUnsubscribe: () => void = () => {};
+    onDestroy(() => {
+        progressUpdaterUnsubscribe();
+    });
+
     $effect(() => {
-        teachingAgent.set(new TeachingAgent($danceTree, $dance, data.databackend));
+        const ta = new TeachingAgent($danceTree, $dance, data.databackend, {
+            initialPracticePlan: data.initialPracticePlan,
+            initialProgress: data.initialPracticePlanProgress
+        });
+        teachingAgent.set(ta);
+        progressUpdaterUnsubscribe();
+        progressUpdaterUnsubscribe = ta.progress.subscribe((progress) => {
+            practicePlanProgress.set(progress);            
+        });
     });
 
     const practicePlan = writable<PracticePlan>(get($teachingAgent.practicePlan));

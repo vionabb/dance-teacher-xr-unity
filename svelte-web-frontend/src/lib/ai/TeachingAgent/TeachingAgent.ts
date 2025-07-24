@@ -231,7 +231,16 @@ class TeachingAgent {
 
     private lastProgressRefresh: Date = new Date(0); // Initialize to epoch time
     public _progress: Writable<PracticePlanProgress | null> = writable<PracticePlanProgress | null>(null);
-    public progress: Readable<PracticePlanProgress> = derived(this._progress, ($progress) => $progress ?? {});
+    public progress: Readable<PracticePlanProgress> = derived(this._progress, ($progress) => {
+        const p = $progress;
+        if (p === null) {
+            console.warn('TeachingAgent.ts progress is null, returning empty object.');
+            return {};
+        } else {
+            console.debug('TeachingAgent.ts progress:', p);
+        }
+        return p;
+    });
 
     constructor(
         private danceTree: DanceTree, 
@@ -248,6 +257,7 @@ class TeachingAgent {
 
         if (opts?.initialProgress) {
             this._progress.set(opts.initialProgress);
+            console.log('TeachingAgent.ts initialized with initial progress:', opts.initialProgress);
         }
     }
 
@@ -267,11 +277,11 @@ class TeachingAgent {
     }
 
     async updateActivityStepProgress(activityId: string, stepId: string, stepProgress: StepProgressData): Promise<void> {
-        console.log('Updating progress for activity', activityId, 'step:', stepId, 'stepProgress:', stepProgress);
+        console.log('TeachingAgent.ts Updating progress for activity', activityId, 'step:', stepId, 'stepProgress:', stepProgress);
 
         const curProgress = get(this._progress);
         if (curProgress === null) {
-            console.warn('Current progress is null, refreshing practice plan progress.');
+            console.warn('TeachingAgent.ts Current progress is null, refreshing practice plan progress.');
             await this.refreshPracticePlanProgress(true);
         }
 
@@ -301,7 +311,7 @@ class TeachingAgent {
         const now = new Date();
         if (!forceRefresh && (now.getTime() - this.lastProgressRefresh.getTime())
             < PROGRESS_REFRESH_MIN_INTERVAL_SECS * 1000) {
-            console.debug('Skipping progress refresh, last refresh was too recent.');
+            console.debug('TeachingAgent.ts Skipping progress refresh, last refresh was too recent.');
             return;
         }
 
@@ -313,7 +323,7 @@ class TeachingAgent {
         this.lastProgressRefresh = new Date();
 
         if (loadedProgress === null) {
-            console.warn('No progress found for practice plan:', get(this._practicePlan).id);
+            console.warn('TeachingAgent.ts No progress found for practice plan:', get(this._practicePlan).id);
             this._progress.set({});
         }
     }

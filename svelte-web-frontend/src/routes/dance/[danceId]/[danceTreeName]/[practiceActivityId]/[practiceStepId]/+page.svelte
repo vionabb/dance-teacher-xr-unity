@@ -17,15 +17,11 @@
         return Array.from( { length: upTo-from }, (e, i) => i + from );
     }
 
-    const dance = getContext<Readable<Dance>>('dance');
-    // const danceTree = getContext<Readable<DanceTree>>('danceTree');
-    // const teachingAgent = getContext<Readable<TeachingAgent>>('teachingAgent');
     const practicePlan = getContext<Readable<PracticePlan>>('practicePlan');
         
     let practicePage: PracticePage | undefined;
     const practiceActivity = getContext<Readable<PracticePlanActivity>>('practiceActivity');
 
-    let supabase: SupabaseClient = getContext('supabase');
     const teachingAgent = GetTeachingAgent();
 
     let parentUrl: string;

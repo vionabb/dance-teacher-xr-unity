@@ -13,7 +13,7 @@
 	import type PracticeStep from '$lib/model/PracticeStep';
 	import { type PracticePlanProgress } from '$lib/data/activity-progress';
 	import { GetTeachingAgent } from '$lib/ai/TeachingAgent/TeachingAgent';
-	import { derived, readable } from 'svelte/store';
+	import { derived, get, readable, type Readable } from 'svelte/store';
     
     const supabase: SupabaseClient = getContext('supabase');
     const teachingAgent = GetTeachingAgent(); 
@@ -114,7 +114,8 @@
 
     }
 
-    const computedPracticePlanProgress =  derived(teachingAgent, (agent) => agent.progress);
+    const practicePlanProgress = getContext<Readable<PracticePlanProgress>>('practicePlanProgress');
+    
     // onMount(async () => {
     //     try {
     //         console.log('DanceLandingPage: onMount, refreshing practice plan progress');
@@ -190,7 +191,7 @@
         
         <LearningJourneyTrail 
             {practicePlan}
-            practicePlanProgress = {$computedPracticePlanProgress}
+            practicePlanProgress = {$practicePlanProgress}
             on:practiceStepClicked={(e) => onLearningActivityStepClicked(e.detail.activity, e.detail.step)}/>
     </div>
 
