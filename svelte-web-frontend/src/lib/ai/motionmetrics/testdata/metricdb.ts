@@ -194,7 +194,7 @@ export async function upsertMetricDbRow(db: sqlite3.Database, rowData: RowData, 
         if (row) {
             // Row exists, update it
             const updateSql = `UPDATE ${TABLE_NAME} SET ${Object.keys(metricData).map(key => `${key} = ?`).join(', ')} WHERE userId = ? AND danceId = ? AND studyName = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
-            const params = [...Object.values(metricData), userId, danceId, workflowId, clipNumber, collectionId];
+            const params = [...Object.values(metricData), userId, danceId, studyName, workflowId, clipNumber, collectionId];
             await promiseDb.run(updateSql, ...params);
             return true; // Indicate that the row was updated
         } else {
