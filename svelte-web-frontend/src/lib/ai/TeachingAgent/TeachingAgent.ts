@@ -257,7 +257,6 @@ class TeachingAgent {
 
         if (opts?.initialProgress) {
             this._progress.set(opts.initialProgress);
-            console.log('TeachingAgent.ts initialized with initial progress:', opts.initialProgress);
         }
     }
 
@@ -277,11 +276,11 @@ class TeachingAgent {
     }
 
     async updateActivityStepProgress(activityId: string, stepId: string, stepProgress: StepProgressData): Promise<void> {
-        console.log('TeachingAgent.ts Updating progress for activity', activityId, 'step:', stepId, 'stepProgress:', stepProgress);
+        console.debug('TeachingAgent.ts Updating progress for activity', activityId, 'step:', stepId, 'stepProgress:', stepProgress);
 
         const curProgress = get(this._progress);
         if (curProgress === null) {
-            console.warn('TeachingAgent.ts Current progress is null, refreshing practice plan progress.');
+            console.info('TeachingAgent.ts Current progress is null, refreshing practice plan progress.');
             await this.refreshPracticePlanProgress(true);
         }
 
@@ -301,7 +300,7 @@ class TeachingAgent {
                 stepProgress
             );
         } catch (error) {
-            console.trace('Error saving practice step progress:', error);
+            console.error('TeachingAgent.ts Error saving practice step progress:', error);
             throw error;
         }
     }
@@ -323,7 +322,7 @@ class TeachingAgent {
         this.lastProgressRefresh = new Date();
 
         if (loadedProgress === null) {
-            console.warn('TeachingAgent.ts No progress found for practice plan:', get(this._practicePlan).id);
+            console.info('TeachingAgent.ts No progress found for practice plan:', get(this._practicePlan).id);
             this._progress.set({});
         }
     }
@@ -339,7 +338,7 @@ class TeachingAgent {
  export function GetTeachingAgent() {  
     const agent = getContext<Readable<TeachingAgent>>('teachingAgent');
     if (!agent) {
-        throw new Error('TeachingAgent not found in context. Ensure you are within a TeachingAgentProvider.');
+        throw new Error('TeachingAgent.ts TeachingAgent not found in context. Ensure you are within a TeachingAgentProvider.');
     }
     return agent;
  }
