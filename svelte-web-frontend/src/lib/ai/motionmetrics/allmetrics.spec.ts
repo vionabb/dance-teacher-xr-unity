@@ -142,10 +142,11 @@ describe("AllMetricsComparison", {}, async () => {
             }
 
             clipCount++;
+            
             const rowData: RowData = {
                 userId: clipData.rowData.userId,
                 danceId: clipData.rowData.danceName,
-                studyName: Study.Study1_BySegment,
+                studyName: clipData.rowData.studyName,
                 workflowId: clipData.rowData.workflowId,
                 clipNumber: clipData.rowData.clipNumber,
                 collectionId: clipData.rowData.study1phase ?? "N/A",
@@ -154,8 +155,9 @@ describe("AllMetricsComparison", {}, async () => {
                 performanceSpeed: clipData.rowData.performanceSpeed,
                 frameCount: clipData.rowData.frameCount
             }
-            await upsertMetricDbRow(metricDb, rowData, clipData.metricData);
-            console.log(`\t[${clipCount}]\tUpdated db with ${metricName} for ${rowData.userId}_${rowData.danceName}_${rowData.clipNumber}`); 
+            const wasUpdate = await upsertMetricDbRow(metricDb, rowData, clipData.metricData);
+            const verb = wasUpdate ? "Updated" : "Inserted";
+            console.log(`\t[${clipCount}]\t${verb} db with ${metricName} for ${rowData.userId}_${rowData.danceName}_${rowData.clipNumber}`); 
         }        
     }
     // Set high test timeout for each test

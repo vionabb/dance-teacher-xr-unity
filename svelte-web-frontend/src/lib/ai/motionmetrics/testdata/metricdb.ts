@@ -186,21 +186,23 @@ export async function upsertMetricDbRow(db: sqlite3.Database, rowData: RowData, 
     const { userId, danceId, studyName, workflowId, clipNumber, collectionId } = rowData;
 
     // Check if the row already exists
-    const sqlCheck = `SELECT * FROM ${TABLE_NAME} WHERE userId = ? AND danceId = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
+    const sqlCheck = `SELECT * FROM ${TABLE_NAME} WHERE userId = ? AND danceId = ? AND studyName = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
     try {
         // Check if the row already exists using promisified db
-        const row = await promiseDb.get(sqlCheck, userId, danceId, workflowId, clipNumber, collectionId);
+        const row = await promiseDb.get(sqlCheck, userId, danceId, studyName, workflowId, clipNumber, collectionId);
 
         if (row) {
             // Row exists, update it
-            const updateSql = `UPDATE ${TABLE_NAME} SET ${Object.keys(metricData).map(key => `${key} = ?`).join(', ')} WHERE userId = ? AND danceId = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
+            const updateSql = `UPDATE ${TABLE_NAME} SET ${Object.keys(metricData).map(key => `${key} = ?`).join(', ')} WHERE userId = ? AND danceId = ? AND studyName = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
             const params = [...Object.values(metricData), userId, danceId, workflowId, clipNumber, collectionId];
             await promiseDb.run(updateSql, ...params);
+            return true; // Indicate that the row was updated
         } else {
             // Row does not exist, insert it
             const insertSql = `INSERT INTO ${TABLE_NAME} (${Object.keys(rowData).concat(Object.keys(metricData)).join(', ')}) VALUES (${[...Array(Object.keys(rowData).length + Object.keys(metricData).length)].map(() => '?').join(', ')})`;
             const params = [...Object.values(rowData), ...Object.values(metricData)];
             await promiseDb.run(insertSql, ...params);
+            return false;
         }
     } catch (err) {
         console.error('Error in upsertMetricDbRow:', err);
@@ -213,17 +215,20 @@ export const motionMetricsCsvPath = `artifacts/motion_metrics.csv`;
 
 export async function exportCSV(db: sqlite3.Database) {
     const csvPath = motionMetricsCsvPath;
-    const sql = `SELECT * FROM ${TABLE_NAME}`;
-    const csvData: string[] = [];
+    const promiseDb = getPromisifiedDb(db);
 
-    db.all(sql, [], async (err: any, rows: any[]) => {
-        if (err) {
-            throw err;
-        }
-        const csv = Papa.unparse(rows);
+    try {
+        // Fetch all rows from the database table
+        const rows = await promiseDb.all(`SELECT * FROM ${TABLE_NAME}`);
+
+        // Convert rows to CSV format (ensure rows are cast to an array of objects)
+        const csv = Papa.unparse(rows as Record<string, unknown>[]);
+
+        // Write the CSV data to the file
         await writeFile(csvPath, csv, "utf8");
         console.log("CSV exported successfully.");
-    });
-
-    await writeFile(csvPath, csvData.join('\n'), 'utf8');
+    } catch (err) {
+        console.error("Error exporting CSV:", err);
+        throw err;
+    }
 }

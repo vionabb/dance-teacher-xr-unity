@@ -145,15 +145,15 @@ function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
 }
 
 function getTikTokClipInfo(filename: string): TikTokClipInfo | null {
-    let parts = filename.replace(".pixel_cords.pose.csv", "").split(".");
+    let parts = filename.replace(".pixel_cords.", "").replace(".pose.csv", "").split(".");
     if (parts.length != 2) {
         return null;
     }
     const [danceName, clipName] = parts;
     const clipNumber = Number.parseInt(clipName.replace("clip-", ""));
 
-    // if there's an invalud dance name, disregard this segment
-    if (Object.keys(TiktokClipNameToId).indexOf(danceName) == -1) {
+    // if there's an invalid dance name, disregard this segment
+    if (Object.keys(TiktokClipNameToId).indexOf(danceName) == -1 || Number.isNaN(clipNumber)) {
         return null;
     }
 
