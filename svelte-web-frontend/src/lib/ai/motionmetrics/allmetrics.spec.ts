@@ -84,6 +84,11 @@ describe("AllMetricsComparison", {}, async () => {
             return studyInfo.study1phase == "performance"; // skip slowed down clips
         }) as AsyncGenerator<StudySegmentData>;
 
+        const study1WholePoseFiles = await loadPoses(Study.Study1_Whole, (clipInfo) => {
+            const studyInfo = clipInfo as SegmentInfo;
+            return studyInfo.study1phase == "performance"; // skip slowed down clips
+        }) as AsyncGenerator<StudySegmentData>;
+
         // Study 2 has only one phase, so we can load all clips
         const study2PoseFiles = await loadPoses(Study.Study2_BySegment) as AsyncGenerator<StudySegmentData>;
 
@@ -92,8 +97,9 @@ describe("AllMetricsComparison", {}, async () => {
         // map each item in allPoses generator to a new object with the formatted summary
         // without holding them all in memory at the same time
         const allPoseFiles = takeAsnc([
+            study1WholePoseFiles,
             // study1PoseFiles, 
-            study2PoseFiles
+            // study2PoseFiles
         ], n);
 
         async function* processClips() {
@@ -101,8 +107,12 @@ describe("AllMetricsComparison", {}, async () => {
             for await (const poseData of allPoseFiles) {
                 i++;
                 const segmentData = poseData as StudySegmentData;
-                
-                const ratings = getClipHumanRatings(poseData.segmentInfo.studyName, allRatings, segmentData.segmentInfo.danceName, segmentData.segmentInfo.userId, segmentData.segmentInfo.clipNumber);
+
+                const ratings = getClipHumanRatings({
+                    info: poseData.segmentInfo,
+                    allRatings: allRatings,
+                    study: segmentData.study,
+                });
 
                 console.log(`Processing clip ${i} ${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.danceName}_${segmentData.segmentInfo.clipNumber}...`);
 

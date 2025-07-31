@@ -8,7 +8,9 @@ import type { ValueOf } from '$lib/data/dances-store';
 import { dances, loadPoseInformation, GetPixelLandmarksFromPose2DRow, GetPixelLandmarksFromPose3DRow, type Dance } from '$lib/data/dances-store';
 
 export const STUDY_1_SEGMENTED_POSES_FOLDER = "testResults/study1-pixelposes-segmented/";
+export const STUDY_1_WHOLE_POSES_FOLDER = "testResults/study1-pixelposes-whole/";
 export const STUDY_2_SEGMENTED_POSES_FOLDER = "testResults/study2-pixelposes-segmented/";
+export const STUDY_2_WHOLE_POSES_FOLDER = "testResults/study2-pixelposes-whole/";
 export const TIKTOK_CLIPS_POSES_FOLDER = "testResults/tiktoks-pixelposes-segmented/";
 export const TIKTOK_WHOLE_POSES_FOLDER_2D = "static/bundle/pose2d_data/";
 export const TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC = "static/bundle/holistic_data/";
@@ -17,9 +19,12 @@ export const LandmarkNames = ['NOSE', 'LEFT_EYE_INNER', 'LEFT_EYE', 'LEFT_EYE_OU
 
 export enum Study {
     Study1_BySegment = "study1",
+    Study1_Whole = "study1whole",
     Study2_BySegment = "study2",
+    Study2_Whole = "study2whole",
 }
-const Study1Studies = [Study.Study1_BySegment];
+const Study1Studies = [Study.Study1_BySegment, Study.Study1_Whole];
+const WholeStudies = [Study.Study1_Whole, Study.Study2_Whole];
 
 export enum OtherPoseSource {
     TikTokClips = "tiktokclips",
@@ -27,7 +32,7 @@ export enum OtherPoseSource {
     // TiktokWhole = "tiktokwhole",
 }
 
-function isStudy(poseSource: Study | OtherPoseSource): poseSource is Study {
+export function isStudy(poseSource: Study | OtherPoseSource): poseSource is Study {
     return Object.values(Study).includes(poseSource as Study);
 }
 function isOtherPoseSource(poseSource: Study | OtherPoseSource): poseSource is OtherPoseSource {
@@ -51,6 +56,7 @@ export type SegmentInfo = {
     danceName: DanceName;
     danceId: DanceId;
     studyName: "study1" | "study2";
+    segmentation: "whole" | "segmented"; // whole or segmented
     workflowId: string;
     condition: string;
     clipNumber: number;
@@ -77,6 +83,7 @@ export type TiktokDanceWholeData = {
 export type StudySegmentData = {
     poses: PoseFrame[],
     segmentInfo: SegmentInfo,
+    study: Study,
 };
 
 export type PoseFrame = {
@@ -84,10 +91,84 @@ export type PoseFrame = {
     worldPose: Pose3DLandmarkFrame
 };
 
+function getWholePixelPoseData(filename: string, study: Study): SegmentInfo | null {
+    
+    const cleanname = filename.replace(".pose.csv", "").replace(".pixel_cords", "");
+
+    if (Study1Studies.includes(study)) {
+        // example study 1_whole filename: "4751-mad-at-disney-tutorial-blurred-performance.pixel_cords.pose.csv"
+        const parts = cleanname.split("-");
+        if (parts.length < 2) return null;
+        const userId = Number.parseInt(parts[0]);
+        if (Number.isNaN(userId)) return null;
+
+        const remainingParts = parts.slice(1);
+        const phasePart = remainingParts.pop();
+        const rawDanceName = remainingParts.join("-");
+        const danceName = cononicalizeClipName(rawDanceName);
+        if (!danceName) return null;
+        return {
+            userId,
+            danceName,
+            danceId: TiktokClipNameToId[danceName],
+            studyName: "study1",
+            segmentation: "whole",
+            workflowId: "",
+            condition: "unknown", // whole pose data does not have a condition
+            study1phase: phasePart,
+            clipNumber: -1, // whole pose data does not have a clip number
+            performanceSpeed: 1.0, // study 1 videos were recorded at full speed
+        } as SegmentInfo;
+    } else if (Study.Study2_Whole) {
+        // example study 2_whole filename: "user5349________userstudy2-madatdisney-emojiandsegmented____workflowid-568e88b5-0a90-4755-bef4-3132efd7ffa1____whole.pixel_cords.pose.csv"
+        const parts = cleanname.split("____");
+        if (parts.length < 4) return null;
+        const userPart = parts[0].replace("user", "");
+        const userId = Number.parseInt(userPart);
+        if (Number.isNaN(userId)) return null;
+
+        const userDanceConditionParts = parts[1].split("-");
+        if (userDanceConditionParts.length < 2) return null;
+        const studyName = userDanceConditionParts[0].replace("userstudy2", "study2");
+        if (!studyName.includes("study2")) {
+            throw new Error(`Filename ${filename} does not contain "study2" but is being parsed as study 2 whole pose data`);
+        }
+        // get the last part of the userDanceConditionParts as the condition
+        // and the middle parts joined as dance name
+        const danceConditionParts = userDanceConditionParts.slice(1);
+        const condition = danceConditionParts.pop();
+        const rawDanceName = danceConditionParts.join("-");
+        if (!rawDanceName || !condition) return null;
+
+        const danceName = cononicalizeClipName(rawDanceName);
+        if (!danceName) return null;
+
+        const workflowId = parts[2].replace("workflowid-", "");
+        return {
+            userId,
+            danceName,
+            danceId: TiktokClipNameToId[danceName],
+            studyName: "study2",
+            segmentation: "whole",
+            workflowId,
+            condition,
+            clipNumber: -1,
+            performanceSpeed: 0.5, // study 2 videos were recorded at half speed
+        } as SegmentInfo;
+    }
+    throw new Error(`Can't get SegmentInfo from filename: ${filename}. Expected study 1 or study 2 whole pose file format.`);        
+}
+
 function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
+    if (WholeStudies.includes(study)) {
+        return getWholePixelPoseData(filename, study);
+    }
+
+    // Study 1 example filename: user4751____performance____userstudy1--last-christmas--control____workflowid-0079b262-7575-4ae7-a377-60e21070106e____clip1.pose
+    // Study 2 example filename: user3209________userstudy2-bartender-segmented____workflowid-c096aef4-3cd9-415d-9ca1-f8709a7f770a____clip2.pose
     filename = filename
         .replace(".pose.csv", "")
-        .replace(".pixel_cords", "")
+        .replace(".pixel_cords", "");
     const isStudy1 = Study1Studies.includes(study);
     const targetPartCount = isStudy1 ? 
         5 : 
@@ -136,6 +217,7 @@ function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
         danceName,
         danceId,
         studyName: isStudy1 ? "study1" : "study2",
+        segmentation: "segmented",
         workflowId,
         condition,
         clipNumber,
@@ -243,8 +325,10 @@ function getPoseFolder(poseSource: Study | OtherPoseSource) {
             return path.resolve(STUDY_1_SEGMENTED_POSES_FOLDER);
         case Study.Study2_BySegment:
             return path.resolve(STUDY_2_SEGMENTED_POSES_FOLDER);
-        // case Study.Study2Whole:
-            // return path.resolve(STUDY_2_WHOLE_POSES_FOLDER);
+        case Study.Study1_Whole:
+            return path.resolve(STUDY_1_WHOLE_POSES_FOLDER);
+        case Study.Study2_Whole:
+            return path.resolve(STUDY_2_WHOLE_POSES_FOLDER);
         case OtherPoseSource.TikTokClips:
             return path.resolve(TIKTOK_CLIPS_POSES_FOLDER);
     }
@@ -279,10 +363,19 @@ export async function* loadPoses<T extends Study | OtherPoseSource>(poseSource: 
                 dynamicTyping: true,
                 complete: (results) => {
                     const convertedFrames = (results.data as Array<Record<string, number>>).map(convertCsvRow);
-                    res({
-                        poses: convertedFrames,
-                        segmentInfo: segmentInfo as any,
-                    });
+                    
+                    if (isStudy(poseSource)) {
+                        res({
+                            poses: convertedFrames,
+                            segmentInfo: segmentInfo as SegmentInfo,
+                            study: poseSource,
+                        } as StudySegmentData);
+                    } else {
+                        res({
+                            poses: convertedFrames,
+                            segmentInfo: segmentInfo as SegmentInfo,
+                        });
+                    }
                 },
                 error: (error: Error, file: Papa.LocalFile) => {
                     rej(error);
@@ -374,14 +467,14 @@ export type HumanRating = {
     rating3: number;
 };
 
-export function getClipHumanRatings(
-    study: "study1" | "study2",
+export function getClipHumanRatings(args: {
     allRatings: Awaited<ReturnType<typeof loadHumanRatings>>,
-    danceName: DanceName,
-    userId: number,
-    clipNumber: number
-) {
-    return allRatings.get(study as Study)?.get(danceName)?.get(userId)?.get(clipNumber);
+    info: SegmentInfo,
+    study: Study,
+}) {
+    const { allRatings, info, study } = args;
+    const { danceName, userId, clipNumber } = info;
+    return allRatings.get(study)?.get(danceName)?.get(userId)?.get(clipNumber);
 }
 
 /**
@@ -436,6 +529,50 @@ export async function loadHumanRatings() {
         danceRatings.set(userId, clipRatings);
         allRatings.get(study)!.set(danceName, danceRatings);
     });
+
+    // for each dance, also create the summary ratings
+    const getWholeStudy = (study: Study) => study === Study.Study1_BySegment ? Study.Study1_Whole : Study.Study2_Whole;
+
+    for (const segmentedStudy of [Study.Study1_BySegment, Study.Study2_BySegment]) {
+        const danceRatings = allRatings.get(segmentedStudy);
+        if (!danceRatings) continue;
+        const wholeStudy = getWholeStudy(segmentedStudy);
+        const wholeStudyRatings = new Map<DanceName, Map<number, Map<number, HumanRating>>>()
+        allRatings.set(wholeStudy, wholeStudyRatings);
+
+        for (const [danceName, userRatings] of danceRatings.entries()) {
+            const wholeDanceRatings = new Map<number, Map<number, HumanRating>>();
+            wholeStudyRatings.set(danceName, wholeDanceRatings);
+
+            for (const [userId, clipRatings] of userRatings.entries()) {
+                const userWholeRatingsMap = new Map<number, HumanRating>();
+                wholeDanceRatings.set(userId, userWholeRatingsMap);
+
+                const ratingsArray = Array.from(clipRatings.values());
+                const ratingsCount = ratingsArray.length;
+                if (ratingsCount === 0) continue; // no ratings for this user and dance
+
+                const meanRatingPercentile = ratingsArray.reduce((sum, rating) => sum + rating.avgRatingPercentile, 0) / ratingsCount;
+                const meanRating1 = ratingsArray.reduce((sum, rating) => sum + rating.rating1, 0) / ratingsCount;
+                const meanRating2 = ratingsArray.reduce((sum, rating) => sum + rating.rating2, 0) / ratingsCount;
+                const meanRating3 = ratingsArray.reduce((sum, rating) => sum + rating.rating3, 0) / ratingsCount;
+                const wholeDanceSegment = -1; // whole dance segment is represented by -1
+
+                const summaryRating: HumanRating = {
+                    study: segmentedStudy === Study.Study1_BySegment ? 1 : 2,
+                    dance: danceName,
+                    userId,
+                    segmentId: wholeDanceSegment, // summary rating does not have a segment ID
+                    avgRatingPercentile: meanRatingPercentile,
+                    rating1: meanRating1,
+                    rating2: meanRating2,
+                    rating3: meanRating3,
+                };
+                // add the summary rating to the clipRatings map with segmentId -1
+                userWholeRatingsMap.set(wholeDanceSegment, summaryRating);
+            }
+        }
+    }
 
     return allRatings;
 }
