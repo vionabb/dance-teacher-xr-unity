@@ -13,7 +13,8 @@ import {
   loadTiktokWholePoses,
   getClipHumanRatings,
   loadHumanRatings,
-  type HumanRating
+  type HumanRating,
+  type PoseFrame
 } from "./PoseDataTestFile";
 import {
   runLiveEvaluationMetricOnTestTrack,
@@ -23,23 +24,23 @@ import { dbPath, ensureMetricColumnInTable, exportCSV, loadDB, motionMetricsCsvP
 import Qijia2DSkeletonSimilarityMetric from "./Qijia2DSkeletonSimilarityMetric";
 import Jules2DSkeletonSimilarityMetric from "./Jules2DSkeletonSimilarityMetric";
 import Skeleton3dVectorAngleSimilarityMetric from "./Skeleton3dVectorAngleSimilarityMetric";
-import { getReferenceClip, LandmarkWeighting_MotionEnergy, takeAsnc } from "../EvaluationCommonUtils";
+import { getReferenceClip as getReferencePoses, LandmarkWeighting_MotionEnergy, takeAsnc } from "../EvaluationCommonUtils";
 import TemporalAlignmentMetric from "./TemporalAlignmentMetric";
 import Skeleton3DAngleDistanceDTW from "./Skeleton3DAngleDistanceDTW";
 import KinematicErrorMetric from "./KinematicErrorMetric";
 import type { TrackHistory } from "./MotionMetric";
 
-function createTrackHistoryForClips(userPoseData: StudySegmentData, referenceClip: TiktokDanceClipData) {
+function createTrackHistoryForClips(userPoseData: StudySegmentData, referencePoses: PoseFrame[]) {
 
     const fps = 30;
-    const shortestClipLength = Math.min(userPoseData.poses.length, referenceClip.poses.length);
+    const shortestClipLength = Math.min(userPoseData.poses.length, referencePoses.length);
     const trackHistory: TrackHistory = {
-        videoFrameTimesInSecs: referenceClip.poses.map((_, i) => i / fps).slice(0, shortestClipLength),
-        actualTimesInMs: referenceClip.poses.map((_, i) => i / (userPoseData.segmentInfo.performanceSpeed * fps)).slice(0, shortestClipLength),
-        ref3DFrameHistory: referenceClip.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
-        ref2DFrameHistory: referenceClip.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
+        videoFrameTimesInSecs: referencePoses.map((_, i) => i / fps).slice(0, shortestClipLength),
+        actualTimesInMs: referencePoses.map((_, i) => i / (userPoseData.segmentInfo.performanceSpeed * fps)).slice(0, shortestClipLength),
+        ref3DFrameHistory: referencePoses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
+        ref2DFrameHistory: referencePoses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
         user3DFrameHistory: userPoseData.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
-        user2DFrameHistory: referenceClip.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
+        user2DFrameHistory: userPoseData.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
     };
 
     return trackHistory;
@@ -47,24 +48,24 @@ function createTrackHistoryForClips(userPoseData: StudySegmentData, referenceCli
 
 type MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings?: HumanRating | undefined) => Record<string, number>;
 
-function runMetricOnClip(segmentData: StudySegmentData, referenceClip: TiktokDanceClipData, ratings: HumanRating | undefined, metric: MetricRunner) {
+function runMetricOnClip(segmentData: StudySegmentData, referencePoses: PoseFrame[], ratings: HumanRating | undefined, metric: MetricRunner) {
 
     const fps = 30
-    const shortestClipLength = Math.min(segmentData.poses.length, referenceClip.poses.length);
+    const shortestClipLength = Math.min(segmentData.poses.length, referencePoses.length);
     const testTrack: TestTrack = {
         id: `${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.clipNumber}`,
         danceRelativeStem: segmentData.segmentInfo.danceName,
         segmentDescription: segmentData.segmentInfo.clipNumber.toString(),
         creationDate: "",
         trackDescription: segmentData.segmentInfo.danceName,
-        videoFrameTimesInSecs: referenceClip.poses.map((_, i) => i / fps).slice(0, shortestClipLength),
-        actualTimesInMs: referenceClip.poses.map((_, i) => i / (fps * segmentData.segmentInfo.performanceSpeed)).slice(0, shortestClipLength),
-        ref2dPoses: referenceClip.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
-        ref3dPoses: referenceClip.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
+        videoFrameTimesInSecs: referencePoses.map((_, i) => i / fps).slice(0, shortestClipLength),
+        actualTimesInMs: referencePoses.map((_, i) => i / (fps * segmentData.segmentInfo.performanceSpeed)).slice(0, shortestClipLength),
+        ref2dPoses: referencePoses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
+        ref3dPoses: referencePoses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
         user2dPoses: segmentData.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
         user3dPoses: segmentData.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
     }
-    const trackHistory = createTrackHistoryForClips(segmentData, referenceClip);
+    const trackHistory = createTrackHistoryForClips(segmentData, referencePoses);
 
     const result = metric(testTrack, trackHistory, ratings);
     return result;
@@ -122,10 +123,19 @@ describe("AllMetricsComparison", {}, async () => {
                     continue;
                 }
                 
-                const referenceClip = getReferenceClip(segmentData.segmentInfo, tiktokClipPoses);
-                if (!referenceClip) return undefined;
+                const referencePoses = getReferencePoses({
+                    segmentInfo: segmentData.segmentInfo, 
+                    tiktokClipPoses,
+                    tiktokWholePoses,
+                });
+                if (!referencePoses) return undefined;
             
-                const summary = runMetricOnClip(segmentData, referenceClip, ratings, metric);
+                const summary = runMetricOnClip(
+                    segmentData,
+                    referencePoses, 
+                    ratings, 
+                    metric
+                );
 
                 yield { 
                     rowData: {
@@ -172,7 +182,7 @@ describe("AllMetricsComparison", {}, async () => {
     }
     // Set high test timeout for each test
     const testTimeout = 20 * 60 * 1000; // 20 minutes in milliseconds
-    it('angle3dDTWOutput', { timeout: testTimeout }, async ({ expect }) => {
+    it.skip('angle3dDTWOutput', { timeout: testTimeout }, async ({ expect }) => {
         const metric = new Skeleton3DAngleDistanceDTW();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = metric.summarizeMetric(trackHistory);

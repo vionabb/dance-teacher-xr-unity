@@ -1,6 +1,6 @@
 import type { TerminalFeedbackBodyPart, TerminalFeedbackBodyPartIndex } from "$lib/model/TerminalFeedback";
 import {PoseLandmarkIds, type PoseLandmarkIndex, type Pose2DPixelLandmarks, PoseLandmarkKeys, type Pose3DLandmarkFrame } from  "$lib/webcam/mediapipe-utils";
-import type { StudySegmentData, SegmentInfo, TiktokDanceClipData } from "./motionmetrics/PoseDataTestFile";
+import type { StudySegmentData, SegmentInfo, TiktokDanceClipData, TiktokDanceWholeData, PoseFrame } from "./motionmetrics/PoseDataTestFile";
 
 export type PoseVectorIdPair = [PoseLandmarkIndex, PoseLandmarkIndex]
 export type VectorAngleComparisonInfo = { vec1: PoseVectorIdPair, vec2: PoseVectorIdPair, rangeOfMotion: number};
@@ -589,10 +589,20 @@ export function createTrackHistoryForClips(userPoseData: StudySegmentData, refer
 /**
  * Retrieves the reference clip for a given segment.
  */
-export function getReferenceClip(segmentInfo: SegmentInfo, tiktokClipPoses: Map<string, TiktokDanceClipData[]>) {
-    const refClipNumber = segmentInfo.clipNumber;
-    const clipIndex = refClipNumber - 1; // Adjust for zero-based index of arrays
-    return tiktokClipPoses.get(segmentInfo.danceName)?.[clipIndex];
+export function getReferenceClip(args: {
+    segmentInfo: SegmentInfo, 
+    tiktokClipPoses: Map<string, TiktokDanceClipData[]>,
+    tiktokWholePoses: Map<string, TiktokDanceWholeData>,
+}): PoseFrame[] | undefined {
+    if (args.segmentInfo.segmentation == "segmented") {
+        const refClipNumber = args.segmentInfo.clipNumber;
+        const clipIndex = refClipNumber - 1; // Adjust for zero-based index of arrays
+        return args.tiktokClipPoses.get(args.segmentInfo.danceName)?.[clipIndex]?.poses;
+    } else if (args.segmentInfo.segmentation == "whole") {
+        const danceName = args.segmentInfo.danceName;
+        return args.tiktokWholePoses.get(danceName)?.poses;
+    }
+    return undefined;
 }
 
 export async function* takeAsnc<T>(
