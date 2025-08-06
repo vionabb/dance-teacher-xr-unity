@@ -91,44 +91,121 @@ export type PoseFrame = {
     worldPose: Pose3DLandmarkFrame
 };
 
+const WORKFLOW_STUDY1_ID_TO_CONDITION: Readonly<Record<string, 'control' | 'skeleton' | 'sheetmotion'>> = Object.freeze({
+    "0079b262-7575-4ae7-a377-60e21070106e": "control", // last-christmas
+    "e525302b-2740-4e73-aa37-170bd8ceb8d1": "control", // mad-at-disney
+    "917fe4e1-9590-44eb-a541-1cef13e4f1ea": "control", // pajama-party
+
+    "02883b27-c152-4415-ae7a-1cb4c5f086e5": "skeleton", // last-christmas
+    "44e54afd-19c0-4342-b753-fb4ab123aaad": "skeleton", // mad-at-disney
+    "102d5dd7-f1f4-447d-9c0c-6e10a8afc4c3": "skeleton", // pajama-party
+
+    "ec8fbc4c-bf9d-404d-a4ab-c626e23a4d2e": "sheetmotion", // last-christmas
+    "d6ad5749-50d4-4cc7-99b5-6b9ddecebbf4": "sheetmotion", // mad-at-disney
+    "00388bd7-d313-4ce1-89e5-c88091f25357": "sheetmotion", // pajama-party
+});
+
 function getWholePixelPoseData(filename: string, study: Study): SegmentInfo | null {
     
+    if (!filename.endsWith(".csv")) {
+        return null; // not a valid pose data file
+    }
     const cleanname = filename.replace(".pose.csv", "").replace(".pixel_cords", "");
 
     if (Study1Studies.includes(study)) {
-        // example study 1_whole filename: "4751-mad-at-disney-tutorial-blurred-performance.pixel_cords.pose.csv"
+        // example study 1_whole filename: "44e54afd-19c0-4342-b753-fb4ab123aaad-4324-mad-at-disney-tutorial-blurred-44e54afd-19c0-4342-b753-fb4ab123aaad-initial-0.5"
+        // pattern is: "{workflow_uuid}-{4_digit_userid}-{dance_name}-{workflow_uuid}-{study1phase}-{speed}"
+        // a bit tricky since the workflow UUID has dashes in it, and we need to lookup the condition by this UUID.
+        // also, the dances have various amount of dashes. To account for this, we split my dashes, then index by the fixed parts at front and end. 
+        // the remaining parts are the dance name.
         const parts = cleanname.split("-");
-        if (parts.length < 2) return null;
-        const userId = Number.parseInt(parts[0]);
-        if (Number.isNaN(userId)) return null;
-
-        const remainingParts = parts.slice(1);
-        const phasePart = remainingParts.pop();
-        const rawDanceName = remainingParts.join("-");
+        const MIN_PARTS = 14; 
+            // 5 for workflow ID, 
+            // 1 for user ID, 
+            // 1+ for dance name, 
+            // 5 for workflow ID again, 
+            // 1 for study phase, and 
+            // 1 for speed
+        if (parts.length < MIN_PARTS) {
+            console.warn(`Filename ${filename} does not have enough parts to be a valid study 1 whole pose data file`);
+            return null;
+        };
+        const workflowId1 = parts.splice(0, 5).join("-"); // first 5 parts are the workflow ID, user ID, dance name, workflow ID again, and study phase
+        const userIdRaw = parts.splice(0, 1)[0]; // next part is the user ID
+        let userId = Number.parseInt(userIdRaw);
+        if (Number.isNaN(userId)) {
+            // some filenames have "anonomous" as the user ID, which is not a valid number
+            // we don't use these (so return null), but no need to warn about it
+            if (userIdRaw.toLowerCase() !== "anonomous") {
+                console.warn(`Filename ${filename} does not have a valid user ID`);
+            }
+            return null;
+        }
+        const speedOrPhase = parts.pop()!; // last part is the speed or study phase
+        let study1phase: string;
+        let speed: number;
+        if (!Number.isNaN(Number.parseFloat(speedOrPhase))) {
+            // most filenames have speed as the last part
+            speed = Number.parseFloat(speedOrPhase);
+            study1phase = parts.pop()!;
+            if (Number.isNaN(speed)) {
+                console.warn(`Filename ${filename} does not have a valid speed`);
+                return null;
+            }
+        } else if (speedOrPhase === "performance") {
+            // some filenames are missing the speed, so we infer from the phase.
+            study1phase = speedOrPhase;
+            speed = 1.0; 
+        } else if (speedOrPhase === "initial") {
+            study1phase = speedOrPhase;
+            speed = 0.5; 
+        } else {
+            throw new Error(`Filename ${filename} does not have a valid speed or study phase: ${speedOrPhase}`);
+        }
+        // next 5 parts are also workflowid
+        const workflowId2 = parts.splice(parts.length - 5, 5).join("-");
+        if (workflowId1 !== workflowId2) {
+            throw new Error(`Workflow IDs do not match in filename: ${filename}`);
+        }
+        const rawDanceName = parts.join("-"); // the remaining parts are the dance name
         const danceName = cononicalizeClipName(rawDanceName);
-        if (!danceName) return null;
+        if (!danceName) {
+            console.warn(`Filename ${filename} does not have a valid dance name`);
+            return null;
+        }
+        const condition = WORKFLOW_STUDY1_ID_TO_CONDITION[workflowId1];
+
         return {
             userId,
             danceName,
             danceId: TiktokClipNameToId[danceName],
             studyName: "study1",
             segmentation: "whole",
-            workflowId: "",
-            condition: "unknown", // whole pose data does not have a condition
-            study1phase: phasePart,
+            workflowId: workflowId1,
+            condition: condition ?? "unknown", // whole pose data does not have a condition
+            study1phase: study1phase,
             clipNumber: -1, // whole pose data does not have a clip number
-            performanceSpeed: 1.0, // study 1 videos were recorded at full speed
+            performanceSpeed: speed, // study 1 videos were recorded at full speed
         } as SegmentInfo;
     } else if (Study.Study2_Whole) {
         // example study 2_whole filename: "user5349________userstudy2-madatdisney-emojiandsegmented____workflowid-568e88b5-0a90-4755-bef4-3132efd7ffa1____whole.pixel_cords.pose.csv"
-        const parts = cleanname.split("____");
-        if (parts.length < 4) return null;
+        const parts = cleanname.split("_").filter((s => s.length > 0));
+        if (parts.length < 4) {
+            return null;
+        }
         const userPart = parts[0].replace("user", "");
         const userId = Number.parseInt(userPart);
-        if (Number.isNaN(userId)) return null;
+        if (userPart.includes("idmissing")) {
+            return null;
+        }
+        if (Number.isNaN(userId)) {
+            return null;
+        }
 
         const userDanceConditionParts = parts[1].split("-");
-        if (userDanceConditionParts.length < 2) return null;
+        if (userDanceConditionParts.length < 2) {
+            return null;
+        }
         const studyName = userDanceConditionParts[0].replace("userstudy2", "study2");
         if (!studyName.includes("study2")) {
             throw new Error(`Filename ${filename} does not contain "study2" but is being parsed as study 2 whole pose data`);
@@ -138,10 +215,14 @@ function getWholePixelPoseData(filename: string, study: Study): SegmentInfo | nu
         const danceConditionParts = userDanceConditionParts.slice(1);
         const condition = danceConditionParts.pop();
         const rawDanceName = danceConditionParts.join("-");
-        if (!rawDanceName || !condition) return null;
+        if (!rawDanceName || !condition) {
+            return null;
+        }
 
         const danceName = cononicalizeClipName(rawDanceName);
-        if (!danceName) return null;
+        if (!danceName) {
+            return null;
+        }
 
         const workflowId = parts[2].replace("workflowid-", "");
         return {
@@ -411,8 +492,9 @@ function cononicalizeClipName(clipName: string): DanceName | undefined {
     for (const dance of allDances) {
         if (clipName.includes(dance)) return dance;
 
-        // special case: pajama party is spelled without a space in dances.json
-        if (clipName.includes("pajamaparty")) return "pajama-party";
+        // some dances have a dash in the name, but the clip name does not
+        // ex: pajama-party is spelled pajamaparty in dances.json
+        if (clipName.includes(dance.replaceAll("-", ""))) return dance; 
     }
     return undefined;
 }

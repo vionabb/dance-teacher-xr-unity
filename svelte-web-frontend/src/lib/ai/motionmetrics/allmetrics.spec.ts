@@ -93,14 +93,17 @@ describe("AllMetricsComparison", {}, async () => {
         // Study 2 has only one phase, so we can load all clips
         const study2PoseFiles = await loadPoses(Study.Study2_BySegment) as AsyncGenerator<StudySegmentData>;
 
+        const study2WholePoseFiles = await loadPoses(Study.Study2_Whole) as AsyncGenerator<StudySegmentData>;   
+
         const n = Infinity; // number of clips to process (i.e. all of them)
 
         // map each item in allPoses generator to a new object with the formatted summary
         // without holding them all in memory at the same time
         const allPoseFiles = takeAsnc([
             study1WholePoseFiles,
-            // study1PoseFiles, 
-            // study2PoseFiles
+            study2WholePoseFiles,
+            study1PoseFiles, 
+            study2PoseFiles
         ], n);
 
         async function* processClips() {
@@ -115,7 +118,8 @@ describe("AllMetricsComparison", {}, async () => {
                     study: segmentData.study,
                 });
 
-                console.log(`Processing clip ${i} ${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.danceName}_${segmentData.segmentInfo.clipNumber}...`);
+                const clipPrint = segmentData.segmentInfo.segmentation === 'whole' ? 'whole' : `clip${segmentData.segmentInfo.clipNumber}`;
+                console.log(`Processing clip ${i} ${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.danceName}__${segmentData.segmentInfo.condition}_${clipPrint}...`);
 
                 // we're only interested in the clips that have human ratings
                 if (!ratings) {

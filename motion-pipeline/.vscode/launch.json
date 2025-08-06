@@ -315,19 +315,20 @@
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poseframes-segmented",
 
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-orig-videos",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-pixelposes-whole",
-                    // "-f",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poseframes-whole",
+                    "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/user-study-1-isls2022-mp4",
+                    "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-pixelposes-whole",
+                    "-f",
+                    "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poseframes-whole",
 
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-videos-segmented",
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-pixelposes-segmented",
                     // "-f",
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-segmented",
 
-                    "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/user-study-2-whole-reencoded",
-                    "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-pixelposes-whole",
-                    "-f",
-                    "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-whole",
+                    // "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/user-study-2-whole-reencoded",
+                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-pixelposes-whole",
+                    // "-f",
+                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-whole",
 
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored",
                     // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/tiktoks-pixelposes-segmented",
