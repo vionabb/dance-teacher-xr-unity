@@ -46,7 +46,7 @@ function createTrackHistoryForClips(userPoseData: StudySegmentData, referencePos
     return trackHistory;
 }
 
-type MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings?: HumanRating | undefined) => Record<string, number>;
+type MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings?: HumanRating | undefined) => { result: Record<string, number>, metricName: string };
 
 function runMetricOnClip(segmentData: StudySegmentData, referencePoses: PoseFrame[], ratings: HumanRating | undefined, metric: MetricRunner) {
 
@@ -67,8 +67,8 @@ function runMetricOnClip(segmentData: StudySegmentData, referencePoses: PoseFram
     }
     const trackHistory = createTrackHistoryForClips(segmentData, referencePoses);
 
-    const result = metric(testTrack, trackHistory, ratings);
-    return result;
+    const { result, metricName} = metric(testTrack, trackHistory, ratings);
+    return { result, metricName };
 }
 
 describe("AllMetricsComparison", {}, async () => {
@@ -119,7 +119,6 @@ describe("AllMetricsComparison", {}, async () => {
                 });
 
                 const clipPrint = segmentData.segmentInfo.segmentation === 'whole' ? 'whole' : `clip${segmentData.segmentInfo.clipNumber}`;
-                console.log(`Processing clip ${i} ${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.danceName}__${segmentData.segmentInfo.condition}_${clipPrint}...`);
 
                 // we're only interested in the clips that have human ratings
                 if (!ratings) {
@@ -133,13 +132,15 @@ describe("AllMetricsComparison", {}, async () => {
                     tiktokWholePoses,
                 });
                 if (!referencePoses) return undefined;
-            
-                const summary = runMetricOnClip(
+
+                const { result: summary, metricName } = runMetricOnClip(
                     segmentData,
                     referencePoses, 
                     ratings, 
                     metric
                 );
+
+                console.log(`Processed ${metricName} for file #${i} user${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.danceName}__${segmentData.segmentInfo.condition}_${clipPrint}`);
 
                 yield { 
                     rowData: {
@@ -191,22 +192,28 @@ describe("AllMetricsComparison", {}, async () => {
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = metric.summarizeMetric(trackHistory);
             return {
-                invalidFrameCount: summary.invalidFramesCount,
-                invalidPercent: summary.invalidPercent,
-                angle3D_dtw_distance: summary.dtwDistance,
-                angle3D_dtw_dist_avg: summary.dtwDistance / summary.dtwPath.length,
-                angle3D_warping_factor: summary.warpingFactor,
+                result: {
+                    invalidFrameCount: summary.invalidFramesCount,
+                    invalidPercent: summary.invalidPercent,
+                    angle3D_dtw_distance: summary.dtwDistance,
+                    angle3D_dtw_dist_avg: summary.dtwDistance / summary.dtwPath.length,
+                    angle3D_warping_factor: summary.warpingFactor,
+                },
+                metricName: 'angle3dDTW',
             }
         }
-        await updateDbWithMetric('anle3dDTW', metricRunner);
+        await updateDbWithMetric('angle3dDTW', metricRunner);
     });
 
     it('qijia2d', { timeout: testTimeout }, async ({ expect }) => {
         const metric = new Qijia2DSkeletonSimilarityMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
-            return {
-                qijia2d: summary.summary.overallScore / 5, // scale from 0-5 to 0-1
+            return { 
+                metricName: 'qijia2d',
+                result: {
+                    qijia2d: summary.summary.overallScore / 5, // scale from 0-5 to 0-1
+                }
             }
         }
         await updateDbWithMetric('qijia2d', metricRunner);
@@ -216,10 +223,13 @@ describe("AllMetricsComparison", {}, async () => {
         const metric = new Jules2DSkeletonSimilarityMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
-            return {
-                // We want the output to be an accuracy score, with 1 being the best and 0 being the worst.
-                // Jules2D returns a dissimilarity score, so we reverse it to get an accuracy score.
-                jules2d: 1 - summary.summary.avgDissimilarity,
+            return { 
+                metricName: 'jules2d',
+                result: {
+                    // We want the output to be an accuracy score, with 1 being the best and 0 being the worst.
+                    // Jules2D returns a dissimilarity score, so we reverse it to get an accuracy score.
+                    jules2d: 1 - summary.summary.avgDissimilarity,
+                }
             }
         }
         await updateDbWithMetric('jules2d', metricRunner);
@@ -229,8 +239,11 @@ describe("AllMetricsComparison", {}, async () => {
         const metric = new Skeleton3dVectorAngleSimilarityMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
-            return {
-                vectorAngle3D: summary.summary.overallScore,
+            return { 
+                metricName: 'vectorAngle3D',
+                result: {
+                    vectorAngle3D: summary.summary.overallScore,
+                }
             }
         }
         await updateDbWithMetric('vectorAngle3D', metricRunner);
@@ -240,8 +253,11 @@ describe("AllMetricsComparison", {}, async () => {
         const metric = new TemporalAlignmentMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
             const summary = metric.summarizeMetric(trackHistory);
-            return {
-                temporalAlignmentSecs: summary.temporalOffsetSecs,
+            return { 
+                metricName: 'temporalAlignment',
+                result: {
+                    temporalAlignmentSecs: summary.temporalOffsetSecs,
+                }
             }
         }
         await updateDbWithMetric('temporalAlignment', metricRunner);
@@ -277,25 +293,28 @@ describe("AllMetricsComparison", {}, async () => {
             const summary = metricByVisiblity.summarizeMetric(trackHistory);
             const summaryNoVisiblity = metricNoVisibliityScale.summarizeMetric(trackHistory);
             const summaryWithPerceptualWeights = metricByVisiblityAndPerceptualWeights.summarizeMetric(trackHistory);
-            return {
-                "velocity_3d_MAE": summary.summary3D.velMAE ?? NaN,
-                "accel_3d_MAE": summary.summary3D.accelMAE ?? NaN,
-                "jerk_3d_MAE": summary.summary3D.jerkMAE ?? NaN,
-                "velocity_2d_MAE": summary.summary2D.velMAE ?? NaN,
-                "accel_2d_MAE": summary.summary2D.accelMAE ?? NaN,
-                "jerk_2d_MAE": summary.summary2D.jerkMAE ?? NaN,
-                "velocity_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.velMAE ?? NaN,
-                "accel_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.accelMAE ?? NaN,
-                "jerk_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.jerkMAE ?? NaN,
-                "velocity_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.velMAE ?? NaN,
-                "accel_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.accelMAE ?? NaN,
-                "jerk_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.jerkMAE ?? NaN,
-                "velocity_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.velMAE ?? NaN,
-                "accel_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.accelMAE ?? NaN,
-                "jerk_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.jerkMAE ?? NaN,
-                "velocity_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.velMAE ?? NaN,
-                "accel_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.accelMAE ?? NaN,
-                "jerk_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.jerkMAE ?? NaN,
+            return { 
+                metricName: 'kinematicsError',
+                result: {
+                    "velocity_3d_MAE": summary.summary3D.velMAE ?? NaN,
+                    "accel_3d_MAE": summary.summary3D.accelMAE ?? NaN,
+                    "jerk_3d_MAE": summary.summary3D.jerkMAE ?? NaN,
+                    "velocity_2d_MAE": summary.summary2D.velMAE ?? NaN,
+                    "accel_2d_MAE": summary.summary2D.accelMAE ?? NaN,
+                    "jerk_2d_MAE": summary.summary2D.jerkMAE ?? NaN,
+                    "velocity_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.velMAE ?? NaN,
+                    "accel_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.accelMAE ?? NaN,
+                    "jerk_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.jerkMAE ?? NaN,
+                    "velocity_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.velMAE ?? NaN,
+                    "accel_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.accelMAE ?? NaN,
+                    "jerk_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.jerkMAE ?? NaN,
+                    "velocity_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.velMAE ?? NaN,
+                    "accel_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.accelMAE ?? NaN,
+                    "jerk_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.jerkMAE ?? NaN,
+                    "velocity_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.velMAE ?? NaN,
+                    "accel_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.accelMAE ?? NaN,
+                    "jerk_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.jerkMAE ?? NaN,
+                },
             }
         }
         await updateDbWithMetric('kinematicsError', metricRunner);
@@ -303,18 +322,20 @@ describe("AllMetricsComparison", {}, async () => {
 
     it('humanRating', { timeout: testTimeout }, async ({ expect }) => {
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings: HumanRating | undefined) => {
-            
-            return {
-                humanRatingPercent: ratings?.humanRatingPercentile ?? NaN,
-                autoRatingPercent: ratings?.autoRatingPercentile ?? NaN,
-                humanRating: ratings?.humanRating ?? NaN,
-                autoRating: ratings?.autoRating ?? NaN,
-                rating1: ratings?.rating1 ?? NaN,
-                rating2: ratings?.rating2 ?? NaN,
-                rating3: ratings?.rating3 ?? NaN,
-                reportedDifficulty: ratings?.reportedDifficulty ?? NaN,
-                reportedHelpfulness: ratings?.reportedHelpfulness ?? NaN,
 
+            return {
+                metricName: 'humanRating',
+                result: {
+                    humanRatingPercent: ratings?.humanRatingPercentile ?? NaN,
+                    autoRatingPercent: ratings?.autoRatingPercentile ?? NaN,
+                    humanRating: ratings?.humanRating ?? NaN,
+                    autoRating: ratings?.autoRating ?? NaN,
+                    rating1: ratings?.rating1 ?? NaN,
+                    rating2: ratings?.rating2 ?? NaN,
+                    rating3: ratings?.rating3 ?? NaN,
+                    reportedDifficulty: ratings?.reportedDifficulty ?? NaN,
+                    reportedHelpfulness: ratings?.reportedHelpfulness ?? NaN,
+                },
             }
         }
         await updateDbWithMetric('humanRating', metricRunner);
