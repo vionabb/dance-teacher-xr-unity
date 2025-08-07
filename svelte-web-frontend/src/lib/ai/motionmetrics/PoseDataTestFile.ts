@@ -542,11 +542,18 @@ export type HumanRating = {
     study: number;
     dance: DanceName;
     userId: number;
-    segmentId: number;
-    avgRatingPercentile: number;
-    rating1: number;
-    rating2: number;
-    rating3: number;
+    segmentId: number | "whole";
+    condition: string;
+    humanRatingPercentile: number;            // mean of all human ratings, as a percentile, 0-1 scale   
+    autoRatingPercentile: number | undefined; // qijia's calculated rating percentile, 0-1 scale
+    humanRating: number;                      // mean of all human ratings, on a 1-5 scale
+    autoRating: number | undefined;           // qijia's calculated rating, 1-5 scale
+    rating1: number | undefined;              // rater 1 rating, 1-3 scale
+    rating2: number | undefined;              // rater 2 rating, 1-3 scale
+    rating3: number | undefined;              // rater 3 rating, 1-3 scale
+    lessonOrder: number | undefined;          // order in the user study, 1-4
+    reportedHelpfulness: number | undefined;  // self-reported helpfulness of the intervention, out of 10
+    reportedDifficulty: number | undefined;   // self-reported difficulty of the dance, out of 10
 };
 
 export function getClipHumanRatings(args: {
@@ -580,9 +587,33 @@ export async function loadHumanRatings() {
     const data = await (new Promise((resolve, reject) => {
         Papa.parse(file, {
             header: true,
-            dynamicTyping: true,
+            dynamicTyping: false,
             complete: (results) => {
-                resolve(results.data as any as HumanRating[]);
+                const rawData = results.data as Array<Record<string, string>>;
+                const data: HumanRating[] = rawData.map((row) => {
+                    const { study, dance, userId, segmentId, condition, humanRatingPercentile, autoRatingPercentile, humanRating, autoRating, rating1, rating2, rating3, lessonOrder, reportedHelpfulness, reportedDifficulty } = row;
+                    
+                    const parseNullableFloat = (value: string) => value !== undefined && value !== null && value.length > 0 ? Number.parseFloat(value) : undefined;
+                    const parseNullableInt = (value: string) => value !== undefined && value !== null && value.length > 0 ? Number.parseInt(value) : undefined; 
+                    return {
+                        study: Number.parseInt(study), 
+                        dance, 
+                        userId: Number.parseInt(userId), 
+                        segmentId: segmentId === "whole" ? "whole" : Number.parseInt(segmentId), 
+                        condition, 
+                        humanRatingPercentile: parseNullableFloat(humanRatingPercentile), 
+                        autoRatingPercentile: parseNullableFloat(autoRatingPercentile), 
+                        humanRating: parseNullableFloat(humanRating), 
+                        autoRating: parseNullableFloat(autoRating), 
+                        rating1: parseNullableInt(rating1), 
+                        rating2: parseNullableInt(rating2), 
+                        rating3: parseNullableInt(rating3), 
+                        lessonOrder: parseNullableInt(lessonOrder), 
+                        reportedHelpfulness: parseNullableInt(reportedHelpfulness), 
+                        reportedDifficulty: parseNullableInt(reportedDifficulty)
+                    } as HumanRating
+                });
+                resolve(data);
             },
             error: (error: Error) => {
                 reject(error);
@@ -592,69 +623,71 @@ export async function loadHumanRatings() {
 
     // access a clip's ratings with allRatings.get(study)?.get(danceName)?.get(userID)?.get(clipNumber)
     const allRatings = new Map<Study, Map<DanceName, Map<number, Map<number, HumanRating>>>>();
+    const WHOLE_DANCE_SEGMENT_ID = -1;
 
     // create a map of ratings for easy lookup
     data.forEach((rating) => {
         const danceName = rating.dance as DanceName;
         const userId = rating.userId;
         const clipNumber = rating.segmentId;
-        const study = rating.study == 1 ? Study.Study1_BySegment : Study.Study2_BySegment;
+        const isWholeSegment = clipNumber === "whole";
+        const study = rating.study == 1 ? 
+            (isWholeSegment ? Study.Study1_Whole : Study.Study1_BySegment) : 
+            (isWholeSegment ? Study.Study2_Whole : Study.Study2_BySegment);
         if (!allRatings.has(study)) {
             allRatings.set(study, new Map<DanceName, Map<number, Map<number, HumanRating>>>());
         }
        
         const danceRatings = allRatings.get(study)!.get(danceName) || new Map<number, Map<number, HumanRating>>();
-        // there are typically 5 clips, create an array so we can place ratings in the correct order
-        const ratingIndex = clipNumber;
         const clipRatings = danceRatings.get(userId) || new Map<number, HumanRating>();
-        clipRatings.set(clipNumber, rating);
+        clipRatings.set(isWholeSegment ? WHOLE_DANCE_SEGMENT_ID : clipNumber, rating);
         danceRatings.set(userId, clipRatings);
         allRatings.get(study)!.set(danceName, danceRatings);
     });
 
-    // for each dance, also create the summary ratings
-    const getWholeStudy = (study: Study) => study === Study.Study1_BySegment ? Study.Study1_Whole : Study.Study2_Whole;
+    // // for each dance, also create the summary ratings
+    // const getWholeStudy = (study: Study) => study === Study.Study1_BySegment ? Study.Study1_Whole : Study.Study2_Whole;
 
-    for (const segmentedStudy of [Study.Study1_BySegment, Study.Study2_BySegment]) {
-        const danceRatings = allRatings.get(segmentedStudy);
-        if (!danceRatings) continue;
-        const wholeStudy = getWholeStudy(segmentedStudy);
-        const wholeStudyRatings = new Map<DanceName, Map<number, Map<number, HumanRating>>>()
-        allRatings.set(wholeStudy, wholeStudyRatings);
+    // for (const segmentedStudy of [Study.Study1_BySegment, Study.Study2_BySegment]) {
+    //     const danceRatings = allRatings.get(segmentedStudy);
+    //     if (!danceRatings) continue;
+    //     const wholeStudy = getWholeStudy(segmentedStudy);
+    //     const wholeStudyRatings = new Map<DanceName, Map<number, Map<number, HumanRating>>>()
+    //     allRatings.set(wholeStudy, wholeStudyRatings);
 
-        for (const [danceName, userRatings] of danceRatings.entries()) {
-            const wholeDanceRatings = new Map<number, Map<number, HumanRating>>();
-            wholeStudyRatings.set(danceName, wholeDanceRatings);
+    //     for (const [danceName, userRatings] of danceRatings.entries()) {
+    //         const wholeDanceRatings = new Map<number, Map<number, HumanRating>>();
+    //         wholeStudyRatings.set(danceName, wholeDanceRatings);
 
-            for (const [userId, clipRatings] of userRatings.entries()) {
-                const userWholeRatingsMap = new Map<number, HumanRating>();
-                wholeDanceRatings.set(userId, userWholeRatingsMap);
+    //         for (const [userId, clipRatings] of userRatings.entries()) {
+    //             const userWholeRatingsMap = new Map<number, HumanRating>();
+    //             wholeDanceRatings.set(userId, userWholeRatingsMap);
 
-                const ratingsArray = Array.from(clipRatings.values());
-                const ratingsCount = ratingsArray.length;
-                if (ratingsCount === 0) continue; // no ratings for this user and dance
+    //             const ratingsArray = Array.from(clipRatings.values());
+    //             const ratingsCount = ratingsArray.length;
+    //             if (ratingsCount === 0) continue; // no ratings for this user and dance
 
-                const meanRatingPercentile = ratingsArray.reduce((sum, rating) => sum + rating.avgRatingPercentile, 0) / ratingsCount;
-                const meanRating1 = ratingsArray.reduce((sum, rating) => sum + rating.rating1, 0) / ratingsCount;
-                const meanRating2 = ratingsArray.reduce((sum, rating) => sum + rating.rating2, 0) / ratingsCount;
-                const meanRating3 = ratingsArray.reduce((sum, rating) => sum + rating.rating3, 0) / ratingsCount;
-                const wholeDanceSegment = -1; // whole dance segment is represented by -1
+    //             const meanRatingPercentile = ratingsArray.reduce((sum, rating) => sum + rating.humanRatingPercentile, 0) / ratingsCount;
+    //             const meanRating1 = ratingsArray.reduce((sum, rating) => sum + rating.rating1, 0) / ratingsCount;
+    //             const meanRating2 = ratingsArray.reduce((sum, rating) => sum + rating.rating2, 0) / ratingsCount;
+    //             const meanRating3 = ratingsArray.reduce((sum, rating) => sum + rating.rating3, 0) / ratingsCount;
+    //             const wholeDanceSegment = -1; // whole dance segment is represented by -1
 
-                const summaryRating: HumanRating = {
-                    study: segmentedStudy === Study.Study1_BySegment ? 1 : 2,
-                    dance: danceName,
-                    userId,
-                    segmentId: wholeDanceSegment, // summary rating does not have a segment ID
-                    avgRatingPercentile: meanRatingPercentile,
-                    rating1: meanRating1,
-                    rating2: meanRating2,
-                    rating3: meanRating3,
-                };
-                // add the summary rating to the clipRatings map with segmentId -1
-                userWholeRatingsMap.set(wholeDanceSegment, summaryRating);
-            }
-        }
-    }
+    //             const summaryRating: HumanRating = {
+    //                 study: segmentedStudy === Study.Study1_BySegment ? 1 : 2,
+    //                 dance: danceName,
+    //                 userId,
+    //                 segmentId: wholeDanceSegment, // summary rating does not have a segment ID
+    //                 humanRatingPercentile: meanRatingPercentile,
+    //                 rating1: meanRating1,
+    //                 rating2: meanRating2,
+    //                 rating3: meanRating3,
+    //             };
+    //             // add the summary rating to the clipRatings map with segmentId -1
+    //             userWholeRatingsMap.set(wholeDanceSegment, summaryRating);
+    //         }
+    //     }
+    // }
 
     return allRatings;
 }

@@ -302,13 +302,19 @@ describe("AllMetricsComparison", {}, async () => {
     });
 
     it('humanRating', { timeout: testTimeout }, async ({ expect }) => {
-        const metric = new KinematicErrorMetric();
         const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings: HumanRating | undefined) => {
+            
             return {
-                humanRating: ratings?.avgRatingPercentile ?? NaN,
+                humanRatingPercent: ratings?.humanRatingPercentile ?? NaN,
+                autoRatingPercent: ratings?.autoRatingPercentile ?? NaN,
+                humanRating: ratings?.humanRating ?? NaN,
+                autoRating: ratings?.autoRating ?? NaN,
                 rating1: ratings?.rating1 ?? NaN,
                 rating2: ratings?.rating2 ?? NaN,
                 rating3: ratings?.rating3 ?? NaN,
+                reportedDifficulty: ratings?.reportedDifficulty ?? NaN,
+                reportedHelpfulness: ratings?.reportedHelpfulness ?? NaN,
+
             }
         }
         await updateDbWithMetric('humanRating', metricRunner);
