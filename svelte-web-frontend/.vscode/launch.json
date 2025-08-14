@@ -98,6 +98,61 @@
                 "--async"
             ],
             "program": "${workspaceFolder}/scripts/syncStorageAssets.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Portable Sync Storage Assets",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--experimental-modules"
+            ],
+            "args": [
+                "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/",
+            ],
+            "program": "${workspaceFolder}/scripts/syncStorageAssetsPortable.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Portable Sync Storage Assets (dry run)",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--experimental-modules"
+            ],
+            "args": [
+                "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/",
+                "--dry-run"
+            ],
+            "program": "${workspaceFolder}/scripts/syncStorageAssetsPortable.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Portable Sync Storage Assets PROD (dry run)",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--experimental-modules"
+            ],
+            "args": [
+                "--dry-run",
+                "--production"
+            ],
+            "program": "${workspaceFolder}/scripts/syncStorageAssetsPortable.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Portable Sync Storage Assets PROD",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--experimental-modules"
+            ],
+            "args": [
+                "--production",
+                "--async"
+            ],
+            "program": "${workspaceFolder}/scripts/syncStorageAssetsPortable.js"
         }
     ]
 }

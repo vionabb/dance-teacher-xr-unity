@@ -164,7 +164,8 @@ def update_database(
         raise Exception(f'Found {len(invalid_video_paths)} video paths that are not normalized. See above for details.')    
 
     old_db = pd.DataFrame()
-    if database_csv_path.exists():
+    old_db_exists = database_csv_path.exists()
+    if old_db_exists:
         old_db = load_db(database_csv_path)
     else:
         print_with_prefix(f'WARNING No database.csv file found at {database_csv_path}.', flush=True)
@@ -177,8 +178,12 @@ def update_database(
     clip_names_set = set(clip_names)
 
     # Remove entries for videos that no longer exist (searching by clipName)
-    old_db_by_clipname = old_db.set_index('clipName')
-    old_db_clipnames = set(old_db_by_clipname.index)
+    if old_db_exists:
+        old_db_by_clipname = old_db.set_index('clipName')
+        old_db_clipnames = set(old_db_by_clipname.index)
+    else:
+        old_db_by_clipname = old_db
+        old_db_clipnames = set()
 
     updating_clipnames = clip_names_set.intersection(old_db_clipnames)
     discarding_clipnames = old_db_clipnames - clip_names_set

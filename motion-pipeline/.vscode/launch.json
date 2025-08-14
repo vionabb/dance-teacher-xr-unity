@@ -6,30 +6,49 @@
     "configurations": [
         {
             "name": "Run DanceTree Pipeline",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.dancetree.run_dancetree_pipeline",
-            "args": [
-                "--database_csv_path=${workspaceFolder}/data/db.csv",
-                "--video_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos",
-                "--holistic_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data",
-                "--pose2d_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/pose2d_data",
-                "--temp_dir=${workspaceFolder}/data/temp",
-                "--bundle_export_path=${workspaceFolder}/../svelte-web-frontend/src/lib/data/bundle",
-                "--bundle_media_export_path=${workspaceFolder}/../svelte-web-frontend/static/bundle/",
-                "--include_thumbnail_in_bundle",
-                // "--include_audio_in_bundle",
+            // "args": [
+            //     "--database_csv_path=${workspaceFolder}/data/db.csv",
+            //     "--video_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos",
+            //     "--holistic_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data",
+            //     "--pose2d_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/pose2d_data",
+            //     "--temp_dir=${workspaceFolder}/data/temp",
+            //     "--bundle_export_path=${workspaceFolder}/../svelte-web-frontend/src/lib/data/bundle",
+            //     "--bundle_media_export_path=${workspaceFolder}/../svelte-web-frontend/static/bundle/",
+            //     "--include_thumbnail_in_bundle",
+            //     // "--include_audio_in_bundle",
 
-                // Feel free to comment out any of the following
-                // "--rewrite_existing_holistic_data",
-                "--skip_existing_cumulative_complexity",
-                "--skip_existing_audioanalysis",
-                "--output_holistic_debug_frames"
-            ]
+            //     // Feel free to comment out any of the following
+            //     // "--rewrite_existing_holistic_data",
+            //     "--skip_existing_cumulative_complexity",
+            //     "--skip_existing_audioanalysis",
+            //     "--output_holistic_debug_frames"
+            // ],
+            // "osx": {
+                "args": [
+                    "--database_csv_path=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/db.csv",
+                    "--video_srcdir=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/videos",
+                    "--holistic_data_srcdir=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/holistic_data",
+                    "--pose2d_data_srcdir=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/pose2d_data",
+                    "--temp_dir=${workspaceFolder}/data/tempCloud/",
+                    "--bundle_export_path=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_data",
+                    "--bundle_media_export_path=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/",
+                    "--include_thumbnail_in_bundle",
+                    // "--include_audio_in_bundle",
+
+                    // Feel free to comment out any of the following
+                    // "--rewrite_existing_holistic_data",
+                    "--skip_existing_cumulative_complexity",
+                    "--skip_existing_audioanalysis",
+                    // "--output_holistic_debug_frames"
+                ]
+            // }
         },
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
@@ -37,7 +56,7 @@
         },
         {
             "name": "VideoPipeline (1): Get MP Holistic Data",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.stepone_get_holistic_data",
             "justMyCode": true,
@@ -53,7 +72,7 @@
         },
         {
             "name": "VideoPipeline (2): Convert to Joint Space",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.steptwo_convert_to_jointspace",
             "justMyCode": true,
@@ -73,7 +92,7 @@
         },
         {
             "name": "VideoPipeline (2.x): Convert to Joint Space",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.steptwo_convert_to_jointspace",
             "justMyCode": true,
@@ -85,7 +104,7 @@
         },
         {
             "name": "Test: Visualize Pose",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.pose_visualization",
             "justMyCode": true,
@@ -96,7 +115,7 @@
         },
         {
             "name": "Test: Make Mecanim Humanoid",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.MecanimHumanoid",
             "justMyCode": true,
@@ -119,7 +138,7 @@
         {
 
             "name": "View BVH",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.bvh.view_bvh",
             "args": [
@@ -135,7 +154,7 @@
         },
         {
             "name": "View URDF",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.temp.view_urdf",
             "args": [
@@ -144,7 +163,7 @@
         },
         {
             "name": "Nao Teleoperation",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.teleoperation",
             "args": [
@@ -154,7 +173,7 @@
         },
         {
             "name": "Nao Teleoperation (Simulation)",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.teleoperation",
             "args": [
@@ -165,7 +184,7 @@
         },
         {   
             "name": "Complexity Metric (UIST)",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.complexity_analysis.uist_complexityanalysis",
             "args": [
@@ -180,7 +199,7 @@
         },
         {   
             "name": "Calculate Cumulative Complexity",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.complexity_analysis.calculate_cumulative_complexity",
             "args": [
@@ -202,7 +221,7 @@
         },
         {   
             "name": "Calculate Cumulative Complexity (test)",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.complexity_analysis.calculate_cumulative_complexity",
             "args": [
@@ -224,7 +243,7 @@
         },
         {
             "name": "Audio Analysis",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.audio_analysis",
             "args": [
@@ -238,7 +257,7 @@
         },
         {
             "name": "Update Database",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.update_database",
             "args": [
@@ -249,7 +268,7 @@
         },
         {
             "name": "Add Complexities to DanceTrees",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.complexity_analysis.add_complexity_to_dancetree",
             "args": [
@@ -262,7 +281,7 @@
         },
         {
             "name": "Bundle Data for Frontend",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.dancetree.bundle_data",
             "args": [
@@ -275,7 +294,7 @@
         },
         {
             "name": "Run PyFeat",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/adhoc_analysis/pyfeat.py",
             "args": [
@@ -285,7 +304,7 @@
         },
         {
             "name": "Run ChatGPT",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/adhoc_analysis/",
             "module": "chatgpt-test.test",
