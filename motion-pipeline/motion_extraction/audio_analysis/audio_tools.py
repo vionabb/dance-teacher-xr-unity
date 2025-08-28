@@ -124,7 +124,7 @@ def save_audio_from_video(video_path: Path, output_audio_path: Path, as_mono: bo
         audio_clip.write_audiofile( # type: ignore
             str(output_audio_path),
             ffmpeg_params=ffmpeg_params,
-            verbose=False, 
+            # verbose=False, 
             logger=None
         ) 
 

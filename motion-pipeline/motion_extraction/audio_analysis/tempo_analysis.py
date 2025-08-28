@@ -127,6 +127,8 @@ def plot_tempo_analysis(
     ax[2].vlines(all_beats, 0, 1, alpha=0.2, color='b', linestyle='--', label='All Beats')
     ax[2].vlines(beat_times, 0, 1, alpha=0.5, color='r', linestyle='--', label=f'Beats')
     ax[2].legend()
+
+    
     ax[2].set(title=f'librosa.beat.beat_times (bpm: {beat_track_bpm:.2f}, observed: {beat_times_observed_bpm:.2f})')
     ax[2].label_outer()
 
@@ -256,6 +258,8 @@ def calculate_tempo_info(
         tightness=50, # default is 100.  
         units='frames',
     )
+    if isinstance(bpm__raw_beat_track, np.ndarray):
+        bpm__raw_beat_track = bpm__raw_beat_track[0]
     bpm_beat_track = audio_tools.standardize_bpm_range(bpm__raw_beat_track) if standardize_bpm else bpm__raw_beat_track
 
     # Calculate the starting beat offset

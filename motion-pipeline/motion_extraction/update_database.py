@@ -235,7 +235,11 @@ def update_database(
     new_db = list(out_db.values())
 
     df = pd.DataFrame.from_records(new_db)
-    df.set_index('clipRelativeStem', inplace=True)
+
+    if df.empty:
+        print_with_prefix(f'WARNING: No valid entries found.')
+    else:
+        df.set_index('clipRelativeStem', inplace=True)
 
     print_with_prefix(f'Discarded {len(discarded_entries)} entries')
     print_with_prefix(f'Added {count_new_entries} entries')
