@@ -323,7 +323,7 @@ async function syncBundleData(args) {
         
         for (const tree of trees) {
             const treeName = tree.tree_name || 'default tree name';
-            const matchedTreeEntry = await supabase.from('motion_segmentation')
+            const matchedTreeEntry = await supabase.from('motion_video_segmentation')
                 .select('*')
                 .eq('videoId', motionVideoId)
                 .eq('displayName', treeName)
@@ -356,7 +356,7 @@ async function syncBundleData(args) {
             //     "createdFor" "uuid"
             // );
             
-            const insertTreeResult = await supabase.from('motion_segmentation')
+            const insertTreeResult = await supabase.from('motion_video_segmentation')
                 .insert({
                     videoId: motionVideoId,
                     displayName: treeName,

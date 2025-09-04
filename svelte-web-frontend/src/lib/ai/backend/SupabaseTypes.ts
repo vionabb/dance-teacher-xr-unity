@@ -34,103 +34,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      motion_segmentation: {
-        Row: {
-          created_at: string
-          createdFor: string | null
-          data: Json
-          displayName: string | null
-          generationInfo: string
-          id: number
-          video: number | null
-        }
-        Insert: {
-          created_at?: string
-          createdFor?: string | null
-          data: Json
-          displayName?: string | null
-          generationInfo: string
-          id?: number
-          video?: number | null
-        }
-        Update: {
-          created_at?: string
-          createdFor?: string | null
-          data?: Json
-          displayName?: string | null
-          generationInfo?: string
-          id?: number
-          video?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "motion_segmentation_createdFor_fkey"
-            columns: ["createdFor"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "motion_segmentation_video_fkey"
-            columns: ["video"]
-            isOneToOne: false
-            referencedRelation: "motion_video"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      motion_userstate: {
-        Row: {
-          created_at: string
-          id: string
-          plan: Json
-          segmentation_id: number | null
-          updated_at: string
-          user_id: string | null
-          video_id: number | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          plan: Json
-          segmentation_id?: number | null
-          updated_at?: string
-          user_id?: string | null
-          video_id?: number | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          plan?: Json
-          segmentation_id?: number | null
-          updated_at?: string
-          user_id?: string | null
-          video_id?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "motion_userstate_segmentation_id_fkey"
-            columns: ["segmentation_id"]
-            isOneToOne: false
-            referencedRelation: "motion_segmentation"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "motion_userstate_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "motion_userstate_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: false
-            referencedRelation: "motion_video"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       motion_video: {
         Row: {
           created_at: string
@@ -193,6 +96,51 @@ export type Database = {
           },
         ]
       }
+      motion_video_segmentation: {
+        Row: {
+          created_at: string
+          createdFor: string | null
+          data: Json
+          displayName: string | null
+          generationInfo: string
+          id: number
+          videoId: number | null
+        }
+        Insert: {
+          created_at?: string
+          createdFor?: string | null
+          data: Json
+          displayName?: string | null
+          generationInfo: string
+          id?: number
+          videoId?: number | null
+        }
+        Update: {
+          created_at?: string
+          createdFor?: string | null
+          data?: Json
+          displayName?: string | null
+          generationInfo?: string
+          id?: number
+          videoId?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "motion_segmentation_createdFor_fkey"
+            columns: ["createdFor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "motion_segmentation_videoId_fkey"
+            columns: ["videoId"]
+            isOneToOne: false
+            referencedRelation: "motion_video"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -216,6 +164,61 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      user_learning_model: {
+        Row: {
+          created_at: string
+          id: string
+          plan: Json
+          progress: Json
+          segmentation_id: number | null
+          updated_at: string
+          user_id: string | null
+          video_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan: Json
+          progress: Json
+          segmentation_id?: number | null
+          updated_at?: string
+          user_id?: string | null
+          video_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan?: Json
+          progress?: Json
+          segmentation_id?: number | null
+          updated_at?: string
+          user_id?: string | null
+          video_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "motion_userstate_segmentation_id_fkey"
+            columns: ["segmentation_id"]
+            isOneToOne: false
+            referencedRelation: "motion_video_segmentation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "motion_userstate_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "motion_userstate_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "motion_video"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
