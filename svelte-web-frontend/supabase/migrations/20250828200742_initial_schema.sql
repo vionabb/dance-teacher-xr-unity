@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS "public"."motion_userstate" (
     "created_at" timestamp without time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp without time zone DEFAULT "now"() NOT NULL,
     "plan" "jsonb" NOT NULL
+    "progress" "jsonb" NOT NULL
 );
 
 -- ALTER TABLE "public"."motion_userstate" OWNER TO "postgres";
