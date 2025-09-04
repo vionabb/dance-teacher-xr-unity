@@ -31,7 +31,7 @@ def run_dancetree_pipeline(
         result_type='dancetrees', 
         input_type='video'
     )
-    holistic_frames_dir = temp_dir / 'holistic_debug_frames'
+    holistic_frames_dir = temp_dir / 'holistic_debug_frames' if output_holistic_debug_frames else None
 
     trees_with_complexity_dir = temp_dir / 'trees_with_complexity'
 

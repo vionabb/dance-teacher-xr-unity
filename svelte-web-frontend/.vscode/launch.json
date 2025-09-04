@@ -153,6 +153,32 @@
                 "--async"
             ],
             "program": "${workspaceFolder}/scripts/syncStorageAssetsPortable.js"
-        }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Sync Bundle Data (dry run)",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--experimental-modules"
+            ],
+            "args": [
+                "--dry-run"
+            ],
+            "program": "${workspaceFolder}/scripts/syncBundleData.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Sync Bundle Data",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--experimental-modules"
+            ],
+            "args": [
+                
+            ],
+            "program": "${workspaceFolder}/scripts/syncBundleData.js"
+        },
     ]
 }

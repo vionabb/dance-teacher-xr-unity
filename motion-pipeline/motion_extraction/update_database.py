@@ -20,9 +20,11 @@ valid_file_endings = [
 
 def write_db(db: pd.DataFrame, db_csv_path: PathLike):
     # convert list items to strings
-    db['tags'] = db['tags'].apply(lambda x: json.dumps(x))
-    db['landmarkScope'] = db['landmarkScope'].apply(lambda x: json.dumps(x))
-    
+    if db.get('tags') is not None:
+        db['tags'] = db['tags'].apply(lambda x: json.dumps(x))
+    if db.get('landmarkScope') is not None:
+        db['landmarkScope'] = db['landmarkScope'].apply(lambda x: json.dumps(x))
+
     float_rounding_decimals = 3
     def roundFloatList(x, decimals=float_rounding_decimals):
         return json.dumps([round(v, decimals) for v in x])

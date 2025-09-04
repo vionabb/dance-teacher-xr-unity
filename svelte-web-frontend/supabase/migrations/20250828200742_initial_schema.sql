@@ -37,7 +37,7 @@ SET default_table_access_method = "heap";
 CREATE TABLE IF NOT EXISTS "public"."motion_segmentation" (
     "id" bigint NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "video" bigint,
+    "videoId" bigint,
     "displayName" "text",
     "generationInfo" "text" NOT NULL,
     "data" "jsonb" NOT NULL,
@@ -129,7 +129,7 @@ ALTER TABLE ONLY "public"."motion_segmentation"
     ADD CONSTRAINT "motion_segmentation_createdFor_fkey" FOREIGN KEY ("createdFor") REFERENCES "public"."profiles"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."motion_segmentation"
-    ADD CONSTRAINT "motion_segmentation_video_fkey" FOREIGN KEY ("video") REFERENCES "public"."motion_video"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT "motion_segmentation_video_fkey" FOREIGN KEY ("videoId") REFERENCES "public"."motion_video"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."motion_userstate"
     ADD CONSTRAINT "motion_userstate_segmentation_id_fkey" FOREIGN KEY ("segmentation_id") REFERENCES "public"."motion_segmentation"("id");
