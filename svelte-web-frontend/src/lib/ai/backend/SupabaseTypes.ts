@@ -17,10 +17,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
+          extensions?: Json
           operationName?: string
           query?: string
           variables?: Json
-          extensions?: Json
         }
         Returns: Json
       }
@@ -34,145 +34,159 @@ export type Database = {
   }
   public: {
     Tables: {
-      dancedemo: {
+      motion_segmentation: {
         Row: {
-          creator: string | null
-          displaytitle: string
-          duration: number
-          end_time: number
+          created_at: string
+          createdFor: string | null
+          data: Json
+          displayName: string | null
+          generationInfo: string
           id: number
-          start_time: number
-          video_id: number | null
+          video: number | null
         }
         Insert: {
-          creator?: string | null
-          displaytitle: string
-          duration: number
-          end_time: number
+          created_at?: string
+          createdFor?: string | null
+          data: Json
+          displayName?: string | null
+          generationInfo: string
           id?: number
-          start_time: number
-          video_id?: number | null
+          video?: number | null
         }
         Update: {
-          creator?: string | null
-          displaytitle?: string
-          duration?: number
-          end_time?: number
+          created_at?: string
+          createdFor?: string | null
+          data?: Json
+          displayName?: string | null
+          generationInfo?: string
           id?: number
-          start_time?: number
-          video_id?: number | null
+          video?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "dancedemo_creator_fkey"
-            columns: ["creator"]
+            foreignKeyName: "motion_segmentation_createdFor_fkey"
+            columns: ["createdFor"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "dancedemo_video_id_fkey"
+            foreignKeyName: "motion_segmentation_video_fkey"
+            columns: ["video"]
+            isOneToOne: false
+            referencedRelation: "motion_video"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      motion_userstate: {
+        Row: {
+          created_at: string
+          id: string
+          plan: Json
+          segmentation_id: number | null
+          updated_at: string
+          user_id: string | null
+          video_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan: Json
+          segmentation_id?: number | null
+          updated_at?: string
+          user_id?: string | null
+          video_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan?: Json
+          segmentation_id?: number | null
+          updated_at?: string
+          user_id?: string | null
+          video_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "motion_userstate_segmentation_id_fkey"
+            columns: ["segmentation_id"]
+            isOneToOne: false
+            referencedRelation: "motion_segmentation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "motion_userstate_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "motion_userstate_video_id_fkey"
             columns: ["video_id"]
             isOneToOne: false
-            referencedRelation: "dancedemovideo"
+            referencedRelation: "motion_video"
             referencedColumns: ["id"]
           },
         ]
       }
-      dancedemovideo: {
+      motion_video: {
         Row: {
-          detected_beats: Json | null
-          duration: number
-          framecount: number
+          created_at: string
+          detectedBpm: number | null
+          detectedBpmOffset: number | null
+          displayName: string
+          fps: number
           height: number
           id: number
-          url: string
+          manualBpm: number | null
+          motionEnd: number
+          motionStart: number
+          thumbnailSrc: string
+          uploader: string | null
+          videoDuration: number
+          videoSrc: string
           width: number
         }
         Insert: {
-          detected_beats?: Json | null
-          duration: number
-          framecount: number
+          created_at?: string
+          detectedBpm?: number | null
+          detectedBpmOffset?: number | null
+          displayName: string
+          fps: number
           height: number
           id?: number
-          url: string
+          manualBpm?: number | null
+          motionEnd: number
+          motionStart: number
+          thumbnailSrc: string
+          uploader?: string | null
+          videoDuration: number
+          videoSrc: string
           width: number
         }
         Update: {
-          detected_beats?: Json | null
-          duration?: number
-          framecount?: number
+          created_at?: string
+          detectedBpm?: number | null
+          detectedBpmOffset?: number | null
+          displayName?: string
+          fps?: number
           height?: number
           id?: number
-          url?: string
+          manualBpm?: number | null
+          motionEnd?: number
+          motionStart?: number
+          thumbnailSrc?: string
+          uploader?: string | null
+          videoDuration?: number
+          videoSrc?: string
           width?: number
         }
-        Relationships: []
-      }
-      dancesegmentation: {
-        Row: {
-          dance_id: number | null
-          description: string | null
-          id: number
-          segmentation: Json | null
-        }
-        Insert: {
-          dance_id?: number | null
-          description?: string | null
-          id?: number
-          segmentation?: Json | null
-        }
-        Update: {
-          dance_id?: number | null
-          description?: string | null
-          id?: number
-          segmentation?: Json | null
-        }
         Relationships: [
           {
-            foreignKeyName: "dancesegmentation_dance_id_fkey"
-            columns: ["dance_id"]
-            isOneToOne: false
-            referencedRelation: "dancedemo"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      learningstepprogress: {
-        Row: {
-          activity_id: string
-          dance_id: string
-          id: number
-          practiceplan_id: string
-          state: Json
-          step_id: string
-          timestamp: string
-          user_id: string | null
-        }
-        Insert: {
-          activity_id: string
-          dance_id: string
-          id?: number
-          practiceplan_id: string
-          state: Json
-          step_id: string
-          timestamp?: string
-          user_id?: string | null
-        }
-        Update: {
-          activity_id?: string
-          dance_id?: string
-          id?: number
-          practiceplan_id?: string
-          state?: Json
-          step_id?: string
-          timestamp?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "learningstepprogress_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "motion_video_uploader_fkey"
+            columns: ["uploader"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -230,6 +244,7 @@ export type Database = {
           owner: string | null
           owner_id: string | null
           public: boolean | null
+          type: Database["storage"]["Enums"]["buckettype"]
           updated_at: string | null
         }
         Insert: {
@@ -242,6 +257,7 @@ export type Database = {
           owner?: string | null
           owner_id?: string | null
           public?: boolean | null
+          type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string | null
         }
         Update: {
@@ -254,9 +270,111 @@ export type Database = {
           owner?: string | null
           owner_id?: string | null
           public?: boolean | null
+          type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string | null
         }
         Relationships: []
+      }
+      buckets_analytics: {
+        Row: {
+          created_at: string
+          format: string
+          id: string
+          type: Database["storage"]["Enums"]["buckettype"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          format?: string
+          id: string
+          type?: Database["storage"]["Enums"]["buckettype"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          format?: string
+          id?: string
+          type?: Database["storage"]["Enums"]["buckettype"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      iceberg_namespaces: {
+        Row: {
+          bucket_id: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          bucket_id: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          bucket_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iceberg_namespaces_bucket_id_fkey"
+            columns: ["bucket_id"]
+            isOneToOne: false
+            referencedRelation: "buckets_analytics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iceberg_tables: {
+        Row: {
+          bucket_id: string
+          created_at: string
+          id: string
+          location: string
+          name: string
+          namespace_id: string
+          updated_at: string
+        }
+        Insert: {
+          bucket_id: string
+          created_at?: string
+          id?: string
+          location: string
+          name: string
+          namespace_id: string
+          updated_at?: string
+        }
+        Update: {
+          bucket_id?: string
+          created_at?: string
+          id?: string
+          location?: string
+          name?: string
+          namespace_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iceberg_tables_bucket_id_fkey"
+            columns: ["bucket_id"]
+            isOneToOne: false
+            referencedRelation: "buckets_analytics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iceberg_tables_namespace_id_fkey"
+            columns: ["namespace_id"]
+            isOneToOne: false
+            referencedRelation: "iceberg_namespaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       migrations: {
         Row: {
@@ -285,12 +403,14 @@ export type Database = {
           created_at: string | null
           id: string
           last_accessed_at: string | null
+          level: number | null
           metadata: Json | null
           name: string | null
           owner: string | null
           owner_id: string | null
           path_tokens: string[] | null
           updated_at: string | null
+          user_metadata: Json | null
           version: string | null
         }
         Insert: {
@@ -298,12 +418,14 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_accessed_at?: string | null
+          level?: number | null
           metadata?: Json | null
           name?: string | null
           owner?: string | null
           owner_id?: string | null
           path_tokens?: string[] | null
           updated_at?: string | null
+          user_metadata?: Json | null
           version?: string | null
         }
         Update: {
@@ -311,12 +433,14 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_accessed_at?: string | null
+          level?: number | null
           metadata?: Json | null
           name?: string | null
           owner?: string | null
           owner_id?: string | null
           path_tokens?: string[] | null
           updated_at?: string | null
+          user_metadata?: Json | null
           version?: string | null
         }
         Relationships: [
@@ -329,14 +453,152 @@ export type Database = {
           },
         ]
       }
+      prefixes: {
+        Row: {
+          bucket_id: string
+          created_at: string | null
+          level: number
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          bucket_id: string
+          created_at?: string | null
+          level?: number
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          bucket_id?: string
+          created_at?: string | null
+          level?: number
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prefixes_bucketId_fkey"
+            columns: ["bucket_id"]
+            isOneToOne: false
+            referencedRelation: "buckets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      s3_multipart_uploads: {
+        Row: {
+          bucket_id: string
+          created_at: string
+          id: string
+          in_progress_size: number
+          key: string
+          owner_id: string | null
+          upload_signature: string
+          user_metadata: Json | null
+          version: string
+        }
+        Insert: {
+          bucket_id: string
+          created_at?: string
+          id: string
+          in_progress_size?: number
+          key: string
+          owner_id?: string | null
+          upload_signature: string
+          user_metadata?: Json | null
+          version: string
+        }
+        Update: {
+          bucket_id?: string
+          created_at?: string
+          id?: string
+          in_progress_size?: number
+          key?: string
+          owner_id?: string | null
+          upload_signature?: string
+          user_metadata?: Json | null
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "s3_multipart_uploads_bucket_id_fkey"
+            columns: ["bucket_id"]
+            isOneToOne: false
+            referencedRelation: "buckets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      s3_multipart_uploads_parts: {
+        Row: {
+          bucket_id: string
+          created_at: string
+          etag: string
+          id: string
+          key: string
+          owner_id: string | null
+          part_number: number
+          size: number
+          upload_id: string
+          version: string
+        }
+        Insert: {
+          bucket_id: string
+          created_at?: string
+          etag: string
+          id?: string
+          key: string
+          owner_id?: string | null
+          part_number: number
+          size?: number
+          upload_id: string
+          version: string
+        }
+        Update: {
+          bucket_id?: string
+          created_at?: string
+          etag?: string
+          id?: string
+          key?: string
+          owner_id?: string | null
+          part_number?: number
+          size?: number
+          upload_id?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "s3_multipart_uploads_parts_bucket_id_fkey"
+            columns: ["bucket_id"]
+            isOneToOne: false
+            referencedRelation: "buckets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "s3_multipart_uploads_parts_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "s3_multipart_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      can_insert_object: {
-        Args: { bucketid: string; name: string; owner: string; metadata: Json }
+      add_prefixes: {
+        Args: { _bucket_id: string; _name: string }
         Returns: undefined
+      }
+      can_insert_object: {
+        Args: { bucketid: string; metadata: Json; name: string; owner: string }
+        Returns: undefined
+      }
+      delete_prefix: {
+        Args: { _bucket_id: string; _name: string }
+        Returns: boolean
       }
       extension: {
         Args: { name: string }
@@ -350,36 +612,140 @@ export type Database = {
         Args: { name: string }
         Returns: string[]
       }
+      get_level: {
+        Args: { name: string }
+        Returns: number
+      }
+      get_prefix: {
+        Args: { name: string }
+        Returns: string
+      }
+      get_prefixes: {
+        Args: { name: string }
+        Returns: string[]
+      }
       get_size_by_bucket: {
         Args: Record<PropertyKey, never>
         Returns: {
-          size: number
           bucket_id: string
+          size: number
         }[]
+      }
+      list_multipart_uploads_with_delimiter: {
+        Args: {
+          bucket_id: string
+          delimiter_param: string
+          max_keys?: number
+          next_key_token?: string
+          next_upload_token?: string
+          prefix_param: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          key: string
+        }[]
+      }
+      list_objects_with_delimiter: {
+        Args: {
+          bucket_id: string
+          delimiter_param: string
+          max_keys?: number
+          next_token?: string
+          prefix_param: string
+          start_after?: string
+        }
+        Returns: {
+          id: string
+          metadata: Json
+          name: string
+          updated_at: string
+        }[]
+      }
+      operation: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       search: {
         Args: {
-          prefix: string
           bucketname: string
-          limits?: number
           levels?: number
+          limits?: number
           offsets?: number
+          prefix: string
           search?: string
           sortcolumn?: string
           sortorder?: string
         }
         Returns: {
-          name: string
-          id: string
-          updated_at: string
           created_at: string
+          id: string
           last_accessed_at: string
           metadata: Json
+          name: string
+          updated_at: string
+        }[]
+      }
+      search_legacy_v1: {
+        Args: {
+          bucketname: string
+          levels?: number
+          limits?: number
+          offsets?: number
+          prefix: string
+          search?: string
+          sortcolumn?: string
+          sortorder?: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          last_accessed_at: string
+          metadata: Json
+          name: string
+          updated_at: string
+        }[]
+      }
+      search_v1_optimised: {
+        Args: {
+          bucketname: string
+          levels?: number
+          limits?: number
+          offsets?: number
+          prefix: string
+          search?: string
+          sortcolumn?: string
+          sortorder?: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          last_accessed_at: string
+          metadata: Json
+          name: string
+          updated_at: string
+        }[]
+      }
+      search_v2: {
+        Args: {
+          bucket_name: string
+          levels?: number
+          limits?: number
+          prefix: string
+          start_after?: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          key: string
+          metadata: Json
+          name: string
+          updated_at: string
         }[]
       }
     }
     Enums: {
-      [_ in never]: never
+      buckettype: "STANDARD" | "ANALYTICS"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -512,7 +878,9 @@ export const Constants = {
     Enums: {},
   },
   storage: {
-    Enums: {},
+    Enums: {
+      buckettype: ["STANDARD", "ANALYTICS"],
+    },
   },
 } as const
 

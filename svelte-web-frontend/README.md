@@ -121,6 +121,8 @@ Other commands:
 * `pnpm supabase status` to get the status of running services, including the local postgres instance (and their URLs).
 * `pnpm supabase projects api-keys` to get the api keys for the local supabase instanc (or `pnpx supabase status`)
 * `pnpm supabase migration new <migration_name>` to create a new migration file in `migrations/`.
+* `pnpm supabase gen types typescript --local > src/lib/ai/backend/SupabaseTypes.ts` to update type definitions based on the local db schema.
+* `pnpm supabase db dump --local -f supabase/seed.sql --data-only` to dump the local db data to a sql file (for seeding purposes).
 
 Other useful links:
 
