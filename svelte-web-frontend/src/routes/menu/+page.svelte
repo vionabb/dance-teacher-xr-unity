@@ -3,7 +3,8 @@ import { navbarProps } from "$lib/elements/NavBar.svelte";
 import MainMenuPage from "$lib/pages/MainMenuPage.svelte";
 import { onMount } from "svelte";
 
-    
+let { data } = $props();
+
 onMount(() => {
     navbarProps.set({
         collapsed: false,
@@ -26,6 +27,6 @@ onMount(() => {
 		Pick a dance to learn
 	</h2>
     <div class="mx-4 mb-4">
-        <MainMenuPage />
+        <MainMenuPage motionVideos={data.motionVideos} />
     </div>
 </div>

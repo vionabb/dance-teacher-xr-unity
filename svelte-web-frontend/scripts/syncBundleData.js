@@ -242,9 +242,9 @@ async function syncBundleData(args) {
 
         const matchedEntry = await supabase.from('motion_video')
             .select('*')
-            .eq('videoSrc', dance.clipPath)
-            .eq('motionStart', dance.startTime)
-            .eq('motionEnd', dance.endTime)
+            .eq('video_src', dance.clipPath)
+            .eq('motion_start', dance.startTime)
+            .eq('motion_end', dance.endTime)
             .single();
 
         const matchedId = matchedEntry.data?.id;
@@ -264,40 +264,42 @@ async function syncBundleData(args) {
             console.log(`${progressStr} [Dry Run] Would insert entry for ${dance.clipPath}`);
             continue;
         }
-    
+
         //// Table definition for reference:
         //     CREATE TABLE IF NOT EXISTS "public"."motion_video" (
         //     "id" bigint NOT NULL,
-        //     "displayName" "text" NOT NULL,
+        //     "display_name" "text" NOT NULL,
         //     "uploader" "uuid",
         //     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-        //     "videoSrc" "text" NOT NULL,
-        //     "thumbnailSrc" "text" NOT NULL,
+        //     "video_src" "text" NOT NULL,
+        //     "thumbnail_src" "text" NOT NULL,
         //     "height" integer NOT NULL,
         //     "width" integer NOT NULL,
-        //     "videoDuration" double precision NOT NULL,
-        //     "motionStart" double precision NOT NULL,
-        //     "motionEnd" double precision NOT NULL,
+        //     "video_duration" double precision NOT NULL,
+        //     "motion_start" double precision NOT NULL,
+        //     "motion_end" double precision NOT NULL,
         //     "fps" double precision NOT NULL,
-        //     "detectedBpm" double precision,
-        //     "detectedBpmOffset" double precision,
-        //     "manualBpm" double precision
+        //     "detected_bpm" double precision,
+        //     "detected_bpm_offset" double precision,
+        //     "manual_bpm" double precision
         // );
 
         const insertResult = await supabase.from('motion_video')
             .insert({
-                displayName: dance.title,
-                videoSrc: dance.clipPath,
-                thumbnailSrc: dance.thumbnailSrc,
+                display_name: dance.title,
+                video_src: dance.clipPath,
+                thumbnail_src: dance.thumbnailSrc,
                 height: dance.height,
                 width: dance.width,
-                videoDuration: dance.duration,
-                motionStart: dance.startTime,
-                motionEnd: dance.endTime,
+                video_duration: dance.duration,
+                motion_start: dance.startTime,
+                motion_end: dance.endTime,
                 fps: dance.fps,
-                detectedBpm: dance.bpm || null,
-                detectedBpmOffset: dance.beat_offset || null,
-                manualBpm: dance.manualBPM || null,
+                detected_bpm: dance.bpm || null,
+                detected_bpm_offset: dance.beat_offset || null,
+                manual_bpm: dance.manualBPM || null,
+                landmarks_pose_2d_src: `${dance.clipRelativeStem}.pose2d.csv`,
+                landmarks_holistic_3d_src: `${dance.clipRelativeStem}.holisticdata.csv`,
             },
         ).select('id').single();
         
@@ -325,8 +327,8 @@ async function syncBundleData(args) {
             const treeName = tree.tree_name || 'default tree name';
             const matchedTreeEntry = await supabase.from('motion_video_segmentation')
                 .select('*')
-                .eq('videoId', motionVideoId)
-                .eq('displayName', treeName)
+                .eq('video_id', motionVideoId)
+                .eq('display_name', treeName)
                 .single();
                     
             const matchedTreeId = matchedTreeEntry.data?.id;
@@ -346,21 +348,21 @@ async function syncBundleData(args) {
             }
             
             //// Table definition for reference:
-            //     CREATE TABLE IF NOT EXISTS "public"."motion_segmentation" (
+            //     CREATE TABLE IF NOT EXISTS "public"."motion_video_segmentation" (
             //     "id" bigint NOT NULL,
             //     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-            //     "videoId" bigint, -- references motion_video(id)
-            //     "displayName" "text",
-            //     "generationInfo" "text" NOT NULL,
+            //     "video_id" bigint, -- references motion_video(id)
+            //     "display_name" "text",
+            //     "generation_info" "text" NOT NULL,
             //     "data" "jsonb" NOT NULL,
-            //     "createdFor" "uuid"
+            //     "created_for" "uuid"
             // );
             
             const insertTreeResult = await supabase.from('motion_video_segmentation')
                 .insert({
-                    videoId: motionVideoId,
-                    displayName: treeName,
-                    generationInfo: JSON.stringify(tree.generation_data || {}),
+                    video_id: motionVideoId,
+                    display_name: treeName,
+                    generation_info: JSON.stringify(tree.generation_data || {}),
                     data: tree,
                 },
             ).select('id').single();

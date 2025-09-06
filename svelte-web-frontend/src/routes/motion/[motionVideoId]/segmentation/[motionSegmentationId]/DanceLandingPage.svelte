@@ -3,7 +3,7 @@
 
     import VideoWithSkeleton from '$lib/elements/VideoWithSkeleton.svelte';
 	import LearningJourneyTrail from '$lib/elements/LearningJourneyTrailUI.svelte';
-	import { getDanceVideoSrc, type Dance, danceTrees } from "$lib/data/dances-store";
+	import { getDanceMotionVideoSrc } from "$lib/data/dances-store";
     import type { SupabaseClient } from '@supabase/supabase-js';
 	import { getContext, onMount, tick } from 'svelte';
 	import { danceVideoVolume } from '$lib/model/settings';
@@ -14,15 +14,16 @@
 	import { type PracticePlanProgress } from '$lib/data/activity-progress';
 	import { GetTeachingAgent } from '$lib/ai/TeachingAgent/TeachingAgent';
 	import { derived, get, readable, type Readable } from 'svelte/store';
+	import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
     
     const supabase: SupabaseClient = getContext('supabase');
     const teachingAgent = GetTeachingAgent(); 
 
-    export let dance: Dance;
+    export let motionVideo: MotionVideo;
     export let practicePlan: PracticePlan;
 
-    let danceSrc: string;
-    $: danceSrc = getDanceVideoSrc(supabase, dance);
+    let motionVideoSrc: string;
+    $: motionVideoSrc = getDanceMotionVideoSrc(supabase, motionVideo?.video_src) ?? "";
 
     let videoElement: VideoWithSkeleton;
     let videoWidth: number;
@@ -135,7 +136,7 @@
         <div class="card p-0 video-wrapper">
             <VideoWithSkeleton 
                 bind:this={videoElement}
-                dance={dance}
+                dance={motionVideo}
                 controls={{
                     showPlayPause: true,
                     showProgressBar: true,
@@ -159,9 +160,9 @@
                 on:segmentClicked={onSegmentClicked}
                 on:skipBackClicked={onSkipBackClicked}
                 on:playPauseClicked={onPlayPauseClicked}
-                src={danceSrc}
+                src={motionVideoSrc}
                 >
-                <source src={danceSrc} type="video/mp4" />
+                <source src={motionVideoSrc} type="video/mp4" />
                 <span slot="extra-control-buttons">
                     <button class="daisy-btn daisy-btn-square max-md:daisy-btn-sm" on:click={toggleRepeatMode}>
                         <!-- <Icon icon="ic:round-repeat-one" /> -->

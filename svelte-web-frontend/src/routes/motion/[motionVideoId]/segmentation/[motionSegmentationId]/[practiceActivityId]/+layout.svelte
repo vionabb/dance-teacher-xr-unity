@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Dance, DanceTree } from '$lib/data/dances-store.js';
+
 	import type { PracticePlanActivity } from '$lib/model/PracticePlan.js';
 	import { setContext } from 'svelte';
 	import { derived, writable, type Readable } from 'svelte/store';

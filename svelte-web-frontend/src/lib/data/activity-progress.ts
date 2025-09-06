@@ -1,5 +1,3 @@
-import { browser } from "$app/environment";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type StepProgressData = {
     completed: boolean;

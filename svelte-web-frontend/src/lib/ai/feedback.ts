@@ -21,7 +21,6 @@ evaluation_GoodBadTrialThreshold.subscribe((value) => {
 });
 
 export function generateFeedbackNoPerformance(
-    danceRelativeStem: string,
     dancePerformanceHistory: FrontendDancePeformanceHistory | undefined,
     currentSectionName: string,
  ): TerminalFeedback {

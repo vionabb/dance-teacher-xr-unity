@@ -1,15 +1,15 @@
 import { error } from '@sveltejs/kit';
 
-import { getDanceTreeFromDanceAndTreeName } from '$lib/data/dances-store.js';
 import type { PracticePlan } from '$lib/model/PracticePlan';
 
 /** @type {import('./$types').PageLoad} */
 export async function load({ params, parent })  {
 
     
-    const { initialPracticePlan } = await parent();
+    const { userLearningModel } = await parent();
 
-    const allActivities = initialPracticePlan.stages.flatMap((stage) => stage.activities)
+    console.log("Layout load: userLearningModel:", userLearningModel);
+    const allActivities = userLearningModel.plan.stages.flatMap((stage) => stage.activities)
     const matchingActivity = allActivities.find((x) => x.id === params.practiceActivityId)
 
     if (!matchingActivity) {

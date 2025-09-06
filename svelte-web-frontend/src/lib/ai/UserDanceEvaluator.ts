@@ -1,3 +1,4 @@
+import { browser } from "$app/environment";
 import type { PoseReferenceData } from "$lib/data/dances-store";
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from  "$lib/webcam/mediapipe-utils";
 import type { LiveEvaluationMetric, SummaryMetric } from "./motionmetrics/MotionMetric";
@@ -29,9 +30,9 @@ export default class UserDanceEvaluator<
     ) {};
 
     /**
-     * Evaluates a single frame of a user's dance performance.
+     * Evaluates a single frame of a user's motion performance.
      * @param trialId Identifier of the current attempt, used to separate recordings into tracks
-     * @param danceRelativeStem Identifier of the dance which is being evaluated
+     * @param motionIdentifier Identifier of the motion which is being evaluated
      * @param videoTimeSecs Timestamp of the video, in seconds
      * @param actualTimeMs Actual time this pose was captured, in milliseconds
      * @param userPose2D User's pose at the given frame time
@@ -40,7 +41,7 @@ export default class UserDanceEvaluator<
      */
     evaluateFrame(
         trialId: string | null, 
-        danceRelativeStem: string, 
+        motionIdentifier: string, 
         segmentDescription: string, 
         videoTimeSecs: number, 
         actualTimeMs: number, 
@@ -55,7 +56,7 @@ export default class UserDanceEvaluator<
         }
         
         if (!disableRecording && trialId !== null && !this.trackRecorder.tracks.has(trialId)) {
-            this.trackRecorder.startNewTrack(trialId, danceRelativeStem, segmentDescription);
+            this.trackRecorder.startNewTrack(trialId, motionIdentifier, segmentDescription);
         }
         
         const track = trialId !== null ? this.trackRecorder.tracks.get(trialId) : null;
@@ -220,7 +221,7 @@ export default class UserDanceEvaluator<
                     undefined,
                 )
 
-                if (metric.plotSummary && plotElement && document.getElementById(plotElement)) {
+                if (browser && metric.plotSummary && plotElement && document.getElementById(plotElement)) {
                     // create new div in plot element with an h3 for the metric name
                     const metricDiv = document.createElement('div');
                     const metricHeader = document.createElement('h3');

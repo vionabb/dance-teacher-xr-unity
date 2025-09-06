@@ -5,10 +5,10 @@ import type { LiveEvaluationMetric, SummaryMetric, TrackHistory } from "./Motion
 
 import { DynamicTimeWarping } from "./DynamicTimeWarping";
 import { compute3dAngleSimilarity, computeSkeleton3DVectorAngleSimilarity } from "./Skeleton3dVectorAngleSimilarityMetric";
-import type { Data } from "plotly.js-dist-min";
+
 import { browser } from "$app/environment";
 
-let Plotly: typeof import("plotly.js-dist-min");
+// let Plotly: typeof import("plotly.js-dist-min");
 
 type AngleComparisonKey = keyof typeof BodyInnerAnglesComparisons;
 type AngleComparisonValue = ValueOf<typeof BodyInnerAnglesComparisons>;
@@ -162,115 +162,115 @@ export default class Skeleton3DAngleDistanceDTW implements SummaryMetric<Angle3D
         } as const;
     }
 
-    async plotSummary(element: HTMLElement, summary: Angle3D_DtwMetricSummaryOutput) {
+    // async plotSummary(element: HTMLElement, summary: Angle3D_DtwMetricSummaryOutput) {
         
-        if (!Plotly) {
-            Plotly = await import("plotly.js-dist-min");
-        }
+    //     if (!Plotly) {
+    //         Plotly = await import("plotly.js-dist-min");
+    //     }
 
-        if (!element) throw new Error("Element with the specified ID not found")
+    //     if (!element) throw new Error("Element with the specified ID not found")
 
-        const mainDiv = document.createElement("div");
-        element.appendChild(mainDiv);
+    //     const mainDiv = document.createElement("div");
+    //     element.appendChild(mainDiv);
     
-        const maxDtwValue = Math.max(...summary.dtwPath.map((point) => point[1]));
+    //     const maxDtwValue = Math.max(...summary.dtwPath.map((point) => point[1]));
 
-        Plotly.newPlot(
-            mainDiv, 
-            [{
-                x: summary.dtwPath.map((point) => point[0]),
-                y: summary.dtwPath.map((point) => point[1]),
-                mode: 'lines+markers',
-                type: 'scatter',
-                name: 'DTW Path',
-                xaxis: 'reference',
-                yaxis: 'user',
-            },
-            {
-                // add a reference diagonal line
-                x: [0, maxDtwValue],
-                y: [0, maxDtwValue],
-                mode: 'lines',
-                type: 'scatter',
-                name: 'Reference Diagonal',
-                // make the line dashed and semi-transparent
-                line: {
-                    dash: 'dash',
-                    color: 'rgba(0, 0, 0, 0.5)',
-                },
-            }
-        ],
-            {
-                xaxis: {
-                    title: 'Reference Frame',
-                    domain: [0, 0.85],
-                },
-                yaxis: {
-                    title: 'User Frame',
-                    domain: [0, 1],
-                },
-                title: "DTW Path",
-                showlegend: false,
-            }, // layout
-            { // config
-                staticPlot: true, 
-                responsive: true,
-            }
-        );
+    //     Plotly.newPlot(
+    //         mainDiv, 
+    //         [{
+    //             x: summary.dtwPath.map((point) => point[0]),
+    //             y: summary.dtwPath.map((point) => point[1]),
+    //             mode: 'lines+markers',
+    //             type: 'scatter',
+    //             name: 'DTW Path',
+    //             xaxis: 'reference',
+    //             yaxis: 'user',
+    //         },
+    //         {
+    //             // add a reference diagonal line
+    //             x: [0, maxDtwValue],
+    //             y: [0, maxDtwValue],
+    //             mode: 'lines',
+    //             type: 'scatter',
+    //             name: 'Reference Diagonal',
+    //             // make the line dashed and semi-transparent
+    //             line: {
+    //                 dash: 'dash',
+    //                 color: 'rgba(0, 0, 0, 0.5)',
+    //             },
+    //         }
+    //     ],
+    //         {
+    //             xaxis: {
+    //                 title: 'Reference Frame',
+    //                 domain: [0, 0.85],
+    //             },
+    //             yaxis: {
+    //                 title: 'User Frame',
+    //                 domain: [0, 1],
+    //             },
+    //             title: "DTW Path",
+    //             showlegend: false,
+    //         }, // layout
+    //         { // config
+    //             staticPlot: true, 
+    //             responsive: true,
+    //         }
+    //     );
         
-        const jointByJointDiv = document.createElement("div");
-        element.appendChild(jointByJointDiv);
+    //     const jointByJointDiv = document.createElement("div");
+    //     element.appendChild(jointByJointDiv);
 
-        const jointByJointData: Data[] = summary.jointByJointPaths.map((path, i) => {
-            return {
-                x: path.map((point) => point[0]),
-                y: path.map((point) => point[1]),
-                mode: 'lines+markers',
-                type: 'scatter',
-                name: `${Object.keys(BodyInnerAnglesComparisons)[i]} (cost=${summary.jointByJointDistances[i].distance.toFixed(2)})`,
-                xaxis: 'reference',
-                yaxis: 'user',
-            }
-        });
+    //     type Data = import("plotly.js-dist-min").Data;
+    //     const jointByJointData: Data[] = summary.jointByJointPaths.map((path, i) => {
+    //         return {
+    //             x: path.map((point) => point[0]),
+    //             y: path.map((point) => point[1]),
+    //             mode: 'lines+markers',
+    //             type: 'scatter',
+    //             name: `${Object.keys(BodyInnerAnglesComparisons)[i]} (cost=${summary.jointByJointDistances[i].distance.toFixed(2)})`,
+    //             xaxis: 'reference',
+    //             yaxis: 'user',
+    //         }
+    //     });
 
-        // add reference line
-        jointByJointData.push({
-            x: [0, maxDtwValue],
-            y: [0, maxDtwValue],
-            mode: 'lines',
-            type: 'scatter',
-            name: 'Reference Diagonal',
-            line: {
-                dash: 'dash',
-                color: 'rgba(0, 0, 0, 0.5)',
-            },
-            showlegend: false,
-        });
+    //     // add reference line
+    //     jointByJointData.push({
+    //         x: [0, maxDtwValue],
+    //         y: [0, maxDtwValue],
+    //         mode: 'lines',
+    //         type: 'scatter',
+    //         name: 'Reference Diagonal',
+    //         line: {
+    //             dash: 'dash',
+    //             color: 'rgba(0, 0, 0, 0.5)',
+    //         },
+    //         showlegend: false,
+    //     });
 
-        Plotly.newPlot(
-            jointByJointDiv, 
-            jointByJointData,
-            {
-                xaxis: {
-                    title: 'Reference Frame',
-                    domain: [0, 0.85],
-                },
-                yaxis: {
-                    title: 'User Frame',
-                    domain: [0, 1],
-                },
-                title: "DTW Path by Joint",
-                showlegend: true,
-                legend: {
-                    x: 0.5,
-                    y: -0.10
-                  }
-            }, // layout
-            { // config
-                staticPlot: true, 
-                responsive: true,
-            }
-        );
-           
-    }
+    //     Plotly.newPlot(
+    //         jointByJointDiv, 
+    //         jointByJointData,
+    //         {
+    //             xaxis: {
+    //                 title: 'Reference Frame',
+    //                 domain: [0, 0.85],
+    //             },
+    //             yaxis: {
+    //                 title: 'User Frame',
+    //                 domain: [0, 1],
+    //             },
+    //             title: "DTW Path by Joint",
+    //             showlegend: true,
+    //             legend: {
+    //                 x: 0.5,
+    //                 y: -0.10
+    //               }
+    //         }, // layout
+    //         { // config
+    //             staticPlot: true, 
+    //             responsive: true,
+    //         }
+    //     );
+    // }
 }

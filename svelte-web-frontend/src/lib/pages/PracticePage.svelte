@@ -6,36 +6,30 @@
 </script>
 <script lang="ts">
 
-import { danceVideoVolume, debugMode__addPlaceholderAchievement, metric__3dskeletonsimilarity__badJointStdDeviationThreshold, practiceActivities__enablePerformanceRecording, practiceActivities__interfaceMode, practiceActivities__terminalFeedbackEnabled, practiceActivities__showUserSkeleton } from './../model/settings';
+import { danceVideoVolume, debugMode__addPlaceholderAchievement, practiceActivities__enablePerformanceRecording } from './../model/settings';
 import { v4 as generateUUIDv4 } from 'uuid';
-import { evaluation_summarizeSubsections, summaryFeedback_skeleton3d_mediumPerformanceThreshold, summaryFeedback_skeleton3d_goodPerformanceThreshold } from '$lib/model/settings';
+import { evaluation_summarizeSubsections } from '$lib/model/settings';
 // import { replaceJSONForStringifyDisplay } from '$lib/utils/formatting';
-import { findDanceTreeNode, getAllLeafNodes, getAllNodesInSubtree, makeDanceTreeSlug } from '$lib/data/dances-store';
-import { pauseInPracticePage, debugPauseDurationSecs, debugMode, useAIFeedback } from '$lib/model/settings';
+import { getAllLeafNodes, getAllNodesInSubtree } from '$lib/data/dances-store';
+import { pauseInPracticePage, debugPauseDurationSecs, debugMode } from '$lib/model/settings';
 import { GetPixelLandmarksFromNormalizedLandmarks, type Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 import type PracticeStep from "$lib/model/PracticeStep";
-import { getDanceVideoSrc, load2DPoseInformation, type Dance, type PoseReferenceData, load3DPoseInformation, type DanceTreeNode } from "$lib/data/dances-store";
-import { generateFeedbackNoPerformance, generateFeedbackRuleBased, generateFeedbackWithClaudeLLM } from '$lib/ai/feedback';
+import { getDanceMotionVideoSrc, load2DPoseInformation, type PoseReferenceData, load3DPoseInformation, type DanceTreeNode } from "$lib/data/dances-store";
+import { generateFeedbackNoPerformance } from '$lib/ai/feedback';
 import { Draw2dSkeleton } from '$lib/ai/SkeletonFeedbackVisualization'
-import VideoWithSkeleton from "$lib/elements/VideoWithSkeleton.svelte";
 import VirtualMirror from "$lib/elements/VirtualMirror.svelte";
 import poseEstimationService, { type PoseEstimationResultDetail } from '$lib/services/PoseEstimationService';
 import metronomeClickSoundSrc from '$lib/media/audio/metronome.mp3';
-import { onMount, onDestroy, createEventDispatcher, tick, getContext } from "svelte";
+import { onMount, createEventDispatcher, tick, getContext } from "svelte";
 import { webcamStream } from '$lib/webcam/streams';
 import { MirrorXPose, type Pose2DPixelLandmarks } from '$lib/webcam/mediapipe-utils';
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import TerminalFeedbackScreen from '$lib/elements/TerminalFeedbackScreen.svelte';
 import { getFrontendDanceEvaluator, type FrontendDanceEvaluator, type FrontendPerformanceSummary, type FrontendLiveEvaluationResult, type FrontendEvaluationTrack } from '$lib/ai/FrontendDanceEvaluator';
-import ProgressEllipses from '$lib/elements/ProgressEllipses.svelte';
-import { goto } from '$app/navigation';
-import type { GeneratePracticeStepOptions } from '$lib/ai/TeachingAgent/TeachingAgent';
 import frontendPerformanceHistory from '$lib/ai/frontendPerformanceHistory';
 import Dialog from '$lib/elements/Dialog.svelte';
-import { browser } from '$app/environment';
 import { waitSecs } from '$lib/utils/async';
-import { PracticeStepDefaultInterfaceSetting, PracticeInterfaceModes, type PracticeStepInterfaceSettings, type FeedbackFunction } from '$lib/model/PracticeStep';
-import PracticeActivityConfigurator from '$lib/elements/PracticeActivityConfigurator.svelte';
+import { PracticeStepDefaultInterfaceSetting, PracticeInterfaceModes, type PracticeStepInterfaceSettings } from '$lib/model/PracticeStep';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SegmentedProgressBarPropsWithoutCurrentTime } from '$lib/elements/SegmentedProgressBar.svelte';
 import SegmentedProgressBar from '$lib/elements/SegmentedProgressBar.svelte';
@@ -45,15 +39,17 @@ import PlayableVideoWithSkeleton from '$lib/elements/PlayableVideoWithSkeleton.s
 
 
 import BarCharIcon from 'virtual:icons/mdi/bar-chart';
-	import type TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
-	import type { Readable } from 'svelte/store';
+import type TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
+import type { Readable } from 'svelte/store';
+	import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
+
 const supabase = getContext('supabase') as SupabaseClient;
 
 let teachingAgent = getContext('teachingAgent') as Readable<TeachingAgent>;
 
 interface Props {
     mirrorForEvaluation?: boolean;
-    dance: Dance;
+    motionVideo: MotionVideo;
     practiceStep: PracticeStep | null;
     practicePlan?: PracticePlan | undefined;
     pageActive?: boolean;
@@ -65,7 +61,7 @@ interface Props {
 
 let {
     mirrorForEvaluation = true,
-    dance,
+    motionVideo,
     practiceStep = $bindable(null as PracticeStep | null),
     practicePlan = undefined,
     pageActive = false,
@@ -122,14 +118,14 @@ let videoPlaybackSpeed: number = $state(1);
 let videoDuration: number = $state(0);
 let videoVolume: number = $state(0.5);
 let isVideoPausedBinding: boolean = $state(true);
-let danceSrc: string = $state('');
+let motionVideoSrc: string = $state('');
 let poseEstimationEnabled: boolean = $derived(
     pageActive 
         && isDoingSomeSortOfFeedback 
         &&  (countdownActive || !isVideoPausedBinding || pageState==="paused")
 );
 
-let containingDanceTreeLeafNodes = $derived.by(() => {
+let containingSegmentationTreeLeafNodes = $derived.by(() => {
     if (practiceStep?.danceTreeNode && $evaluation_summarizeSubsections == "leafnodes") {
         return getAllLeafNodes(practiceStep.danceTreeNode).filter((node) => node.id !== practiceStep?.danceTreeNode?.id);
     } else if (practiceStep?.danceTreeNode && $evaluation_summarizeSubsections == "allnodes") {
@@ -139,9 +135,9 @@ let containingDanceTreeLeafNodes = $derived.by(() => {
 });
 
 let beatDuration = $derived.by(() => {
-    const danceBpm = dance?.bpm ?? 60;
-    const danceSecsPerBeat = 60 / danceBpm;
-    return danceSecsPerBeat / videoPlaybackSpeed;
+    const motionBpm = motionVideo?.manual_bpm ?? motionVideo?.detected_bpm ?? 60;
+    const motionSecsPerBeat = 60 / motionBpm;
+    return motionSecsPerBeat / videoPlaybackSpeed;
 });
 
 let poseEstimationReady: Promise<void> | null = null;
@@ -210,7 +206,7 @@ async function getFeedback(perfSummary: FrontendPerformanceSummary | null, recor
         videoRecording = {
             url: videoURL,
             mimeType: webcamRecorderMimeType,
-            referenceVideoUrl: danceSrc,
+            referenceVideoUrl: motionVideoSrc,
             recordingStartOffset: practiceStep?.startTime ?? 0,
             recordingSpeed: effectivePlaybackSpeed,
         };
@@ -228,7 +224,6 @@ async function getFeedback(perfSummary: FrontendPerformanceSummary | null, recor
 
     if (!practiceStep?.feedbackFunction) {
         feedback = generateFeedbackNoPerformance(
-            dance.clipRelativeStem,
             $frontendPerformanceHistory,
             practiceStep?.danceTreeNode?.id ?? '',
         );
@@ -455,11 +450,11 @@ export async function reset(start: boolean = false) {
     let ref2dPosesPromise: ReturnType<typeof load2DPoseInformation> | null = null;
     let ref3dPosesPromise: ReturnType<typeof load3DPoseInformation> | null = null;
     if (!referenceDancePoses2D) {
-        ref2dPosesPromise = load2DPoseInformation(supabase, dance);
+        ref2dPosesPromise = load2DPoseInformation(supabase, motionVideo);
         promises.push(ref2dPosesPromise);
     }  
     if (!referenceDancePoses3D) {
-        ref3dPosesPromise = load3DPoseInformation(supabase, dance);
+        ref3dPosesPromise = load3DPoseInformation(supabase, motionVideo);
         promises.push(ref3dPosesPromise);
     }
     if (ref2dPosesPromise) { referenceDancePoses2D = await ref2dPosesPromise; }
@@ -578,10 +573,11 @@ function poseEstimationFrameReceived(detail: PoseEstimationResultDetail) {
         evaluation3DPose = MirrorXPose(user3DPose);
     }
     if (!evaluation2DPose) { return; }
+    const motionIdentifier = motionVideo.id + "-" + motionVideo.display_name;
     try {
         lastEvaluationResult = evaluator?.evaluateFrame(
-            trialId, 
-            dance.clipRelativeStem,
+            trialId,
+            motionIdentifier,
             practiceStep?.segmentDescription ?? 'undefined',
             videoTimeSecs,
             actualTimeInMs,
@@ -666,7 +662,7 @@ $effect(() => {
             let recordedTrack = null as null | FrontendEvaluationTrack;
             
             let subsequences = Object.fromEntries(
-                containingDanceTreeLeafNodes.map((node) => 
+                containingSegmentationTreeLeafNodes.map((node) => 
                     [node.id, { startTime: node.start_time, endTime: node.end_time }]
                 )
             );
@@ -727,7 +723,7 @@ $effect(() => {
 });
 
 $effect(() => {
-    danceSrc = getDanceVideoSrc(supabase, dance);
+    motionVideoSrc = getDanceMotionVideoSrc(supabase, motionVideo.video_src) ?? "";
 });
 
 </script>
@@ -753,10 +749,10 @@ $effect(() => {
             poseData={referenceDancePoses2D}
             drawSkeleton={drawReferenceDanceSkeleton}
             volume={videoVolume}
-            src={danceSrc}
+            src={motionVideoSrc}
         >
             {#snippet children()}
-                <source src={danceSrc} type="video/mp4" />    
+                <source src={motionVideoSrc} type="video/mp4" />    
             {/snippet}
         </PlayableVideoWithSkeleton>
     </div>

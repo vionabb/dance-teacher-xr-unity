@@ -1,172 +1,140 @@
 import type { User, SupabaseClient } from "@supabase/supabase-js";
-import type { IDataBackend } from "./IDataBackend";
+import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel, UserLearningModelDb } from "./IDataBackend";
 import type { ActivityProgress, PracticePlanProgress, StepProgressData } from "$lib/data/activity-progress";
 import { browser } from "$app/environment";
 import type { Database, Json } from "$lib/ai/backend/SupabaseTypes";
 import { getContext } from "svelte";
 import { get } from "svelte/store";
 import type { PracticePlan } from "$lib/model/PracticePlan";
-
-// for table learningstepprogress
-// type LearningStepProgress = {
-//     activity_id: string; 
-//     dance_id: string;
-//     id: number;
-//     practiceplan_id: string;
-//     state: Json;
-//     step_id: string; timestamp: string;
-//     user_id: string | null;
-// };
+import type { DanceTree } from "$lib/data/dances-store";
 
 class SupabaseDataBackend implements IDataBackend {
     
     constructor(private supabase: SupabaseClient<Database>, private userId: string | null) {}
 
-    async GetPracticePlan(args: { practice_plan_id: string; } | { user_id?: string; demo_video_id?: number; segmentation_id?: number; }): Promise<PracticePlan | undefined> {
-        // TODO: this is AI generated, please review and test
-
-        let query = this.supabase.from("motion_userstate").select("*");
-        if ("practice_plan_id" in args) {
-            query = query.eq("id", args.practice_plan_id);
-        } else {
-            if (args.user_id) {
-                query = query.eq("user_id", args.user_id);
-            }
-            if (args.demo_video_id) {
-                query = query.eq("demo_video_id", args.demo_video_id);
-            }
-            if (args.segmentation_id) {
-                query = query.eq("segmentation_id", args.segmentation_id);
-            }
-        }
-        const { data, error } = await query;
+    async getMotionVideos(): Promise<MotionVideo[]> {
+        const { data, error } = await this.supabase
+            .from("motion_video")
+            .select("*");
         if (error) {
-            console.error("Error fetching practice plan:", error);
-            return undefined;
+            throw error;
         }
-        if (!data || (Array.isArray(data) && data.length === 0)) {
-            console.log("No practice plan found with the given criteria.");
-            return undefined;
-        }
-        // Return first plan if multiple results are present.
-        if (!Array.isArray(data)) {
-            throw new Error("Unexpected data format received from Supabase.");
-        }
-        if (data.length === 0) {
-            return undefined;
-        }
-
-        // Sort by updated_at descending to get the most recent plan
-        data.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-        const newestRow = data[0];
-        const newestPlan = newestRow.plan as unknown as PracticePlan;
-
-        return newestPlan;
+        return data || [];
     }
 
-    async SavePracticePlan(args: { id?: string; user_id: string; demo_video_id: number; segmentation_id: number; plan: PracticePlan; }): Promise<void> {
-        // Prepare the row for upsert. We assume the table "practiceplans" has columns that match these keys.
-        const row = {
-            id: args.id, // optional; if provided, upsert will update the record.
-            user_id: args.user_id,
-            demo_video_id: args.demo_video_id,
-            segmentation_id: args.segmentation_id,
-            plan: args.plan as unknown as Json,
-            updated_at: new Date().toISOString(), // optional timestamp field
+    async getMotionVideoById(id: number): Promise<MotionVideo | null> {
+        const { data, error } = await this.supabase
+            .from("motion_video")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+        if (error) {
+            throw error;
+        }
+        return data || null;
+    }
+
+    async getMotionVideoSegmentations(videoId: number): Promise<MotionVideoSegmentation[]> {
+        const { data, error } = await this.supabase
+            .from("motion_video_segmentation")
+            .select("*")
+            .eq("video_id", videoId);
+        if (error) {
+            throw error;
+        }
+        if (!data) return [];
+
+        // map data to replace 'data' field with 'segmentation' field
+        const modifiedData = data.map(item => {
+            const { data, ...rest } = item;
+            return { ...rest, segmentation: data as DanceTree };
+        });
+        return modifiedData;
+    }
+
+    async getMotionVideoSegmentationById(id: number): Promise<MotionVideoSegmentation | null> {
+        const { data, error } = await this.supabase
+            .from("motion_video_segmentation")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+        if (error) {
+            throw error;
+        }
+        if (!data) return null;
+        const { data: rawSegmentation, ...rest } = data;
+        return { ...rest, segmentation: rawSegmentation as DanceTree };
+    }
+
+    async createUserLearningModel(data: Omit<UserLearningModel, "id"> & { segmentation_id: number; }): Promise<UserLearningModel> {
+        // Cast plan and progress to unknown as Json for TypeScript
+        const insertData = {
+            ...data,
+            plan: data.plan as unknown as Json,
+            progress: data.progress as unknown as Json,
+            user_id: this.userId
         };
+        const { data: insertedData, error } = await this.supabase
+            .from("user_learning_model")
+            .insert([insertData])
+            .select("*")
+            .single();
+        if (error) {
+            throw error;
+        }
+
+        const returnedData = {
+            ...insertedData,
+            plan: insertedData.plan as unknown as PracticePlan,
+            progress: insertedData.progress as unknown as PracticePlanProgress
+        };
+        return returnedData;
+    }
+
+    async getUserLearningModelBySegmentationId(segmentationId: number): Promise<UserLearningModel | null> {
+        const { data, error } = await this.supabase
+            .from("user_learning_model")
+            .select("*")
+            .eq("segmentation_id", segmentationId)
+            .maybeSingle();
+        if (error) {
+            throw error;
+        }
+        if (!data) return null;
+        // Return as UserLearningModel (plan/progress are already plain objects)
+        return data as unknown as UserLearningModel;
+    }
+
+    async updateUserLearningModel(id: string | number, data: Partial<UserLearningModel>): Promise<void> {
+        // Cast plan and progress to Json if present
+        // Only send fields that match Supabase expectations
+        const updateData: { [key: string]: any } = { ...data };
+        if (data.plan !== undefined) {
+            updateData.plan = data.plan as unknown as Json;
+        } else {
+            throw new Error("plan must be provided to update UserLearningModel");
+        }
+        if (data.progress !== undefined) {
+            updateData.progress = data.progress as unknown as Json;
+        } else {
+            throw new Error("progress must be provided to update UserLearningModel");
+        }
+
+        // drop user_id if present to avoid accidental changes
+        delete updateData.user_id;
+        if (updateData.segmentation_id === undefined) {
+            throw new Error("segmentation_id must be provided to update UserLearningModel");
+        }
 
         const { error } = await this.supabase
-            .from("motion_userstate")
-            .upsert(row, {});
-            
+            .from("user_learning_model")
+            .update(updateData)
+            .eq("id", String(id));
         if (error) {
-            console.error("Error saving practice plan:", error);
+            throw error;
         }
     }
-
-    GetPracticePlanProgress(danceId: string, planId: string): Promise<PracticePlanProgress | undefined> {
-        // existing implementation ...
-        throw new Error("Method not implemented in selection");
-    }
-
-    SaveActivityStepProgress(
-        danceId: string,
-        practicePlanId: string,
-        activityId: string,
-        stepId: string,
-        progress: StepProgressData,
-    ): Promise<void> {
-        // existing implementation ...
-        throw new Error("Method not implemented in selection");
-    }
-
-
-    // async GetPracticePlanProgress(danceId: string, planId: string): Promise<PracticePlanProgress | undefined> {
-
-    //     const matchingRows = await this.supabase.from('learningstepprogress').select(
-    //         'id, timestamp, dance_id, practiceplan_id, activity_id, step_id, state, user_id',
-    //     ).eq('dance_id', danceId)
-    //     .eq('practiceplan_id', planId)
-
-    //     if (matchingRows.error) {
-    //         console.error('Error fetching practice plan progress:', matchingRows.error);
-    //         return undefined;
-    //     }
-
-    //     const progress: PracticePlanProgress = {};
-    //     if (!matchingRows.data || matchingRows.data.length === 0) {
-    //         console.log('No progress data found for danceId:', danceId, 'and planId:', planId);
-    //         return progress; // Return empty progress if no data found
-    //     }
-
-    //     for (const row of matchingRows.data) {
-    //         const activityProgress: ActivityProgress = progress[row.activity_id] || {};
-    //         const state = row.state as { completed?: boolean; started?: boolean } | null;
-    //         const stepProgress: StepProgressData = {
-    //             completed: state?.completed ?? false,
-    //             started: state?.started ?? true,
-    //         };
-
-    //         activityProgress[row.step_id] = stepProgress;
-    //         progress[row.activity_id] = activityProgress;
-    //     }
-    //     return progress;
-    // }
-
-    // async SaveActivityStepProgress(
-    //     danceId: string,
-    //     practicePlanId: string,
-    //     activityId: string,
-    //     stepId: string,
-    //     progress: StepProgressData,
-    // ): Promise<void> {
-
-    //     type InsertType = Database["public"]["Tables"]["learningstepprogress"]["Insert"];
-
-    //     if (!this.userId) {
-    //         throw new Error("User ID is not set. Cannot save progress without a user ID.");
-    //     }
-        
-    //     const row: InsertType = {
-    //         dance_id: danceId,
-    //         practiceplan_id: practicePlanId,
-    //         activity_id: activityId,
-    //         step_id: stepId,
-    //         state: {
-    //             completed: progress.completed,
-    //             started: progress.started,
-    //         } as Json,
-    //         user_id: this.userId,
-    //         timestamp: new Date().toISOString(), // Use current timestamp
-    //     };
-
-    //     const { error } = await this.supabase
-    //         .from("learningstepprogress")
-    //         .upsert(row as InsertType);
-
-    //     if (error) {
-    //         console.error("Error saving practice step progress:", error);
-    //     }
-    // }
 }
+
 export default SupabaseDataBackend;
+// ...existing code...

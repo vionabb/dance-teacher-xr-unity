@@ -1,4 +1,4 @@
-import { makeDanceTreeSlug, type Dance, type DanceTree, type DanceTreeNode, getAllLeafNodes } from '../../data/dances-store'
+import { type DanceTree, type DanceTreeNode, getAllLeafNodes } from '../../data/dances-store'
 import type PracticeStep from '$lib/model/PracticeStep';
 import type { PracticeStepModeKey } from '$lib/model/PracticeStep';
 import type { CheckpointActivity, DrillActivity, FinaleActivity, PracticePlan, PracticePlanActivity, SegmentActivity } from '$lib/model/PracticePlan';
@@ -7,7 +7,7 @@ import { CreateDrillStep } from './drill-step';
 import { CreateFulloutStep } from './fullout-step';
 import { writable, type Writable, type Readable, derived, get, readable, readonly } from 'svelte/store';
 import { type PracticePlanProgress, type StepProgressData } from '$lib/data/activity-progress';
-import type { IDataBackend } from '../backend/IDataBackend';
+import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel } from '../backend/IDataBackend';
 import { getContext } from 'svelte';
 
 // export interface UserDancePerformanceLog {
@@ -106,8 +106,7 @@ function makeFinaleActivity(startTime: number, endTime: number): FinaleActivity 
     }
 }
 
-export function GeneratePracticePlan(
-    dance: Dance,
+function GeneratePracticePlan(
     danceTree: DanceTree,
 ): PracticePlan {
 
@@ -181,40 +180,6 @@ export function GeneratePracticePlan(
     }
 }
 
-export type GeneratePracticeStepOptions = {
-    playbackSpeed: number,
-    interfaceMode: PracticeStepModeKey,
-    terminalFeedbackEnabled: boolean,
-    showUserSkeleton: boolean,
-};
-
-export function GeneratePracticeStep(
-    dance: Dance,
-    danceTree: DanceTree,
-    danceTreeNode: DanceTreeNode,
-    opts: GeneratePracticeStepOptions
-) {
-    
-    const danceTreeSlug =  makeDanceTreeSlug(danceTree);
-    return {
-        step: {
-            id: 'legacystep',
-            title: danceTreeNode.id,
-            segmentDescription: danceTreeNode.id,
-            startTime: danceTreeNode.start_time,
-            endTime: danceTreeNode.end_time,
-            interfaceMode: opts.interfaceMode,
-            terminalFeedbackEnabled: opts.terminalFeedbackEnabled,
-            showUserSkeleton: opts.showUserSkeleton,
-            playbackSpeed: opts.playbackSpeed,
-            dance: dance,
-            danceTree: danceTree,
-            danceTreeNode: danceTreeNode,
-        } as PracticeStep,
-        url: `/teachlesson/${danceTreeSlug}/practicenode/${danceTreeNode.id}?playbackSpeed=${opts.playbackSpeed}&interfaceMode=${opts.interfaceMode}&terminalFeedbackEnabled=${opts.terminalFeedbackEnabled}&showUserSkeleton=${opts.showUserSkeleton}`,
-    }
-}
-
 function isActivityComplete(activity: PracticePlanActivity, progress: PracticePlanProgress) {
     return activity.steps.reduce(
         (acc, step) => acc && (
@@ -226,38 +191,29 @@ function isActivityComplete(activity: PracticePlanActivity, progress: PracticePl
 const PROGRESS_REFRESH_MIN_INTERVAL_SECS = 60 * 10; // 10 minutes
 
 class TeachingAgent {
-    private _practicePlan: Writable<PracticePlan>;
-    public practicePlan: Readable<PracticePlan>;
+    private motionVideo: MotionVideo;
+    private motionSegmentation: MotionVideoSegmentation;
+    private dataBackend: IDataBackend;
 
-    private lastProgressRefresh: Date = new Date(0); // Initialize to epoch time
-    public _progress: Writable<PracticePlanProgress | null> = writable<PracticePlanProgress | null>(null);
-    public progress: Readable<PracticePlanProgress> = derived(this._progress, ($progress) => {
-        const p = $progress;
-        if (p === null) {
-            console.warn('TeachingAgent.ts progress is null, returning empty object.');
-            return {};
-        } else {
-            console.debug('TeachingAgent.ts progress:', p);
-        }
-        return p;
-    });
+    private userLearningModel: Writable<UserLearningModel>;
+    public practicePlan: Readable<PracticePlan>;
+    public progress: Readable<PracticePlanProgress>
 
     constructor(
-        private danceTree: DanceTree, 
-        private dance: Dance, 
-        private dataBackend: IDataBackend,
         opts: {
-            initialPracticePlan?: PracticePlan,
-            initialProgress?: PracticePlanProgress | null,
-        } | undefined = undefined,
+            motionSegmentation: MotionVideoSegmentation, 
+            motionVideo: MotionVideo, 
+            dataBackend: IDataBackend,
+            userLearningModel: UserLearningModel
+        },
     ) {
-        const initialPlan = opts?.initialPracticePlan ?? GeneratePracticePlan(dance, danceTree);
-        this._practicePlan = writable(initialPlan);
-        this.practicePlan = readonly(this._practicePlan );
+        this.motionVideo = opts.motionVideo;
+        this.motionSegmentation = opts.motionSegmentation;
+        this.dataBackend = opts.dataBackend;
 
-        if (opts?.initialProgress) {
-            this._progress.set(opts.initialProgress);
-        }
+        this.userLearningModel = writable(opts.userLearningModel);
+        this.practicePlan = derived(this.userLearningModel, ($model) => $model.plan);
+        this.progress = derived(this.userLearningModel, ($model) => $model.progress);
     }
 
     nextIncompleteActivity(progress: PracticePlanProgress | undefined) {
@@ -275,58 +231,49 @@ class TeachingAgent {
         return firstIncompleteActivity;
     }
 
-    async updateActivityStepProgress(activityId: string, stepId: string, stepProgress: StepProgressData): Promise<void> {
+    async updateActivityStepProgress(progressModel: PracticePlanProgress, activityId: string, stepId: string, stepProgress: StepProgressData): Promise<PracticePlanProgress> {
         console.debug('TeachingAgent.ts Updating progress for activity', activityId, 'step:', stepId, 'stepProgress:', stepProgress);
 
-        const curProgress = get(this._progress);
-        if (curProgress === null) {
-            console.info('TeachingAgent.ts Current progress is null, refreshing practice plan progress.');
-            await this.refreshPracticePlanProgress(true);
-        }
+        const curProgress = progressModel;
 
         // Update local progress synchronously
         const newProgress = { ...curProgress };
         newProgress[activityId] = newProgress[activityId] ?? {};
         newProgress[activityId][stepId] = stepProgress;
-        this._progress.set(newProgress);
+
+        this.userLearningModel.update(model => {
+            return {
+                ...model,
+                progress: newProgress,
+            }
+        });
 
         // Save to backend asynchronously
         try {
-            await this.dataBackend.SaveActivityStepProgress(
-                this.dance.clipRelativeStem,
-                get(this._practicePlan).id,
-                activityId,
-                stepId,
-                stepProgress
+            await this.dataBackend.updateUserLearningModel(
+                get(this.userLearningModel).id,
+                { progress: newProgress }
             );
+
         } catch (error) {
             console.error('TeachingAgent.ts Error saving practice step progress:', error);
             throw error;
         }
+        return newProgress;
     }
 
-    async refreshPracticePlanProgress(forceRefresh: boolean): Promise<void> {
-
-        const now = new Date();
-        if (!forceRefresh && (now.getTime() - this.lastProgressRefresh.getTime())
-            < PROGRESS_REFRESH_MIN_INTERVAL_SECS * 1000) {
-            console.debug('TeachingAgent.ts Skipping progress refresh, last refresh was too recent.');
-            return;
-        }
-
-        const loadedProgress = await this.dataBackend.GetPracticePlanProgress(
-            this.dance.clipRelativeStem,
-            get(this._practicePlan).id
-        ) ?? null;
-        this._progress.set(loadedProgress);
-        this.lastProgressRefresh = new Date();
-
-        if (loadedProgress === null) {
-            console.info('TeachingAgent.ts No progress found for practice plan:', get(this._practicePlan).id);
-            this._progress.set({});
+    static generateNewUserLearningModel(
+        motionVideo: MotionVideo,
+        motionSegmentation: MotionVideoSegmentation,
+    ): Omit<UserLearningModel, 'id' | 'created_at' | 'updated_at' | 'user_id'> {
+        return {
+            progress: {},
+            plan: GeneratePracticePlan(motionSegmentation.segmentation),
+            segmentation_id: motionSegmentation.id,
+            video_id: motionVideo.id,
         }
     }
- }
+}
 
  export default TeachingAgent;
 

@@ -8,7 +8,7 @@
 	import type PracticeStep from '$lib/model/PracticeStep.js';
 	import type { PracticePlan, PracticePlanActivity } from '$lib/model/PracticePlan';
 	import type { Readable } from 'svelte/store';
-	import type { Dance } from '$lib/data/dances-store.js';
+
 	import { GetTeachingAgent } from '$lib/ai/TeachingAgent/TeachingAgent.js';
 
     export let data;
@@ -27,7 +27,7 @@
     let parentUrl: string;
     let activityBaseUrl: string;
     $: {
-        parentUrl = '/dance/' + encodeURIComponent(data.dance.clipRelativeStem) + '/' + encodeURIComponent(data.danceTree.tree_name) + '/';
+        parentUrl = '/motion/' + data.motionVideo.id + '/segmentation/' + data.motionSegmentation.id + '/';
         activityBaseUrl = parentUrl + encodeURIComponent(data.practiceActivity.id) + '/';
 
         navbarProps.update(props => ({
@@ -37,7 +37,7 @@
             subtitle:  data.practiceStep.title,
             back: {
                 url: parentUrl,
-                title: `${data.dance.title} Home`,
+                title: `${data.motionVideo.display_name} Home`,
             },
         }));
     }
@@ -90,7 +90,8 @@
 
         try {
             console.log('onNextClicked: updating activity step progress for', data.practiceActivity.id, data.practiceStep.id);
-            await $teachingAgent.updateActivityStepProgress(
+            data.userLearningModel.progress = await $teachingAgent.updateActivityStepProgress(
+                data.userLearningModel.progress,
                 data.practiceActivity.id,
                 data.practiceStep.id, 
                 { completed: true },
@@ -128,7 +129,7 @@
 <div class="p-4 overflow-hidden">
     <PracticePage 
         bind:this={practicePage}
-        dance={data.dance}    
+        motionVideo={data.motionVideo}    
         practiceStep={data.practiceStep}
         practicePlan={$practicePlan}
         pageActive={true}

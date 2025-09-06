@@ -7,15 +7,15 @@ import dancesData from '$lib/data/bundle/dances.json';
 import danceTreeData from '$lib/data/bundle/dancetrees.json';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { browser } from '$app/environment';
+import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
 
-export type Dance = typeof dancesData[number];
+// export type Dance = typeof dancesData[number];
 export type DanceTreeDict = typeof danceTreeData;
 export type ValueOf<T> = T[keyof T];
 export type DanceTrees = ValueOf<DanceTreeDict>;
 export type DanceTree = DanceTrees[number];
 export type DanceTreeNode = DanceTree["root"];
 
-export const dances = dancesData.sort((a: Dance, b: Dance) => a.clipRelativeStem.localeCompare(b.clipRelativeStem));
 // readable(
 //     dancesData,
 //     function start(set) {
@@ -33,46 +33,15 @@ export const danceTrees = danceTreeData;
 //     }
 // );
 
-const USER_VISIBLE_DANCES: string[] = [
-    'paper/attention',
-    'paper/attention_zoom_out',
-    'other/colddance',
-    'other/renegade',
-    'study2/last-christmas-tutorial',
-    'study2/mad-at-disney-tutorial',
-    'longer/texas-hold-em',
-];
-
-export const userVisibleDances: [Dance, DanceTree][] = dances
-    .filter((dance) => USER_VISIBLE_DANCES.includes(dance.clipRelativeStem))
-    .map((dance) => [dance, danceTrees[dance.clipRelativeStem as keyof typeof danceTrees][0]] as [Dance, DanceTree]);
-
-const URI_COMPONENT_SEPARATOR = '___';
-
-export function makeDanceTreeSlug(danceTree: DanceTree): string {
-    return encodeURIComponent(`${danceTree.clip_relativepath}${URI_COMPONENT_SEPARATOR}${danceTree.tree_name}`)
-}
-
-export function getDanceFromDanceId(danceIdSlug: string): Dance | null {
-    const danceId = decodeURIComponent(danceIdSlug);
-    return dances.find((dance) => dance.clipRelativeStem === danceId) ?? null;
-}
-
-export function getDanceTreeFromDanceAndTreeName(dance: Dance, danceTreeName: string): DanceTree | null {
-    const matchingDanceTrees: DanceTrees = danceTrees[dance.clipRelativeStem as keyof typeof danceTrees] ?? []
-    const matchingDanceTree = matchingDanceTrees.find(danceTree => danceTree.tree_name === danceTreeName) ?? null;    
-    return matchingDanceTree;
-}
-
-export function getDanceAndDanceTreeFromDanceTreeId(slug: string): [Dance | null, DanceTree | null] {
-    const [clipRelativeStem, tree_name] = decodeURIComponent(slug).split(URI_COMPONENT_SEPARATOR);
-    
-    const matchingDance: Dance | null = dances.find((dance) => dance.clipRelativeStem === clipRelativeStem) ?? null;
-
-    const matchingDanceTree = matchingDance ? getDanceTreeFromDanceAndTreeName(matchingDance, tree_name) : null;
-    return [matchingDance, matchingDanceTree];
-    
-}
+// const USER_VISIBLE_DANCES: string[] = [
+//     'paper/attention',
+//     'paper/attention_zoom_out',
+//     'other/colddance',
+//     'other/renegade',
+//     'study2/last-christmas-tutorial',
+//     'study2/mad-at-disney-tutorial',
+//     'longer/texas-hold-em',
+// ];
 
 export function findDanceTreeSubNode(node: DanceTreeNode, subNodeId: string | undefined): DanceTreeNode | null {
     if (!subNodeId) return null;
@@ -122,45 +91,46 @@ export function getAllNodes(node: DanceTreeNode): DanceTreeNode[] {
     ];   
 }
 
-export function getDanceVideoSrc(supabase: SupabaseClient, dance: Dance): string {
-    if (!dance?.clipPath) {
-        return "null";
+export function getDanceMotionVideoSrc(supabase: SupabaseClient, motionClipPath: string): string | undefined {
+    if (!motionClipPath) {
+        return undefined;
     }
 
     const { data } = supabase.storage
         .from('sourcevideos')
-        .getPublicUrl(dance.clipPath);
+        .getPublicUrl(motionClipPath);
+
     return data.publicUrl;
 }
 
-export function getHolisticDataSrc(supabase: SupabaseClient, dance: Dance): string {
-    if (!dance?.clipRelativeStem) {
-        return "null";
+export function getHolisticDataSrc(supabase: SupabaseClient, motionVideo: MotionVideo): undefined | string {
+    if (!motionVideo?.landmarks_holistic_3d_src) {
+        return undefined;
     }
     const { data } = supabase.storage
         .from('holisticdata')
-        .getPublicUrl(`${dance.clipRelativeStem}.holisticdata.csv`);
+        .getPublicUrl(motionVideo.landmarks_holistic_3d_src);
     return data.publicUrl;
 }
-export function get2DPoseDataSrc(supabase: SupabaseClient, dance: Dance): string {
-    if (!dance?.clipRelativeStem) {
-        return "null";
+export function get2DPoseDataSrc(supabase: SupabaseClient, motionVideo: MotionVideo): undefined | string {
+    if (!motionVideo?.landmarks_pose_2d_src) {
+        return undefined;
     }
 
     const { data } = supabase.storage
         .from('pose2ddata')
-        .getPublicUrl(`${dance.clipRelativeStem}.pose2d.csv`);
+        .getPublicUrl(motionVideo.landmarks_pose_2d_src);
     return data.publicUrl;
 }
 
-export function getThumbnailUrl(supabase: SupabaseClient, dance: Dance): string {
-    if (!dance?.thumbnailSrc) {
-        return "null";
+export function getThumbnailUrl(supabase: SupabaseClient, thumbnailSrc: string | undefined): string | undefined {
+    if (!thumbnailSrc) {
+        return undefined;
     }
 
     const { data } = supabase.storage
         .from('thumbnails')
-        .getPublicUrl(dance.thumbnailSrc);
+        .getPublicUrl(thumbnailSrc);
 
     return data.publicUrl;
 }
@@ -269,31 +239,37 @@ export async function loadPoseInformation<T extends Pose2DPixelLandmarks | Pose3
 }
 
 /**
- * Get the 2d pose information for a dance. It downloads a CSV file with the pose2d data, then converts
+ * Get the 2d pose information for a motion video. It downloads a CSV file with the pose2d data, then converts
  * the data into a 2d pixel landmark format
  * @param supabase Supabase client
- * @param dance The dance to load the pose information for
- * @returns The pose information for the dance
+ * @param motionVideo The video to load the pose information for
+ * @returns The pose information for the video
  */
-export async function load2DPoseInformation(supabase: SupabaseClient, dance: Dance): Promise<PoseReferenceData<Pose2DPixelLandmarks>> {
-    const pose2dCsvPath = get2DPoseDataSrc(supabase, dance);
+export async function load2DPoseInformation(supabase: SupabaseClient, motionVideo: MotionVideo): Promise<PoseReferenceData<Pose2DPixelLandmarks>> {
+    const pose2dCsvPath = get2DPoseDataSrc(supabase, motionVideo);
+    if (!pose2dCsvPath) {
+        throw new Error("No 2D pose data source available for motionVideo id " + motionVideo.id);
+    }
     const useFetch = true; // use fetch, as we're in the browser
-    const poseInfo = await loadPoseInformation(pose2dCsvPath, dance.fps, useFetch, GetPixelLandmarksFromPose2DRow);
+    const poseInfo = await loadPoseInformation(pose2dCsvPath, motionVideo.fps, useFetch, GetPixelLandmarksFromPose2DRow);
     return poseInfo;
 }
 
 /**
- * Get the 3d pose information for a dance. It downloads a CSV file with the holistic data, then converts
+ * Get the 3d pose information for a motion video. It downloads a CSV file with the holistic data, then converts
  * the data into the 3d landmark format that mediapipe uses (but with the added visiblity component that as
  * of 2023-09-18 is only present in the python solution).
  * @param supabase Supabase client
- * @param dance The dance to load the pose information for
- * @returns The pose information for the dance.
+ * @param motionVideo The video to load the pose information for
+ * @returns The pose information for the video.
  */
-export async function load3DPoseInformation(supabase: SupabaseClient, dance: Dance): Promise<PoseReferenceData<Pose3DLandmarkFrame>> {
-    const pose3dCsvPath = getHolisticDataSrc(supabase, dance);
+export async function load3DPoseInformation(supabase: SupabaseClient, motionVideo: MotionVideo): Promise<PoseReferenceData<Pose3DLandmarkFrame>> {
+    const pose3dCsvPath = getHolisticDataSrc(supabase, motionVideo);
+    if (!pose3dCsvPath) {
+        throw new Error("No 3D pose data source available for motionVideo id " + motionVideo.id);
+    }
     const useFetch = true; // use fetch, as we're in the browser
-    return await loadPoseInformation(pose3dCsvPath, dance.fps, useFetch, GetPixelLandmarksFromPose3DRow) as PoseReferenceData<Pose3DLandmarkFrame>;
+    return await loadPoseInformation(pose3dCsvPath, motionVideo.fps, useFetch, GetPixelLandmarksFromPose3DRow) as PoseReferenceData<Pose3DLandmarkFrame>;
 }
 
 export function GetPixelLandmarksFromPose2DRow(pose2drow: Record<string, number>) : Pose2DPixelLandmarks | null {

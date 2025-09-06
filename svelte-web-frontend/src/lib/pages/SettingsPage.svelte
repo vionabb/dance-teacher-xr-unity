@@ -3,7 +3,6 @@ import frontendPerformanceHistory from "$lib/ai/frontendPerformanceHistory";
 import { 
     debugMode, 
     debugMode__viewBeatsOnDanceTreepage,
-    debugMode__viewDanceMenuAsList,
     debugMode__addPlaceholderAchievement,
     pauseInPracticePage, 
     debugPauseDurationSecs,
@@ -80,12 +79,6 @@ function clearPerformanceHistory() {
                 <label class="daisy-label cursor-pointer justify-center gap-2">
                   <span class="daisy-label-text">View Beats on Dance Tree Page</span> 
                   <input class="daisy-checkbox" type="checkbox" bind:checked={$debugMode__viewBeatsOnDanceTreepage} />
-                </label>
-            </div>
-            <div class="daisy-form-control">
-                <label class="daisy-label cursor-pointer justify-center gap-2">
-                  <span class="daisy-label-text">View Dance Menu as List</span> 
-                  <input class="daisy-checkbox" type="checkbox" bind:checked={$debugMode__viewDanceMenuAsList} />
                 </label>
             </div>
             <div class="daisy-form-control">

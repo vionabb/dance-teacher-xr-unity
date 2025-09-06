@@ -37,53 +37,59 @@ export type Database = {
       motion_video: {
         Row: {
           created_at: string
-          detectedBpm: number | null
-          detectedBpmOffset: number | null
-          displayName: string
+          detected_bpm: number | null
+          detected_bpm_offset: number | null
+          display_name: string
           fps: number
           height: number
           id: number
-          manualBpm: number | null
-          motionEnd: number
-          motionStart: number
-          thumbnailSrc: string
+          landmarks_holistic_3d_src: string | null
+          landmarks_pose_2d_src: string | null
+          manual_bpm: number | null
+          motion_end: number
+          motion_start: number
+          thumbnail_src: string
           uploader: string | null
-          videoDuration: number
-          videoSrc: string
+          video_duration: number
+          video_src: string
           width: number
         }
         Insert: {
           created_at?: string
-          detectedBpm?: number | null
-          detectedBpmOffset?: number | null
-          displayName: string
+          detected_bpm?: number | null
+          detected_bpm_offset?: number | null
+          display_name: string
           fps: number
           height: number
           id?: number
-          manualBpm?: number | null
-          motionEnd: number
-          motionStart: number
-          thumbnailSrc: string
+          landmarks_holistic_3d_src?: string | null
+          landmarks_pose_2d_src?: string | null
+          manual_bpm?: number | null
+          motion_end: number
+          motion_start: number
+          thumbnail_src: string
           uploader?: string | null
-          videoDuration: number
-          videoSrc: string
+          video_duration: number
+          video_src: string
           width: number
         }
         Update: {
           created_at?: string
-          detectedBpm?: number | null
-          detectedBpmOffset?: number | null
-          displayName?: string
+          detected_bpm?: number | null
+          detected_bpm_offset?: number | null
+          display_name?: string
           fps?: number
           height?: number
           id?: number
-          manualBpm?: number | null
-          motionEnd?: number
-          motionStart?: number
-          thumbnailSrc?: string
+          landmarks_holistic_3d_src?: string | null
+          landmarks_pose_2d_src?: string | null
+          manual_bpm?: number | null
+          motion_end?: number
+          motion_start?: number
+          thumbnail_src?: string
           uploader?: string | null
-          videoDuration?: number
-          videoSrc?: string
+          video_duration?: number
+          video_src?: string
           width?: number
         }
         Relationships: [
@@ -99,42 +105,42 @@ export type Database = {
       motion_video_segmentation: {
         Row: {
           created_at: string
-          createdFor: string | null
+          created_for: string | null
           data: Json
-          displayName: string | null
-          generationInfo: string
+          display_name: string | null
+          generation_info: string
           id: number
-          videoId: number | null
+          video_id: number | null
         }
         Insert: {
           created_at?: string
-          createdFor?: string | null
+          created_for?: string | null
           data: Json
-          displayName?: string | null
-          generationInfo: string
+          display_name?: string | null
+          generation_info: string
           id?: number
-          videoId?: number | null
+          video_id?: number | null
         }
         Update: {
           created_at?: string
-          createdFor?: string | null
+          created_for?: string | null
           data?: Json
-          displayName?: string | null
-          generationInfo?: string
+          display_name?: string | null
+          generation_info?: string
           id?: number
-          videoId?: number | null
+          video_id?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "motion_segmentation_createdFor_fkey"
-            columns: ["createdFor"]
+            columns: ["created_for"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "motion_segmentation_videoId_fkey"
-            columns: ["videoId"]
+            columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "motion_video"
             referencedColumns: ["id"]

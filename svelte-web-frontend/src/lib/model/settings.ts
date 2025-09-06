@@ -5,7 +5,6 @@ import { browser } from '$app/environment';
 const DEFAULT_SETTINGS = {
    debugMode: false,
    debugMode__viewBeatsOnDanceTreepage: false,
-   debugMode__viewDanceMenuAsList: false,
    debugMode__addPlaceholderAchievement: false,
    pauseInPracticePage : false,
    practiceActivities__enablePerformanceRecording: true,
@@ -68,7 +67,6 @@ function createOptionsSettingsStore<T extends Record<string, string>>(key: strin
 
 export const debugMode = createBoolSettingsStore("debugMode", DEFAULT_SETTINGS.debugMode);
 export const debugMode__viewBeatsOnDanceTreepage = createBoolSettingsStore("debugMode__viewBeatsOnDanceTreepage", DEFAULT_SETTINGS.debugMode__viewBeatsOnDanceTreepage);
-export const debugMode__viewDanceMenuAsList = createBoolSettingsStore("debugMode__viewDanceMenuAsList", DEFAULT_SETTINGS.debugMode__viewDanceMenuAsList);
 export const debugMode__addPlaceholderAchievement = createBoolSettingsStore("debugMode__addPlaceholderAchievement", DEFAULT_SETTINGS.debugMode__addPlaceholderAchievement);
 export const pauseInPracticePage = createBoolSettingsStore("pauseInPracticePage", DEFAULT_SETTINGS.pauseInPracticePage);
 export const debugPauseDurationSecs = createNumberSettingsStore("debugPauseDurationSecs", DEFAULT_SETTINGS.debugPauseDurationSecs);
@@ -103,7 +101,6 @@ export const practiceActivities__showUserSkeleton = createBoolSettingsStore("pra
 export function resetSettingsToDefault() {
     debugMode.set(DEFAULT_SETTINGS.debugMode);
     debugMode__viewBeatsOnDanceTreepage.set(DEFAULT_SETTINGS.debugMode__viewBeatsOnDanceTreepage);
-    debugMode__viewDanceMenuAsList.set(DEFAULT_SETTINGS.debugMode__viewDanceMenuAsList);
     debugMode__addPlaceholderAchievement.set(DEFAULT_SETTINGS.debugMode__addPlaceholderAchievement);
     pauseInPracticePage.set(DEFAULT_SETTINGS.pauseInPracticePage);
     debugPauseDurationSecs.set(DEFAULT_SETTINGS.debugPauseDurationSecs);

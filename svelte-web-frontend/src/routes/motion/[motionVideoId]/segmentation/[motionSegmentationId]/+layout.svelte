@@ -1,36 +1,36 @@
 <script lang="ts">
 
-	import { page } from "$app/state";
 	import TeachingAgent from "$lib/ai/TeachingAgent/TeachingAgent";
-	import { onDestroy, setContext } from "svelte";
+	import { getContext, onDestroy, setContext } from "svelte";
 	import { derived, get, readonly, writable, type Readable, type Writable } from "svelte/store";
-	import type { Dance, DanceTree } from '$lib/data/dances-store';
+	import type { DanceTree } from '$lib/data/dances-store';
 	import type { PracticePlan } from '$lib/model/PracticePlan';
 	import type { PracticePlanProgress } from "$lib/data/activity-progress";
-	// Optionally, create a shared context-types.ts and import from there
-	// import type { AppContext } from '$lib/context-types';
-
+	import type { MotionVideo, MotionVideoSegmentation } from "$lib/ai/backend/IDataBackend.js";
+	
     let { data, children } = $props();
 
     // let danceId = $derived(page.params.danceId);
     // let danceTreeName = $derived(page.params.danceTreeName);
 
-    const dance = writable<Dance>(data.dance);
-    const danceTree = writable<DanceTree>(data.danceTree);
-    const danceReadOnly = derived(dance, (d): Dance => d);
-    const danceTreeReadOnly = derived(danceTree, (dt): DanceTree => dt);
-    setContext<Readable<Dance>>('dance', danceReadOnly);
-    setContext<Readable<DanceTree>>('danceTree', danceTreeReadOnly);
+    
+    const motionSegmentation = writable<MotionVideoSegmentation>(data.motionSegmentation);
+    const motionVideoReadOnly = getContext<Readable<MotionVideo>>('motionVideo');
+    const motionSegmentationReadOnly = derived(motionSegmentation, (dt): MotionVideoSegmentation => dt);
+    setContext<Readable<MotionVideo>>('motionVideo', motionVideoReadOnly);
+    setContext<Readable<MotionVideoSegmentation>>('motionSegmentation', motionSegmentationReadOnly);
     $effect(() => {
-        dance.set(data.dance);
-        danceTree.set(data.danceTree);
+        motionSegmentation.set(data.motionSegmentation);
     });
     
-    const teachingAgent = writable<TeachingAgent>(new TeachingAgent($danceTree, $dance, data.databackend, {
-        initialPracticePlan: data.initialPracticePlan,
-        initialProgress: data.initialPracticePlanProgress
+    const teachingAgent = writable<TeachingAgent>(new TeachingAgent({
+        motionVideo: data.motionVideo,
+        motionSegmentation: data.motionSegmentation,
+        dataBackend: data.databackend,
+        userLearningModel: data.userLearningModel,
     }));
-    console.log('+layout.svelte: teachingAgent initialized:', get(teachingAgent), 'initialProgress:', data.initialPracticePlanProgress);
+    
+
     const teachingAgentReadonly = readonly(teachingAgent);
     setContext<Readable<TeachingAgent>>('teachingAgent', teachingAgentReadonly);
 
@@ -43,9 +43,13 @@
     });
 
     $effect(() => {
-        const ta = new TeachingAgent($danceTree, $dance, data.databackend, {
-            initialPracticePlan: data.initialPracticePlan,
-            initialProgress: data.initialPracticePlanProgress
+        // make this responsive to changes in data
+        console.debug('+layout.svelte: data changed, re-initializing teachingAgent');
+        const ta = new TeachingAgent({
+            motionVideo: $motionVideoReadOnly,
+            motionSegmentation: data.motionSegmentation,
+            dataBackend: data.databackend,
+            userLearningModel: data.userLearningModel,
         });
         teachingAgent.set(ta);
         progressUpdaterUnsubscribe();
