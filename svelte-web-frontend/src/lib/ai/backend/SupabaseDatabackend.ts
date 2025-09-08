@@ -6,7 +6,7 @@ import type { Database, Json } from "$lib/ai/backend/SupabaseTypes";
 import { getContext } from "svelte";
 import { get } from "svelte/store";
 import type { PracticePlan } from "$lib/model/PracticePlan";
-import type { DanceTree } from "$lib/data/dances-store";
+import type { MotionSegmentation } from "$lib/data/dances-store";
 
 class SupabaseDataBackend implements IDataBackend {
     
@@ -47,7 +47,7 @@ class SupabaseDataBackend implements IDataBackend {
         // map data to replace 'data' field with 'segmentation' field
         const modifiedData = data.map(item => {
             const { data, ...rest } = item;
-            return { ...rest, segmentation: data as DanceTree };
+            return { ...rest, segmentation: data as MotionSegmentation };
         });
         return modifiedData;
     }
@@ -63,7 +63,7 @@ class SupabaseDataBackend implements IDataBackend {
         }
         if (!data) return null;
         const { data: rawSegmentation, ...rest } = data;
-        return { ...rest, segmentation: rawSegmentation as DanceTree };
+        return { ...rest, segmentation: rawSegmentation as MotionSegmentation };
     }
 
     async createUserLearningModel(data: Omit<UserLearningModel, "id"> & { segmentation_id: number; }): Promise<UserLearningModel> {

@@ -14,7 +14,7 @@ import { getAllLeafNodes, getAllNodesInSubtree } from '$lib/data/dances-store';
 import { pauseInPracticePage, debugPauseDurationSecs, debugMode } from '$lib/model/settings';
 import { GetPixelLandmarksFromNormalizedLandmarks, type Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 import type PracticeStep from "$lib/model/PracticeStep";
-import { getDanceMotionVideoSrc, load2DPoseInformation, type PoseReferenceData, load3DPoseInformation, type DanceTreeNode } from "$lib/data/dances-store";
+import { getDanceMotionVideoSrc, load2DPoseInformation, type PoseReferenceData, load3DPoseInformation, type MotionSegmentationNode } from "$lib/data/dances-store";
 import { generateFeedbackNoPerformance } from '$lib/ai/feedback';
 import { Draw2dSkeleton } from '$lib/ai/SkeletonFeedbackVisualization'
 import VirtualMirror from "$lib/elements/VirtualMirror.svelte";
@@ -126,12 +126,12 @@ let poseEstimationEnabled: boolean = $derived(
 );
 
 let containingSegmentationTreeLeafNodes = $derived.by(() => {
-    if (practiceStep?.danceTreeNode && $evaluation_summarizeSubsections == "leafnodes") {
-        return getAllLeafNodes(practiceStep.danceTreeNode).filter((node) => node.id !== practiceStep?.danceTreeNode?.id);
-    } else if (practiceStep?.danceTreeNode && $evaluation_summarizeSubsections == "allnodes") {
-        return getAllNodesInSubtree(practiceStep.danceTreeNode).filter((node) => node.id !== practiceStep?.danceTreeNode?.id);
+    if (practiceStep?.motionSegmentationNode && $evaluation_summarizeSubsections == "leafnodes") {
+        return getAllLeafNodes(practiceStep.motionSegmentationNode).filter((node) => node.id !== practiceStep?.motionSegmentationNode?.id);
+    } else if (practiceStep?.motionSegmentationNode && $evaluation_summarizeSubsections == "allnodes") {
+        return getAllNodesInSubtree(practiceStep.motionSegmentationNode).filter((node) => node.id !== practiceStep?.motionSegmentationNode?.id);
     }
-    return [] as DanceTreeNode[]
+    return [] as MotionSegmentationNode[]
 });
 
 let beatDuration = $derived.by(() => {
@@ -178,7 +178,7 @@ let webcamRecordedObjectURL: Promise<string> | null = null;
 
 let lastNAttemptsAngleSimilarity = $derived(
     frontendPerformanceHistory.lastNAttempts(
-        practiceStep?.dance?.clipRelativeStem ?? 'undefined',
+        practiceStep?.motionVideo?.id ?? -1,
         'skeleton3DAngleSimilarity',
         20,
     )
@@ -225,7 +225,7 @@ async function getFeedback(perfSummary: FrontendPerformanceSummary | null, recor
     if (!practiceStep?.feedbackFunction) {
         feedback = generateFeedbackNoPerformance(
             $frontendPerformanceHistory,
-            practiceStep?.danceTreeNode?.id ?? '',
+            practiceStep?.motionSegmentationNode?.id ?? '',
         );
     } else {
         feedback = await practiceStep.feedbackFunction({
@@ -578,11 +578,11 @@ function poseEstimationFrameReceived(detail: PoseEstimationResultDetail) {
         evaluation3DPose = MirrorXPose(user3DPose);
     }
     if (!evaluation2DPose) { return; }
-    const motionIdentifier = motionVideo.id + "-" + motionVideo.display_name;
+
     try {
         lastEvaluationResult = evaluator?.evaluateFrame(
             trialId,
-            motionIdentifier,
+            motionVideo.id,
             practiceStep?.segmentDescription ?? 'undefined',
             videoTimeSecs,
             actualTimeInMs,
@@ -744,7 +744,7 @@ $effect(() => {
 </script>
 
 <section class="practicePage" 
-    class:hasDanceTree={practiceStep?.danceTree}
+    class:hasDanceTree={practiceStep?.motionSegmentation}
     class:hasProgressBar={hasProgressBar}
     class:hasFeedback={isShowingFeedback}
     class:isPracticing={!isShowingFeedback}

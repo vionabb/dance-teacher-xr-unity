@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Dance, PoseReferenceData } from "$lib/data/dances-store";
+import type { PoseReferenceData } from "$lib/data/dances-store";
 import { createEventDispatcher, onMount } from "svelte";
 import { type Pose2DPixelLandmarks, GetNormalizedLandmarksFromPixelLandmarks } from "$lib/webcam/mediapipe-utils";
 import type { DrawingUtils, PoseLandmarker, NormalizedLandmark } from "@mediapipe/tasks-vision";
@@ -37,7 +37,6 @@ $: if (videoWidth > 0 && videoHeight > 0) {
 export let duration = 0;
 export let ended: boolean = false;
 
-export let dance: Dance | null = null;
 export let poseData: PoseReferenceData<Pose2DPixelLandmarks> | null = null;
 export let drawSkeleton: boolean = true;
 
@@ -216,7 +215,7 @@ function onSkipBackClicked() {
         bind:ended
         bind:readyState
         bind:seekable
-        src={src}
+        src={src as string}
         class:flipped={flipHorizontal}
         class="bg-base-200 rounded"
         preload={preload}

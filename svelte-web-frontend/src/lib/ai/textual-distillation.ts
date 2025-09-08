@@ -1,4 +1,4 @@
-import type { DanceTree, DanceTreeNode } from "$lib/data/dances-store";
+import type { MotionSegmentation, MotionSegmentationNode } from "$lib/data/dances-store";
 import type { DanceSegmentation, PracticePlan } from "$lib/model/PracticePlan";
 import type PracticeStep from "$lib/model/PracticeStep";
 import { GetArithmeticMean } from "./EvaluationCommonUtils";
@@ -157,11 +157,11 @@ export function distillFrontendPerformanceSummaryToTextualRepresentation(summary
  * @param danceTree The dance tree structure
  * @returns A condensed representation of the dance tree structure, highlighting only the most important things
  */
-export function distillDanceTreeStructureToTextualRepresentation(danceTree: DanceTree) {    
+export function distillDanceTreeStructureToTextualRepresentation(danceTree: MotionSegmentation) {    
     return distillDanceSubTree(danceTree.root)
 }
 
-function distillDanceSubTree(danceNode: DanceTreeNode, depth = 0) {
+function distillDanceSubTree(danceNode: MotionSegmentationNode, depth = 0) {
     const nodeDuration = danceNode.end_time - danceNode.start_time;
     const nodeNoun = depth === 0 ? "The dance" : `The ${'sub'.repeat(depth-1)}section`;
     const indentation = "  ".repeat(depth);
@@ -172,7 +172,7 @@ function distillDanceSubTree(danceNode: DanceTreeNode, depth = 0) {
     }
     let description = `${indentation}${nodeNoun} "${danceNode.id}" is ${nodeDuration.toFixed(2)}s long, has a complexity of ${danceNode.complexity.toFixed(2)}, and has ${danceNode.children.length} subsections${subsectionList}\n`;
     danceNode.children.forEach((child) => {
-        description += distillDanceSubTree(child as DanceTreeNode, depth + 1);
+        description += distillDanceSubTree(child as MotionSegmentationNode, depth + 1);
     });
     return description;
 }

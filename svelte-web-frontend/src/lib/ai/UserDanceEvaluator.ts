@@ -41,7 +41,7 @@ export default class UserDanceEvaluator<
      */
     evaluateFrame(
         trialId: string | null, 
-        motionIdentifier: string, 
+        motionId: number, 
         segmentDescription: string, 
         videoTimeSecs: number, 
         actualTimeMs: number, 
@@ -56,7 +56,7 @@ export default class UserDanceEvaluator<
         }
         
         if (!disableRecording && trialId !== null && !this.trackRecorder.tracks.has(trialId)) {
-            this.trackRecorder.startNewTrack(trialId, motionIdentifier, segmentDescription);
+            this.trackRecorder.startNewTrack(trialId, motionId, segmentDescription);
         }
         
         const track = trialId !== null ? this.trackRecorder.tracks.get(trialId) : null;
@@ -201,7 +201,7 @@ export default class UserDanceEvaluator<
             if (this.performanceHistoryStore) {
                 const formattedSummary = metric.formatSummary(metricSummary as any);
                 this.performanceHistoryStore.recordPerformance(
-                    track.danceRelativeStem,
+                    track.motionId,
                     sectionName,
                     liveMetricKey,
                     formattedSummary as any,
@@ -242,7 +242,7 @@ export default class UserDanceEvaluator<
                 if (this.performanceHistoryStore) {
                     const formattedSummary = metric.formatSummary(metricSummary as any);
                     this.performanceHistoryStore.recordPerformance(
-                        track.danceRelativeStem,
+                        track.motionId,
                         sectionName,
                         summaryMetricKey,
                         formattedSummary as any,

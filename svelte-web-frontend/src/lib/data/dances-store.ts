@@ -3,18 +3,33 @@ import Papa, { type ParseResult } from 'papaparse';
 import { PoseLandmarkKeysUpperSnakeCase, type Pose2DPixelLandmarks, type Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 
 // import json data
-import dancesData from '$lib/data/bundle/dances.json';
 import danceTreeData from '$lib/data/bundle/dancetrees.json';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { browser } from '$app/environment';
 import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
 
 // export type Dance = typeof dancesData[number];
-export type DanceTreeDict = typeof danceTreeData;
+// export type DanceTreeDict = typeof danceTreeData;
 export type ValueOf<T> = T[keyof T];
-export type DanceTrees = ValueOf<DanceTreeDict>;
-export type DanceTree = DanceTrees[number];
-export type DanceTreeNode = DanceTree["root"];
+// export type DanceTrees = ValueOf<DanceTreeDict>;
+// export type DanceTree = DanceTrees[number];
+
+export type MotionSegmentationNode = {
+    id: string;
+    start_time: number;
+    end_time: number;
+    alternate_ids: string[];
+    children: MotionSegmentationNode[];
+    metrics: Record<string, number>;
+    events: Record<string, Record<string, any>[]>;
+    complexity: number;
+}
+
+export type MotionSegmentation = {
+    tree_name: string;
+    generation_data: Record<string, unknown>;
+    root: MotionSegmentationNode;
+}
 
 // readable(
 //     dancesData,
@@ -43,14 +58,14 @@ export const danceTrees = danceTreeData;
 //     'longer/texas-hold-em',
 // ];
 
-export function findDanceTreeSubNode(node: DanceTreeNode, subNodeId: string | undefined): DanceTreeNode | null {
+export function findDanceTreeSubNode(node: MotionSegmentationNode, subNodeId: string | undefined): MotionSegmentationNode | null {
     if (!subNodeId) return null;
     
     for (const child of node.children) {
         if (child.id === subNodeId) {
-            return child as unknown as DanceTreeNode;
+            return child as unknown as MotionSegmentationNode;
         }
-        const foundNode = findDanceTreeSubNode(child as unknown as DanceTreeNode, subNodeId);
+        const foundNode = findDanceTreeSubNode(child as unknown as MotionSegmentationNode, subNodeId);
         if (foundNode) {
             return foundNode;
         }
@@ -58,36 +73,36 @@ export function findDanceTreeSubNode(node: DanceTreeNode, subNodeId: string | un
     return null;
 }
 
-export function findDanceTreeNode(danceTree: DanceTree, nodeId: string): DanceTreeNode | null {
+export function findDanceTreeNode(danceTree: MotionSegmentation, nodeId: string): MotionSegmentationNode | null {
     if (danceTree.root.id === nodeId) {
         return danceTree.root;
     }
     return findDanceTreeSubNode(danceTree.root, nodeId);
 }
 
-export function getAllNodesInSubtree(node: DanceTreeNode): DanceTreeNode[] {
+export function getAllNodesInSubtree(node: MotionSegmentationNode): MotionSegmentationNode[] {
     return [
         node,
-        ...node.children.flatMap((child) => getAllNodesInSubtree(child as unknown as DanceTreeNode))
+        ...node.children.flatMap((child) => getAllNodesInSubtree(child as unknown as MotionSegmentationNode))
     ];   
 }
 
-export type NodeBooleanFunction = (node: DanceTreeNode) => boolean;
+export type NodeBooleanFunction = (node: MotionSegmentationNode) => boolean;
 
-export function getAllLeafNodes(node: DanceTreeNode, considerLeafCallback?: NodeBooleanFunction): DanceTreeNode[] {
+export function getAllLeafNodes(node: MotionSegmentationNode, considerLeafCallback?: NodeBooleanFunction): MotionSegmentationNode[] {
     if (node.children.length === 0 || (considerLeafCallback && considerLeafCallback(node))) {
         return [node];
     }
 
     return [
-        ...node.children.flatMap((child) => getAllLeafNodes(child as unknown as DanceTreeNode, considerLeafCallback))
+        ...node.children.flatMap((child) => getAllLeafNodes(child as unknown as MotionSegmentationNode, considerLeafCallback))
     ];   
 }
 
-export function getAllNodes(node: DanceTreeNode): DanceTreeNode[] {
+export function getAllNodes(node: MotionSegmentationNode): MotionSegmentationNode[] {
     return [
         node,
-        ...node.children.flatMap((child) => getAllNodes(child as unknown as DanceTreeNode))
+        ...node.children.flatMap((child) => getAllNodes(child as unknown as MotionSegmentationNode))
     ];   
 }
 

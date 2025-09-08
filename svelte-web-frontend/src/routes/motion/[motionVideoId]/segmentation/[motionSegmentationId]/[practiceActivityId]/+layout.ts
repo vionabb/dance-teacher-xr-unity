@@ -1,11 +1,8 @@
 import { error } from '@sveltejs/kit';
 
-import type { PracticePlan } from '$lib/model/PracticePlan';
-
 /** @type {import('./$types').PageLoad} */
 export async function load({ params, parent })  {
 
-    
     const { userLearningModel } = await parent();
 
     console.log("Layout load: userLearningModel:", userLearningModel);
@@ -17,11 +14,7 @@ export async function load({ params, parent })  {
     }
     
     return {
-        // dance: dance,
-        // danceTree,
-        // practicePlan,
         practiceActivity: matchingActivity,
-        // preselectedNodeId: preselectedNodeId,
     }
 }
 

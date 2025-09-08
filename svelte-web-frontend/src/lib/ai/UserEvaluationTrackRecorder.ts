@@ -61,7 +61,7 @@ export class PerformanceEvaluationTrack<T extends Record<string, unknown>> {
     
     constructor(
         public id: string, 
-        public danceRelativeStem: string, 
+        public motionId: number, 
         public segmentDescription: string,
         public creationDate = new Date(),
         public videoFrameTimesInSecs: number[] = [],
@@ -151,7 +151,7 @@ export class PerformanceEvaluationTrack<T extends Record<string, unknown>> {
         return {
             track: new PerformanceEvaluationTrack<T>(
                 this.id,
-                this.danceRelativeStem,
+                this.motionId,
                 this.segmentDescription,
                 this.creationDate,
                 adjustedVideoFrameTimesInSecs,
@@ -170,7 +170,7 @@ export class PerformanceEvaluationTrack<T extends Record<string, unknown>> {
     asDictWithoutTimeSeriesResults(): Record<string, unknown> {
         return {
             id: this.id,
-            danceRelativeStem: this.danceRelativeStem,
+            motionId: this.motionId,
             segmentDescription: this.segmentDescription,
             creationDate: this.creationDate,
             videoFrameTimesInSecs: this.videoFrameTimesInSecs,
@@ -208,7 +208,7 @@ export class PerformanceEvaluationTrack<T extends Record<string, unknown>> {
 
         return new PerformanceEvaluationTrack(
             this.id,
-            this.danceRelativeStem,
+            this.motionId,
             this.segmentDescription,
             this.creationDate,
             this.videoFrameTimesInSecs.slice(frameStart, frameEnd),
@@ -231,12 +231,12 @@ export class UserEvaluationTrackRecorder<LiveMetricResultsType extends Record<st
 
     public tracks: Map<string, PerformanceEvaluationTrack<LiveMetricResultsType>> = new Map();
 
-    startNewTrack(id: string, danceRelativeStem: string, segmentDescription: string) {
+    startNewTrack(id: string, motionId: number, segmentDescription: string) {
         if (this.tracks.has(id)) {
             throw new Error(`Track with ID ${id} already exists.`)
         }
 
-        const newTrack = new PerformanceEvaluationTrack<LiveMetricResultsType>(id, danceRelativeStem, segmentDescription);
+        const newTrack = new PerformanceEvaluationTrack<LiveMetricResultsType>(id, motionId, segmentDescription);
         this.tracks.set(id, newTrack);
     }
 

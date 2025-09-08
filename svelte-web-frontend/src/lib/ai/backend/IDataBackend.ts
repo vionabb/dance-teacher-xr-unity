@@ -1,7 +1,7 @@
 import type { PracticePlanProgress, StepProgressData } from "$lib/data/activity-progress";
 import type { PracticePlan } from "$lib/model/PracticePlan";
 import type { Database } from '$lib/ai/backend/SupabaseTypes';
-import type { DanceTree } from "$lib/data/dances-store";
+import type { MotionSegmentation } from "$lib/data/dances-store";
 /**
  * UserProgressModel represents a record of user progress for a specific video.
  * It stores both the practice plan and the associated progress.
@@ -10,7 +10,7 @@ import type { DanceTree } from "$lib/data/dances-store";
 export type MotionVideo = Database['public']['Tables']['motion_video']['Row'];
 export type MotionVideoSegmentationDb = Database['public']['Tables']['motion_video_segmentation']['Row'];
 export type MotionVideoSegmentation = Omit<MotionVideoSegmentationDb, 'data'> & {
-    segmentation: DanceTree,
+    segmentation: MotionSegmentation,
 };
 export type UserLearningModelDb = Database['public']['Tables']['user_learning_model']['Row'];
 export type UserLearningModel = Omit<UserLearningModelDb, 'plan' | 'progress'> & {

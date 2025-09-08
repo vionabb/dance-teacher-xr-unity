@@ -1,13 +1,14 @@
 <!-- @migration-task Error while migrating Svelte code: This migration would change the name of a slot making the component unusable -->
 <script lang="ts">
 import type { Snippet } from 'svelte';
-import type { Dance, PoseReferenceData } from "$lib/data/dances-store";
+import type { PoseReferenceData } from "$lib/data/dances-store";
 import { createEventDispatcher, onMount } from "svelte";
 import { type Pose2DPixelLandmarks, GetNormalizedLandmarksFromPixelLandmarks } from "$lib/webcam/mediapipe-utils";
 import type { DrawingUtils, PoseLandmarker, NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { getContentSize } from "$lib/utils/resizing";
 import SegmentedProgressBar, { type SegmentedProgressBarProps, type SegmentedProgressBarPropsWithoutCurrentTime } from "./SegmentedProgressBar.svelte";
 import Icon from '@iconify/svelte';
+import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
 
 const dispatch = createEventDispatcher();
 
@@ -45,7 +46,7 @@ type drawVideoFn = (canvas: HTMLCanvasElement, video: HTMLVideoElement) => void;
         src?: string | MediaStream | MediaSource | Blob | undefined;
         duration?: number;
         ended?: boolean;
-        dance?: Dance | null;
+        dance?: MotionVideo | null;
         poseData?: PoseReferenceData<Pose2DPixelLandmarks> | null;
         drawSkeleton?: boolean;
         controls?: ControlOptions | boolean;
@@ -69,8 +70,6 @@ type drawVideoFn = (canvas: HTMLCanvasElement, video: HTMLVideoElement) => void;
         src = undefined,
         duration = $bindable(0),
         ended = $bindable(false),
-        poseData = null,
-        drawSkeleton = true,
         controls = false,
         drawOnVideo = () => {}
     }: Props = $props();
@@ -145,7 +144,7 @@ export function drawCanvas() {
 onMount(() => {
     // requestedAnimationFrameId = requestAnimationFrame(drawCanvas);
 
-    const resizeObserver = new ResizeObserver(entries => {
+    const resizeObserver = new ResizeObserver(() => {
         if (!videoElement) return;
         const [width, height] = getContentSize(videoElement)
         videoElementWidth = width;
@@ -237,8 +236,7 @@ $effect(() => {
     </div>
     <div class="absolute inset-0 control-container p-2 gap-4">
         <span class="hidden">
-            {#each seekable ?? [] as seekableRange, i}
-                <span>{seekableRange.start}-{seekableRange.end}</span>&nbsp;
+            {#each seekable ?? []                <span>{seekableRange.start}-{seekableRange.end}</span>&nbsp;
             {/each}
         </span>
         {#if effectiveControls.showProgressBar}

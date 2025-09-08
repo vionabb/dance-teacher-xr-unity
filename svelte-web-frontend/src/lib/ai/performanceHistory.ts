@@ -16,7 +16,7 @@ export type DancePerformanceHistory<MetricTypes extends Record<string, BaseMetri
 }
 
 export type CompletePerformanceHistory<MetricTypes extends Record<string, BaseMetric<any, any>>> = {
-    [danceRelativeStem: string]: DancePerformanceHistory<MetricTypes>
+    [motionId: number]: DancePerformanceHistory<MetricTypes>
 }
 
 function loadPerformanceHistoryFromLocalstorage<MetricTypes extends Record<string, BaseMetric<any, any>>>() {
@@ -28,10 +28,13 @@ function loadPerformanceHistoryFromLocalstorage<MetricTypes extends Record<strin
     if (history) {
         const data = JSON.parse(history) as CompletePerformanceHistory<MetricTypes>;
         // now, un-serialize the dates
-        for (const danceRelativeStem of Object.keys(data)) {
-            for (const segmentId of Object.keys(data[danceRelativeStem])) {
-                for (const metricName of Object.keys(data[danceRelativeStem][segmentId])) {
-                    for (const attempt of data?.[danceRelativeStem]?.[segmentId]?.[metricName] ?? []) {
+        for (const motionIdString of Object.keys(data)) {
+            const motionId = parseInt(motionIdString);
+            if (isNaN(motionId)) continue;
+
+            for (const segmentId of Object.keys(data[motionId])) {
+                for (const metricName of Object.keys(data[motionId][segmentId])) {
+                    for (const attempt of data?.[motionId]?.[segmentId]?.[metricName] ?? []) {
                         attempt.date = new Date(attempt.date);
                     }
                 }
@@ -51,7 +54,7 @@ export function createPerformanceHistoryStore<MetricTypes extends Record<string,
 	return {
 		subscribe,
         recordPerformance<MetricKey extends keyof MetricTypes, SummaryFormat extends ReturnType<MetricTypes[MetricKey]["formatSummary"]>>(
-            danceRelativeStem: string, 
+            motionVideoId: number, 
             segment: string, 
             metricName: MetricKey, 
             performance: Partial<SummaryFormat>,
@@ -60,11 +63,11 @@ export function createPerformanceHistoryStore<MetricTypes extends Record<string,
 
 
             update((history) => {
-                history[danceRelativeStem] = history[danceRelativeStem] ?? {};
-                history[danceRelativeStem][segment] = history[danceRelativeStem][segment] ?? {};
-                history[danceRelativeStem][segment][metricName] = history[danceRelativeStem][segment][metricName] ?? [];
+                history[motionVideoId] = history[motionVideoId] ?? {};
+                history[motionVideoId][segment] = history[motionVideoId][segment] ?? {};
+                history[motionVideoId][segment][metricName] = history[motionVideoId][segment][metricName] ?? [];
     
-                history[danceRelativeStem][segment][metricName]?.push({
+                history[motionVideoId][segment][metricName]?.push({
                     date: new Date(),
                     partOfLargerPerformance,
                     summary: performance,
@@ -78,15 +81,15 @@ export function createPerformanceHistoryStore<MetricTypes extends Record<string,
 
 
         },
-        getDanceSegmentPerformanceHistory<T extends keyof MetricTypes>(danceRelativeStem: string, metricName: T, segment: string) {
+        getDanceSegmentPerformanceHistory<T extends keyof MetricTypes>(motionId: number, metricName: T, segment: string) {
             return derived(this, ($history) => {
-                return $history?.[danceRelativeStem]?.[segment]?.[metricName] ?? [];
+                return $history?.[motionId]?.[segment]?.[metricName] ?? [];
             });
         },
-        lastNAttemptsAllSegments<T extends keyof MetricTypes>(danceRelativeStem: string, metricName: T, n?: number) {
+        lastNAttemptsAllSegments<T extends keyof MetricTypes>(motionId: number, metricName: T, n?: number) {
             return derived(this, ($history) => {
-                if (!$history?.[danceRelativeStem]) return [];
-                const danceHistory = $history[danceRelativeStem] ?? {};
+                if (!$history?.[motionId]) return [];
+                const danceHistory = $history[motionId] ?? {};
                 const allSegments = Object.keys(danceHistory) as string[];
                 let attempts: Array<{
                     date: Date,
@@ -113,11 +116,11 @@ export function createPerformanceHistoryStore<MetricTypes extends Record<string,
                 return attempts;
             });
         },
-        lastNAttempts<T extends keyof MetricTypes>(danceRelativeStem: string, metricName: T, n?: number) {
+        lastNAttempts<T extends keyof MetricTypes>(motionId: number, metricName: T, n?: number) {
             return derived(this, ($history) => {
                 if (!$history) return [];
-                const danceHistory = $history[danceRelativeStem] ?? {};
-                const allSegments = Object.keys(danceHistory) as string[];
+                const motionHistory = $history[motionId] ?? {};
+                const allSegments = Object.keys(motionHistory) as string[];
                 // let attempts: DanceSegmentPerformanceHistory<MetricTypes>[T] = []
                 // for (const segment of allSegments) {
                 //     const segmentAttempts = danceHistory[segment]?.[metricName] ?? [];
@@ -126,7 +129,7 @@ export function createPerformanceHistoryStore<MetricTypes extends Record<string,
                 // }
                 const attempts = allSegments.flatMap((segment) => {
                 
-                    const segmentAttempts = danceHistory[segment]?.[metricName] ?? [];
+                    const segmentAttempts = motionHistory[segment]?.[metricName] ?? [];
                     const attemptsNotPartOfLargerPerformance = segmentAttempts.filter((attempt) => !(attempt.partOfLargerPerformance ?? true));
                     const attemptsNotPartOfLargerPerformanceWithSegment = attemptsNotPartOfLargerPerformance.map((attempt) => ({
                         ...attempt,

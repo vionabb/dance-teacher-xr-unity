@@ -1,5 +1,6 @@
+import type { MotionVideo } from "$lib/ai/backend/IDataBackend";
 import type { FrontendEvaluationTrack, FrontendPerformanceSummary } from "$lib/ai/FrontendDanceEvaluator";
-import type { Dance, DanceTree, DanceTreeNode } from "$lib/data/dances-store";
+import type { MotionSegmentation , MotionSegmentationNode } from "$lib/data/dances-store";
 import type { PracticePlan } from "./PracticePlan";
 import type { TerminalFeedback } from "./TerminalFeedback";
 
@@ -104,9 +105,9 @@ export default interface PracticeStep {
 
     parentActivityId?: string;
 
-    dance?: Dance;
-    danceTree?: DanceTree;
-    danceTreeNode?: DanceTreeNode;
+    motionVideo?: MotionVideo;
+    motionSegmentation?: MotionSegmentation;
+    motionSegmentationNode?: MotionSegmentationNode;
 
     speedAdjustment?: {
         enabled: boolean;

@@ -1,4 +1,4 @@
-import { type DanceTree, type DanceTreeNode, getAllLeafNodes } from '../../data/dances-store'
+import { type MotionSegmentation, type MotionSegmentationNode, getAllLeafNodes } from '../../data/dances-store'
 import type PracticeStep from '$lib/model/PracticeStep';
 import type { PracticeStepModeKey } from '$lib/model/PracticeStep';
 import type { CheckpointActivity, DrillActivity, FinaleActivity, PracticePlan, PracticePlanActivity, SegmentActivity } from '$lib/model/PracticePlan';
@@ -37,7 +37,7 @@ function GenerateMarkDrillFulloutSteps(
 }
 
 function GenerateStepsForSegment(
-    node: DanceTreeNode,
+    node: MotionSegmentationNode,
     parentActivityId: string,
 ) {
 
@@ -107,7 +107,7 @@ function makeFinaleActivity(startTime: number, endTime: number): FinaleActivity 
 }
 
 function GeneratePracticePlan(
-    danceTree: DanceTree,
+    danceTree: MotionSegmentation,
 ): PracticePlan {
 
     const CHECKPOINT_SEGMENT_COUNT = 3;

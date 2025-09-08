@@ -3,7 +3,6 @@
 	import TeachingAgent from "$lib/ai/TeachingAgent/TeachingAgent";
 	import { getContext, onDestroy, setContext } from "svelte";
 	import { derived, get, readonly, writable, type Readable, type Writable } from "svelte/store";
-	import type { DanceTree } from '$lib/data/dances-store';
 	import type { PracticePlan } from '$lib/model/PracticePlan';
 	import type { PracticePlanProgress } from "$lib/data/activity-progress";
 	import type { MotionVideo, MotionVideoSegmentation } from "$lib/ai/backend/IDataBackend.js";

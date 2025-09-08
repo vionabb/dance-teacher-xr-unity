@@ -2,7 +2,7 @@
  * @file Takes raw evaluation data and creates feedback for the user's consumption
  */
 
-import type { DanceTree } from "$lib/data/dances-store";
+import type { MotionSegmentation } from "$lib/data/dances-store";
 import { TerminalFeedbackBodyParts, type TerminalFeedbackAction, type TerminalFeedbackBodyPart, type TerminalFeedback } from "$lib/model/TerminalFeedback";
 import { evaluation_GoodBadTrialThreshold } from "$lib/model/settings";
 import { ComparisonVectorToTerminalFeedbackBodyPartMap, QijiaMethodComparisionVectorNamesToIndexMap } from "./EvaluationCommonUtils";
@@ -142,7 +142,7 @@ export function generateFeedbackRuleBased(
  * @returns Terminal feedback information that can be displayed to the user
  */
 export async function generateFeedbackWithClaudeLLM(
-    danceTree: DanceTree | undefined,
+    danceTree: MotionSegmentation | undefined,
     currentSectionName: string,
     performance: FrontendPerformanceSummary | undefined,
     dancePerformanceHistory: FrontendDancePeformanceHistory | undefined,
