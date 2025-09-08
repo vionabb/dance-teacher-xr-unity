@@ -236,7 +236,8 @@ $effect(() => {
     </div>
     <div class="absolute inset-0 control-container p-2 gap-4">
         <span class="hidden">
-            {#each seekable ?? []                <span>{seekableRange.start}-{seekableRange.end}</span>&nbsp;
+            {#each seekable ?? [] as seekableRange}
+                <span>{seekableRange.start}-{seekableRange.end}</span>&nbsp;
             {/each}
         </span>
         {#if effectiveControls.showProgressBar}
