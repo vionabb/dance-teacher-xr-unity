@@ -111,20 +111,13 @@ class SupabaseDataBackend implements IDataBackend {
         const updateData: { [key: string]: any } = { ...data };
         if (data.plan !== undefined) {
             updateData.plan = data.plan as unknown as Json;
-        } else {
-            throw new Error("plan must be provided to update UserLearningModel");
         }
         if (data.progress !== undefined) {
             updateData.progress = data.progress as unknown as Json;
-        } else {
-            throw new Error("progress must be provided to update UserLearningModel");
         }
 
         // drop user_id if present to avoid accidental changes
         delete updateData.user_id;
-        if (updateData.segmentation_id === undefined) {
-            throw new Error("segmentation_id must be provided to update UserLearningModel");
-        }
 
         const { error } = await this.supabase
             .from("user_learning_model")

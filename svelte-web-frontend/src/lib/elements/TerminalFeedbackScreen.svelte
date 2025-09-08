@@ -119,7 +119,7 @@ import StarIcon from 'virtual:icons/mdi/star';
     {#if feedback?.paragraphs}
     <div class="paragraphs">
         <SpeechInterface textToSpeak={[
-            ...feedback.paragraphs.map(x => x?.trim()),
+            ...(feedback?.paragraphs ?? []).map(x => x?.trim()),
             ...(feedback.incorrectBodyPartsToHighlight ?? []).map(x => `Try focusing on your ${x} next time.`)
         ].join("\n\n")}/>
     </div>

@@ -339,33 +339,38 @@ async function startCountdown() {
         return;
     }
 
-    clickAudioElement.volume = 1;
-    await tick();
-    await waitSecs(beatDuration);
+    try {
+        clickAudioElement.volume = 1;
+        await tick();
+        await waitSecs(beatDuration);
 
-    pageState= "countdown";
-    countdownActive = true;
-    await waitSecs(beatDuration);
+        pageState= "countdown";
+        countdownActive = true;
+        await waitSecs(beatDuration);
 
-    countdown = 5;
-    playClickSound();
-    await waitSecs(beatDuration);
-    if (!isMounted) return
+        countdown = 5;
+        playClickSound();
+        await waitSecs(beatDuration);
+        if (!isMounted) return
 
-    countdown = 6;
-    playClickSound();
-    await waitSecs(beatDuration);
-    if (!isMounted) return
+        countdown = 6;
+        playClickSound();
+        await waitSecs(beatDuration);
+        if (!isMounted) return
 
-    countdown = 7;
-    playClickSound();
-    await waitSecs(beatDuration);
-    if (!isMounted) return
+        countdown = 7;
+        playClickSound();
+        await waitSecs(beatDuration);
+        if (!isMounted) return
 
-    countdown = 8;
-    playClickSound();
-    await waitSecs(beatDuration);
-    if (!isMounted) return
+        countdown = 8;
+        playClickSound();
+        await waitSecs(beatDuration);
+        if (!isMounted) return
+    } catch(e) {
+        console.warn("Error during countdown", e);
+        return;
+    }
 
     trialId = generateUUIDv4();
     pageState= "playing";
@@ -609,7 +614,9 @@ onMount(() => {
     clickAudioElement = new Audio(metronomeClickSoundSrc);
     videoCurrentTime = practiceStep?.startTime ?? 0;
     poseEstimationReady = Promise.resolve(); //virtualMirrorElement?.setupPoseEstimation() ?? Promise.reject("Virtual mirror is undefined or setupPoseEstimation returned a null promise");
-    reset();
+    reset().catch(e => {
+        console.warn("Error resetting practice step (from onMount)", e);
+    });
     isMounted = true;
 
     // Subscribe to poseEstimationService event
@@ -635,7 +642,9 @@ onMount(() => {
 })
 
 function onContinueClicked() {
-    reset(false);
+    reset(false).catch(e => {
+        console.warn("Error resetting practice step (from onContinueClicked)", e);
+    });
     dispatch('nextClicked');
 }
 
@@ -687,7 +696,13 @@ $effect(() => {
                     terminalFeedback = feedback ?? null;
                     feedbackDialogOpen = true;
                     performanceSummary = performanceSummary;
-                });
+                })
+                .catch(e => {
+                    if (e.name =="CancelledError") {
+                        return;
+                    }
+                    throw e;
+                })
         }
         else {
             console.log("Reached a pause point in the middle of the practice activity");
