@@ -5,7 +5,11 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'path';
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 import type { ValueOf } from '$lib/data/dances-store';
-import { dances, loadPoseInformation, GetPixelLandmarksFromPose2DRow, GetPixelLandmarksFromPose3DRow, type Dance } from '$lib/data/dances-store';
+import { loadPoseInformation, GetPixelLandmarksFromPose2DRow, GetPixelLandmarksFromPose3DRow } from '$lib/data/dances-store';
+
+import danceData from '$lib/data/bundle/dances.json';
+type Dance = typeof danceData[number];
+const dances = danceData;
 
 export const STUDY_1_SEGMENTED_POSES_FOLDER = "testResults/study1-pixelposes-segmented/";
 export const STUDY_1_WHOLE_POSES_FOLDER = "testResults/study1-pixelposes-whole/";

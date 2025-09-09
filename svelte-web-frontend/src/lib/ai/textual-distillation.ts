@@ -152,27 +152,27 @@ export function distillFrontendPerformanceSummaryToTextualRepresentation(summary
 }
 
 /**
- * Distills the dance tree structure to a condensed representation containing only the features
- * most pertinant to the AI coach (and to the user).
- * @param danceTree The dance tree structure
- * @returns A condensed representation of the dance tree structure, highlighting only the most important things
+ * Distills the motion segmentation structure to a condensed representation containing only the features
+ * most pertinent to the AI coach (and to the user).
+ * @param motionSegmentation The motion segmentation structure
+ * @returns A condensed representation of the motion segmentation structure, highlighting only the most important things
  */
-export function distillDanceTreeStructureToTextualRepresentation(danceTree: MotionSegmentation) {    
-    return distillDanceSubTree(danceTree.root)
+export function distillMotionSegmentationStructureToTextualRepresentation(motionSegmentation: MotionSegmentation) {
+    return distillMotionSegmentationSubTree(motionSegmentation.root)
 }
 
-function distillDanceSubTree(danceNode: MotionSegmentationNode, depth = 0) {
-    const nodeDuration = danceNode.end_time - danceNode.start_time;
-    const nodeNoun = depth === 0 ? "The dance" : `The ${'sub'.repeat(depth-1)}section`;
+function distillMotionSegmentationSubTree(motionNode: MotionSegmentationNode, depth = 0) {
+    const nodeDuration = motionNode.end_time - motionNode.start_time;
+    const nodeNoun = depth === 0 ? "The motion" : `The ${'sub'.repeat(depth-1)}section`;
     const indentation = "  ".repeat(depth);
     let subsectionList = "";
-    if (danceNode.children.length > 0) {
+    if (motionNode.children.length > 0) {
         subsectionList += ": ";
-        subsectionList += danceNode.children.slice(0, -1).map((child) => `"${child.id}"`).join(', ') + ", and " + `"${danceNode.children[danceNode.children.length-1].id}"`;
+        subsectionList += motionNode.children.slice(0, -1).map((child) => `"${child.id}"`).join(', ') + ", and " + `"${motionNode.children[motionNode.children.length-1].id}"`;
     }
-    let description = `${indentation}${nodeNoun} "${danceNode.id}" is ${nodeDuration.toFixed(2)}s long, has a complexity of ${danceNode.complexity.toFixed(2)}, and has ${danceNode.children.length} subsections${subsectionList}\n`;
-    danceNode.children.forEach((child) => {
-        description += distillDanceSubTree(child as MotionSegmentationNode, depth + 1);
+    let description = `${indentation}${nodeNoun} "${motionNode.id}" is ${nodeDuration.toFixed(2)}s long, has a complexity of ${motionNode.complexity.toFixed(2)}, and has ${motionNode.children.length} subsections${subsectionList}\n`;
+    motionNode.children.forEach((child) => {
+        description += distillMotionSegmentationSubTree(child as MotionSegmentationNode, depth + 1);
     });
     return description;
 }

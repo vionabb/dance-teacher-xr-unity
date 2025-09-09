@@ -3,7 +3,7 @@
 
     import VideoWithSkeleton from '$lib/elements/VideoWithSkeleton.svelte';
 	import LearningJourneyTrail from '$lib/elements/LearningJourneyTrailUI.svelte';
-	import { getDanceMotionVideoSrc } from "$lib/data/dances-store";
+	import { getMotionVideoSrc } from "$lib/data/dances-store";
     import type { SupabaseClient } from '@supabase/supabase-js';
 	import { getContext, onMount, tick } from 'svelte';
 	import { danceVideoVolume } from '$lib/model/settings';
@@ -23,7 +23,7 @@
     export let practicePlan: PracticePlan;
 
     let motionVideoSrc: string;
-    $: motionVideoSrc = getDanceMotionVideoSrc(supabase, motionVideo?.video_src) ?? "";
+    $: motionVideoSrc = getMotionVideoSrc(supabase, motionVideo?.video_src) ?? "";
 
     let videoElement: VideoWithSkeleton;
     let videoWidth: number;
@@ -136,7 +136,6 @@
         <div class="card p-0 video-wrapper">
             <VideoWithSkeleton 
                 bind:this={videoElement}
-                dance={motionVideo}
                 controls={{
                     showPlayPause: true,
                     showProgressBar: true,

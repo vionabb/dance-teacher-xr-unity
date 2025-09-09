@@ -7,7 +7,7 @@ import { TerminalFeedbackBodyParts, type TerminalFeedbackAction, type TerminalFe
 import { evaluation_GoodBadTrialThreshold } from "$lib/model/settings";
 import { ComparisonVectorToTerminalFeedbackBodyPartMap, QijiaMethodComparisionVectorNamesToIndexMap } from "./EvaluationCommonUtils";
 import type { FrontendPerformanceSummary } from "./FrontendDanceEvaluator";
-import { distillDanceTreeStructureToTextualRepresentation, distillFrontendPerformanceSummaryToTextualRepresentation, distillPerformanceHistoryToTextualRepresentation } from "./textual-distillation";
+import { distillMotionSegmentationStructureToTextualRepresentation, distillFrontendPerformanceSummaryToTextualRepresentation, distillPerformanceHistoryToTextualRepresentation } from "./textual-distillation";
 import { getRandomBadTrialHeadline, getRandomGoodTrialHeadline, getRandomNoFeedbackHeadline } from "./precomputed-feedback-msgs";
 import type { FrontendDancePeformanceHistory } from "./frontendPerformanceHistory";
 import detectAchievements from "./detectAchievements";
@@ -152,7 +152,7 @@ export async function generateFeedbackWithClaudeLLM(
     attemptHistory: { date: Date, score: number, segmentId: string }[],
 ): Promise<TerminalFeedback> {
 
-    const danceStructureDistillation = danceTree ? distillDanceTreeStructureToTextualRepresentation(danceTree): undefined;
+    const danceStructureDistillation = danceTree ? distillMotionSegmentationStructureToTextualRepresentation(danceTree): undefined;
     const danceStructureDistillationIsMissing = danceStructureDistillation === undefined;
     const performanceDistillation = performance ? distillFrontendPerformanceSummaryToTextualRepresentation(performance, mediumScoreThreshold, goodScoreThreshold, badJointSDThreshold) : undefined;
     const performanceDistillationIsMissing = performanceDistillation === undefined;

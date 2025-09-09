@@ -14,7 +14,7 @@ import { getAllLeafNodes, getAllNodesInSubtree } from '$lib/data/dances-store';
 import { pauseInPracticePage, debugPauseDurationSecs, debugMode } from '$lib/model/settings';
 import { GetPixelLandmarksFromNormalizedLandmarks, type Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 import type PracticeStep from "$lib/model/PracticeStep";
-import { getDanceMotionVideoSrc, load2DPoseInformation, type PoseReferenceData, load3DPoseInformation, type MotionSegmentationNode } from "$lib/data/dances-store";
+import { getMotionVideoSrc, load2DPoseInformation, type PoseReferenceData, load3DPoseInformation, type MotionSegmentationNode } from "$lib/data/dances-store";
 import { generateFeedbackNoPerformance } from '$lib/ai/feedback';
 import { Draw2dSkeleton } from '$lib/ai/SkeletonFeedbackVisualization'
 import VirtualMirror from "$lib/elements/VirtualMirror.svelte";
@@ -738,7 +738,7 @@ $effect(() => {
 });
 
 $effect(() => {
-    motionVideoSrc = getDanceMotionVideoSrc(supabase, motionVideo.video_src) ?? "";
+    motionVideoSrc = getMotionVideoSrc(supabase, motionVideo.video_src) ?? "";
 });
 
 </script>

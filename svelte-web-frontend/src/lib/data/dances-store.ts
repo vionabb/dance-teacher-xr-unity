@@ -2,17 +2,10 @@ import Papa, { type ParseResult } from 'papaparse';
 
 import { PoseLandmarkKeysUpperSnakeCase, type Pose2DPixelLandmarks, type Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 
-// import json data
-import danceTreeData from '$lib/data/bundle/dancetrees.json';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { browser } from '$app/environment';
 import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
 
-// export type Dance = typeof dancesData[number];
-// export type DanceTreeDict = typeof danceTreeData;
 export type ValueOf<T> = T[keyof T];
-// export type DanceTrees = ValueOf<DanceTreeDict>;
-// export type DanceTree = DanceTrees[number];
 
 export type MotionSegmentationNode = {
     id: string;
@@ -31,41 +24,14 @@ export type MotionSegmentation = {
     root: MotionSegmentationNode;
 }
 
-// readable(
-//     dancesData,
-//     function start(set) {
-//         return function stop(){
-//         }
-//     }
-// );
-
-export const danceTrees = danceTreeData;
-// readable(
-//     danceTreeData,
-//     function start(set) {
-//         return function stop(){
-//         }
-//     }
-// );
-
-// const USER_VISIBLE_DANCES: string[] = [
-//     'paper/attention',
-//     'paper/attention_zoom_out',
-//     'other/colddance',
-//     'other/renegade',
-//     'study2/last-christmas-tutorial',
-//     'study2/mad-at-disney-tutorial',
-//     'longer/texas-hold-em',
-// ];
-
-export function findDanceTreeSubNode(node: MotionSegmentationNode, subNodeId: string | undefined): MotionSegmentationNode | null {
+export function findSegmentationSubNode(node: MotionSegmentationNode, subNodeId: string | undefined): MotionSegmentationNode | null {
     if (!subNodeId) return null;
     
     for (const child of node.children) {
         if (child.id === subNodeId) {
             return child as unknown as MotionSegmentationNode;
         }
-        const foundNode = findDanceTreeSubNode(child as unknown as MotionSegmentationNode, subNodeId);
+        const foundNode = findSegmentationSubNode(child as unknown as MotionSegmentationNode, subNodeId);
         if (foundNode) {
             return foundNode;
         }
@@ -73,11 +39,11 @@ export function findDanceTreeSubNode(node: MotionSegmentationNode, subNodeId: st
     return null;
 }
 
-export function findDanceTreeNode(danceTree: MotionSegmentation, nodeId: string): MotionSegmentationNode | null {
+export function findSegmentationNode(danceTree: MotionSegmentation, nodeId: string): MotionSegmentationNode | null {
     if (danceTree.root.id === nodeId) {
         return danceTree.root;
     }
-    return findDanceTreeSubNode(danceTree.root, nodeId);
+    return findSegmentationSubNode(danceTree.root, nodeId);
 }
 
 export function getAllNodesInSubtree(node: MotionSegmentationNode): MotionSegmentationNode[] {
@@ -106,7 +72,7 @@ export function getAllNodes(node: MotionSegmentationNode): MotionSegmentationNod
     ];   
 }
 
-export function getDanceMotionVideoSrc(supabase: SupabaseClient, motionClipPath: string): string | undefined {
+export function getMotionVideoSrc(supabase: SupabaseClient, motionClipPath: string): string | undefined {
     if (!motionClipPath) {
         return undefined;
     }
