@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { ServiceWorkerMessageSession } from './../service-worker.ts';
 	import { run } from 'svelte/legacy';
 
 	import '../app.pcss';
@@ -14,6 +15,8 @@
 	import { navigating } from '$app/stores';
 	import { debugMode } from '$lib/model/settings';
 	import type { User } from '@supabase/supabase-js';
+	import { NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL } from '$env/static/public';
+	
 
 	let showingSettings = $state(false);
 	async function toggleSettings(setValue?: boolean) {
@@ -44,10 +47,40 @@
 
 	setContext('supabase', supabase);
 
+
 	onMount(() => {
+		// Register service worker
+		if ('serviceWorker' in navigator) {
+			const serviceWorkerUrl = new URL('./../service-worker', import.meta.url)
+			navigator.serviceWorker.register(serviceWorkerUrl)
+				.then(reg => {
+					console.log('Service worker registered:', reg);
+				})
+				.catch(err => {
+					console.error('Service worker registration failed:', err);
+				});
+		}
+
 		const { data } = supabase.auth.onAuthStateChange((_, newSession) => {
 			if (newSession?.expires_at !== session?.expires_at) {
 				invalidate('supabase:auth');
+			}
+
+			const message: ServiceWorkerMessageSession = {
+				type: 'SUPABASE_SESSION',
+				session: {
+					supabase_url: NEXT_PUBLIC_SUPABASE_URL,
+					supabase_anon_key: NEXT_PUBLIC_SUPABASE_ANON_KEY,
+					access_token: newSession?.access_token ?? '',
+					refresh_token: newSession?.refresh_token ?? '',
+					user_id: newSession?.user.id ?? ''
+				}
+			};
+			if (navigator.serviceWorker.controller) {
+				navigator.serviceWorker.controller.postMessage(message);
+				console.debug('Sent session update to service worker');
+			} else {
+				console.error('No service worker controller to send message to');
 			}
 		});
 

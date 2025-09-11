@@ -32,6 +32,7 @@ function loadPerformanceHistoryFromLocalstorage<MetricTypes extends Record<strin
             const motionId = parseInt(motionIdString);
             if (isNaN(motionId)) continue;
 
+            if (!data[motionId]) continue;
             for (const segmentId of Object.keys(data[motionId])) {
                 for (const metricName of Object.keys(data[motionId][segmentId])) {
                     for (const attempt of data?.[motionId]?.[segmentId]?.[metricName] ?? []) {
