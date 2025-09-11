@@ -226,6 +226,64 @@ export type Database = {
           },
         ]
       }
+      user_performance_attempt: {
+        Row: {
+          created_at: string
+          duration_secs: number | null
+          evaluation: Json
+          id: number
+          learningmodel_id: string
+          motion_id: number
+          self_report: Json
+          user_id: string
+          video_recording_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_secs?: number | null
+          evaluation: Json
+          id?: number
+          learningmodel_id: string
+          motion_id: number
+          self_report: Json
+          user_id: string
+          video_recording_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_secs?: number | null
+          evaluation?: Json
+          id?: number
+          learningmodel_id?: string
+          motion_id?: number
+          self_report?: Json
+          user_id?: string
+          video_recording_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_performance_attempt_learningmodel_id_fkey"
+            columns: ["learningmodel_id"]
+            isOneToOne: false
+            referencedRelation: "user_learning_model"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_performance_attempt_motion_id_fkey"
+            columns: ["motion_id"]
+            isOneToOne: false
+            referencedRelation: "motion_video"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_performance_attempt_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

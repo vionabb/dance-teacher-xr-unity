@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS "public"."user_learning_model" (
     "segmentation_id" bigint,
     "created_at" timestamp without time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp without time zone DEFAULT "now"() NOT NULL,
-    "plan" "jsonb" NOT NULL
+    "plan" "jsonb" NOT NULL,
     "progress" "jsonb" NOT NULL
 );
 
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS "public"."motion_video" (
     "detected_bpm_offset" double precision,
     "manual_bpm" double precision,
     "landmarks_pose_2d_src" "text",
-    "landmarks_holistic_3d_src" "text",
+    "landmarks_holistic_3d_src" "text"
 );
 
 -- ALTER TABLE "public"."motion_video" OWNER TO "postgres";
@@ -169,7 +169,7 @@ USING (
 CREATE POLICY "Allow access to motion segmentations for own or unassigned" ON "public"."motion_video_segmentation"
 FOR SELECT
 USING (
-    "createdFor" IS NULL OR "createdFor" = "auth"."uid"()
+    "created_for" IS NULL OR "created_for" = "auth"."uid"()
 );
 
 ALTER TABLE "public"."motion_video_segmentation" ENABLE ROW LEVEL SECURITY;
