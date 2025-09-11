@@ -2,6 +2,7 @@ import type { PracticePlanProgress, StepProgressData } from "$lib/data/activity-
 import type { PracticePlan } from "$lib/model/PracticePlan";
 import type { Database } from '$lib/ai/backend/SupabaseTypes';
 import type { MotionSegmentation } from "$lib/data/dances-store";
+import type { Data } from "plotly.js-dist-min";
 /**
  * UserProgressModel represents a record of user progress for a specific video.
  * It stores both the practice plan and the associated progress.
@@ -17,6 +18,14 @@ export type UserLearningModel = Omit<UserLearningModelDb, 'plan' | 'progress'> &
     plan: PracticePlan;
     progress: PracticePlanProgress;
 };
+
+export type UserPerformanceAttemptDb = Database['public']['Tables']['user_performance_attempt']['Row'];
+export type UserPerformanceAttemptEvaluation = Record<string, any>;
+export type UserPerformanceAttemptSelfReport = Record<string, any>;
+export type UserPerformanceAttempt = Omit<UserPerformanceAttemptDb, 'self_report' | 'evaluation'> & {
+    evaluation: UserPerformanceAttemptEvaluation;
+    self_report: UserPerformanceAttemptSelfReport;
+}
 
 /** A service for CRUD operations on app data */
 export interface IDataBackend {
@@ -36,6 +45,13 @@ export interface IDataBackend {
     /**Get the most recent user learning model for a particular segmentation */
     getUserLearningModelBySegmentationId(segmentationId: number): Promise<UserLearningModel | null>;
     updateUserLearningModel(id: string | number, data: Partial<UserLearningModel>): Promise<void>;
+
+    /** Save a new performance attempt and return its id */
+    createUserPerformanceAttempt(data: Omit<UserPerformanceAttempt, 'id' | 'user_id' | 'created_at'>): Promise<UserPerformanceAttempt>;
+    /** Retrieve a performance attempt by its id */
+    getUserPerformanceAttemptById(id: number): Promise<UserPerformanceAttempt | null>;
+    /** Update the video URL for a performance attempt */
+    updateUserPerformanceAttemptVideoUrl(id: string | number, url: string): Promise<void>;
 }
 
 // /** A backend for storing and manipulating user progress data */

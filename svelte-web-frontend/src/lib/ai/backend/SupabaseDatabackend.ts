@@ -1,5 +1,5 @@
 import type { User, SupabaseClient } from "@supabase/supabase-js";
-import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel, UserLearningModelDb } from "./IDataBackend";
+import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel, UserLearningModelDb, UserPerformanceAttempt, UserPerformanceAttemptEvaluation, UserPerformanceAttemptSelfReport } from "./IDataBackend";
 import type { ActivityProgress, PracticePlanProgress, StepProgressData } from "$lib/data/activity-progress";
 import { browser } from "$app/environment";
 import type { Database, Json } from "$lib/ai/backend/SupabaseTypes";
@@ -9,8 +9,8 @@ import type { PracticePlan } from "$lib/model/PracticePlan";
 import type { MotionSegmentation } from "$lib/data/dances-store";
 
 class SupabaseDataBackend implements IDataBackend {
-    
-    constructor(private supabase: SupabaseClient<Database>, private userId: string | null) {}
+
+    constructor(private supabase: SupabaseClient<Database>, private userId: string | null) { }
 
     async getMotionVideos(): Promise<MotionVideo[]> {
         const { data, error } = await this.supabase
@@ -126,6 +126,90 @@ class SupabaseDataBackend implements IDataBackend {
         if (error) {
             throw error;
         }
+    }
+
+    /** Save a new performance attempt and return its id */
+    async createUserPerformanceAttempt(data: Omit<UserPerformanceAttempt, 'id' | 'user_id' | 'created_at'>): Promise<UserPerformanceAttempt> {
+        if (!this.userId) {
+            throw new Error("User not authenticated");
+        }
+        const insertData = {
+            ...data,
+            user_id: this.userId,
+            evaluation: data.evaluation as unknown as Json,
+            self_report: data.self_report as unknown as Json,
+        };
+        const { data: insertedData, error } = await this.supabase
+            .from("user_performance_attempt")
+            .insert([insertData])
+            .select("*")
+            .single();
+        if (error) {
+            throw error;
+        }
+        return {
+            ...insertedData,
+            evaluation: insertedData.evaluation as unknown as UserPerformanceAttemptEvaluation,
+            self_report: insertedData.self_report as unknown as UserPerformanceAttemptSelfReport
+        };
+    }
+
+    async updateUserPerformanceAttemptVideoUrl(id: number, url: string): Promise<void> {
+        const { error } = await this.supabase
+            .from("user_performance_attempt")
+            .update({ video_recording_url: url })
+            .eq("id", id);
+        if (error) {
+            throw error;
+        }
+    }
+
+    /** Retrieve a performance attempt by its id */
+    async getUserPerformanceAttemptById(id: number): Promise<UserPerformanceAttempt | null> {
+        const { data, error } = await this.supabase
+            .from("user_performance_attempt")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+        if (error) {
+            throw error;
+        }
+        if (!data) return null;
+        return {
+            ...data,
+            evaluation: data.evaluation as unknown as UserPerformanceAttemptEvaluation,
+            self_report: data.self_report as unknown as UserPerformanceAttemptSelfReport,
+        };
+    }
+
+    async getPerformanceVideo(videoPath: string): Promise<string> {
+        const videoLinkExpiryTimeSecs = 60 * 120; // 2 hours
+        const { data, error } = await this.supabase
+            .storage
+            .from('userPerformanceVideos')
+            .createSignedUrl(videoPath, videoLinkExpiryTimeSecs);
+
+        if (error) {
+            throw error;
+        }
+        return data?.signedUrl || '';
+    }
+
+    async uploadPerformanceVideo(file: File, destinationPath: string): Promise<string | undefined> {
+        const { data, error } = await this.supabase
+            .storage
+            .from('userPerformanceVideos')
+            .upload(destinationPath, file, {
+                cacheControl: '3600',
+                upsert: true,
+                metadata: {
+                    owner: this.userId,
+                }
+            });
+        if (error) {
+            throw error;
+        }
+        return data?.path;
     }
 }
 

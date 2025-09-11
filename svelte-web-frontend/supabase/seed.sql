@@ -265,6 +265,7 @@ INSERT INTO "storage"."buckets" ("id", "name", "owner", "created_at", "updated_a
 	('thumbnails', 'thumbnails', NULL, '2025-08-28 20:15:29.464286+00', '2025-08-28 20:15:29.464286+00', true, false, NULL, NULL, NULL, 'STANDARD');
 
 
+
 --
 -- Data for Name: buckets_analytics; Type: TABLE DATA; Schema: storage; Owner: supabase_storage_admin
 --
