@@ -19,13 +19,7 @@ export type FeedbackFunction = ((opts: {
 }) => Promise<TerminalFeedback | undefined>);
 
 export type StepEndBehavior = {
-    preFeedbackMessage?: string;
-    llmFeedback?: {
-        feedbackType: 'encouragement' | 'poseAccuracy';
-    },
-    completion: {
-        disableManualCompletion?: boolean;
-    }
+   suggestedRepeats?: number; 
 }
 
 export type PracticeStepInterfaceSettings = {
@@ -95,6 +89,7 @@ export const PracticeStepDefaultInterfaceSetting: PracticeStepModeKey = 'bothVid
 export default interface PracticeStep {
     id: string;
     title: string;
+    purpose: 'observation' | 'marking' | 'drill' | 'mastery';
     startTime: number;
     endTime: number;
     interfaceMode: PracticeStepModeKey;
@@ -113,6 +108,8 @@ export default interface PracticeStep {
         enabled: boolean;
         speedOptions: number[];
     };
+
+    postStepEndBehavior?: StepEndBehavior;
 
     feedbackFunction?: FeedbackFunction;
 

@@ -229,3 +229,25 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "service_role";
 
 RESET ALL;
+
+-- Enforce GENERATED ALWAYS AS IDENTITY for id columns
+ALTER TABLE "public"."motion_video" ALTER COLUMN "id" SET GENERATED ALWAYS;
+ALTER TABLE "public"."motion_video_segmentation" ALTER COLUMN "id" SET GENERATED ALWAYS;
+
+-- Enforce only server-generated UUIDs for user_learning_model.id
+-- If a client supplies an id explicitly, silently override it so that
+-- application code cannot fix the primary key.
+CREATE OR REPLACE FUNCTION prevent_user_supplied_id_user_learning_model()
+RETURNS trigger AS $$
+BEGIN
+    IF TG_OP = 'INSERT' AND NEW.id IS NOT NULL THEN
+        NEW.id = gen_random_uuid();
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS prevent_user_supplied_id_user_learning_model_trigger ON "public"."user_learning_model";
+CREATE TRIGGER prevent_user_supplied_id_user_learning_model_trigger
+    BEFORE INSERT ON "public"."user_learning_model"
+    FOR EACH ROW EXECUTE FUNCTION prevent_user_supplied_id_user_learning_model();

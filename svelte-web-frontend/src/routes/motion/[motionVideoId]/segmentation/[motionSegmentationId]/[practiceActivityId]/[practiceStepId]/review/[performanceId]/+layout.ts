@@ -6,9 +6,19 @@ export async function load({ params, parent })  {
     const parentData = await parent();
     const performanceId = params.performanceId;
 
+    const performanceAttempt = await parentData.databackend.getUserPerformanceAttemptById(parseInt(performanceId));
+    if (!performanceAttempt) {
+        throw error(404, 'Performance attempt not found');
+    }
+
+    let performanceVideoUrl = null;
+    if (performanceAttempt.video_recording_storagepath) {
+        performanceVideoUrl = await parentData.databackend.getUserPerformanceVideoUrl(performanceAttempt.video_recording_storagepath)
+    }
     
     return {
-        performanceId,
+        performanceAttempt,
+        performanceVideoUrl
     }
 }
 

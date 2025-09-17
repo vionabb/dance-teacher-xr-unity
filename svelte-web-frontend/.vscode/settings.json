@@ -31,5 +31,8 @@
     "typescript.inlayHints.parameterNames.enabled": "literals",
     "typescript.inlayHints.functionLikeReturnTypes.enabled": false,
     "typescript.inlayHints.propertyDeclarationTypes.enabled": false,
-    "typescript.inlayHints.variableTypes.enabled": false
+    "typescript.inlayHints.variableTypes.enabled": false,
+    "files.autoSave": "onFocusChange",
+    "editor.wordWrap": "wordWrapColumn",
+    "editor.aiStats.enabled": true
 }

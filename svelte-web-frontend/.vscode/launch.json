@@ -24,7 +24,12 @@
                     "url": "http://localhost:5173/src",
                     "path": "${workspaceFolder}/src"
                 }
-            ]
+            ],
+            // Persist cookies/localStorage by using a workspace-scoped profile directory
+            "profileDir": "${workspaceFolder}/testResults/firefox_profile",
+            // Ensure modifications to the profile (cookies, storage) are kept
+            "keepProfileChanges": true
+            
         },
         {
             "type": "chrome",
@@ -35,6 +40,9 @@
             "resolveSourceMapLocations": [
                 "${workspaceFolder}/src",
                 "!%{workspaceFolder}/node_modules/**"
+            ],
+            "runtimeArgs": [
+                "--user-data-dir=${workspaceFolder}/testResults/chrome_profile/",
             ]
         },
         {
@@ -46,6 +54,9 @@
             "resolveSourceMapLocations": [
                 "${workspaceFolder}/src",
                 "!%{workspaceFolder}/node_modules/**"
+            ],
+            "runtimeArgs": [
+                "--user-data-dir=${workspaceFolder}/testResults/edge_profile/"
             ]
         },
         {

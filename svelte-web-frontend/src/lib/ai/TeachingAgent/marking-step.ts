@@ -15,6 +15,7 @@ export function CreateMarkingStep(
         endTime: endTime,
         id: 'mark',
         title: 'Marking',
+        purpose: 'marking',
         interfaceMode: 'watchDemo',
         terminalFeedbackEnabled: false,
         showUserSkeleton: false,

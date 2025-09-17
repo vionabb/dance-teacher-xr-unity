@@ -27,7 +27,14 @@ export async function load({ params, parent })  {
         // create a new user learning model if needed
         console.log("No previous user learning model found, creating a new one");
         const newModel = TeachingAgent.generateNewUserLearningModel(motionVideo, motionSegmentation);
-        userLearningModel = await databackend.createUserLearningModel({ ...newModel, segmentation_id: motionSegmentation.id });
+        try {
+            userLearningModel = await databackend.createUserLearningModel({ ...newModel, segmentation_id: motionSegmentation.id });
+        }
+        catch (e) {
+            console.error("Error creating new user learning model:", e);
+            throw error(500, 'Failed to create user learning model');
+        }
+        
     } else {
         userLearningModel = prevUserLearningModel;
     }

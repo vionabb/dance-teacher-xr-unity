@@ -24,6 +24,14 @@ create policy "Users can upload their own performance videos"
     and (auth.uid() = owner)
   );
 
+create policy "Users can delete their own performance videos"
+    on storage.objects
+    for delete
+    using (
+        bucket_id = 'userPerformanceVideos'
+        and (auth.uid() = owner)
+    );
+
 -- NOT SURE IF THIS IS NEEDED
   -- Policy: Allow access to all other buckets except userPerformanceVideos
 CREATE POLICY "Allow access to all public buckets" ON storage.objects

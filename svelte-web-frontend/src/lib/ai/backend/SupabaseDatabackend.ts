@@ -1,5 +1,5 @@
 import type { User, SupabaseClient } from "@supabase/supabase-js";
-import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel, UserLearningModelDb, UserPerformanceAttempt, UserPerformanceAttemptEvaluation, UserPerformanceAttemptSelfReport } from "./IDataBackend";
+import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel, UserLearningModelDb, UserPerformanceAttempt, UserPerformanceAttemptDb, UserPerformanceAttemptEvaluation, UserPerformanceAttemptSelfReport, UserPerformanceAttemptPracticeContext } from "./IDataBackend";
 import type { ActivityProgress, PracticePlanProgress, StepProgressData } from "$lib/data/activity-progress";
 import { browser } from "$app/environment";
 import type { Database, Json } from "$lib/ai/backend/SupabaseTypes";
@@ -7,6 +7,37 @@ import { getContext } from "svelte";
 import { get } from "svelte/store";
 import type { PracticePlan } from "$lib/model/PracticePlan";
 import type { MotionSegmentation } from "$lib/data/dances-store";
+import type { VideoRecording } from "../IPracticePage";
+
+
+function toUserPerformanceAttempt(data: UserPerformanceAttemptDb): UserPerformanceAttempt {
+    return {
+        ...data,
+        evaluation: data.evaluation as unknown as UserPerformanceAttemptEvaluation,
+        self_report: data.self_report as unknown as UserPerformanceAttemptSelfReport,
+        practice_context: data.practice_context as unknown as UserPerformanceAttemptPracticeContext,
+    };
+}
+
+/**
+ * Strip heavy / circular / non-serialisable fields from a PracticeStep object prior to persistence.
+ * (Mirrors cleanPracticeStep used at call-sites so backend is resilient if caller forgets to clean.)
+ * We intentionally drop: motionVideo, motionSegmentation, motionSegmentationNode, feedbackFunction, state
+ */
+function sanitizePracticeStep(step: any) {
+    if (!step || typeof step !== 'object') return step;
+    const { motionVideo, motionSegmentation, motionSegmentationNode, feedbackFunction, state, ...rest } = step;
+    return rest;
+}
+
+function sanitizePracticeContext(ctx: any): UserPerformanceAttemptPracticeContext | null {
+    if (!ctx) return null as any;
+    const cleaned: UserPerformanceAttemptPracticeContext = {
+        ...ctx,
+        practiceStep: sanitizePracticeStep(ctx.practiceStep)
+    };
+    return cleaned;
+}
 
 class SupabaseDataBackend implements IDataBackend {
 
@@ -133,11 +164,14 @@ class SupabaseDataBackend implements IDataBackend {
         if (!this.userId) {
             throw new Error("User not authenticated");
         }
+        // Ensure practice_context is sanitized & JSON serialisable
+        const sanitizedPracticeContext = sanitizePracticeContext(data.practice_context);
         const insertData = {
             ...data,
             user_id: this.userId,
             evaluation: data.evaluation as unknown as Json,
             self_report: data.self_report as unknown as Json,
+            practice_context: sanitizedPracticeContext as unknown as Json,
         };
         const { data: insertedData, error } = await this.supabase
             .from("user_performance_attempt")
@@ -147,21 +181,20 @@ class SupabaseDataBackend implements IDataBackend {
         if (error) {
             throw error;
         }
-        return {
-            ...insertedData,
-            evaluation: insertedData.evaluation as unknown as UserPerformanceAttemptEvaluation,
-            self_report: insertedData.self_report as unknown as UserPerformanceAttemptSelfReport
-        };
+        return toUserPerformanceAttempt(insertedData);
     }
 
-    async updateUserPerformanceAttemptVideoUrl(id: number, url: string): Promise<void> {
-        const { error } = await this.supabase
+    async updateUserPerformanceAttempt(id: number, updates: Partial<Pick<UserPerformanceAttempt, "self_report" | "evaluation" | "video_recording_storagepath">>): Promise<UserPerformanceAttempt> {
+        const { error, data } = await this.supabase
             .from("user_performance_attempt")
-            .update({ video_recording_url: url })
-            .eq("id", id);
+            .update(updates)
+            .eq("id", id)
+            .select("*")
+            .single();
         if (error) {
             throw error;
         }
+        return toUserPerformanceAttempt(data);
     }
 
     /** Retrieve a performance attempt by its id */
@@ -175,25 +208,58 @@ class SupabaseDataBackend implements IDataBackend {
             throw error;
         }
         if (!data) return null;
+
         return {
             ...data,
             evaluation: data.evaluation as unknown as UserPerformanceAttemptEvaluation,
             self_report: data.self_report as unknown as UserPerformanceAttemptSelfReport,
+            practice_context: data.practice_context as unknown as UserPerformanceAttemptPracticeContext,
         };
     }
-
-    async getPerformanceVideo(videoPath: string): Promise<string> {
+    
+    async getUserPerformanceVideoUrl(videoStoragePath: string): Promise<string> {
         const videoLinkExpiryTimeSecs = 60 * 120; // 2 hours
         const { data, error } = await this.supabase
             .storage
             .from('userPerformanceVideos')
-            .createSignedUrl(videoPath, videoLinkExpiryTimeSecs);
+            .createSignedUrl(videoStoragePath, videoLinkExpiryTimeSecs);
 
         if (error) {
             throw error;
         }
         return data?.signedUrl || '';
     }
+
+    /** Upload a user's performance video to the supabase bucket, updating the performance attempt record and returning the video storage path */
+    async uploadUserPerformanceVideo(recording: VideoRecording, performanceAttempt: UserPerformanceAttempt): Promise<UserPerformanceAttempt> {
+        
+        const videoStoragePath = `userPerformanceVideos/${performanceAttempt.id}.mp4`;
+        
+        const fileEnding = recording.mimeType === 'video/webm' ? '.webm' : '.mp4';
+        const file = new File([recording.blob], `${performanceAttempt.id}${fileEnding}`, { type: recording.mimeType });
+        
+        const { error } = await this.supabase
+            .storage
+            .from('userPerformanceVideos')
+            .upload(videoStoragePath, file);
+
+        if (error) {
+            throw error;
+        }
+
+        await this.updateUserPerformanceAttempt(performanceAttempt.id, {
+            video_recording_storagepath: videoStoragePath
+        });
+
+        return performanceAttempt;
+    }
+
+    //     await this.updateUserPerformanceAttempt(performanceAttempt.id, {
+    //         video_recording_storagepath: videoStoragePath
+    //     });
+
+    //     return videoStoragePath;
+    
 
     async uploadPerformanceVideo(file: File, destinationPath: string): Promise<string | undefined> {
         const { data, error } = await this.supabase

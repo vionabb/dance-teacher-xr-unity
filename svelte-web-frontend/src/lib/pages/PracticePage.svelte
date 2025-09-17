@@ -15,7 +15,7 @@ import { pauseInPracticePage, debugPauseDurationSecs, debugMode } from '$lib/mod
 import { GetPixelLandmarksFromNormalizedLandmarks, type Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 import type PracticeStep from "$lib/model/PracticeStep";
 import { getMotionVideoSrc, load2DPoseInformation, type PoseReferenceData, load3DPoseInformation, type MotionSegmentationNode } from "$lib/data/dances-store";
-import { generateFeedbackNoPerformance } from '$lib/ai/feedback';
+
 import { Draw2dSkeleton } from '$lib/ai/SkeletonFeedbackVisualization'
 import VirtualMirror from "$lib/elements/VirtualMirror.svelte";
 import poseEstimationService, { type PoseEstimationResultDetail } from '$lib/services/PoseEstimationService';
@@ -41,13 +41,14 @@ import PlayableVideoWithSkeleton from '$lib/elements/PlayableVideoWithSkeleton.s
 import BarCharIcon from 'virtual:icons/mdi/bar-chart';
 import type TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
 import type { Readable } from 'svelte/store';
-	import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
+import type { IDataBackend, MotionVideo, UserLearningModel, UserPerformanceAttempt } from '$lib/ai/backend/IDataBackend';
+import type { AttemptSettings, IPracticePage, VideoRecording } from '$lib/ai/IPracticePage';
 
 const supabase = getContext('supabase') as SupabaseClient;
-
 let teachingAgent = getContext('teachingAgent') as Readable<TeachingAgent>;
 
 interface Props {
+    backend: IDataBackend,
     mirrorForEvaluation?: boolean;
     motionVideo: MotionVideo;
     practiceStep: PracticeStep | null;
@@ -57,7 +58,17 @@ interface Props {
     continueBtnTitle?: string;
     continueBtnIcon?: any;
     progressBarProps?: SegmentedProgressBarPropsWithoutCurrentTime | undefined;
-}
+    userLearningModel: UserLearningModel | null;
+
+    onPracticeAttemptCompleted?: (attempt: {
+        motionVideoId: number,
+        learningModelId?: string,
+        attemptSettings: AttemptSettings,
+        attemptDurationsSecs?: number,
+        videoRecording?: VideoRecording,
+        performanceSummary?: FrontendPerformanceSummary,
+    }) => Promise<null | TerminalFeedback>;
+} 
 
 let {
     mirrorForEvaluation = true,
@@ -68,7 +79,10 @@ let {
     flipVideo = false,
     continueBtnTitle = 'Continue',
     continueBtnIcon = 'check' as 'nextarrow' | 'check',
-    progressBarProps = undefined
+    progressBarProps = undefined,
+    backend: dataBackend,
+    userLearningModel,
+    onPracticeAttemptCompleted = undefined,
 }: Props = $props();
 
 let mainContinueButton: HTMLButtonElement | undefined = $state();
@@ -90,6 +104,10 @@ const dispatch = createEventDispatcher<{
     'continue-clicked': undefined;
     nextClicked: undefined;
 }>();
+
+export function test123() {
+
+}
 
 let fitVideoToFlexbox = true;
 
@@ -151,17 +169,11 @@ const defaultCustomSpeedOptions = [0.25, 0.5, 0.75, 0.9, 1]
 let lastEvaluationResult: FrontendLiveEvaluationResult | null = $state(null);
 let evaluator: FrontendDanceEvaluator | null = $state(null);
 let trialId = $state(null as string | null);
+let trialIdStartDate = $state(null as Date | null);
 let performanceSummary = $state(null as FrontendPerformanceSummary | null);
 let terminalFeedback: TerminalFeedback | null = $state(null);
 
-let feedbackPromise: Promise<TerminalFeedback | undefined> | null = $state(null);
-let videoRecording: {
-    url: string;
-    mimeType: string;
-    referenceVideoUrl: string;
-    recordingSpeed: number;
-    recordingStartOffset: number;
-} | undefined = $state(undefined);
+let cachedVideoRecording: VideoRecording | undefined = $state(undefined);
 
 const debugPauseDuration = 10.0; // if pauseInPracticePage is enabled, we'll pause for this many seconds midway through playback
 let currentPlaybackEndtime = $state(practiceStep?.endTime ?? 0);
@@ -170,9 +182,11 @@ let webcamRecorderMimeType = 'video/webm';
 let webcamRecorder: MediaRecorder | null = null;
 let webcamRecordedChunks: Blob[] = [];
 
-let resolveWebcamRecordedObjectUrl: ((url: string) => void) | null = null;  
-let rejectWebcamRecordedObjectUrl: ((reason?: any) => void) | null = null;
-let webcamRecordedObjectURL: Promise<string> | null = null;
+// Recording lifecycle helpers (blob-based, no object URLs stored here)
+let savedRecordingBlob: Blob | null = null;
+let webcamRecordingCompletion: Promise<Blob | null> | null = null;
+let resolveWebcamRecordingCompletion: ((blob: Blob | null) => void) | null = null;
+let rejectWebcamRecordingCompletion: ((reason?: any) => void) | null = null;
 
 
 
@@ -192,99 +206,31 @@ function unPauseVideo() {
     pageState= "playing";
 }
 
-async function getFeedback(perfSummary: FrontendPerformanceSummary | null, recordedTrack:  FrontendEvaluationTrack | null) {
-    if (gettingFeedback) return;
-
-    gettingFeedback = true;
-    
-    webcamRecorder?.stop();
-    let videoURL: undefined | string = undefined;
-    if (webcamRecordedObjectURL) {
-        videoURL = await webcamRecordedObjectURL;
+async function completeVideoRecording() {
+    if (!webcamRecorder) {
+        return null;
     }
-    if (videoURL) {
-        videoRecording = {
-            url: videoURL,
-            mimeType: webcamRecorderMimeType,
-            referenceVideoUrl: motionVideoSrc,
-            recordingStartOffset: practiceStep?.startTime ?? 0,
-            recordingSpeed: effectivePlaybackSpeed,
-        };
+    // Initiate stop (will trigger final dataavailable + stop events)
+    webcamRecorder.stop();
+
+    if (webcamRecordingCompletion) {
+        try {
+            await webcamRecordingCompletion; // wait until blob assembled
+        } catch (e) {
+            console.warn('completeVideoRecording: recording completion promise rejected', e);
+            return null;
+        }
     }
-
-    // const attemptHistory = $lastNAttemptsAngleSimilarity.map((a) => {
-    //     return {
-    //         score: a.summary?.overall ?? NaN, 
-    //         date: a.date,
-    //         segmentId: a.segmentId
-    //     }
-    // });
-
-    let feedback: TerminalFeedback | undefined = undefined;
-
-    if (!practiceStep?.feedbackFunction) {
-        feedback = generateFeedbackNoPerformance(
-            $frontendPerformanceHistory,
-            practiceStep?.motionSegmentationNode?.id ?? '',
-        );
-    } else {
-        feedback = await practiceStep.feedbackFunction({
-            attemptSettings: {
-                startTime: practiceStep?.startTime ?? 0,
-                endTime: practiceStep?.endTime ?? videoDuration,
-                playbackSpeed: effectivePlaybackSpeed,
-                referenceVideoVisible: interfaceSettings.referenceVideo.visibility === 'visible',
-                userVideoVisible: interfaceSettings.userVideo.visibility === 'visible',
-            },
-            practicePlan,
-            practiceStep,
-            performanceSummary: perfSummary, 
-            recordedTrack
-        });
+    if (!savedRecordingBlob) {
+        return null;
     }
-
-    // if ($useAIFeedback && !feedback) {
-    //     try {
-    //         const perfHistory = $frontendPerformanceHistory;
-    //         const dancePerfHistory = practiceStep?.dance?.clipRelativeStem ? perfHistory?.[practiceStep.dance.clipRelativeStem] ?? null : null;
-    //         feedback = await generateFeedbackWithClaudeLLM(
-    //             practiceStep?.danceTree,
-    //             practiceStep?.danceTreeNode?.id ?? 'undefined',
-    //             performanceSummary ?? undefined,
-    //             dancePerfHistory ?? undefined,
-    //             $summaryFeedback_skeleton3d_mediumPerformanceThreshold,
-    //             $summaryFeedback_skeleton3d_goodPerformanceThreshold,
-    //             $metric__3dskeletonsimilarity__badJointStdDeviationThreshold,
-    //             attemptHistory,
-    //         )
-    //     } catch(e) {
-    //         console.warn("Error generating feedback with AI - falling back to rule-based feedback", e);
-    //     }
-    // }
-
-    // if (!feedback) {
-    //     const qijiaOverallScore = performanceSummary?.wholePerformance.qijia2DSkeletonSimilarity.overallScore ?? 0;
-    //     const qijiaByVectorScores = performanceSummary?.wholePerformance.qijia2DSkeletonSimilarity.vectorByVectorScore ?? {} as Record<string, number>;
-
-    //     const perfHistory = $frontendPerformanceHistory;
-    //     const dancePerfHistory = practiceStep?.dance?.clipRelativeStem ? perfHistory?.[practiceStep.dance.clipRelativeStem] ?? null : null;
-    //     feedback = generateFeedbackRuleBased(
-    //         qijiaOverallScore, 
-    //         qijiaByVectorScores,
-    //         dancePerfHistory ?? undefined,
-    //         practiceStep?.danceTreeNode?.id,
-    //     );
-    // }
-
-
-
-    gettingFeedback = false;
-
-    if ($debugMode && $debugMode__addPlaceholderAchievement) {
-        feedback?.achievements?.push("placeholder achievement");
-    }
-
-    return feedback;
+    return {
+        blob: savedRecordingBlob,
+        mimeType: webcamRecorderMimeType,
+        referenceVideoUrl: motionVideoSrc,
+        recordingStartOffset: practiceStep?.startTime ?? 0,
+        recordingSpeed: effectivePlaybackSpeed,
+    } as VideoRecording;
 }
 
 let gettingFeedback = false;
@@ -373,23 +319,20 @@ async function startCountdown() {
     }
 
     trialId = generateUUIDv4();
+    trialIdStartDate = new Date();
     pageState= "playing";
     
     countdown = -1;
 
-    resolveWebcamRecordedObjectUrl = null;
-    rejectWebcamRecordedObjectUrl = null;
-    webcamRecordedObjectURL = null;
-    webcamRecorder?.stop();
+    savedRecordingBlob = null;
+    webcamRecorder?.stop(); // ensure prior recorder (if any) is stopped
     webcamRecorder = null;
     webcamRecordedChunks = [];
+    webcamRecordingCompletion = null;
+    resolveWebcamRecordingCompletion = null;
+    rejectWebcamRecordingCompletion = null;
 
     if ($practiceActivities__enablePerformanceRecording && $webcamStream) {
-        webcamRecordedObjectURL = new Promise((resolve, reject) => {
-            resolveWebcamRecordedObjectUrl = resolve;
-            rejectWebcamRecordedObjectUrl = reject;
-        });
-
         if (MediaRecorder.isTypeSupported('video/webm')) {
             webcamRecorderMimeType = 'video/webm';
         } else if (MediaRecorder.isTypeSupported('video/mp4')) {
@@ -400,12 +343,29 @@ async function startCountdown() {
         }
         webcamRecorder = new MediaRecorder($webcamStream, { mimeType: webcamRecorderMimeType });
         webcamRecordedChunks = [];
+        savedRecordingBlob = null;
+        webcamRecordingCompletion = new Promise((resolve, reject) => {
+            resolveWebcamRecordingCompletion = resolve;
+            rejectWebcamRecordingCompletion = reject;
+        });
         webcamRecorder.addEventListener('dataavailable', (e) => {
             webcamRecordedChunks.push(e.data);
         });
         webcamRecorder.addEventListener('stop', () => {
-            let recordedVideoURL = URL.createObjectURL(new Blob(webcamRecordedChunks, {type: webcamRecorderMimeType}));
-            resolveWebcamRecordedObjectUrl?.(recordedVideoURL);
+            try {
+                if (webcamRecordedChunks.length === 0) {
+                    savedRecordingBlob = null;
+                } else {
+                    savedRecordingBlob = new Blob(webcamRecordedChunks, { type: webcamRecorderMimeType });
+                }
+                resolveWebcamRecordingCompletion?.(savedRecordingBlob);
+            } catch (err) {
+                console.warn('Error assembling recording blob', err);
+                rejectWebcamRecordingCompletion?.(err);
+            } finally {
+                resolveWebcamRecordingCompletion = null;
+                rejectWebcamRecordingCompletion = null;
+            }
         });
         webcamRecorder.start();
     }
@@ -441,7 +401,7 @@ export async function reset(start: boolean = false) {
     pageState= "waitWebcam";
     lastEvaluationResult = null;
     isVideoPausedBinding = true;
-    videoRecording = undefined;
+    cachedVideoRecording = undefined;
     videoCurrentTime = practiceStep?.startTime ?? 0;
     const playDuration = (practiceStep?.endTime ?? videoDuration) - (videoCurrentTime)
     currentPlaybackEndtime = $pauseInPracticePage ? videoCurrentTime + playDuration / 2 : practiceStep?.endTime ?? videoDuration;
@@ -648,6 +608,61 @@ function onContinueClicked() {
     dispatch('nextClicked');
 }
 
+async function practiceAttemptCompleted() {
+    console.log("Practice activity is over");
+    pageState= "feedback";
+    
+    terminalFeedback = null;
+    performanceSummary = null;
+    let recordedTrack = null as null | FrontendEvaluationTrack;
+    
+    let subsequences = Object.fromEntries(
+        containingSegmentationTreeLeafNodes.map((node) => 
+            [node.id, { startTime: node.start_time, endTime: node.end_time }]
+        )
+    );
+
+    let trialDurationMs = -1;
+    if (trialIdStartDate) {
+        trialDurationMs = (new Date()).getTime() - trialIdStartDate.getTime();
+    }
+
+    if (trialId) {
+        const summary = evaluator?.generatePerformanceSummary(
+            trialId, 
+            subsequences,
+            "terminalfeedback-plots"
+        ) ?? null;
+        performanceSummary = summary;
+
+        console.log("saving performance summary", $state.snapshot(performanceSummary));
+        recordedTrack = performanceSummary?.adjustedTrack ?? null;
+    } else {
+        console.warn("PracticePage:: No trialId, cannot generate performance summary");
+    }
+    trialId = null;
+    trialIdStartDate = null;
+    
+    cachedVideoRecording = await completeVideoRecording() ?? undefined;
+
+    if (onPracticeAttemptCompleted) {
+        terminalFeedback = await onPracticeAttemptCompleted({
+            motionVideoId: motionVideo.id,
+            learningModelId: userLearningModel?.id,
+            attemptDurationsSecs: trialDurationMs !== -1 ? trialDurationMs / 1000 : undefined,
+            videoRecording: cachedVideoRecording,
+            performanceSummary: performanceSummary ?? undefined,
+            attemptSettings: {
+                effectivePlaybackSpeed: effectivePlaybackSpeed,
+                referenceVideoVisible: interfaceSettings.referenceVideo.visibility === 'visible',
+                userVideoVisible: interfaceSettings.userVideo.visibility === 'visible',
+            }
+        });
+        feedbackDialogOpen = true;
+    } else {
+        console.debug("PracticePage:: No onPracticeAttemptCompleted callback provided, skipping it");
+    }
+}
 
 // this is the effect that keeeps doing to infinite depth
 // Auto-pause the video when the practice activity is over
@@ -656,61 +671,35 @@ $effect(() => {
         return;
     }
 
-    if ((practiceStep?.endTime && videoCurrentTime >= currentPlaybackEndtime) || 
-        (videoDuration > 0 && videoCurrentTime >= videoDuration)) {
+    const isAtOrPastEndOfPracticeStep = practiceStep?.endTime !== undefined && videoCurrentTime >= practiceStep.endTime;
+    const isAtOrPastEndOfVideo = videoDuration > 0 && videoCurrentTime >= videoDuration;
+    const isAtOrPastPausePoint = $pauseInPracticePage && videoCurrentTime >= currentPlaybackEndtime;
+    const shouldStop = isAtOrPastEndOfVideo || isAtOrPastEndOfPracticeStep || isAtOrPastPausePoint;
 
-        isVideoPausedBinding = true;
-        console.log('Pausing video');
+    if (!shouldStop) {
+        return;
+    }
 
-        if (currentPlaybackEndtime >= (practiceStep?.endTime ?? videoDuration)) {
-            console.log("Practice activity is over");
-            pageState= "feedback";
-            
-            terminalFeedback = null;
-            performanceSummary = null;
-            let recordedTrack = null as null | FrontendEvaluationTrack;
-            
-            let subsequences = Object.fromEntries(
-                containingSegmentationTreeLeafNodes.map((node) => 
-                    [node.id, { startTime: node.start_time, endTime: node.end_time }]
-                )
-            );
+    isVideoPausedBinding = true;
+    const stopReason = isAtOrPastEndOfPracticeStep ? "end of practice step" : 
+        isAtOrPastEndOfVideo ? "end of video" : 
+        "pause point";
+    console.log('Pausing video at', videoCurrentTime, 'because reached', stopReason);
 
-            if (trialId) {
-                performanceSummary = evaluator?.generatePerformanceSummary(
-                    trialId, 
-                    subsequences,
-                    "terminalfeedback-plots"
-                ) ?? null;
-                
-                console.log("saving performance summary", $state.snapshot(performanceSummary));
-                recordedTrack = performanceSummary?.adjustedTrack ?? null;
-            }
-            trialId = null;
-
-           
-            feedbackPromise = getFeedback(performanceSummary, recordedTrack);
-            feedbackDialogOpen = true;
-            feedbackPromise
-                .then(feedback => {
-                    terminalFeedback = feedback ?? null;
-                    feedbackDialogOpen = true;
-                    performanceSummary = performanceSummary;
-                })
-                .catch(e => {
-                    if (e.name =="CancelledError") {
-                        return;
-                    }
-                    throw e;
-                })
-        }
-        else {
-            console.log("Reached a pause point in the middle of the practice activity");
-            pageState= "paused"
-            if (unpauseVideoTimeout === null) {
-                unpauseVideoTimeout = window.setTimeout(unPauseVideo, 1000 * $debugPauseDurationSecs);
-            }
-        }
+    if (isAtOrPastEndOfPracticeStep || isAtOrPastEndOfVideo) {
+        practiceAttemptCompleted().catch(e => {
+            console.warn("Error completing practice activity", e);
+        });
+        return;
+    } else if (isAtOrPastPausePoint) {
+        console.log("Reached a pause point in the middle of the practice activity");
+        pageState= "paused"
+        if (unpauseVideoTimeout === null) {
+            unpauseVideoTimeout = window.setTimeout(unPauseVideo, 1000 * $debugPauseDurationSecs);
+        }  
+        return;
+    } else {
+        console.error("PracticePage:: error in pause detection, reached an unexpected stopping point");
     }
 });
 
@@ -843,7 +832,7 @@ $effect(() => {
                 </button>
             </div>
             <div class="right space-x-4">
-                {#if videoRecording !== undefined && pageState === "feedback" && $practiceActivities__enablePerformanceRecording}
+                {#if cachedVideoRecording !== undefined && pageState === "feedback" && $practiceActivities__enablePerformanceRecording}
                 <button 
                     class="daisy-btn" 
                     onclick={() => {showingPerformanceReviewPage = !showingPerformanceReviewPage}}>
@@ -911,19 +900,19 @@ $effect(() => {
     {/if}
 
     <Dialog 
-        open={showingPerformanceReviewPage && videoRecording !== undefined} 
+        open={showingPerformanceReviewPage && cachedVideoRecording !== undefined} 
         on:dialog-closed={() => showingPerformanceReviewPage = false }>
         {#snippet title()}
             <span>Performance Review</span>
         {/snippet}
         <div class="reviewPageWrapper">
-            {#if videoRecording !== undefined}
+            {#if cachedVideoRecording !== undefined}
             <PerformanceReviewPage 
-                recordingUrl={videoRecording.url}
-                recordingMimeType={videoRecording.mimeType}
-                referenceVideoUrl={videoRecording.referenceVideoUrl}
-                recordingStartOffset={videoRecording.recordingStartOffset}
-                recordingSpeed={videoRecording.recordingSpeed}
+                recordingBlob={cachedVideoRecording.blob}
+                recordingMimeType={cachedVideoRecording.mimeType}
+                referenceVideoUrl={cachedVideoRecording.referenceVideoUrl}
+                recordingStartOffset={cachedVideoRecording.recordingStartOffset}
+                recordingSpeed={cachedVideoRecording.recordingSpeed}
             />
             {/if}
         </div>

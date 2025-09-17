@@ -19,6 +19,7 @@ export function CreateDrillStep(
         endTime: endTime,
         id: 'drill',
         title: 'Drilling',
+        purpose: 'drill',
         interfaceMode: 'bothVideos',
         terminalFeedbackEnabled: true,
         showUserSkeleton: true,

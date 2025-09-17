@@ -7,10 +7,11 @@
 	import SeekToStartIcon from 'virtual:icons/lucide/arrow-left-to-line';
 	import PlayIcon from 'virtual:icons/lucide/play';
 	import PauseIcon from 'virtual:icons/lucide/pause';
+	import { onDestroy } from 'svelte';
 
 	interface Props {
 		referenceVideoUrl: string | undefined;
-		recordingUrl: string | undefined;
+		recordingBlob: Blob | undefined;
 		recordingStartOffset?: number;
 		recordingSpeed?: number;
 		recordingMimeType: string | undefined;
@@ -18,11 +19,30 @@
 
 	let {
 		referenceVideoUrl,
-		recordingUrl,
+		recordingBlob,
 		recordingStartOffset = 0,
 		recordingSpeed = $bindable(1),
 		recordingMimeType
 	}: Props = $props();
+
+	let lastRecordingBlobUrl: string | undefined = undefined;
+	const recordingBlobUrl = $derived.by(() => {
+		// Revoke previous object URL if it exists and is different
+		if (lastRecordingBlobUrl && recordingBlob && lastRecordingBlobUrl !== undefined) {
+			URL.revokeObjectURL(lastRecordingBlobUrl);
+			lastRecordingBlobUrl = undefined;
+		}
+		if (recordingBlob) {
+			lastRecordingBlobUrl = URL.createObjectURL(recordingBlob);
+			return lastRecordingBlobUrl;
+		}
+		return undefined;
+	});
+	onDestroy(() => {
+		if (lastRecordingBlobUrl) {
+			URL.revokeObjectURL(lastRecordingBlobUrl);
+		}
+	});
 
 	let recordingVideoTime: number = $state(0);
 	let recordingDuration: number = $state(0);
@@ -104,7 +124,7 @@
 	</div>
 	<div class="recordedVideoWrapper videoWrapper">
 		<video
-			src={recordingUrl}
+			src={recordingBlobUrl}
 			class="recordedVideo"
 			style="transform: scaleX(-1);"
 			bind:currentTime={recordingVideoTime}

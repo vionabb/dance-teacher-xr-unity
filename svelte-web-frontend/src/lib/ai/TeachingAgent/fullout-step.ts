@@ -14,6 +14,7 @@ export function CreateFulloutStep(
         endTime: endTime,
         id: 'fullOut',
         title: 'Full Out',
+        purpose: 'mastery',
         interfaceMode: 'userVideoOnly',
         terminalFeedbackEnabled: true,
         showUserSkeleton: false,

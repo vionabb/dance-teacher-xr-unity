@@ -7,13 +7,96 @@ import { CreateDrillStep } from './drill-step';
 import { CreateFulloutStep } from './fullout-step';
 import { writable, type Writable, type Readable, derived, get, readable, readonly } from 'svelte/store';
 import { type PracticePlanProgress, type StepProgressData } from '$lib/data/activity-progress';
-import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel } from '../backend/IDataBackend';
+import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel, UserPerformanceAttempt } from '../backend/IDataBackend';
 import { getContext } from 'svelte';
 
 // export interface UserDancePerformanceLog {
 //     // markingByNode: Map<DanceTreeNode["id"], number>;
 //     // similarityByNode: Map<DanceTreeNode["id"], number>;
 // }
+
+type PostPracticeAttemptActionBase = {
+    internalReason: string;
+    displayText?: string;
+}
+
+type PostPracticeAttemptAction_ImmediateRepeat = PostPracticeAttemptActionBase & {
+    action: 'immediateRepeat';
+    delaySecs: number;
+}
+
+type PostPracticeAttemptAction_AskNavigation = PostPracticeAttemptActionBase & {
+    action : 'askNavigation';
+    navigationOptions: {
+        displayText: string;
+
+        /** Callback to run when the user selects this option. 
+         * If an action is returned, the review page will shift to that state */
+        onSelect: () => Promise<PostPracticeAttemptAction | null>;
+    }[]
+}
+
+type PostPracticeAttemptSelfReport = 'perceivedDifficulty' | 'openEnded';
+
+type PostPracticeAttemptAction_Review = PostPracticeAttemptActionBase & {
+    action: 'reviewFeedback';
+    selfReports: PostPracticeAttemptSelfReport[],
+    onSelfReportSubmit?: (reports: Record<PostPracticeAttemptSelfReport, any>) => Promise<PostPracticeAttemptAction | null>;
+    showVideo: boolean,
+}
+
+export type PostPracticeAttemptAction = PostPracticeAttemptAction_ImmediateRepeat | PostPracticeAttemptAction_AskNavigation | PostPracticeAttemptAction_Review;
+
+export function buildDefaultNavigationAction(
+    userLearningModel: UserLearningModel
+): PostPracticeAttemptAction_AskNavigation {
+    const progressForwardActivity = nextIncompleteActivity(
+        userLearningModel.plan,
+        userLearningModel.progress
+    );
+
+    const defaultNavigationAction: PostPracticeAttemptAction_AskNavigation = {
+        action: 'askNavigation',
+        internalReason: 'defaultNavigation',
+        displayText: 'What would you like to do next?',
+        navigationOptions: [
+            {
+                displayText: 'Repeat this step',
+                onSelect: async () => {
+                    return {
+                        action: 'immediateRepeat',
+                        displayText: 'Repeating this step...',
+                        delaySecs: 1,
+                        internalReason: 'userChoseRepeat',
+                    } as PostPracticeAttemptAction_ImmediateRepeat;
+                }
+            },
+            {
+                displayText: 'Go to practice plan overview',
+                onSelect: async () => {
+                    return null; // returning null will navigate back to overview
+                }
+            },
+            ...(progressForwardActivity ? [
+                {
+                    displayText: 'Go to next step',
+                    onSelect: async () => {
+                        // Future: implement direct navigation logic
+                        return null;
+                    }
+                }
+            ] : [])
+        ],
+    };
+
+    return defaultNavigationAction;
+}
+
+function buildMarkingAction(
+    userLearningModel: UserLearningModel,
+) {
+
+}
 
 function GenerateMarkDrillFulloutSteps(
     segmentDescription: string,
@@ -188,6 +271,16 @@ function isActivityComplete(activity: PracticePlanActivity, progress: PracticePl
     );
 }
 
+function nextIncompleteActivity(practicePlan: PracticePlan, progress: PracticePlanProgress) {
+
+    const allActivities = practicePlan.stages.flatMap(stage => stage.activities);
+    const firstIncompleteActivity = allActivities.find(
+        activity => !isActivityComplete(activity, progress!)
+    );
+
+    return firstIncompleteActivity;
+}
+
 const PROGRESS_REFRESH_MIN_INTERVAL_SECS = 60 * 10; // 10 minutes
 
 class TeachingAgent {
@@ -260,6 +353,16 @@ class TeachingAgent {
             throw error;
         }
         return newProgress;
+    }
+
+    async decidePostPracticeAttemptAction(args:{
+        userLearningModel: UserLearningModel,
+        practiceActivity: PracticePlanActivity,
+        practiceStep: PracticeStep,
+        performanceAttempt: UserPerformanceAttempt,
+    }): Promise<PostPracticeAttemptAction> {
+        const defaultNavigationAction = buildDefaultNavigationAction(args.userLearningModel);
+        return defaultNavigationAction;
     }
 
     static generateNewUserLearningModel(

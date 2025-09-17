@@ -25,7 +25,7 @@
 	}
 
 	let { data, children } = $props();
-	const { supabase } = (data);
+	const { supabase, databackend } = (data);
 	let { session } = $derived(data);
 
 	// Setting client as context is a convenient way to give non-route Svelve elements
@@ -38,15 +38,20 @@
 	setContext('user', userStore);
 
 	// Listen for auth state changes and update the user store accordingly
-	const { data: authData } = supabase.auth.onAuthStateChange((_, newSession) => {
-		userStore.set(newSession?.user ?? null);
+	const { data: authData } = supabase.auth.onAuthStateChange(async (_, newSession) => {
+
+		const newUser = await supabase.auth.getUser();
+		userStore.set(newUser.data.user ?? null);
+
 		if (newSession?.expires_at !== session?.expires_at) {
+			// this triggers to root +layout.ts to run the load function to run again
 			invalidate('supabase:auth');
 		}
 	});
 
+	// No need to make this a writeable store since it doesn't become invalid 
+	// with session changes (it will use the latest session internally)
 	setContext('supabase', supabase);
-
 
 	onMount(() => {
 		// Register service worker

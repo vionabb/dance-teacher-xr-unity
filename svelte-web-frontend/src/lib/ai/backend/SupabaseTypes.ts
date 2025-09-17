@@ -61,7 +61,7 @@ export type Database = {
           display_name: string
           fps: number
           height: number
-          id?: number
+          id?: never
           landmarks_holistic_3d_src?: string | null
           landmarks_pose_2d_src?: string | null
           manual_bpm?: number | null
@@ -80,7 +80,7 @@ export type Database = {
           display_name?: string
           fps?: number
           height?: number
-          id?: number
+          id?: never
           landmarks_holistic_3d_src?: string | null
           landmarks_pose_2d_src?: string | null
           manual_bpm?: number | null
@@ -118,7 +118,7 @@ export type Database = {
           data: Json
           display_name?: string | null
           generation_info: string
-          id?: number
+          id?: never
           video_id?: number | null
         }
         Update: {
@@ -127,7 +127,7 @@ export type Database = {
           data?: Json
           display_name?: string | null
           generation_info?: string
-          id?: number
+          id?: never
           video_id?: number | null
         }
         Relationships: [
@@ -234,31 +234,34 @@ export type Database = {
           id: number
           learningmodel_id: string
           motion_id: number
+          practice_context: Json
           self_report: Json
           user_id: string
-          video_recording_url: string | null
+          video_recording_storagepath: string | null
         }
         Insert: {
           created_at?: string
           duration_secs?: number | null
           evaluation: Json
-          id?: number
+          id?: never
           learningmodel_id: string
           motion_id: number
+          practice_context: Json
           self_report: Json
           user_id: string
-          video_recording_url?: string | null
+          video_recording_storagepath?: string | null
         }
         Update: {
           created_at?: string
           duration_secs?: number | null
           evaluation?: Json
-          id?: number
+          id?: never
           learningmodel_id?: string
           motion_id?: number
+          practice_context?: Json
           self_report?: Json
           user_id?: string
-          video_recording_url?: string | null
+          video_recording_storagepath?: string | null
         }
         Relationships: [
           {

@@ -6,6 +6,7 @@ create table "public"."user_performance_attempt" (
     "learningmodel_id" uuid not null,
     "evaluation" jsonb not null,
     "self_report" jsonb not null,
+    "practice_context" jsonb not null,
     "video_recording_url" text,
     "duration_secs" double precision
 );
@@ -52,3 +53,5 @@ CREATE POLICY "Enable users to read their own performance attempts" ON "public".
 CREATE POLICY "Enable users to update their own performance attempts" ON "public"."user_performance_attempt"
     FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
 
+alter table "public"."user_performance_attempt"
+alter column id set generated always;

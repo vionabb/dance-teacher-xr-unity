@@ -24,7 +24,7 @@ export const FrontendSummaryMetrics = Object.freeze({
     basicInfo: new BasicInfoSummaryMetric(),
     kinematicError: new KinematicErrorMetric(),
     temporalAlignment: new TemporalAlignmentMetric(),
-    skeleton3dSimilarityDtw: new Skeleton3DAngleDistanceDTW(),
+    // skeleton3dSimilarityDtw: new Skeleton3DAngleDistanceDTW(),
 });
 
 export const FrontendMetrics = Object.freeze({
