@@ -1,20 +1,13 @@
 <script lang="ts">
 	import type { ServiceWorkerMessageSession } from './../service-worker.ts';
-	import { run } from 'svelte/legacy';
-
+	
 	import '../app.pcss';
-	import { tick, onMount, setContext } from 'svelte';
-	import { webcamStream } from '$lib/webcam/streams';
+	import { onMount, setContext } from 'svelte';
 	import NavBar, { navbarProps } from '$lib/elements/NavBar.svelte';
 	import './styles.scss';
 	import SettingsPage from '$lib/pages/SettingsPage.svelte';
-	import CloseButton from '$lib/elements/CloseButton.svelte';
 	import { invalidate } from '$app/navigation';
-	import { waitSecs } from '$lib/utils/async';
 	import Dialog from '$lib/elements/Dialog.svelte';
-	import { navigating } from '$app/stores';
-	import { debugMode } from '$lib/model/settings';
-	import type { User } from '@supabase/supabase-js';
 	import { NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL } from '$env/static/public';
 	
 
@@ -28,25 +21,28 @@
 	const { supabase, databackend } = (data);
 	let { session } = $derived(data);
 
-	// Setting client as context is a convenient way to give non-route Svelve elements
+	// Setting client as context is a convenient way to give non-route Svelte elements
 	// access to the Supabase client -- otherwise, we'd need to make this properties of every
 	// page element that needs it and pass from the route .svelte files.
-	// svelte-ignore state_referenced_locally
-	import { writable } from 'svelte/store';
+	//   >> could create a derived store that updates based on data.user, but so far, not needed
 
-	const userStore = writable(data.user ?? null);
-	setContext('user', userStore);
-
-	// Listen for auth state changes and update the user store accordingly
-	const { data: authData } = supabase.auth.onAuthStateChange(async (_, newSession) => {
-
-		const newUser = await supabase.auth.getUser();
-		userStore.set(newUser.data.user ?? null);
-
-		if (newSession?.expires_at !== session?.expires_at) {
-			// this triggers to root +layout.ts to run the load function to run again
-			invalidate('supabase:auth');
-		}
+	// Push session to service worker whenever session (tokens) or user changes
+	$effect(() => {
+		const s = data.session;
+		if (!s) return;
+		const controller = navigator?.serviceWorker?.controller;
+		if (!controller) return; // will be sent later once controller exists
+		const message: ServiceWorkerMessageSession = {
+			type: 'SUPABASE_SESSION',
+			session: {
+				supabase_url: NEXT_PUBLIC_SUPABASE_URL,
+				supabase_anon_key: NEXT_PUBLIC_SUPABASE_ANON_KEY,
+				access_token: s.access_token ?? '',
+				refresh_token: s.refresh_token ?? '',
+				user_id: data.user?.id ?? ''
+			}
+		};
+		controller.postMessage(message);
 	});
 
 	// No need to make this a writeable store since it doesn't become invalid 
@@ -66,30 +62,12 @@
 				});
 		}
 
-		const { data } = supabase.auth.onAuthStateChange((_, newSession) => {
-			if (newSession?.expires_at !== session?.expires_at) {
-				invalidate('supabase:auth');
-			}
-
-			const message: ServiceWorkerMessageSession = {
-				type: 'SUPABASE_SESSION',
-				session: {
-					supabase_url: NEXT_PUBLIC_SUPABASE_URL,
-					supabase_anon_key: NEXT_PUBLIC_SUPABASE_ANON_KEY,
-					access_token: newSession?.access_token ?? '',
-					refresh_token: newSession?.refresh_token ?? '',
-					user_id: newSession?.user.id ?? ''
-				}
-			};
-			if (navigator.serviceWorker.controller) {
-				navigator.serviceWorker.controller.postMessage(message);
-				console.debug('Sent session update to service worker');
-			} else {
-				console.error('No service worker controller to send message to');
-			}
+		const { data: listener } = supabase.auth.onAuthStateChange(() => {
+			// Invalidate; root +layout.ts load will fetch fresh session & user
+			//             this will then update the data.user and data.session props
+			invalidate('supabase:auth');
 		});
-
-		return () => data.subscription.unsubscribe();
+		return () => listener.subscription.unsubscribe();
 	});
 
 </script>
