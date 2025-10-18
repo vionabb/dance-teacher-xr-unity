@@ -78,7 +78,9 @@ class SupabaseDataBackend implements IDataBackend {
         // map data to replace 'data' field with 'segmentation' field
         const modifiedData = data.map(item => {
             const { data, ...rest } = item;
-            return { ...rest, segmentation: data as MotionSegmentation };
+            const segmentation = data as MotionSegmentation;
+            segmentation.id = item.id; // ensure id is set on segmentation
+            return { ...rest, segmentation };
         });
         return modifiedData;
     }
@@ -94,7 +96,9 @@ class SupabaseDataBackend implements IDataBackend {
         }
         if (!data) return null;
         const { data: rawSegmentation, ...rest } = data;
-        return { ...rest, segmentation: rawSegmentation as MotionSegmentation };
+        const segmentation = rawSegmentation as MotionSegmentation;
+        segmentation.id = data.id; // ensure id is set on segmentation
+        return { ...rest, segmentation };
     }
 
     async createUserLearningModel(data: Omit<UserLearningModel, "id"> & { segmentation_id: number; }): Promise<UserLearningModel> {

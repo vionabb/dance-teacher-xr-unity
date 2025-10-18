@@ -34,6 +34,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_postperformance_action: {
+        Row: {
+          action_name: string
+          created_at: string
+          data: Json
+          id: number
+          practice_attempt: number
+        }
+        Insert: {
+          action_name: string
+          created_at?: string
+          data: Json
+          id?: number
+          practice_attempt: number
+        }
+        Update: {
+          action_name?: string
+          created_at?: string
+          data?: Json
+          id?: number
+          practice_attempt?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_postperformance_action_practice_attempt_fkey"
+            columns: ["practice_attempt"]
+            isOneToOne: true
+            referencedRelation: "user_performance_attempt"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motion_video: {
         Row: {
           created_at: string
@@ -228,6 +260,7 @@ export type Database = {
       }
       user_performance_attempt: {
         Row: {
+          consecutive_attempt_number: number
           created_at: string
           duration_secs: number | null
           evaluation: Json
@@ -235,30 +268,35 @@ export type Database = {
           learningmodel_id: string
           motion_id: number
           practice_context: Json
+          previous_attempt: number | null
           self_report: Json
           user_id: string
           video_recording_storagepath: string | null
         }
         Insert: {
+          consecutive_attempt_number?: number
           created_at?: string
           duration_secs?: number | null
           evaluation: Json
-          id?: never
+          id?: number
           learningmodel_id: string
           motion_id: number
           practice_context: Json
+          previous_attempt?: number | null
           self_report: Json
           user_id: string
           video_recording_storagepath?: string | null
         }
         Update: {
+          consecutive_attempt_number?: number
           created_at?: string
           duration_secs?: number | null
           evaluation?: Json
-          id?: never
+          id?: number
           learningmodel_id?: string
           motion_id?: number
           practice_context?: Json
+          previous_attempt?: number | null
           self_report?: Json
           user_id?: string
           video_recording_storagepath?: string | null
@@ -276,6 +314,13 @@ export type Database = {
             columns: ["motion_id"]
             isOneToOne: false
             referencedRelation: "motion_video"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_performance_attempt_previous_attempt_fkey"
+            columns: ["previous_attempt"]
+            isOneToOne: false
+            referencedRelation: "user_performance_attempt"
             referencedColumns: ["id"]
           },
           {

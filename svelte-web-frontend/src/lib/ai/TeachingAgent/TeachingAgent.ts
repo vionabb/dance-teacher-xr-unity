@@ -9,6 +9,7 @@ import { writable, type Writable, type Readable, derived, get, readable, readonl
 import { type PracticePlanProgress, type StepProgressData } from '$lib/data/activity-progress';
 import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel, UserPerformanceAttempt } from '../backend/IDataBackend';
 import { getContext } from 'svelte';
+import { getMotionHomeUrl, getPracticeStepUrl } from '$lib/utils/appurls';
 
 // export interface UserDancePerformanceLog {
 //     // markingByNode: Map<DanceTreeNode["id"], number>;
@@ -20,73 +21,108 @@ type PostPracticeAttemptActionBase = {
     displayText?: string;
 }
 
-type PostPracticeAttemptAction_ImmediateRepeat = PostPracticeAttemptActionBase & {
+export type PostPracticeAttemptAction_ImmediateRepeat = PostPracticeAttemptActionBase & {
     action: 'immediateRepeat';
     delaySecs: number;
 }
 
-type PostPracticeAttemptAction_AskNavigation = PostPracticeAttemptActionBase & {
-    action : 'askNavigation';
+export type PostPracticeAttemptAction_AskNavigation = PostPracticeAttemptActionBase & {
+    action: 'askNavigation';
     navigationOptions: {
         displayText: string;
-
-        /** Callback to run when the user selects this option. 
-         * If an action is returned, the review page will shift to that state */
-        onSelect: () => Promise<PostPracticeAttemptAction | null>;
+        url: URL;
     }[]
 }
 
-type PostPracticeAttemptSelfReport = 'perceivedDifficulty' | 'openEnded';
-
-type PostPracticeAttemptAction_Review = PostPracticeAttemptActionBase & {
+export type PostPracticeAttemptAction_Review = PostPracticeAttemptActionBase & {
     action: 'reviewFeedback';
-    selfReports: PostPracticeAttemptSelfReport[],
-    onSelfReportSubmit?: (reports: Record<PostPracticeAttemptSelfReport, any>) => Promise<PostPracticeAttemptAction | null>;
+    selfReports: PostPracticeAttemptSelfReportQuestion[],
     showVideo: boolean,
 }
 
 export type PostPracticeAttemptAction = PostPracticeAttemptAction_ImmediateRepeat | PostPracticeAttemptAction_AskNavigation | PostPracticeAttemptAction_Review;
 
-export function buildDefaultNavigationAction(
-    userLearningModel: UserLearningModel
-): PostPracticeAttemptAction_AskNavigation {
-    const progressForwardActivity = nextIncompleteActivity(
-        userLearningModel.plan,
-        userLearningModel.progress
+export function buildDefaultNavigationAction(args: {
+    motionVideo: MotionVideo,
+    segmentation: MotionSegmentation,
+    userLearningModel: UserLearningModel,
+    priorPerformanceAttempt: UserPerformanceAttempt,
+    currentPracticeActivityId: string,
+    currentPracticeStepId: string,
+    requestingURL?: URL,
+}): PostPracticeAttemptAction_AskNavigation {
+
+    const baseURL = new URL(args.requestingURL?.origin ?? window.location.origin);
+
+    let navigationOptions: PostPracticeAttemptAction_AskNavigation['navigationOptions'] = [
+        {
+            displayText: 'Repeat this step',
+            url: getPracticeStepUrl({
+                motionVideoId: args.motionVideo.id,
+                motionSegmentationId: args.segmentation.id,
+                practiceActivityId: args.currentPracticeActivityId,
+                practiceStepId: args.currentPracticeStepId,
+                consecutiveAttemptNumber: (args.priorPerformanceAttempt.consecutive_attempt_number ?? 1) + 1,
+                previousAttemptId: args.priorPerformanceAttempt.id,
+                baseURL
+            })
+        }
+    ];
+
+    const curActivity = args.userLearningModel.plan.stages
+        .flatMap(stage => stage.activities)
+        .find(activity => activity.id == args.currentPracticeActivityId) ?? null;
+
+    const curStepIndex = curActivity?.steps.findIndex(step => step.id == args.currentPracticeStepId) ?? -1;
+
+    const nextStepInCurrentActivity = (curActivity && curStepIndex >= 0 && curStepIndex < curActivity.steps.length - 1) ?
+        curActivity.steps[curStepIndex + 1] : null;
+
+    if (nextStepInCurrentActivity) {
+        navigationOptions.push({
+            displayText: 'Move onto next step',
+            url: getPracticeStepUrl({
+                motionVideoId: args.motionVideo.id,
+                motionSegmentationId: args.segmentation.id,
+                practiceActivityId: args.currentPracticeActivityId,
+                practiceStepId: nextStepInCurrentActivity.id,
+                baseURL: baseURL
+            })
+        });
+    }
+
+    const nextActivity = nextIncompleteActivity(
+        args.userLearningModel.plan,
+        args.userLearningModel.progress
     );
+
+    if (!nextStepInCurrentActivity && nextActivity) {
+        navigationOptions.push({
+            displayText: 'Move onto next activity',
+            url: getPracticeStepUrl({
+                motionVideoId: args.motionVideo.id,
+                motionSegmentationId: args.segmentation.id,
+                practiceActivityId: nextActivity.id,
+                practiceStepId: nextActivity.steps[0].id,
+                baseURL: baseURL
+            })
+        });
+    }
+
+    navigationOptions.push({
+        displayText: 'Go to practice plan overview',
+        url: getMotionHomeUrl({
+            motionVideoId: args.motionVideo.id,
+            motionSegmentationId: args.segmentation.id,
+            baseURL: baseURL,
+        })
+    });
 
     const defaultNavigationAction: PostPracticeAttemptAction_AskNavigation = {
         action: 'askNavigation',
         internalReason: 'defaultNavigation',
         displayText: 'What would you like to do next?',
-        navigationOptions: [
-            {
-                displayText: 'Repeat this step',
-                onSelect: async () => {
-                    return {
-                        action: 'immediateRepeat',
-                        displayText: 'Repeating this step...',
-                        delaySecs: 1,
-                        internalReason: 'userChoseRepeat',
-                    } as PostPracticeAttemptAction_ImmediateRepeat;
-                }
-            },
-            {
-                displayText: 'Go to practice plan overview',
-                onSelect: async () => {
-                    return null; // returning null will navigate back to overview
-                }
-            },
-            ...(progressForwardActivity ? [
-                {
-                    displayText: 'Go to next step',
-                    onSelect: async () => {
-                        // Future: implement direct navigation logic
-                        return null;
-                    }
-                }
-            ] : [])
-        ],
+        navigationOptions
     };
 
     return defaultNavigationAction;
@@ -238,10 +274,10 @@ function GeneratePracticePlan(
 
     // Remove checkpoint activity if there is only 1 stage, as
     // the finale activity will serve as the checkpoint.
-    if (stages.length == 1 
+    if (stages.length == 1
         && stages[0].activities.length > 0 &&
         stages[0].activities[stages[0].activities.length - 1].type == 'checkpoint') {
-            stages[0].activities.pop();
+        stages[0].activities.pop();
     }
 
     stages.push({
@@ -266,8 +302,8 @@ function GeneratePracticePlan(
 function isActivityComplete(activity: PracticePlanActivity, progress: PracticePlanProgress) {
     return activity.steps.reduce(
         (acc, step) => acc && (
-            (progress?.[activity.id]?.[step.id]?.completed) ?? false), 
-            true
+            (progress?.[activity.id]?.[step.id]?.completed) ?? false),
+        true
     );
 }
 
@@ -283,6 +319,12 @@ function nextIncompleteActivity(practicePlan: PracticePlan, progress: PracticePl
 
 const PROGRESS_REFRESH_MIN_INTERVAL_SECS = 60 * 10; // 10 minutes
 
+export type PostPracticeAttemptSelfReportQuestion = {
+    question_class: string;
+    prompt: string,
+    options: { value: string, label: string }[]
+}
+
 class TeachingAgent {
     private motionVideo: MotionVideo;
     private motionSegmentation: MotionVideoSegmentation;
@@ -294,8 +336,8 @@ class TeachingAgent {
 
     constructor(
         opts: {
-            motionSegmentation: MotionVideoSegmentation, 
-            motionVideo: MotionVideo, 
+            motionSegmentation: MotionVideoSegmentation,
+            motionVideo: MotionVideo,
             dataBackend: IDataBackend,
             userLearningModel: UserLearningModel
         },
@@ -310,7 +352,7 @@ class TeachingAgent {
     }
 
     nextIncompleteActivity(progress: PracticePlanProgress | undefined) {
-        
+
         const plan = get(this.practicePlan);
         if (progress === undefined) {
             return plan.stages[0].activities[0];
@@ -355,13 +397,43 @@ class TeachingAgent {
         return newProgress;
     }
 
-    async decidePostPracticeAttemptAction(args:{
+    getPostPracticeAttemptSelfReportQuestion(args: {
+        performanceAttempt: UserPerformanceAttempt,
+    }): PostPracticeAttemptSelfReportQuestion | undefined {
+        if (args.performanceAttempt.self_report?.selection) {
+            return undefined; // already submitted a self-report
+        }
+
+        return {
+            prompt: 'How was that practice attempt?',
+            question_class: 'difficulty_rating',
+            options: [
+                { value: 'too_easy', label: 'Too easy (move on)' },
+                { value: 'about_right', label: 'About right (do again)' },
+                { value: 'too_hard', label: 'Too hard (repeat step)' },
+                { value: 'got_it', label: 'Got it (move on)' },
+            ]
+        }
+    }
+
+    async decidePostPracticeAttemptAction(args: {
+        motionVideo: MotionVideo,
+        motionSegmentation: MotionSegmentation,
         userLearningModel: UserLearningModel,
         practiceActivity: PracticePlanActivity,
         practiceStep: PracticeStep,
         performanceAttempt: UserPerformanceAttempt,
+        requestingURL?: URL,
     }): Promise<PostPracticeAttemptAction> {
-        const defaultNavigationAction = buildDefaultNavigationAction(args.userLearningModel);
+        const defaultNavigationAction = buildDefaultNavigationAction({
+            motionVideo: args.motionVideo,
+            segmentation: args.motionSegmentation,
+            userLearningModel: args.userLearningModel,
+            currentPracticeActivityId: args.practiceActivity.id,
+            currentPracticeStepId: args.practiceStep.id,
+            priorPerformanceAttempt: args.performanceAttempt,
+            requestingURL: args.requestingURL,
+        });
         return defaultNavigationAction;
     }
 
@@ -378,17 +450,17 @@ class TeachingAgent {
     }
 }
 
- export default TeachingAgent;
+export default TeachingAgent;
 
- /**
-  * Gets the current TeachingAgent from the Svelte context.
-  * Current page must be a child of a TeachingAgentProvider.
-  * @returns 
-  */
- export function GetTeachingAgent() {  
+/**
+ * Gets the current TeachingAgent from the Svelte context.
+ * Current page must be a child of a TeachingAgentProvider.
+ * @returns 
+ */
+export function GetTeachingAgent() {
     const agent = getContext<Readable<TeachingAgent>>('teachingAgent');
     if (!agent) {
         throw new Error('TeachingAgent.ts TeachingAgent not found in context. Ensure you are within a TeachingAgentProvider.');
     }
     return agent;
- }
+}

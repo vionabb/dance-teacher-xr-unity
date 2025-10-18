@@ -19,6 +19,7 @@ export type MotionSegmentationNode = {
 }
 
 export type MotionSegmentation = {
+    id: number;
     tree_name: string;
     generation_data: Record<string, unknown>;
     root: MotionSegmentationNode;

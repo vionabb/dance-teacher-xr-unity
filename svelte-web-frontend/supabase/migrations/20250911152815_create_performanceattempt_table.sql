@@ -8,12 +8,21 @@ create table "public"."user_performance_attempt" (
     "self_report" jsonb not null,
     "practice_context" jsonb not null,
     "video_recording_url" text,
-    "duration_secs" double precision
+    "duration_secs" double precision,
+    "consecutive_attempt_number" integer not null default 1,
+    "previous_attempt" bigint
 );
 
 alter table "public"."user_performance_attempt" enable row level security;
 
 alter table "public"."user_performance_attempt" add constraint "user_performance_attempt_pkey" PRIMARY KEY (id);
+
+alter table "public"."user_performance_attempt"
+  add constraint "user_performance_attempt_previous_attempt_fkey"
+  foreign key ("previous_attempt")
+  references "public"."user_performance_attempt"("id")
+  on update cascade
+  on delete set null;
 
 alter table "public"."user_performance_attempt" add constraint "user_performance_attempt_learningmodel_id_fkey" FOREIGN KEY (learningmodel_id) REFERENCES user_learning_model(id) ON UPDATE CASCADE ON DELETE CASCADE;
 

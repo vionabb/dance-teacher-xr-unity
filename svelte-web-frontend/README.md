@@ -132,7 +132,7 @@ Other useful links:
 ### Updating the database schema
 
 1. Update the database using the web editor locally: <http://localhost:54323>
-2. Run `npm supabase db diff --local -f <migration_name>` to create a new migration file in `migrations/`.
+2. Run `pnpm supabase db diff --local -f <migration_name>` to create a new migration file in `migrations/`.
 3. Run `pnpm supabase gen types typescript --local > src/lib/ai/backend/SupabaseTypes.ts` to update the type definitions based on the new schema.
 
 #### Supabase Issues
