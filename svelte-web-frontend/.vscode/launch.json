@@ -119,7 +119,7 @@
                 "--experimental-modules"
             ],
             "args": [
-                "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/",
+                "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/",
             ],
             "program": "${workspaceFolder}/scripts/syncStorageAssetsPortable.js"
         },
@@ -132,7 +132,7 @@
                 "--experimental-modules"
             ],
             "args": [
-                "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/",
+                "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/",
                 "--dry-run"
             ],
             "program": "${workspaceFolder}/scripts/syncStorageAssetsPortable.js"

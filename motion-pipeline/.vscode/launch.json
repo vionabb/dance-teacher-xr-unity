@@ -28,13 +28,13 @@
             // ],
             // "osx": {
                 "args": [
-                    "--database_csv_path=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_data/db.csv",
-                    "--video_srcdir=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/videos",
-                    "--holistic_data_srcdir=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/holistic_data",
-                    "--pose2d_data_srcdir=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/pose2d_data",
+                    "--database_csv_path=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_data/db.csv",
+                    "--video_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/videos",
+                    "--holistic_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/holistic_data",
+                    "--pose2d_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/pose2d_data",
                     "--temp_dir=${workspaceFolder}/data/tempCloud/",
-                    "--bundle_export_path=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_data",
-                    "--bundle_media_export_path=/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/",
+                    "--bundle_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_data",
+                    "--bundle_media_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/",
                     "--include_thumbnail_in_bundle",
                     // "--include_audio_in_bundle",
 
@@ -328,41 +328,41 @@
             "osx": {
                 "args": [
                     //// VIDEO FOLDER and then POSE FOLDER arguments
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-videos-segmented",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-pixelposes-segmented",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-videos-segmented",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-pixelposes-segmented",
                     // "-f",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poseframes-segmented",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poseframes-segmented",
 
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-orig-videos",
-                    "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/user-study-1-isls2022-mp4",
-                    "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-pixelposes-whole",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-orig-videos",
+                    "/Users/viona/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/user-study-1-isls2022-mp4",
+                    "/Users/viona/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-pixelposes-whole",
                     "-f",
-                    "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poseframes-whole",
+                    "/Users/viona/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poseframes-whole",
 
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-videos-segmented",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-pixelposes-segmented",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-videos-segmented",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-pixelposes-segmented",
                     // "-f",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-segmented",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-segmented",
 
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/user-study-2-whole-reencoded",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-pixelposes-whole",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-jules.b.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/user-study-2-whole-reencoded",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-pixelposes-whole",
                     // "-f",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-whole",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-whole",
 
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/tiktoks-pixelposes-segmented",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/tiktoks-pixelposes-segmented",
                     // "-f",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/tiktoks-poseframes-segmented",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/tiktoks-poseframes-segmented",
 
-                    // "/Users/julien/Desktop/test/flipped_clips/flipped",
-                    // "/Users/julien/Desktop/test/output",
-                    // "/Users/julien/Desktop/test/output-poses-participants",
+                    // "/Users/viona/Desktop/test/flipped_clips/flipped",
+                    // "/Users/viona/Desktop/test/output",
+                    // "/Users/viona/Desktop/test/output-poses-participants",
 
                     //// POSE FOLDER ARGUMENTS
                     // "${workspaceFolder}/data/video-pose-frames/tiktok-segment-frames/",
                     // "${workspaceFolder}/data/video-pose-frames/participant-study1-segmented/",
                     // "-o",
-                    // "/Users/julien/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/tiktok-flipped-clip-poses",
+                    // "/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/tiktok-flipped-clip-poses",
                 ]
             }
         },
@@ -378,8 +378,8 @@
             ],
             "osx": {
                 "args": [
-                    "/Users/julien/dev/dance-teacher-xr-unity/svelte-web-frontend/src/lib/ai/motionmetrics/testdata/user2_segment_ratings.xlsx",
-                    "/Users/julien/dev/dance-teacher-xr-unity/svelte-web-frontend/src/lib/ai/motionmetrics/testdata/study2_humanratings.csv",
+                    "/Users/viona/dev/dance-teacher-xr-unity/svelte-web-frontend/src/lib/ai/motionmetrics/testdata/user2_segment_ratings.xlsx",
+                    "/Users/viona/dev/dance-teacher-xr-unity/svelte-web-frontend/src/lib/ai/motionmetrics/testdata/study2_humanratings.csv",
                 ]
             }
         }
