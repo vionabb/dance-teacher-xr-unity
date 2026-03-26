@@ -97,7 +97,7 @@ def calculate_visibility_distribution(visibility_df: pd.DataFrame, joint_names: 
         showfliers=False,
         ax=ax
     )
-    ax.set_title(f"Joint Visibility Distribution in {parentdir}")
+    # ax.set_title(f"Joint Visibility Distribution in {parentdir}")
     ax.set_ylabel("Visibility")
     ax.set_xlabel("Joint")
     ax.set_xticklabels(visibility_by_joint["joint"], rotation=90)
@@ -134,7 +134,7 @@ def calculate_visibility_distribution(visibility_df: pd.DataFrame, joint_names: 
     all_visibility = visibility_df.melt(var_name="Joint", value_name="Visibility")["Visibility"]
     all_visibility.plot(kind='hist', bins=30, density=True, alpha=0.5, ax=ax, label='Visibility Histogram')
     all_visibility.plot(kind='kde', ax=ax, label='Estimated PDF', color='red')
-    ax.set_title(f"Overall Joint Visibility Distribution in {parentdir}")
+    # ax.set_title(f"Overall Joint Visibility Distribution in {parentdir}")
     ax.set_xlabel("Visibility")
     ax.set_ylabel("Density")
     ax.set_xlim(0, 1)
@@ -199,7 +199,7 @@ print(f"{script_name}")
 
 print(f"\toutput:\t{visibility_output_dir}")
 
-posefiles_by_parentdir: t.Dict[Path, t.List[str]] = {}
+posefiles_by_parentdir: t.Dict[str | Path, t.List[str | Path]] = {}
 for dir in pose_csvfile_dirs:
     pose_csv_files = list(dir.glob("*.csv"))
     print(f"\t{len(pose_csv_files)} files\t{dir}")
@@ -239,10 +239,6 @@ for parentdir, posefiles in posefiles_by_parentdir.items():
         # Concatenate all motion energy DataFrames
         motion_energy_df = pd.concat(motion_energy_dfs, ignore_index=True)
     
-        # Plot the boxplots of motion energy for each joint (ignore NaN values)
-        # Create a combined figure with 2 vertically stacked subplots for 2D and 3D motion energy.
-        fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(12, 12))
-
         # Determine columns for 2D and 3D motion energy
         cols_2d = [col for col in motion_energy_df.columns if col.endswith("_motion_energy_2d")]
         cols_3d = [col for col in motion_energy_df.columns if col.endswith("_motion_energy_3d")]
@@ -251,14 +247,8 @@ for parentdir, posefiles in posefiles_by_parentdir.items():
         counts_2d = {col: motion_energy_df[col].count() for col in cols_2d}
         counts_3d = {col: motion_energy_df[col].count() for col in cols_3d}
 
-        # Set up a gridspec: 2 rows, 2 columns (left: boxplot, right: table),
-        # with a narrower right column.
-        fig = plt.figure(figsize=(18, 12))
-        gs = gridspec.GridSpec(2, 2, width_ratios=[3.5, 1], wspace=0.1, hspace=0.6)
-
-        # --- 2D Motion Energy (First row) ---
-        # Boxplot axis (left)
-        ax_box_2d = fig.add_subplot(gs[0, 0])
+        # --- 2D Motion Energy Plot ---
+        fig_2d, ax_box_2d = plt.subplots(figsize=(12, 6))
         motion_energy_df.boxplot(
             column=cols_2d,
             grid=False,
@@ -266,16 +256,20 @@ for parentdir, posefiles in posefiles_by_parentdir.items():
             showfliers=False,
             ax=ax_box_2d,
         )
-        ax_box_2d.set_title("2D Motion Energy")
-        ax_box_2d.set_ylabel("Motion Energy")
-        ax_box_2d.set_xlabel("Joint (2D)")
+        # ax_box_2d.set_title("2D Motion Energy")
+        ax_box_2d.set_ylabel("Motion Energy per Frame")
+        ax_box_2d.set_xlabel("Joint")
         labels_2d = [col.replace("_motion_energy_2d", "") for col in cols_2d]
         ax_box_2d.set_xticks(range(1, len(labels_2d) + 1))
         ax_box_2d.set_xticklabels(labels_2d, rotation=90)
+        # fig_2d.suptitle(f"Framewise 2D Joint Motion Energy Distribution in {parentdir}", fontsize=14)
+        fig_path_2d = motion_energy_output_dir / f"{parentdir}.joint_motion_energy_distribution_2d.png"
+        fig_2d.savefig(str(fig_path_2d), bbox_inches='tight', dpi=300)
+        plt.close(fig_2d)
+        print(f"\tSaved 2D joint motion energy distribution plot to {fig_path_2d.relative_to(motion_energy_output_dir)}")
 
-        # --- 3D Motion Energy (Second row) ---
-        # Boxplot axis (left)
-        ax_box_3d = fig.add_subplot(gs[1, 0])
+        # --- 3D Motion Energy Plot ---
+        fig_3d, ax_box_3d = plt.subplots(figsize=(12, 6))
         motion_energy_df.boxplot(
             column=cols_3d,
             grid=False,
@@ -283,14 +277,19 @@ for parentdir, posefiles in posefiles_by_parentdir.items():
             showfliers=False,
             ax=ax_box_3d,
         )
-        ax_box_3d.set_title("3D Motion Energy")
-        ax_box_3d.set_ylabel("Motion Energy")
-        ax_box_3d.set_xlabel("Joint (3D)")
+        # ax_box_3d.set_title("3D Motion Energy")
+        ax_box_3d.set_ylabel("Motion Energy per Frame")
+        ax_box_3d.set_xlabel("Joint")
         labels_3d = [col.replace("_motion_energy_3d", "") for col in cols_3d]
         ax_box_3d.set_xticks(range(1, len(labels_3d) + 1))
         ax_box_3d.set_xticklabels(labels_3d, rotation=90)
+        # fig_3d.suptitle(f"3D Motion Energy Distribution in {parentdir}", fontsize=14)
+        fig_path_3d = motion_energy_output_dir / f"{parentdir}.joint_motion_energy_distribution_3d.png"
+        fig_3d.savefig(str(fig_path_3d), bbox_inches='tight', dpi=300)
+        plt.close(fig_3d)
+        print(f"\tSaved 3D joint motion energy distribution plot to {fig_path_3d.relative_to(motion_energy_output_dir)}")
 
-        # --- Right Column: Counts & Weights Table (2d and 3d are the same, so span both rows)---
+        # --- Counts & Weights Table Plot ---
         # Now, we'll use the motion energy as a basis for suggesting a weighting for each joint.
         # In this secnario, a joint's typical contribution to the motion energy can be used to
         # determine how much it should be weighted in a pose quality metric.
@@ -330,11 +329,14 @@ for parentdir, posefiles in posefiles_by_parentdir.items():
         mean_weights = {joint: weight for joint, weight in mean_weights.items() if weight >= 0.01}
         # reweigh the weights so that they sum to 1
         total_weight = sum(mean_weights.values())
-        mean_weights = {joint: weight / total_weight for joint, weight in mean_weights.items()}
+        if total_weight > 0:
+            mean_weights = {joint: weight / total_weight for joint, weight in mean_weights.items()}
+        else:
+            mean_weights = {}
 
         table_data_2d = {col.replace("_motion_energy_2d", ""): (counts_2d[col], mean_weights[get_joint_name(col)])  for col in cols_2d if get_joint_name(col) in mean_weights}
         table_data_2d = pd.DataFrame.from_dict(table_data_2d, orient='index', columns=['Count', 'Weight (frac)']).reset_index()
-        ax_table = fig.add_subplot(gs[:, 1])
+        fig_table, ax_table = plt.subplots(figsize=(8, 10))
         ax_table.axis('tight')
         table_data_2d['Weight (frac)'] = table_data_2d['Weight (frac)'].apply(lambda x: f"{x:.2f}")
         ax_table.axis('off')
@@ -345,13 +347,11 @@ for parentdir, posefiles in posefiles_by_parentdir.items():
         )
         table_2d.auto_set_font_size(True)
         ax_table.set_title("Valid Frame Counts")
-
-        fig.suptitle(f"Framewise Joint Motion Energy Distribution in {parentdir}", fontsize=16)
-        fig_path = motion_energy_output_dir / f"{parentdir}.joint_motion_energy_distribution.png"
-        fig.savefig(str(fig_path), bbox_inches='tight', dpi=300)
-        plt.close(fig)
-        print(f"\tSaved joint motion energy distribution plot to {fig_path.relative_to(motion_energy_output_dir)}")
-
+        fig_table.suptitle(f"Joint Counts and Weights in {parentdir}", fontsize=14)
+        fig_path_table = motion_energy_output_dir / f"{parentdir}.joint_motion_energy_weights_table.png"
+        fig_table.savefig(str(fig_path_table), bbox_inches='tight', dpi=300)
+        plt.close(fig_table)
+        print(f"\tSaved joint motion energy weights table to {fig_path_table.relative_to(motion_energy_output_dir)}")
 
 
 

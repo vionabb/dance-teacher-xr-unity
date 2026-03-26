@@ -80,7 +80,7 @@ describe("AllMetricsComparison", {}, async () => {
 
     async function updateDbWithMetric(metricName: string, metric: MetricRunner) {
         // Study 1 had multiple phases, so we need to filter out the slowed down clips
-        const study1PoseFiles = await loadPoses(Study.Study1_BySegment, (clipInfo) => {
+        const study1SegmentsPoseFiles = await loadPoses(Study.Study1_BySegment, (clipInfo) => {
             const studyInfo = clipInfo as SegmentInfo;
             return studyInfo.study1phase == "performance"; // skip slowed down clips
         }) as AsyncGenerator<StudySegmentData>;
@@ -91,7 +91,7 @@ describe("AllMetricsComparison", {}, async () => {
         }) as AsyncGenerator<StudySegmentData>;
 
         // Study 2 has only one phase, so we can load all clips
-        const study2PoseFiles = await loadPoses(Study.Study2_BySegment) as AsyncGenerator<StudySegmentData>;
+        const study2SegmentPoseFiles = await loadPoses(Study.Study2_BySegment) as AsyncGenerator<StudySegmentData>;
 
         const study2WholePoseFiles = await loadPoses(Study.Study2_Whole) as AsyncGenerator<StudySegmentData>;   
 
@@ -102,8 +102,8 @@ describe("AllMetricsComparison", {}, async () => {
         const allPoseFiles = takeAsnc([
             study1WholePoseFiles,
             study2WholePoseFiles,
-            study1PoseFiles, 
-            study2PoseFiles
+            study1SegmentsPoseFiles, 
+            study2SegmentPoseFiles
         ], n);
 
         async function* processClips() {
