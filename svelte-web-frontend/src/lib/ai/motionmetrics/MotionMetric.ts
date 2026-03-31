@@ -1,6 +1,32 @@
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from "$lib/webcam/mediapipe-utils";
 
-export type TrackHistory = {
+export type EvaluationMetricTrack = {
+    id: string,
+    danceRelativeStem: string,
+    segmentDescription: string,
+    creationDate: string,
+    videoFrameTimesInSecs: number[],
+    actualTimesInMs: number[],
+    trackDescription: string,
+    user2dPoses: Pose2DPixelLandmarks[],
+    user3dPoses: Pose3DLandmarkFrame[],
+    ref2dPoses: Pose2DPixelLandmarks[],
+    ref3dPoses: Pose3DLandmarkFrame[],
+};
+
+export type SingleTrackMetricTrack = {
+    id: string,
+    danceRelativeStem: string,
+    segmentDescription: string,
+    creationDate: string,
+    videoFrameTimesInSecs: number[],
+    actualTimesInMs: number[],
+    trackDescription: string,
+    poses2d: Pose2DPixelLandmarks[],
+    poses3d: Pose3DLandmarkFrame[],
+};
+
+export type EvaluationTrackHistory = {
     videoFrameTimesInSecs: number[],
     actualTimesInMs: number[],
     ref3DFrameHistory: Pose3DLandmarkFrame[],
@@ -9,44 +35,160 @@ export type TrackHistory = {
     user2DFrameHistory: Pose2DPixelLandmarks[],
 };
 
+export type SingleTrackHistory = {
+    videoFrameTimesInSecs: number[],
+    actualTimesInMs: number[],
+    frameHistory2D: Pose2DPixelLandmarks[],
+    frameHistory3D: Pose3DLandmarkFrame[],
+};
+
+export type MotionMetricTimeSeriesRow = Record<string, number | string | null>;
+
+export type QuantifierFrameAlignedRow = MotionMetricTimeSeriesRow & {
+    frameIndex: number,
+};
+
+export type QuantifierDerivedRow = MotionMetricTimeSeriesRow & {
+    sourceFrameStart: number,
+    sourceFrameEnd: number,
+};
+
+export type QuantifierTimeSeriesRow = QuantifierFrameAlignedRow | QuantifierDerivedRow;
+
+export type MotionMetricTimeSeries<RowType extends MotionMetricTimeSeriesRow = MotionMetricTimeSeriesRow> = {
+    seriesId: string,
+    title?: string,
+    xKey: string,
+    yKeys: string[],
+    xLabel?: string,
+    yLabel?: string,
+    rows: RowType[],
+};
+
+export type EvaluationMetricTimeSeriesContext<SummaryType, FrameResultType = never> = {
+    track: Readonly<EvaluationMetricTrack>,
+    trackHistory: Readonly<EvaluationTrackHistory>,
+    summary: Readonly<SummaryType>,
+    metricHistory?: Readonly<FrameResultType[]>,
+};
+
+export type QuantifierTimeSeriesContext<QuantifiedRow extends QuantifierTimeSeriesRow = QuantifierTimeSeriesRow> = {
+    track: Readonly<SingleTrackMetricTrack>,
+    history: Readonly<SingleTrackHistory>,
+    timeSeries: MotionMetricTimeSeries<QuantifiedRow>[],
+};
+
+export type SegmentFrameRange = {
+    startFrame: number,
+    endFrameExclusive: number,
+};
+
 export interface BaseMetric<SummaryType, FormattedSummaryType extends Record<string, number | string | null>> {
-    
-    /**
-     * Format the summary object into a 1D row for display in a table & saving to CSV. In particular, 
-     * any sub-arraysor sub-objects in the summary object should be either integrated into the 
-     * top-level object, or discarded.
-     * @param summary The summary object returned by summarizeMetric
-     */
     formatSummary(
         summary: Readonly<SummaryType>
     ): FormattedSummaryType;
 }
 
-/**
- * Represents a metric that is calculated every frame. This can be potentially used for
- * concurrent feedback to the user.
- * @type FrameResultType 
- * @type SummaryType 
- */
-export interface LiveEvaluationMetric<FrameResultType, SummaryType, FormattedSummaryType extends Record<string, number | string | null>> extends BaseMetric<SummaryType, FormattedSummaryType>{
+export function createSingleTrackHistory(track: Readonly<SingleTrackMetricTrack>): SingleTrackHistory {
+    return {
+        videoFrameTimesInSecs: [...track.videoFrameTimesInSecs],
+        actualTimesInMs: [...track.actualTimesInMs],
+        frameHistory2D: [...track.poses2d],
+        frameHistory3D: [...track.poses3d],
+    };
+}
 
-    /**
-     * Compute the metric for a single frame. The metric is provided a large amount of information
-     * through these parameters and it is up to the metric to decide which information it needs. The
-     * return values of this function are stored in the metricHistory array, and made available for 
-     * future frame calculations and for the summary calculation.
-     * 
-     * @param history Contains the history of the track up to the current frame
-     * @param metricHistory An array of the results of this metric for each frame
-     * @param videoFrameTimeInSecs The time of the video frame, in seconds (operates at video speed)
-     * @param actualTimesInMs Timestamp of when the frame was processed (operates at real time speed)
-     * @param user2dPose 2D pose of the user
-     * @param user3dPose 3D pose of the user
-     * @param ref2dPose 2D pose of the reference dancer
-     * @param ref3dPose 3D pose of the reference dancer
-     */
+export function createSingleTrackMetricTrackFromEvaluationTrack(
+    track: Readonly<EvaluationMetricTrack>,
+    source: "user" | "reference",
+): SingleTrackMetricTrack {
+    return {
+        id: `${track.id}-${source}`,
+        danceRelativeStem: track.danceRelativeStem,
+        segmentDescription: track.segmentDescription,
+        creationDate: track.creationDate,
+        videoFrameTimesInSecs: [...track.videoFrameTimesInSecs],
+        actualTimesInMs: [...track.actualTimesInMs],
+        trackDescription: `${track.trackDescription}-${source}`,
+        poses2d: source === "user" ? [...track.user2dPoses] : [...track.ref2dPoses],
+        poses3d: source === "user" ? [...track.user3dPoses] : [...track.ref3dPoses],
+    };
+}
+
+export function getSegmentFrameRanges(frameCount: number, segmentBoundaries: readonly number[]): SegmentFrameRange[] {
+    if (!Number.isInteger(frameCount) || frameCount < 0) {
+        throw new Error(`frameCount must be a non-negative integer, got ${frameCount}`);
+    }
+
+    const ranges = [] as SegmentFrameRange[];
+    const normalizedBoundaries = [...segmentBoundaries];
+
+    for (let i = 0; i < normalizedBoundaries.length; i++) {
+        const boundary = normalizedBoundaries[i];
+        if (!Number.isInteger(boundary)) {
+            throw new Error(`segment boundary ${boundary} is not an integer`);
+        }
+        if (boundary < 1 || boundary > frameCount - 1) {
+            throw new Error(`segment boundary ${boundary} must be in [1, ${frameCount - 1}]`);
+        }
+        if (i > 0 && boundary <= normalizedBoundaries[i - 1]) {
+            throw new Error(`segment boundaries must be strictly increasing; found ${normalizedBoundaries[i - 1]} then ${boundary}`);
+        }
+    }
+
+    const allBoundaries = [0, ...normalizedBoundaries, frameCount];
+    for (let i = 0; i < allBoundaries.length - 1; i++) {
+        const startFrame = allBoundaries[i];
+        const endFrameExclusive = allBoundaries[i + 1];
+        if (endFrameExclusive <= startFrame) {
+            throw new Error(`segment ${i} is empty`);
+        }
+        ranges.push({ startFrame, endFrameExclusive });
+    }
+
+    return ranges;
+}
+
+export function tryGetSegmentFrameRanges(frameCount: number, segmentBoundaries: readonly number[]) {
+    try {
+        return getSegmentFrameRanges(frameCount, segmentBoundaries);
+    } catch {
+        return null;
+    }
+}
+
+export function aggregateSegmentedValues(
+    values: readonly number[],
+    segmentBoundaries: readonly number[],
+    aggregator: (segmentValues: number[], range: SegmentFrameRange) => number | null,
+): Array<number | null> {
+    const ranges = tryGetSegmentFrameRanges(values.length, segmentBoundaries);
+    if (!ranges) {
+        return segmentBoundaries.length === 0 ? [null] : new Array(segmentBoundaries.length + 1).fill(null);
+    }
+
+    return ranges.map((range) => {
+        const segmentValues = values
+            .slice(range.startFrame, range.endFrameExclusive)
+            .filter((value) => Number.isFinite(value));
+        if (segmentValues.length === 0) {
+            return null;
+        }
+        return aggregator(segmentValues, range);
+    });
+}
+
+export function getMeanOfFiniteValues(values: readonly number[]) {
+    const finiteValues = values.filter((value) => Number.isFinite(value));
+    if (finiteValues.length === 0) {
+        return null;
+    }
+    return finiteValues.reduce((sum, value) => sum + value, 0) / finiteValues.length;
+}
+
+export interface LiveEvaluationMetric<FrameResultType, SummaryType, FormattedSummaryType extends Record<string, number | string | null>> extends BaseMetric<SummaryType, FormattedSummaryType> {
     computeMetric(
-        history: Readonly<TrackHistory>,
+        history: Readonly<EvaluationTrackHistory>,
         metricHistory: Readonly<FrameResultType[]>,
         videoFrameTimeInSecs: number,
         actualTimesInMs: number,
@@ -56,42 +198,112 @@ export interface LiveEvaluationMetric<FrameResultType, SummaryType, FormattedSum
         ref3dPose: Readonly<Pose3DLandmarkFrame>,
     ): FrameResultType;
 
-    /**
-     * Summarize the metric for the entire track. This is called after the track has been fully
-     * processed, and is used to generate the aggregate metrics, final scores, and the like.
-     * @param history Contains the history of the track for the entire segment
-     * @param metricHistory The array of results of this metric for each frame
-     */
     summarizeMetric(
-        history: Readonly<TrackHistory>,
+        history: Readonly<EvaluationTrackHistory>,
         metricHistory: Readonly<FrameResultType[]>
     ): SummaryType;
+
+    evaluateSegmented(
+        history: Readonly<EvaluationTrackHistory>,
+        metricHistory: Readonly<FrameResultType[]>,
+        segmentBoundaries: readonly number[],
+    ): Array<number | null>;
+
+    getTimeSeries?(
+        context: EvaluationMetricTimeSeriesContext<SummaryType, FrameResultType>
+    ): MotionMetricTimeSeries[];
 }
 
-/**
- * A metric that is calculated once for the entire track. This is useful for metrics that require
- * the entire track to be processed before they can be calculated, or those that will not be used
- * for concurrent feedback
- */
-export interface SummaryMetric<SummaryType, FormattedSummaryType extends Record<string, number | string | null>> extends BaseMetric<SummaryType, FormattedSummaryType>{
-
-    /**
-     * Compute the metric for the entire track. This is called after the track has been fully
-     * processed, and is used to generate the aggregate metrics, final scores, and the like.
-     * @param history Contains the history of the track for the entire segment
-     */
+export interface SummaryEvaluationMetric<SummaryType, FormattedSummaryType extends Record<string, number | string | null>> extends BaseMetric<SummaryType, FormattedSummaryType> {
     summarizeMetric(
-        history: TrackHistory,
+        history: EvaluationTrackHistory,
         debugFilepathRoot?: string,
     ): SummaryType;
 
-    /**
-     * Optionally plot the summary result in a given HTML element.
-     * @param elementID The ID of the HTML element where the plot should be rendered
-     * @param summary The summary object to be plotted
-     */
+    evaluateSegmented(
+        history: Readonly<EvaluationTrackHistory>,
+        segmentBoundaries: readonly number[],
+    ): Array<number | null>;
+
     plotSummary?(
         element: HTMLElement,
         summary: SummaryType
     ): Promise<void>;
+
+    getTimeSeries?(
+        context: EvaluationMetricTimeSeriesContext<SummaryType>
+    ): MotionMetricTimeSeries[];
+}
+
+export interface MotionQuantifierMetric<
+    QuantifiedRow extends QuantifierTimeSeriesRow = QuantifierTimeSeriesRow,
+    FormattedSummaryType extends Record<string, number | string | null> = Record<string, number | string | null>
+> extends BaseMetric<Array<number | null>, FormattedSummaryType> {
+    quantify(
+        track: Readonly<SingleTrackMetricTrack>,
+    ): MotionMetricTimeSeries<QuantifiedRow>[];
+
+    quantifySegmented(
+        track: Readonly<SingleTrackMetricTrack>,
+        segmentBoundaries: readonly number[],
+    ): Array<number | null>;
+
+    getTimeSeries?(
+        context: QuantifierTimeSeriesContext<QuantifiedRow>
+    ): MotionMetricTimeSeries<QuantifiedRow>[];
+}
+
+export abstract class FrameAlignedMotionQuantifierMetric<
+    QuantifiedRow extends QuantifierFrameAlignedRow = QuantifierFrameAlignedRow,
+    FormattedSummaryType extends Record<string, number | string | null> = Record<string, number | string | null>
+> implements MotionQuantifierMetric<QuantifiedRow, FormattedSummaryType> {
+    abstract quantify(track: Readonly<SingleTrackMetricTrack>): MotionMetricTimeSeries<QuantifiedRow>[];
+    abstract quantifySegmented(track: Readonly<SingleTrackMetricTrack>, segmentBoundaries: readonly number[]): Array<number | null>;
+    abstract formatSummary(summary: Readonly<Array<number | null>>): FormattedSummaryType;
+
+    protected aggregateFrameAlignedSeries(
+        rows: readonly QuantifiedRow[],
+        valueKey: string,
+        trackFrameCount: number,
+        segmentBoundaries: readonly number[],
+        aggregator: (values: number[], range: SegmentFrameRange) => number | null,
+    ) {
+        const values = new Array<number>(trackFrameCount).fill(NaN);
+        rows.forEach((row) => {
+            const frameIndex = row.frameIndex;
+            const rawValue = row[valueKey];
+            if (!Number.isInteger(frameIndex) || frameIndex < 0 || frameIndex >= trackFrameCount) {
+                return;
+            }
+            if (typeof rawValue === "number") {
+                values[frameIndex] = rawValue;
+            }
+        });
+        return aggregateSegmentedValues(values, segmentBoundaries, aggregator);
+    }
+}
+
+export abstract class DerivedSeriesMotionQuantifierMetric<
+    QuantifiedRow extends QuantifierDerivedRow = QuantifierDerivedRow,
+    FormattedSummaryType extends Record<string, number | string | null> = Record<string, number | string | null>
+> implements MotionQuantifierMetric<QuantifiedRow, FormattedSummaryType> {
+    abstract quantify(track: Readonly<SingleTrackMetricTrack>): MotionMetricTimeSeries<QuantifiedRow>[];
+    abstract quantifySegmented(track: Readonly<SingleTrackMetricTrack>, segmentBoundaries: readonly number[]): Array<number | null>;
+    abstract formatSummary(summary: Readonly<Array<number | null>>): FormattedSummaryType;
+
+    protected countRowsPerSegment(
+        rows: readonly QuantifiedRow[],
+        trackFrameCount: number,
+        segmentBoundaries: readonly number[],
+    ) {
+        const ranges = tryGetSegmentFrameRanges(trackFrameCount, segmentBoundaries);
+        if (!ranges) {
+            return segmentBoundaries.length === 0 ? [null] : new Array(segmentBoundaries.length + 1).fill(null);
+        }
+
+        return ranges.map((range) => rows.filter((row) =>
+            row.sourceFrameStart >= range.startFrame &&
+            row.sourceFrameStart < range.endFrameExclusive
+        ).length);
+    }
 }

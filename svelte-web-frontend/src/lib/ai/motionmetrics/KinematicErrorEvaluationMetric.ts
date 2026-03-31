@@ -1,5 +1,10 @@
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from "$lib/webcam/mediapipe-utils";
-import type { SummaryMetric, TrackHistory } from "./MotionMetric";
+import {
+    getMeanOfFiniteValues,
+    getSegmentFrameRanges,
+    type EvaluationTrackHistory,
+    type SummaryEvaluationMetric
+} from "./MotionMetric";
 import { 
     calculateKinematicValues,
     calculateKinematicErrorDescriptors,
@@ -20,7 +25,7 @@ function prependObjectKeys<T extends Record<string, any>, prefixT extends string
   };
 }
 
-type KinematicErrorMetricOutputForSomeDimension = {
+type KinematicErrorEvaluationMetricOutputForSomeDimension = {
     jerkMAE: number | null; 
     jerkRMSE: number | null; 
     accelMAE: number | null; 
@@ -30,21 +35,21 @@ type KinematicErrorMetricOutputForSomeDimension = {
 };
 
 
-type KinematicErrorMetricOutput = {
-    summary2D: KinematicErrorMetricOutputForSomeDimension,
-    summary3D: KinematicErrorMetricOutputForSomeDimension,
+type KinematicErrorEvaluationMetricOutput = {
+    summary2D: KinematicErrorEvaluationMetricOutputForSomeDimension,
+    summary3D: KinematicErrorEvaluationMetricOutputForSomeDimension,
 };
 
-type KinematicErrorMetricFormattedOutput = ReturnType<KinematicErrorMetric['formatSummary']>;
+type KinematicErrorEvaluationMetricFormattedOutput = ReturnType<KinematicErrorEvaluationMetric['formatSummary']>;
 
-export default class KinematicErrorMetric implements SummaryMetric<KinematicErrorMetricOutput, KinematicErrorMetricFormattedOutput> {
+export default class KinematicErrorEvaluationMetric implements SummaryEvaluationMetric<KinematicErrorEvaluationMetricOutput, KinematicErrorEvaluationMetricFormattedOutput> {
 
     constructor(public opts?: {
         calculateValues?: KinematicComputationOptions<Pose2DPixelLandmarks | Pose3DLandmarkFrame>,
         calculateDescriptors?: KinematicErrorDescriptorsOptions,
     }) {}
 
-    summarizeMetric(history: TrackHistory): KinematicErrorMetricOutput {
+    summarizeMetric(history: EvaluationTrackHistory): KinematicErrorEvaluationMetricOutput {
 
         // Current issue: getting lots of NaN values for the
         //  kinematic values (due to releated frames with same tiemstamp,
@@ -83,7 +88,7 @@ export default class KinematicErrorMetric implements SummaryMetric<KinematicErro
         );
 
         // Combine the 2D and 3D summaries into a single summary object
-        const combinedSummary: KinematicErrorMetricOutput = {
+        const combinedSummary: KinematicErrorEvaluationMetricOutput = {
             summary2D,
             summary3D,
         };
@@ -91,7 +96,33 @@ export default class KinematicErrorMetric implements SummaryMetric<KinematicErro
         return combinedSummary;
     }
 
-    formatSummary(summary: Readonly<KinematicErrorMetricOutput>) {
+    evaluateSegmented(history: Readonly<EvaluationTrackHistory>, segmentBoundaries: readonly number[]) {
+        try {
+            return getSegmentFrameRanges(history.videoFrameTimesInSecs.length, segmentBoundaries).map((range) => {
+                const segmentHistory: EvaluationTrackHistory = {
+                    videoFrameTimesInSecs: history.videoFrameTimesInSecs.slice(range.startFrame, range.endFrameExclusive),
+                    actualTimesInMs: history.actualTimesInMs.slice(range.startFrame, range.endFrameExclusive),
+                    ref3DFrameHistory: history.ref3DFrameHistory.slice(range.startFrame, range.endFrameExclusive),
+                    ref2DFrameHistory: history.ref2DFrameHistory.slice(range.startFrame, range.endFrameExclusive),
+                    user3DFrameHistory: history.user3DFrameHistory.slice(range.startFrame, range.endFrameExclusive),
+                    user2DFrameHistory: history.user2DFrameHistory.slice(range.startFrame, range.endFrameExclusive),
+                };
+                const summary = this.summarizeMetric(segmentHistory);
+                return getMeanOfFiniteValues([
+                    summary.summary2D.velMAE ?? NaN,
+                    summary.summary2D.accelMAE ?? NaN,
+                    summary.summary2D.jerkMAE ?? NaN,
+                    summary.summary3D.velMAE ?? NaN,
+                    summary.summary3D.accelMAE ?? NaN,
+                    summary.summary3D.jerkMAE ?? NaN,
+                ]);
+            });
+        } catch {
+            return new Array(segmentBoundaries.length + 1).fill(null);
+        }
+    }
+
+    formatSummary(summary: Readonly<KinematicErrorEvaluationMetricOutput>) {
         
         return {
             ...prependObjectKeys(summary.summary2D, 'd2_'),
@@ -99,7 +130,6 @@ export default class KinematicErrorMetric implements SummaryMetric<KinematicErro
         }        
     }
 }
-
 
 
 

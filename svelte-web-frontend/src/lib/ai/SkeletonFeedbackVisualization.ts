@@ -41,7 +41,7 @@ feedback_YellowThreshold.subscribe((val) => {
 
 function getVectorColor(lmData: LandmarkData, evaluationResult: FrontendLiveEvaluationResult | null) {
     
-    const score = evaluationResult?.qijia2DSkeletonSimilarity?.vectorByVectorScore?.[lmData.index ?? -1];
+    const score = evaluationResult?.qijia2DPoseEvaluation?.vectorByVectorScore?.[lmData.index ?? -1];
     if (score === undefined) return 'white';
     
     if (score >= greenThreshold) return 'green';

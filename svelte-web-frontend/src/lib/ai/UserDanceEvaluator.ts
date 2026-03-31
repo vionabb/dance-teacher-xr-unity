@@ -1,20 +1,20 @@
 import { browser } from "$app/environment";
 import type { PoseReferenceData } from "$lib/data/dances-store";
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from  "$lib/webcam/mediapipe-utils";
-import type { LiveEvaluationMetric, SummaryMetric } from "./motionmetrics/MotionMetric";
+import type { EvaluationTrackHistory, LiveEvaluationMetric, SummaryEvaluationMetric } from "./motionmetrics/MotionMetric";
 import type { PerformanceHistoryStore } from "./performanceHistory";
 import { UserEvaluationTrackRecorder } from "./UserEvaluationTrackRecorder";
 
 /**
  * Evaluates a user's dance performance against a reference dance. This class is responsible for
  * computing the metrics for each frame, and for computing the summary metrics for the entire dance.
- * The metrics are provided by the caller, and can be any metric that implements the 
- * LiveEvaluationMetric or SummaryMetric interfaces. As such, this class is generic over the types 
+ * The metrics are provided by the caller, and can be any metric that implements the
+ * LiveEvaluationMetric or SummaryEvaluationMetric interfaces. As such, this class is generic over the types
  * of the live and summary metrics.
  */
 export default class UserDanceEvaluator<
     T extends Record<string, LiveEvaluationMetric<any, any, any>>,
-    U extends Record<string, SummaryMetric<any, any>>,
+    U extends Record<string, SummaryEvaluationMetric<any, any>>,
 > {
     public trackRecorder = new 
         UserEvaluationTrackRecorder<
@@ -167,7 +167,7 @@ export default class UserDanceEvaluator<
     ) {
         const liveMetricKeys = Object.keys(this.liveMetrics) as (keyof T)[];
 
-        const trackHistory = {
+        const trackHistory: EvaluationTrackHistory = {
             videoFrameTimesInSecs: track.videoFrameTimesInSecs,
             actualTimesInMs: track.actualTimesInMs,
             ref3DFrameHistory: track.ref3dPoses,
@@ -262,4 +262,3 @@ export default class UserDanceEvaluator<
         }
     }
 }
-

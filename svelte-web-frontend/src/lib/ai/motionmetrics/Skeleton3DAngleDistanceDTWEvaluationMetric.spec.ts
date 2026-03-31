@@ -1,17 +1,17 @@
 import { describe, it } from "vitest";
 import { createTrackHistoryForClips, fromAsync, getReferenceClip, takeAsnc } from "../EvaluationCommonUtils";
 import { loadPoses, loadTikTokClipPoses, loadTiktokWholePoses, OtherPoseSource, Study, type SegmentInfo, type StudySegmentData, type TikTokClipInfo, type TiktokDanceClipData } from "./PoseDataTestFile";
-import Skeleton3DAngleDistanceDTW from "./Skeleton3DAngleDistanceDTW";
+import Skeleton3DAngleDistanceDTWEvaluationMetric from "./Skeleton3DAngleDistanceDTWEvaluationMetric";
 
 function runDTWMetricOnClips(userData: StudySegmentData, referenceClip: TiktokDanceClipData) {
-    const metric = new Skeleton3DAngleDistanceDTW();
+    const metric = new Skeleton3DAngleDistanceDTWEvaluationMetric();
     const trackHistory = createTrackHistoryForClips(userData, referenceClip);
     const summary = metric.summarizeMetric(trackHistory);
     return metric.formatSummary(summary);
 }
 
 
-describe('Skeleton3DAngleDistanceDTW', {}, async () => {
+describe('Skeleton3DAngleDistanceDTWEvaluationMetric', {}, async () => {
 
     const tiktokClipPoses = await loadTikTokClipPoses();
     const tiktokWholePoses = await loadTiktokWholePoses();
@@ -75,12 +75,16 @@ describe('Skeleton3DAngleDistanceDTW', {}, async () => {
 
             if (!userPoseData.value?.poses) return;
             const poseData = userPoseData.value as StudySegmentData;
-            const referenceClip = getReferenceClip(poseData.segmentInfo, tiktokClipPoses);
+            const referenceClipPoses = getReferenceClip({
+                segmentInfo: poseData.segmentInfo,
+                tiktokClipPoses,
+                tiktokWholePoses,
+            });
             expect(poseData).toBeTruthy();
-            expect(referenceClip).toBeTruthy();
-            if (!referenceClip) return;
+            expect(referenceClipPoses).toBeTruthy();
+            if (!referenceClipPoses) return;
 
-            const formatSummary = runDTWMetricOnClips(poseData, referenceClip);
+            const formatSummary = runDTWMetricOnClips(poseData, { poses: referenceClipPoses } as TiktokDanceClipData);
             expect(formatSummary).toBeTruthy();
             console.log(formatSummary);
         });

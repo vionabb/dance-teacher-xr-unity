@@ -1,7 +1,13 @@
 import { lerp } from "$lib/utils/math";
 import type { Pose3DLandmarkFrame, Pose2DPixelLandmarks } from "$lib/webcam/mediapipe-utils";
 import { GetNormalized2DVector, QijiaMethodComparisionVectorNames, QijiaMethodComparisonVectors, GetArithmeticMean, getMagnitude2DVec } from "../EvaluationCommonUtils";
-import type { LiveEvaluationMetric, TrackHistory } from "./MotionMetric";
+import {
+    aggregateSegmentedValues,
+    type EvaluationMetricTimeSeriesContext,
+    type EvaluationTrackHistory,
+    type LiveEvaluationMetric,
+    type MotionMetricTimeSeries
+} from "./MotionMetric";
 
 export const QIJIA_SKELETON_SIMILARITY_MAX_SCORE = 5.0;
 
@@ -88,19 +94,19 @@ type QijiaMetricSummaryOutput = {
     vectorByVectorScore: Record<string, number>;
 }
 
-type QijiaMetricSummaryFormattedOutput = ReturnType<Qijia2DSkeletonSimilarityMetric["formatSummary"]>;
+type QijiaMetricSummaryFormattedOutput = ReturnType<Qijia2DPoseEvaluationMetric["formatSummary"]>;
 
 /**
  * A metric that calculates the similarity between two poses using the Qijia method.
  * @see computeSkeletonDissimilarityQijiaMethod
  */
-export default class Qijia2DSkeletonSimilarityMetric implements LiveEvaluationMetric<QijiaMetricSingleFrameOutput, QijiaMetricSummaryOutput, QijiaMetricSummaryFormattedOutput> {
+export default class Qijia2DPoseEvaluationMetric implements LiveEvaluationMetric<QijiaMetricSingleFrameOutput, QijiaMetricSummaryOutput, QijiaMetricSummaryFormattedOutput> {
 
-    computeMetric(_history: TrackHistory, _metricHistory: QijiaMetricSingleFrameOutput[], _videoFrameTimeInSecs: number, _actualTimesInMs: number, user2dPose: Pose2DPixelLandmarks, _user3dPose: Pose3DLandmarkFrame, ref2dPose: Pose2DPixelLandmarks, _ref3dPose: Pose3DLandmarkFrame): QijiaMetricSingleFrameOutput {
+    computeMetric(_history: EvaluationTrackHistory, _metricHistory: QijiaMetricSingleFrameOutput[], _videoFrameTimeInSecs: number, _actualTimesInMs: number, user2dPose: Pose2DPixelLandmarks, _user3dPose: Pose3DLandmarkFrame, ref2dPose: Pose2DPixelLandmarks, _ref3dPose: Pose3DLandmarkFrame): QijiaMetricSingleFrameOutput {
         return computeSkeletonDissimilarityQijiaMethod(ref2dPose, user2dPose)
     }
 
-    summarizeMetric(_history: TrackHistory, metricHistory: QijiaMetricSingleFrameOutput[]): QijiaMetricSummaryOutput {
+    summarizeMetric(_history: EvaluationTrackHistory, metricHistory: QijiaMetricSingleFrameOutput[]): QijiaMetricSummaryOutput {
         const qijiaOverallScore = GetArithmeticMean(metricHistory.map(m => m.overallScore));
         const arrayOfVecScores = metricHistory.map(m => m.vectorByVectorScore);
 
@@ -125,5 +131,39 @@ export default class Qijia2DSkeletonSimilarityMetric implements LiveEvaluationMe
             "overall": summary.overallScore,
             ...summary.vectorByVectorScore
         }
+    }
+
+    evaluateSegmented(_history: Readonly<EvaluationTrackHistory>, metricHistory: Readonly<QijiaMetricSingleFrameOutput[]>, segmentBoundaries: readonly number[]) {
+        return aggregateSegmentedValues(
+            metricHistory.map((frame) => frame.overallScore),
+            segmentBoundaries,
+            (values) => values.length > 0 ? GetArithmeticMean(values) : null,
+        );
+    }
+
+    getTimeSeries(context: EvaluationMetricTimeSeriesContext<QijiaMetricSummaryOutput, QijiaMetricSingleFrameOutput>): MotionMetricTimeSeries[] {
+        const metricHistory = context.metricHistory ?? [];
+        const rows = metricHistory.map((frame, index) => {
+            const vectorScores = Object.fromEntries(
+                QijiaMethodComparisionVectorNames.map((name, vecIndex) => [name, frame.vectorByVectorScore[vecIndex]])
+            );
+
+            return {
+                frameIndex: index,
+                videoTimeSecs: context.track.videoFrameTimesInSecs[index] ?? null,
+                overallScore: frame.overallScore,
+                ...vectorScores,
+            };
+        });
+
+        return [{
+            seriesId: "frame_scores",
+            title: "Qijia 2D frame scores",
+            xKey: "videoTimeSecs",
+            yKeys: ["overallScore", ...QijiaMethodComparisionVectorNames],
+            xLabel: "Video time (s)",
+            yLabel: "Score",
+            rows,
+        }];
     }
 }

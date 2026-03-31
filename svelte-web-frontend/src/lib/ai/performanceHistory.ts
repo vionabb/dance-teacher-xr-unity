@@ -19,14 +19,29 @@ export type CompletePerformanceHistory<MetricTypes extends Record<string, BaseMe
     [motionId: number]: DancePerformanceHistory<MetricTypes>
 }
 
+const PERFORMANCE_HISTORY_STORAGE_KEY = "performanceHistory";
+const PERFORMANCE_HISTORY_VERSION = 2;
+
+type VersionedPerformanceHistory<MetricTypes extends Record<string, BaseMetric<any, any>>> = {
+    version: number,
+    history: CompletePerformanceHistory<MetricTypes>,
+};
+
 function loadPerformanceHistoryFromLocalstorage<MetricTypes extends Record<string, BaseMetric<any, any>>>() {
     if (!browser) {
         return {} as CompletePerformanceHistory<MetricTypes>;
     }
 
-    const history = localStorage.getItem("performanceHistory");
+    const history = localStorage.getItem(PERFORMANCE_HISTORY_STORAGE_KEY);
     if (history) {
-        const data = JSON.parse(history) as CompletePerformanceHistory<MetricTypes>;
+        const parsed = JSON.parse(history) as CompletePerformanceHistory<MetricTypes> | VersionedPerformanceHistory<MetricTypes>;
+        const data = "version" in parsed && "history" in parsed
+            ? parsed.version === PERFORMANCE_HISTORY_VERSION ? parsed.history : null
+            : null;
+        if (!data) {
+            localStorage.removeItem(PERFORMANCE_HISTORY_STORAGE_KEY);
+            return {} as CompletePerformanceHistory<MetricTypes>;
+        }
         // now, un-serialize the dates
         for (const motionIdString of Object.keys(data)) {
             const motionId = parseInt(motionIdString);
@@ -74,7 +89,11 @@ export function createPerformanceHistoryStore<MetricTypes extends Record<string,
                     summary: performance,
                 })
 
-                localStorage.setItem("performanceHistory", JSON.stringify(history));
+                const versioned: VersionedPerformanceHistory<MetricTypes> = {
+                    version: PERFORMANCE_HISTORY_VERSION,
+                    history,
+                };
+                localStorage.setItem(PERFORMANCE_HISTORY_STORAGE_KEY, JSON.stringify(versioned));
 
                 // console.log(`Recorded performance for dance ${danceRelativeStem}, segment ${segment}, metric ${String(metricName)}`, performance);
                 return history;
@@ -151,7 +170,7 @@ export function createPerformanceHistoryStore<MetricTypes extends Record<string,
 
         clearAllHistory() {
             update(() => {
-                localStorage.removeItem("performanceHistory");
+                localStorage.removeItem(PERFORMANCE_HISTORY_STORAGE_KEY);
                 return {} as CompletePerformanceHistory<MetricTypes>;
             });
         }

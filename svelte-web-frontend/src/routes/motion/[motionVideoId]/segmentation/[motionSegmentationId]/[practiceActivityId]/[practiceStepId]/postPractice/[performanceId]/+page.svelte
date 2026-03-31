@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import Jules2DSkeletonSimilarityMetric from '$lib/ai/motionmetrics/Jules2DSkeletonSimilarityMetric.js';
+	import Jules2DPoseEvaluationMetric from '$lib/ai/motionmetrics/Jules2DPoseEvaluationMetric.js';
 	import { GetTeachingAgent, type PostPracticeAttemptAction, type PostPracticeAttemptAction_Review, type PostPracticeAttemptSelfReportQuestion, buildDefaultNavigationAction } from '$lib/ai/TeachingAgent/TeachingAgent';
     import { navbarProps } from '$lib/elements/NavBar.svelte';
 	import { getPracticeStepUrl } from '$lib/utils/appurls.js';

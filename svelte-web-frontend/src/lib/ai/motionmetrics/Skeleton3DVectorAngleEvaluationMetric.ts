@@ -1,7 +1,13 @@
 import type { ValueOf } from "$lib/data/dances-store";
 import type { Pose3DLandmarkFrame, Pose2DPixelLandmarks } from "$lib/webcam/mediapipe-utils";
 import { BodyInnerAnglesComparisons, getInnerAngleFromFrame, GetHarmonicMean, getArraySD } from "../EvaluationCommonUtils";
-import type { LiveEvaluationMetric, TrackHistory } from "./MotionMetric";
+import {
+    aggregateSegmentedValues,
+    type EvaluationMetricTimeSeriesContext,
+    type EvaluationTrackHistory,
+    type LiveEvaluationMetric,
+    type MotionMetricTimeSeries
+} from "./MotionMetric";
 
 type AngleComparisonKey = keyof typeof BodyInnerAnglesComparisons;
 type AngleComparisonValue = ValueOf<typeof BodyInnerAnglesComparisons>;
@@ -70,17 +76,17 @@ export function computeSkeleton3DVectorAngleSimilarity(refLandmarks: Pose3DLandm
 
 type Angle3DMetricSingleFrameOutput = ReturnType<typeof computeSkeleton3DVectorAngleSimilarity>;
 
-export type Angle3DMetricSummaryOutput = ReturnType<Skeleton3dVectorAngleSimilarityMetric["summarizeMetric"]>; 
+export type Angle3DMetricSummaryOutput = ReturnType<Skeleton3DVectorAngleEvaluationMetric["summarizeMetric"]>; 
 
-type Angle3DMetricSummaryFormattedOutput = ReturnType<Skeleton3dVectorAngleSimilarityMetric["formatSummary"]>;
+type Angle3DMetricSummaryFormattedOutput = ReturnType<Skeleton3DVectorAngleEvaluationMetric["formatSummary"]>;
 
-export default class Skeleton3dVectorAngleSimilarityMetric implements LiveEvaluationMetric<Angle3DMetricSingleFrameOutput, Angle3DMetricSummaryOutput, Angle3DMetricSummaryFormattedOutput> {
+export default class Skeleton3DVectorAngleEvaluationMetric implements LiveEvaluationMetric<Angle3DMetricSingleFrameOutput, Angle3DMetricSummaryOutput, Angle3DMetricSummaryFormattedOutput> {
     
-    computeMetric(_history: TrackHistory, _metricHistory: Angle3DMetricSingleFrameOutput[], _videoFrameTimeInSecs: number, _actualTimesInMs: number, _user2dPose: Pose2DPixelLandmarks, user3dPose: Pose3DLandmarkFrame, _ref2dPose: Pose2DPixelLandmarks, ref3dPose: Pose3DLandmarkFrame): Angle3DMetricSingleFrameOutput {
+    computeMetric(_history: EvaluationTrackHistory, _metricHistory: Angle3DMetricSingleFrameOutput[], _videoFrameTimeInSecs: number, _actualTimesInMs: number, _user2dPose: Pose2DPixelLandmarks, user3dPose: Pose3DLandmarkFrame, _ref2dPose: Pose2DPixelLandmarks, ref3dPose: Pose3DLandmarkFrame): Angle3DMetricSingleFrameOutput {
         return computeSkeleton3DVectorAngleSimilarity(ref3dPose, user3dPose)
     }
 
-    summarizeMetric(_history: TrackHistory, metricHistory: Angle3DMetricSingleFrameOutput[]) {
+    summarizeMetric(_history: EvaluationTrackHistory, metricHistory: Angle3DMetricSingleFrameOutput[]) {
         
         const overallScores = metricHistory.map(m => m.overallScore).filter((n) => !isNaN(n));
         const overallMeanScore = GetHarmonicMean(overallScores);
@@ -111,5 +117,40 @@ export default class Skeleton3dVectorAngleSimilarityMetric implements LiveEvalua
             "overallSD": summary.overallScoreSD,
             ...summary.individualScores
         } as const;
+    }
+
+    evaluateSegmented(_history: Readonly<EvaluationTrackHistory>, metricHistory: Readonly<Angle3DMetricSingleFrameOutput[]>, segmentBoundaries: readonly number[]) {
+        return aggregateSegmentedValues(
+            metricHistory.map((frame) => frame.overallScore),
+            segmentBoundaries,
+            (values) => values.length > 0 ? GetHarmonicMean(values) : null,
+        );
+    }
+
+    getTimeSeries(context: EvaluationMetricTimeSeriesContext<Angle3DMetricSummaryOutput, Angle3DMetricSingleFrameOutput>): MotionMetricTimeSeries[] {
+        const metricHistory = context.metricHistory ?? [];
+        const rows = metricHistory.map((frame, index) => {
+            const individualScores = Object.fromEntries(
+                (Object.keys(BodyInnerAnglesComparisons) as AngleComparisonKey[])
+                    .map((key) => [key, frame.individualScores[key].score])
+            );
+
+            return {
+                frameIndex: index,
+                videoTimeSecs: context.track.videoFrameTimesInSecs[index] ?? null,
+                overallScore: frame.overallScore,
+                ...individualScores,
+            };
+        });
+
+        return [{
+            seriesId: "frame_scores",
+            title: "3D vector-angle frame scores",
+            xKey: "videoTimeSecs",
+            yKeys: ["overallScore", ...(Object.keys(BodyInnerAnglesComparisons) as AngleComparisonKey[])],
+            xLabel: "Video time (s)",
+            yLabel: "Score",
+            rows,
+        }];
     }
 }

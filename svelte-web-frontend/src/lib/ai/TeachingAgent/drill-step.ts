@@ -50,7 +50,7 @@ export const GenerateDrillFeedback: FeedbackFunction = async (args) => {
     prompt += `They have performed the "${args.practiceStep?.title}" step of the practice plan, as part of the "${parentActivity?.title}" activity, and the system has analyzed their performance. `
 
     let suggestedAction: TerminalFeedbackAction = 'repeat'; 
-    const score = args.performanceSummary?.wholePerformance.skeleton3DAngleSimilarity.overallScore;
+    const score = args.performanceSummary?.wholePerformance.skeleton3DVectorAngleEvaluation.overallScore;
     const feedbackScore: TerminalFeedback["score"] = score ? {
         achieved: score,
         maximumPossible: 1,

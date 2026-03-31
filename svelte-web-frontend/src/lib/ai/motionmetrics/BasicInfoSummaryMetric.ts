@@ -1,11 +1,11 @@
-import type { SummaryMetric, TrackHistory } from "./MotionMetric";
+import { getSegmentFrameRanges, type EvaluationTrackHistory, type SummaryEvaluationMetric } from "./MotionMetric";
 
 
 type BasicInfoSummaryOutput = ReturnType<BasicInfoSummaryMetric['summarizeMetric']>;
 
-export default class BasicInfoSummaryMetric implements SummaryMetric<BasicInfoSummaryOutput, BasicInfoSummaryOutput> {
+export default class BasicInfoSummaryMetric implements SummaryEvaluationMetric<BasicInfoSummaryOutput, BasicInfoSummaryOutput> {
 
-    summarizeMetric(history: TrackHistory) {
+    summarizeMetric(history: EvaluationTrackHistory) {
 
         const poseFrameCount = history.videoFrameTimesInSecs.length;
         const realtimeStartMs = history.actualTimesInMs[0] ?? 0;
@@ -28,6 +28,16 @@ export default class BasicInfoSummaryMetric implements SummaryMetric<BasicInfoSu
     
     formatSummary(summary: BasicInfoSummaryOutput) {
         return summary; // no formatting needed
+    }
+
+    evaluateSegmented(history: Readonly<EvaluationTrackHistory>, segmentBoundaries: readonly number[]) {
+        const frameCount = history.videoFrameTimesInSecs.length;
+        try {
+            return getSegmentFrameRanges(frameCount, segmentBoundaries)
+                .map((range) => range.endFrameExclusive - range.startFrame);
+        } catch {
+            return new Array(segmentBoundaries.length + 1).fill(null);
+        }
     }
 
 }

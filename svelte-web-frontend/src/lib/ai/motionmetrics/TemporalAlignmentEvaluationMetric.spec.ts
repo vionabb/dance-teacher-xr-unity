@@ -1,7 +1,6 @@
-
 import { describe, it } from 'vitest';
-import { runSummaryMetricOnTestTrack, publishSummaryMetricOutputForTracks, loadTestTrack, generateAllTestTracks } from './testdata/metricTestingUtils';
-import KinematicErrorMetric from "./KinematicErrorMetric";
+import { runLiveEvaluationMetricOnTestTrack, publishLiveMetricOutputForTracks, loadTestTrack, generateAllTestTracks, runSummaryMetricOnTestTrack, publishSummaryMetricOutputForTracks } from './testdata/metricTestingUtils';
+import TemporalAlignmentEvaluationMetric from './TemporalAlignmentEvaluationMetric';
 
 // Note: we import the json file with ?url appended to the end in order to prevent degraded
 //       tooling performance. If we import the json file directly, the tooling will try to
@@ -10,31 +9,26 @@ import KinematicErrorMetric from "./KinematicErrorMetric";
 //       that file during development. 
 import goodperf_alignedwithcamera_url from './testdata/goodperf_alignedwithcamera.other_laxed_siren_beat.track.json?url';
 
-describe('KinematicErrorMetric', () => {
+describe('TemporalAlignmentEvaluationMetric', () => {
 
     it('should produce expected scores for test track 1', ({ expect }) => {
         const track = loadTestTrack(goodperf_alignedwithcamera_url);
         const { summary } = runSummaryMetricOnTestTrack(
-            new KinematicErrorMetric(),
+            new TemporalAlignmentEvaluationMetric(),
             track,
         );
-        
-        expect(summary?.summary2D?.accelMAE).toMatchInlineSnapshot(`0.13088664859343946`);
-        expect(summary?.summary2D?.accelRMSE).toMatchInlineSnapshot(`0.22883839190869076`);
-        expect(summary?.summary2D?.jerkMAE).toMatchInlineSnapshot(`5.470679961827343`);
-        expect(summary?.summary2D?.jerkRMSE).toMatchInlineSnapshot(`13.053079876195707`);
-        expect(summary?.summary2D?.velMAE).toMatchInlineSnapshot(`0.004708051987392097`);
-        expect(summary?.summary2D?.velRMSE).toMatchInlineSnapshot(`0.006357906691281181`);
+
+        expect(summary?.temporalOffsetSecs).toMatchInlineSnapshot(`0.01280945111833809`);
     });
 
     it('publishing metric outputs should not throw', ({ expect }) => {
         expect(() => {
 
             publishSummaryMetricOutputForTracks(
-                new KinematicErrorMetric(),
+                new TemporalAlignmentEvaluationMetric(),
                 generateAllTestTracks(),
             )
 
         }).not.toThrow();
     });
-});
+});;

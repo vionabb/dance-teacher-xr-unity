@@ -193,7 +193,7 @@ let rejectWebcamRecordingCompletion: ((reason?: any) => void) | null = null;
 let lastNAttemptsAngleSimilarity = $derived(
     frontendPerformanceHistory.lastNAttempts(
         practiceStep?.motionVideo?.id ?? -1,
-        'skeleton3DAngleSimilarity',
+        'skeleton3DVectorAngleEvaluation',
         20,
     )
 );

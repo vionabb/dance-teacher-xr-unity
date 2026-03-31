@@ -1,10 +1,10 @@
 import type { ValueOf } from "$lib/data/dances-store";
 import type { Pose3DLandmarkFrame, Pose2DPixelLandmarks } from "$lib/webcam/mediapipe-utils";
 import { BodyInnerAnglesComparisons, getInnerAngleFromFrame, GetHarmonicMean, getArraySD } from "../EvaluationCommonUtils";
-import type { LiveEvaluationMetric, SummaryMetric, TrackHistory } from "./MotionMetric";
+import { getSegmentFrameRanges, type EvaluationTrackHistory, type SummaryEvaluationMetric } from "./MotionMetric";
 
 import { DynamicTimeWarping } from "./DynamicTimeWarping";
-import { compute3dAngleSimilarity, computeSkeleton3DVectorAngleSimilarity } from "./Skeleton3dVectorAngleSimilarityMetric";
+import { compute3dAngleSimilarity, computeSkeleton3DVectorAngleSimilarity } from "./Skeleton3DVectorAngleEvaluationMetric";
 
 import { browser } from "$app/environment";
 
@@ -13,9 +13,9 @@ import { browser } from "$app/environment";
 type AngleComparisonKey = keyof typeof BodyInnerAnglesComparisons;
 type AngleComparisonValue = ValueOf<typeof BodyInnerAnglesComparisons>;
 
-type Angle3D_DtwMetricSummaryOutput = ReturnType<Skeleton3DAngleDistanceDTW["summarizeMetric"]>; 
+type Angle3D_DtwMetricSummaryOutput = ReturnType<Skeleton3DAngleDistanceDTWEvaluationMetric["summarizeMetric"]>; 
 
-type Angle3D_DtwMetricSummaryFormattedOutput = ReturnType<Skeleton3DAngleDistanceDTW["formatSummary"]>;
+type Angle3D_DtwMetricSummaryFormattedOutput = ReturnType<Skeleton3DAngleDistanceDTWEvaluationMetric["formatSummary"]>;
 
 function getInvalid3DFrames(frames: Pose3DLandmarkFrame[]) {
     return frames.map((frame, i) => {
@@ -33,7 +33,7 @@ function getInvalid3DFrames(frames: Pose3DLandmarkFrame[]) {
     .map((frame) => frame.i);
 }
 
-function filterFrameHistories(_history: TrackHistory) {
+function filterFrameHistories(_history: EvaluationTrackHistory) {
     
     const invalidUserFrames = getInvalid3DFrames(_history.user3DFrameHistory);
     const invalidRefFrames = getInvalid3DFrames(_history.ref3DFrameHistory);
@@ -55,10 +55,10 @@ function filterFrameHistories(_history: TrackHistory) {
     }
 }
 
-export default class Skeleton3DAngleDistanceDTW implements SummaryMetric<Angle3D_DtwMetricSummaryOutput, Angle3D_DtwMetricSummaryFormattedOutput> {
+export default class Skeleton3DAngleDistanceDTWEvaluationMetric implements SummaryEvaluationMetric<Angle3D_DtwMetricSummaryOutput, Angle3D_DtwMetricSummaryFormattedOutput> {
     
 
-    summarizeMetric(_history: TrackHistory) {
+    summarizeMetric(_history: EvaluationTrackHistory) {
         
         const { 
             user3DFrameHistory: filteredUser3DFrameHistory, 
@@ -160,6 +160,27 @@ export default class Skeleton3DAngleDistanceDTW implements SummaryMetric<Angle3D
             "DTW Path": JSON.stringify(summary.dtwPath),
             "Warping Factor": summary.warpingFactor
         } as const;
+    }
+
+    evaluateSegmented(history: Readonly<EvaluationTrackHistory>, segmentBoundaries: readonly number[]) {
+        try {
+            return getSegmentFrameRanges(history.videoFrameTimesInSecs.length, segmentBoundaries).map((range) => {
+                const segmentHistory: EvaluationTrackHistory = {
+                    videoFrameTimesInSecs: history.videoFrameTimesInSecs.slice(range.startFrame, range.endFrameExclusive),
+                    actualTimesInMs: history.actualTimesInMs.slice(range.startFrame, range.endFrameExclusive),
+                    ref3DFrameHistory: history.ref3DFrameHistory.slice(range.startFrame, range.endFrameExclusive),
+                    ref2DFrameHistory: history.ref2DFrameHistory.slice(range.startFrame, range.endFrameExclusive),
+                    user3DFrameHistory: history.user3DFrameHistory.slice(range.startFrame, range.endFrameExclusive),
+                    user2DFrameHistory: history.user2DFrameHistory.slice(range.startFrame, range.endFrameExclusive),
+                };
+                if (segmentHistory.videoFrameTimesInSecs.length < 2) {
+                    return null;
+                }
+                return this.summarizeMetric(segmentHistory).dtwDistance;
+            });
+        } catch {
+            return new Array(segmentBoundaries.length + 1).fill(null);
+        }
     }
 
     // async plotSummary(element: HTMLElement, summary: Angle3D_DtwMetricSummaryOutput) {

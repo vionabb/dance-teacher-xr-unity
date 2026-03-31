@@ -1,151 +1,44 @@
 import { afterAll, describe, it } from "vitest";
-import { readFile, writeFile } from "fs/promises";
 import fs from "fs";
-import Papa from "papaparse";
 import {
-  loadPoses,
-  OtherPoseSource,
-  Study,
-  type StudySegmentData,
-  type SegmentInfo,
-  type TiktokDanceClipData,
-  loadTikTokClipPoses,
-  loadTiktokWholePoses,
-  getClipHumanRatings,
-  loadHumanRatings,
   type HumanRating,
-  type PoseFrame
 } from "./PoseDataTestFile";
 import {
   runLiveEvaluationMetricOnTestTrack,
   type TestTrack
 } from "./testdata/metricTestingUtils";
-import { dbPath, ensureMetricColumnInTable, exportCSV, loadDB, motionMetricsCsvPath, upsertMetricDbRow, type RowData } from "./testdata/metricdb";
-import Qijia2DSkeletonSimilarityMetric from "./Qijia2DSkeletonSimilarityMetric";
-import Jules2DSkeletonSimilarityMetric from "./Jules2DSkeletonSimilarityMetric";
-import Skeleton3dVectorAngleSimilarityMetric from "./Skeleton3dVectorAngleSimilarityMetric";
-import { getReferenceClip as getReferencePoses, LandmarkWeighting_MotionEnergy, takeAsnc } from "../EvaluationCommonUtils";
-import TemporalAlignmentMetric from "./TemporalAlignmentMetric";
-import Skeleton3DAngleDistanceDTW from "./Skeleton3DAngleDistanceDTW";
-import KinematicErrorMetric from "./KinematicErrorMetric";
-import type { TrackHistory } from "./MotionMetric";
+import { ensureMetricColumnInTable, exportCSV, loadDB, motionMetricsCsvPath, upsertMetricDbRow, type RowData } from "./testdata/metricdb";
+import { generateStudyMetricFixtures, loadStudyMetricFixturesContext } from "./testdata/studyMetricFixtures";
+import Qijia2DPoseEvaluationMetric from "./Qijia2DPoseEvaluationMetric";
+import Jules2DPoseEvaluationMetric from "./Jules2DPoseEvaluationMetric";
+import Skeleton3DVectorAngleEvaluationMetric from "./Skeleton3DVectorAngleEvaluationMetric";
+import { LandmarkWeighting_MotionEnergy } from "../EvaluationCommonUtils";
+import TemporalAlignmentEvaluationMetric from "./TemporalAlignmentEvaluationMetric";
+import Skeleton3DAngleDistanceDTWEvaluationMetric from "./Skeleton3DAngleDistanceDTWEvaluationMetric";
+import KinematicErrorEvaluationMetric from "./KinematicErrorEvaluationMetric";
+import type { EvaluationTrackHistory } from "./MotionMetric";
 
-function createTrackHistoryForClips(userPoseData: StudySegmentData, referencePoses: PoseFrame[]) {
-
-    const fps = 30;
-    const shortestClipLength = Math.min(userPoseData.poses.length, referencePoses.length);
-    const trackHistory: TrackHistory = {
-        videoFrameTimesInSecs: referencePoses.map((_, i) => i / fps).slice(0, shortestClipLength),
-        actualTimesInMs: referencePoses.map((_, i) => i / (userPoseData.segmentInfo.performanceSpeed * fps)).slice(0, shortestClipLength),
-        ref3DFrameHistory: referencePoses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
-        ref2DFrameHistory: referencePoses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
-        user3DFrameHistory: userPoseData.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
-        user2DFrameHistory: userPoseData.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
-    };
-
-    return trackHistory;
-}
-
-type MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings?: HumanRating | undefined) => { result: Record<string, number>, metricName: string };
-
-function runMetricOnClip(segmentData: StudySegmentData, referencePoses: PoseFrame[], ratings: HumanRating | undefined, metric: MetricRunner) {
-
-    const fps = 30
-    const shortestClipLength = Math.min(segmentData.poses.length, referencePoses.length);
-    const testTrack: TestTrack = {
-        id: `${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.clipNumber}`,
-        danceRelativeStem: segmentData.segmentInfo.danceName,
-        segmentDescription: segmentData.segmentInfo.clipNumber.toString(),
-        creationDate: "",
-        trackDescription: segmentData.segmentInfo.danceName,
-        videoFrameTimesInSecs: referencePoses.map((_, i) => i / fps).slice(0, shortestClipLength),
-        actualTimesInMs: referencePoses.map((_, i) => i / (fps * segmentData.segmentInfo.performanceSpeed)).slice(0, shortestClipLength),
-        ref2dPoses: referencePoses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
-        ref3dPoses: referencePoses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
-        user2dPoses: segmentData.poses.map((pose) => pose.pixelPose).slice(0, shortestClipLength),
-        user3dPoses: segmentData.poses.map((pose) => pose.worldPose).slice(0, shortestClipLength),
-    }
-    const trackHistory = createTrackHistoryForClips(segmentData, referencePoses);
-
-    const { result, metricName} = metric(testTrack, trackHistory, ratings);
-    return { result, metricName };
-}
+type MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory, ratings?: HumanRating | undefined) => { result: Record<string, number>, metricName: string };
 
 describe("AllMetricsComparison", {}, async () => {
 
-    const tiktokClipPoses = await loadTikTokClipPoses();
-    const tiktokWholePoses = await loadTiktokWholePoses();
-    const allRatings = await loadHumanRatings();
+    const fixtureContext = await loadStudyMetricFixturesContext();
     const metricDb = await loadDB();
 
     async function updateDbWithMetric(metricName: string, metric: MetricRunner) {
-        // Study 1 had multiple phases, so we need to filter out the slowed down clips
-        const study1SegmentsPoseFiles = await loadPoses(Study.Study1_BySegment, (clipInfo) => {
-            const studyInfo = clipInfo as SegmentInfo;
-            return studyInfo.study1phase == "performance"; // skip slowed down clips
-        }) as AsyncGenerator<StudySegmentData>;
-
-        const study1WholePoseFiles = await loadPoses(Study.Study1_Whole, (clipInfo) => {
-            const studyInfo = clipInfo as SegmentInfo;
-            return studyInfo.study1phase == "performance"; // skip slowed down clips
-        }) as AsyncGenerator<StudySegmentData>;
-
-        // Study 2 has only one phase, so we can load all clips
-        const study2SegmentPoseFiles = await loadPoses(Study.Study2_BySegment) as AsyncGenerator<StudySegmentData>;
-
-        const study2WholePoseFiles = await loadPoses(Study.Study2_Whole) as AsyncGenerator<StudySegmentData>;   
-
-        const n = Infinity; // number of clips to process (i.e. all of them)
-
-        // map each item in allPoses generator to a new object with the formatted summary
-        // without holding them all in memory at the same time
-        const allPoseFiles = takeAsnc([
-            study1WholePoseFiles,
-            study2WholePoseFiles,
-            study1SegmentsPoseFiles, 
-            study2SegmentPoseFiles
-        ], n);
-
         async function* processClips() {
-            let i = 0
-            for await (const poseData of allPoseFiles) {
+            let i = 0;
+            for await (const fixture of generateStudyMetricFixtures(fixtureContext, { requireRatings: true })) {
                 i++;
-                const segmentData = poseData as StudySegmentData;
+                const clipPrint = fixture.identity.segmentation === 'whole' ? 'whole' : `clip${fixture.identity.clipNumber}`;
+                const { result: summary, metricName } = metric(fixture.track, fixture.trackHistory, fixture.ratings);
 
-                const ratings = getClipHumanRatings({
-                    info: poseData.segmentInfo,
-                    allRatings: allRatings,
-                    study: segmentData.study,
-                });
-
-                const clipPrint = segmentData.segmentInfo.segmentation === 'whole' ? 'whole' : `clip${segmentData.segmentInfo.clipNumber}`;
-
-                // we're only interested in the clips that have human ratings
-                if (!ratings) {
-                    console.log(`\tNo ratings found for user ${segmentData.segmentInfo.userId}, ${segmentData.segmentInfo.danceName} (${segmentData.segmentInfo.clipNumber})`);
-                    continue;
-                }
-                
-                const referencePoses = getReferencePoses({
-                    segmentInfo: segmentData.segmentInfo, 
-                    tiktokClipPoses,
-                    tiktokWholePoses,
-                });
-                if (!referencePoses) return undefined;
-
-                const { result: summary, metricName } = runMetricOnClip(
-                    segmentData,
-                    referencePoses, 
-                    ratings, 
-                    metric
-                );
-
-                console.log(`Processed ${metricName} for file #${i} user${segmentData.segmentInfo.userId}_${segmentData.segmentInfo.danceName}__${segmentData.segmentInfo.condition}_${clipPrint}`);
+                console.log(`Processed ${metricName} for file #${i} user${fixture.identity.userId}_${fixture.identity.danceName}__${fixture.identity.condition}_${clipPrint}`);
 
                 yield { 
                     rowData: {
-                        ...segmentData.segmentInfo,
-                        frameCount: segmentData.poses.length,
+                        ...fixture.segmentData.segmentInfo,
+                        frameCount: fixture.segmentData.poses.length,
                     },
                     metricData: summary,
                 };
@@ -187,84 +80,84 @@ describe("AllMetricsComparison", {}, async () => {
     }
     // Set high test timeout for each test
     const testTimeout = 20 * 60 * 1000; // 20 minutes in milliseconds
-    it.skip('angle3dDTWOutput', { timeout: testTimeout }, async ({ expect }) => {
-        const metric = new Skeleton3DAngleDistanceDTW();
-        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+    it.skip('skeleton3DAngleDistanceDTWEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+        const metric = new Skeleton3DAngleDistanceDTWEvaluationMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
             const summary = metric.summarizeMetric(trackHistory);
             return {
                 result: {
                     invalidFrameCount: summary.invalidFramesCount,
                     invalidPercent: summary.invalidPercent,
-                    angle3D_dtw_distance: summary.dtwDistance,
-                    angle3D_dtw_dist_avg: summary.dtwDistance / summary.dtwPath.length,
-                    angle3D_warping_factor: summary.warpingFactor,
+                    skeleton3DAngleDistanceDTWEvaluationDistance: summary.dtwDistance,
+                    skeleton3DAngleDistanceDTWEvaluationDistanceAverage: summary.dtwDistance / summary.dtwPath.length,
+                    skeleton3DAngleDistanceDTWEvaluationWarpingFactor: summary.warpingFactor,
                 },
-                metricName: 'angle3dDTW',
+                metricName: 'skeleton3DAngleDistanceDTWEvaluation',
             }
         }
-        await updateDbWithMetric('angle3dDTW', metricRunner);
+        await updateDbWithMetric('skeleton3DAngleDistanceDTWEvaluation', metricRunner);
     });
 
-    it('qijia2d', { timeout: testTimeout }, async ({ expect }) => {
-        const metric = new Qijia2DSkeletonSimilarityMetric();
-        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+    it('qijia2DPoseEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+        const metric = new Qijia2DPoseEvaluationMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
             return { 
-                metricName: 'qijia2d',
+                metricName: 'qijia2DPoseEvaluation',
                 result: {
-                    qijia2d: summary.summary.overallScore / 5, // scale from 0-5 to 0-1
+                    qijia2DPoseEvaluation: summary.summary.overallScore / 5, // scale from 0-5 to 0-1
                 }
             }
         }
-        await updateDbWithMetric('qijia2d', metricRunner);
+        await updateDbWithMetric('qijia2DPoseEvaluation', metricRunner);
     });
 
-    it('jules2d', { timeout: testTimeout }, async ({ expect }) => {
-        const metric = new Jules2DSkeletonSimilarityMetric();
-        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+    it('jules2DPoseEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+        const metric = new Jules2DPoseEvaluationMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
             return { 
-                metricName: 'jules2d',
+                metricName: 'jules2DPoseEvaluation',
                 result: {
                     // We want the output to be an accuracy score, with 1 being the best and 0 being the worst.
                     // Jules2D returns a dissimilarity score, so we reverse it to get an accuracy score.
-                    jules2d: 1 - summary.summary.avgDissimilarity,
+                    jules2DPoseEvaluation: 1 - summary.summary.avgDissimilarity,
                 }
             }
         }
-        await updateDbWithMetric('jules2d', metricRunner);
+        await updateDbWithMetric('jules2DPoseEvaluation', metricRunner);
     });
 
-    it('vectorAngle3D', { timeout: testTimeout }, async ({ expect }) => {
-        const metric = new Skeleton3dVectorAngleSimilarityMetric();
-        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+    it('skeleton3DVectorAngleEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+        const metric = new Skeleton3DVectorAngleEvaluationMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
             const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
             return { 
-                metricName: 'vectorAngle3D',
+                metricName: 'skeleton3DVectorAngleEvaluation',
                 result: {
-                    vectorAngle3D: summary.summary.overallScore,
+                    skeleton3DVectorAngleEvaluation: summary.summary.overallScore,
                 }
             }
         }
-        await updateDbWithMetric('vectorAngle3D', metricRunner);
+        await updateDbWithMetric('skeleton3DVectorAngleEvaluation', metricRunner);
     });
 
-    it('temporalAlignment', { timeout: testTimeout }, async ({ expect }) => {
-        const metric = new TemporalAlignmentMetric();
-        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+    it('temporalAlignmentEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+        const metric = new TemporalAlignmentEvaluationMetric();
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
             const summary = metric.summarizeMetric(trackHistory);
             return { 
-                metricName: 'temporalAlignment',
+                metricName: 'temporalAlignmentEvaluation',
                 result: {
-                    temporalAlignmentSecs: summary.temporalOffsetSecs,
+                    temporalAlignmentEvaluationSecs: summary.temporalOffsetSecs,
                 }
             }
         }
-        await updateDbWithMetric('temporalAlignment', metricRunner);
+        await updateDbWithMetric('temporalAlignmentEvaluation', metricRunner);
     });
 
-    it('kinematicsError', { timeout: testTimeout }, async ({ expect }) => {
-        const metricNoVisibliityScale = new KinematicErrorMetric({
+    it('kinematicErrorEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+        const metricNoVisibliityScale = new KinematicErrorEvaluationMetric({
             calculateValues: {
                 scaleIndicator: null, //no size scaling,
             },
@@ -272,7 +165,7 @@ describe("AllMetricsComparison", {}, async () => {
                 "visibilityBehavior": 'none'
             }
         });
-        const metricByVisiblity = new KinematicErrorMetric({
+        const metricByVisiblity = new KinematicErrorEvaluationMetric({
             calculateValues: {
                 scaleIndicator: null, //no size scaling
             },
@@ -280,7 +173,7 @@ describe("AllMetricsComparison", {}, async () => {
                 "visibilityBehavior": 'scale'
             }
         })
-        const metricByVisiblityAndPerceptualWeights = new KinematicErrorMetric({
+        const metricByVisiblityAndPerceptualWeights = new KinematicErrorEvaluationMetric({
             calculateValues: {
                 scaleIndicator: null, //no size scaling
             },
@@ -289,39 +182,39 @@ describe("AllMetricsComparison", {}, async () => {
                 "landmarkWeights": LandmarkWeighting_MotionEnergy,
             }
         });
-        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory) => {
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
             const summary = metricByVisiblity.summarizeMetric(trackHistory);
             const summaryNoVisiblity = metricNoVisibliityScale.summarizeMetric(trackHistory);
             const summaryWithPerceptualWeights = metricByVisiblityAndPerceptualWeights.summarizeMetric(trackHistory);
             return { 
-                metricName: 'kinematicsError',
+                metricName: 'kinematicErrorEvaluation',
                 result: {
-                    "velocity_3d_MAE": summary.summary3D.velMAE ?? NaN,
-                    "accel_3d_MAE": summary.summary3D.accelMAE ?? NaN,
-                    "jerk_3d_MAE": summary.summary3D.jerkMAE ?? NaN,
-                    "velocity_2d_MAE": summary.summary2D.velMAE ?? NaN,
-                    "accel_2d_MAE": summary.summary2D.accelMAE ?? NaN,
-                    "jerk_2d_MAE": summary.summary2D.jerkMAE ?? NaN,
-                    "velocity_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.velMAE ?? NaN,
-                    "accel_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.accelMAE ?? NaN,
-                    "jerk_3d_MAE_noVisibility": summaryNoVisiblity.summary3D.jerkMAE ?? NaN,
-                    "velocity_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.velMAE ?? NaN,
-                    "accel_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.accelMAE ?? NaN,
-                    "jerk_2d_MAE_noVisibility": summaryNoVisiblity.summary2D.jerkMAE ?? NaN,
-                    "velocity_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.velMAE ?? NaN,
-                    "accel_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.accelMAE ?? NaN,
-                    "jerk_3d_MAE_jointweighted": summaryWithPerceptualWeights.summary3D.jerkMAE ?? NaN,
-                    "velocity_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.velMAE ?? NaN,
-                    "accel_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.accelMAE ?? NaN,
-                    "jerk_2d_MAE_jointweighted": summaryWithPerceptualWeights.summary2D.jerkMAE ?? NaN,
+                    "kinematicErrorEvaluationVelocity3DMAE": summary.summary3D.velMAE ?? NaN,
+                    "kinematicErrorEvaluationAccel3DMAE": summary.summary3D.accelMAE ?? NaN,
+                    "kinematicErrorEvaluationJerk3DMAE": summary.summary3D.jerkMAE ?? NaN,
+                    "kinematicErrorEvaluationVelocity2DMAE": summary.summary2D.velMAE ?? NaN,
+                    "kinematicErrorEvaluationAccel2DMAE": summary.summary2D.accelMAE ?? NaN,
+                    "kinematicErrorEvaluationJerk2DMAE": summary.summary2D.jerkMAE ?? NaN,
+                    "kinematicErrorEvaluationVelocity3DMAENoVisibility": summaryNoVisiblity.summary3D.velMAE ?? NaN,
+                    "kinematicErrorEvaluationAccel3DMAENoVisibility": summaryNoVisiblity.summary3D.accelMAE ?? NaN,
+                    "kinematicErrorEvaluationJerk3DMAENoVisibility": summaryNoVisiblity.summary3D.jerkMAE ?? NaN,
+                    "kinematicErrorEvaluationVelocity2DMAENoVisibility": summaryNoVisiblity.summary2D.velMAE ?? NaN,
+                    "kinematicErrorEvaluationAccel2DMAENoVisibility": summaryNoVisiblity.summary2D.accelMAE ?? NaN,
+                    "kinematicErrorEvaluationJerk2DMAENoVisibility": summaryNoVisiblity.summary2D.jerkMAE ?? NaN,
+                    "kinematicErrorEvaluationVelocity3DMAEJointWeighted": summaryWithPerceptualWeights.summary3D.velMAE ?? NaN,
+                    "kinematicErrorEvaluationAccel3DMAEJointWeighted": summaryWithPerceptualWeights.summary3D.accelMAE ?? NaN,
+                    "kinematicErrorEvaluationJerk3DMAEJointWeighted": summaryWithPerceptualWeights.summary3D.jerkMAE ?? NaN,
+                    "kinematicErrorEvaluationVelocity2DMAEJointWeighted": summaryWithPerceptualWeights.summary2D.velMAE ?? NaN,
+                    "kinematicErrorEvaluationAccel2DMAEJointWeighted": summaryWithPerceptualWeights.summary2D.accelMAE ?? NaN,
+                    "kinematicErrorEvaluationJerk2DMAEJointWeighted": summaryWithPerceptualWeights.summary2D.jerkMAE ?? NaN,
                 },
             }
         }
-        await updateDbWithMetric('kinematicsError', metricRunner);
+        await updateDbWithMetric('kinematicErrorEvaluation', metricRunner);
     });
 
     it('humanRating', { timeout: testTimeout }, async ({ expect }) => {
-        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: TrackHistory, ratings: HumanRating | undefined) => {
+        const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory, ratings: HumanRating | undefined) => {
 
             return {
                 metricName: 'humanRating',

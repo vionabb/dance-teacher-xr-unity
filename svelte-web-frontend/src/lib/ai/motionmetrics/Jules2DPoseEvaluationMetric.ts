@@ -1,7 +1,13 @@
 import { lerp } from "$lib/utils/math";
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from "$lib/webcam/mediapipe-utils";
 import { QijiaMethodComparisonVectors, Get2DVector, Get2DScaleIndicator, getMagnitude2DVec, getInnerAngle, GetArithmeticMean, QijiaMethodComparisionVectorNames } from "../EvaluationCommonUtils";
-import type { LiveEvaluationMetric, TrackHistory } from "./MotionMetric";
+import {
+    aggregateSegmentedValues,
+    type EvaluationMetricTimeSeriesContext,
+    type EvaluationTrackHistory,
+    type LiveEvaluationMetric,
+    type MotionMetricTimeSeries
+} from "./MotionMetric";
 
 // Constants for reliable 2D angle determination (in pixels)
 const MinVectorMagnitudeForReliableAngleDetermination = 50;
@@ -97,7 +103,7 @@ type JulesMetricSummaryOutput = {
     vectorByVectorScore: Record<string, number>;
 }
 
-type JulesMetricFormattedSummaryOutput = ReturnType<Jules2DSkeletonSimilarityMetric["formatSummary"]>;
+type JulesMetricFormattedSummaryOutput = ReturnType<Jules2DPoseEvaluationMetric["formatSummary"]>;
 
 /**
  * Metric that computes the similarity between two poses using the Jules method.
@@ -108,13 +114,13 @@ type JulesMetricFormattedSummaryOutput = ReturnType<Jules2DSkeletonSimilarityMet
  * @param userLandmarks - User landmarks (learner)
  * @returns Object containing the dissimilarity score and information by vector
  */
-export default class Jules2DSkeletonSimilarityMetric implements LiveEvaluationMetric<JulesMetricSingleFrameOutput, JulesMetricSummaryOutput, JulesMetricFormattedSummaryOutput> {
+export default class Jules2DPoseEvaluationMetric implements LiveEvaluationMetric<JulesMetricSingleFrameOutput, JulesMetricSummaryOutput, JulesMetricFormattedSummaryOutput> {
     
-    computeMetric(_history: Readonly<TrackHistory>, _metricHistory: Readonly<JulesMetricSingleFrameOutput[]>, _videoFrameTimeInSecs: Readonly<number>, _actualTimesInMs: number, user2dPose: Readonly<Pose2DPixelLandmarks>, _user3dPose: Readonly<Pose3DLandmarkFrame>, ref2dPose: Readonly<Pose2DPixelLandmarks>, _ref3dPose: Readonly<Pose3DLandmarkFrame>): JulesMetricSingleFrameOutput {
+    computeMetric(_history: Readonly<EvaluationTrackHistory>, _metricHistory: Readonly<JulesMetricSingleFrameOutput[]>, _videoFrameTimeInSecs: Readonly<number>, _actualTimesInMs: number, user2dPose: Readonly<Pose2DPixelLandmarks>, _user3dPose: Readonly<Pose3DLandmarkFrame>, ref2dPose: Readonly<Pose2DPixelLandmarks>, _ref3dPose: Readonly<Pose3DLandmarkFrame>): JulesMetricSingleFrameOutput {
         return computeSkeleton2DDissimilarityJulesMethod(ref2dPose, user2dPose)
     }
 
-    summarizeMetric(_history: Readonly<TrackHistory>, metricHistory: Readonly<JulesMetricSingleFrameOutput[]>): JulesMetricSummaryOutput {
+    summarizeMetric(_history: Readonly<EvaluationTrackHistory>, metricHistory: Readonly<JulesMetricSingleFrameOutput[]>): JulesMetricSummaryOutput {
         
         const avgDissimilarity = GetArithmeticMean(metricHistory
             .map(m => m.overallDissimilarity)
@@ -145,5 +151,39 @@ export default class Jules2DSkeletonSimilarityMetric implements LiveEvaluationMe
             "avgDissimilarity": summary.avgDissimilarity,
             ...summary.vectorByVectorScore,
         }
+    }
+
+    evaluateSegmented(_history: Readonly<EvaluationTrackHistory>, metricHistory: Readonly<JulesMetricSingleFrameOutput[]>, segmentBoundaries: readonly number[]) {
+        return aggregateSegmentedValues(
+            metricHistory.map((frame) => 1 - frame.overallDissimilarity),
+            segmentBoundaries,
+            (values) => values.length > 0 ? GetArithmeticMean(values) : null,
+        );
+    }
+
+    getTimeSeries(context: EvaluationMetricTimeSeriesContext<JulesMetricSummaryOutput, JulesMetricSingleFrameOutput>): MotionMetricTimeSeries[] {
+        const metricHistory = context.metricHistory ?? [];
+        const rows = metricHistory.map((frame, index) => {
+            const vectorScores = Object.fromEntries(
+                QijiaMethodComparisionVectorNames.map((name, vecIndex) => [name, frame.vectorByVectorScores[vecIndex].dissimilarity])
+            );
+
+            return {
+                frameIndex: index,
+                videoTimeSecs: context.track.videoFrameTimesInSecs[index] ?? null,
+                overallDissimilarity: frame.overallDissimilarity,
+                ...vectorScores,
+            };
+        });
+
+        return [{
+            seriesId: "frame_dissimilarity",
+            title: "Jules 2D frame dissimilarity",
+            xKey: "videoTimeSecs",
+            yKeys: ["overallDissimilarity", ...QijiaMethodComparisionVectorNames],
+            xLabel: "Video time (s)",
+            yLabel: "Dissimilarity",
+            rows,
+        }];
     }
 }

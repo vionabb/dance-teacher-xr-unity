@@ -4,27 +4,25 @@ import type { PoseReferenceData } from "$lib/data/dances-store";
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from "$lib/webcam/mediapipe-utils";
 import UserDanceEvaluator from "./UserDanceEvaluator";
 import type { PerformanceEvaluationTrack } from "./UserEvaluationTrackRecorder";
-// import Jules2DSkeletonSimilarityMetric from "./motionmetrics/Jules2DSkeletonSimilarityMetric";
-import Qijia2DSkeletonSimilarityMetric from "./motionmetrics/Qijia2DSkeletonSimilarityMetric";
-import Skeleton3dVectorAngleSimilarityMetric from "./motionmetrics/Skeleton3dVectorAngleSimilarityMetric";
+import Qijia2DPoseEvaluationMetric from "./motionmetrics/Qijia2DPoseEvaluationMetric";
+import Skeleton3DVectorAngleEvaluationMetric from "./motionmetrics/Skeleton3DVectorAngleEvaluationMetric";
 import BasicInfoSummaryMetric from "./motionmetrics/BasicInfoSummaryMetric";
-import KinematicErrorMetric from "./motionmetrics/KinematicErrorMetric";
+import KinematicErrorEvaluationMetric from "./motionmetrics/KinematicErrorEvaluationMetric";
 
 import frontendPerformanceHistory from "./frontendPerformanceHistory";
-import TemporalAlignmentMetric from "./motionmetrics/TemporalAlignmentMetric";
-import Skeleton3DAngleDistanceDTW from "./motionmetrics/Skeleton3DAngleDistanceDTW";
+import TemporalAlignmentEvaluationMetric from "./motionmetrics/TemporalAlignmentEvaluationMetric";
+import Skeleton3DAngleDistanceDTWEvaluationMetric from "./motionmetrics/Skeleton3DAngleDistanceDTWEvaluationMetric";
 
 export const FrontendLiveMetrics = Object.freeze({
-    qijia2DSkeletonSimilarity: new Qijia2DSkeletonSimilarityMetric(),
-    // jules2DSkeletonSimilarity: new Jules2DSkeletonSimilarityMetric(),
-    skeleton3DAngleSimilarity: new Skeleton3dVectorAngleSimilarityMetric(),
+    qijia2DPoseEvaluation: new Qijia2DPoseEvaluationMetric(),
+    skeleton3DVectorAngleEvaluation: new Skeleton3DVectorAngleEvaluationMetric(),
 });
 
 export const FrontendSummaryMetrics = Object.freeze({
     basicInfo: new BasicInfoSummaryMetric(),
-    kinematicError: new KinematicErrorMetric(),
-    temporalAlignment: new TemporalAlignmentMetric(),
-    // skeleton3dSimilarityDtw: new Skeleton3DAngleDistanceDTW(),
+    kinematicErrorEvaluation: new KinematicErrorEvaluationMetric(),
+    temporalAlignmentEvaluation: new TemporalAlignmentEvaluationMetric(),
+    // skeleton3DAngleDistanceDTWEvaluation: new Skeleton3DAngleDistanceDTWEvaluationMetric(),
 });
 
 export const FrontendMetrics = Object.freeze({

@@ -4,7 +4,7 @@ import type PracticeStep from "$lib/model/PracticeStep";
 import { GetArithmeticMean } from "./EvaluationCommonUtils";
 import type { FrontendPerformanceSummary } from "./FrontendDanceEvaluator";
 import type { FrontendDancePeformanceHistory } from "./frontendPerformanceHistory";
-import type { Angle3DMetricSummaryOutput } from "./motionmetrics/Skeleton3dVectorAngleSimilarityMetric";
+import type { Angle3DMetricSummaryOutput } from "./motionmetrics/Skeleton3DVectorAngleEvaluationMetric";
 
 function GetInaccurateJoints(skeleton3DSimilarity: Angle3DMetricSummaryOutput, badJointSDThreshold: number, overallScore?: number, overallScoreSD?: number) {
 
@@ -101,8 +101,8 @@ export function distillFrontendPerformanceSummaryToTextualRepresentation(summary
 
     const { wholePerformance, subsections, segmentDescription } = summary;
 
-    const overallPerformanceScore = wholePerformance.skeleton3DAngleSimilarity.overallScore;
-    const overallPerformanceSD = wholePerformance.skeleton3DAngleSimilarity.overallScoreSD;
+    const overallPerformanceScore = wholePerformance.skeleton3DVectorAngleEvaluation.overallScore;
+    const overallPerformanceSD = wholePerformance.skeleton3DVectorAngleEvaluation.overallScoreSD;
     const overallPerformanceScoreString = overallPerformanceScore.toFixed(2);
     let distillation = `The user just performed "${segmentDescription}", at timestamp: ${new Date().toISOString()}. Overall, the user had a ${overallPerformanceScoreString} match with the reference dance.`;
     const performanceCharacterization = 
@@ -112,7 +112,7 @@ export function distillFrontendPerformanceSummaryToTextualRepresentation(summary
 
     distillation += ` This is considered a ${performanceCharacterization} performance.`;
 
-    const badJoints = GetInaccurateJoints(wholePerformance.skeleton3DAngleSimilarity, badJointSDThreshold)
+    const badJoints = GetInaccurateJoints(wholePerformance.skeleton3DVectorAngleEvaluation, badJointSDThreshold)
 
     if (badJoints.length > 0) {
         distillation += ` The joint angles that were the most troublesome for the user were: `;
@@ -130,11 +130,11 @@ export function distillFrontendPerformanceSummaryToTextualRepresentation(summary
         distillation += ` The user's performance was broken down into ${subsectionNames.length} subsections:\n`;
         const subsectionEntries = Object.entries(subsections);
         const subsectionDistillationStrings = subsectionEntries.map(([subsectionName, subsection]) => {
-            const angleSimilarity = subsection.skeleton3DAngleSimilarity;
+            const angleSimilarity = subsection.skeleton3DVectorAngleEvaluation;
 
             // Compare the badness of the joints relative to the distrubition of the entire performance.
             const badJoints = GetInaccurateJoints(
-                wholePerformance.skeleton3DAngleSimilarity,
+                wholePerformance.skeleton3DVectorAngleEvaluation,
                 badJointSDThreshold,
                 overallPerformanceScore,
                 overallPerformanceSD
@@ -181,9 +181,9 @@ export function distillPerformanceHistoryToTextualRepresentation(dancePerformanc
     let description = "";
     for (const segmentId of Object.keys(dancePerformanceHistory)) {
         const segmentHistory = dancePerformanceHistory[segmentId];
-        const skeleton3DAngleSimilarity = segmentHistory.skeleton3DAngleSimilarity ?? [];
+        const skeleton3DVectorAngleEvaluation = segmentHistory.skeleton3DVectorAngleEvaluation ?? [];
         
-        const nonnullOverallScoreAttempts = skeleton3DAngleSimilarity
+        const nonnullOverallScoreAttempts = skeleton3DVectorAngleEvaluation
             .filter((n) => n.summary.overall !== undefined)
             .map(x => ({
                 date: x.date, 

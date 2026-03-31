@@ -1,4 +1,4 @@
-import type { LiveEvaluationMetric, SummaryMetric } from '../MotionMetric';
+import type { EvaluationMetricTrack, LiveEvaluationMetric, SummaryEvaluationMetric } from '../MotionMetric';
 import fs from 'fs';
 
 import track1url from './badperf_alignedwithcamera.other_laxed_siren_beat.track.json?url';
@@ -13,7 +13,6 @@ import track9url from './standingverystill.other_renegade.track.json?url';
 
 
 import Papa from 'papaparse';
-import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 
 const testTrackURLs = Object.freeze([
     track1url, 
@@ -27,19 +26,7 @@ const testTrackURLs = Object.freeze([
     track9url
 ]);
 
-export type TestTrack = {
-    id: string;
-    danceRelativeStem: string;
-    segmentDescription: string;
-    creationDate: string;
-    videoFrameTimesInSecs: number[];
-    actualTimesInMs: number[];
-    trackDescription: string;
-    user2dPoses: Pose2DPixelLandmarks[];
-    user3dPoses: Pose3DLandmarkFrame[];
-    ref2dPoses: Pose2DPixelLandmarks[];
-    ref3dPoses: Pose3DLandmarkFrame[];
-};
+export type TestTrack = EvaluationMetricTrack;
 
 /**
  * Loads a test track from a json file.
@@ -143,7 +130,7 @@ export function runLiveEvaluationMetricOnTestTrack<T extends LiveEvaluationMetri
  * @param track Track to run the metric on
  * @returns An object with the summary metric output (in the `summary` property)
  */
-export function runSummaryMetricOnTestTrack<T extends SummaryMetric<any, any>>(metric: T, track: TestTrack) {
+export function runSummaryMetricOnTestTrack<T extends SummaryEvaluationMetric<any, any>>(metric: T, track: TestTrack) {
 
     const debugRoot = './testResults/bydance/' + track.danceRelativeStem + '/';
     fs.mkdirSync(debugRoot, { recursive: true });
@@ -182,7 +169,7 @@ export function ensureDirectoryExistence(dirPath: string) {
  * @param metric Live evaluation metric to publish the output for
  * @param tracks Tracks to publish the output for (should be a generator, to avoid loading all tracks into memory)
  */
-function publishMetricOutputForTracks<T extends LiveEvaluationMetric<any, any, any> | SummaryMetric<any, any>>(
+function publishMetricOutputForTracks<T extends LiveEvaluationMetric<any, any, any> | SummaryEvaluationMetric<any, any>>(
     metric: T,
     summarizer: (metric: T, track: TestTrack) => ReturnType<T['summarizeMetric']>,
     tracks: Generator<TestTrack>,
@@ -253,7 +240,7 @@ export function publishLiveMetricOutputForTracks<T extends LiveEvaluationMetric<
  * @param metric Metric to publish the output for
  * @param tracks Tracks to publish the output for (should be a generator, to avoid loading all tracks into memory)
  */
-export function publishSummaryMetricOutputForTracks<T extends SummaryMetric<any, any>>(
+export function publishSummaryMetricOutputForTracks<T extends SummaryEvaluationMetric<any, any>>(
     metric: T,
     tracks: Generator<TestTrack>,
 ) {

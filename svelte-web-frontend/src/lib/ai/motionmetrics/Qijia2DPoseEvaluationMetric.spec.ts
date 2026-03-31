@@ -1,6 +1,6 @@
 import { describe, it } from 'vitest';
 import { runLiveEvaluationMetricOnTestTrack, publishLiveMetricOutputForTracks, loadTestTrack, generateAllTestTracks } from './testdata/metricTestingUtils';
-import Qijia2DSkeletonSimilarityMetric from './Qijia2DSkeletonSimilarityMetric';
+import Qijia2DPoseEvaluationMetric from './Qijia2DPoseEvaluationMetric';
 
 // Note: we import the json file with ?url appended to the end in order to prevent degraded
 //       tooling performance. If we import the json file directly, the tooling will try to
@@ -9,12 +9,12 @@ import Qijia2DSkeletonSimilarityMetric from './Qijia2DSkeletonSimilarityMetric';
 //       that file during development. 
 import goodperf_alignedwithcamera_url from './testdata/goodperf_alignedwithcamera.other_laxed_siren_beat.track.json?url';
 
-describe('Qijia2DSkeletonSimilarityMetric', () => {
+describe('Qijia2DPoseEvaluationMetric', () => {
 
     it('should produce expected scores for test track 1', ({ expect }) => {
         const track = loadTestTrack(goodperf_alignedwithcamera_url);
         const { summary } = runLiveEvaluationMetricOnTestTrack(
-            new Qijia2DSkeletonSimilarityMetric(),
+            new Qijia2DPoseEvaluationMetric(),
             track,
         );
         
@@ -36,7 +36,7 @@ describe('Qijia2DSkeletonSimilarityMetric', () => {
         expect(() => {
 
             publishLiveMetricOutputForTracks(
-                new Qijia2DSkeletonSimilarityMetric(),
+                new Qijia2DPoseEvaluationMetric(),
                 generateAllTestTracks(),
             )
 
