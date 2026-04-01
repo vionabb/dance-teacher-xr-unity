@@ -14,12 +14,11 @@
 from enum import Enum, auto
 import typing as t
 import pandas as pd
-import mediapipe as mp
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+from ..mp_utils import PoseLandmark as PoseLandmarks
 from ..update_database import load_db
-PoseLandmarks = mp.solutions.pose.PoseLandmark
 
 
 class DVAJ(Enum):
@@ -78,7 +77,7 @@ def get_pose_landmarks_present_in_dataframe(frame: pd.DataFrame) -> t.List[str]:
     lms = []
     for lm in all_landmarks:
         try:
-            pose_landmark = mp.solutions.pose.PoseLandmark[lm]
+            pose_landmark = PoseLandmarks[lm]
             lms.append(lm)
         except KeyError:
             pass

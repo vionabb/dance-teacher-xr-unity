@@ -9,6 +9,13 @@ import itertools as it
 from functools import reduce
 import time
 
+from motion_extraction.mp_utils import (
+    POSE_LANDMARKER_HEAVY_MODEL_URL,
+    PoseLandmark,
+    build_base_options,
+    ensure_task_model,
+)
+
 flat_map = lambda f, xs: reduce(lambda a, b: a + b, map(f, xs))
 
 # Per mediapipe documentation, the landmarks are normalized to the image size and the z coordinate takes the same approx scale as x,
@@ -70,7 +77,7 @@ def process_video(pose_landmarker, video_path, csv_output_path, frame_dir: Path 
     cap = cv2.VideoCapture(str(video_path))
     fps = cap.get(cv2.CAP_PROP_FPS)
 
-    POSE_LANDMARKS = list(mp.solutions.pose.PoseLandmark)
+    POSE_LANDMARKS = list(PoseLandmark)
     PROPS = ['x', 'y', 'z', 'visibility']
     
     
@@ -166,22 +173,17 @@ def main():
     num_files_digits = len(str(num_files))
 
     
-    BaseOptions = mp.tasks.BaseOptions
     PoseLandmarker = mp.tasks.vision.PoseLandmarker
     PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
     VisionRunningMode = mp.tasks.vision.RunningMode
     # model is located at same directory as this script
-    model_path = os.path.join(os.path.dirname(__file__), 'pose_landmarker_heavy.task')
-    
-    landmarker_delegate = mp.tasks.BaseOptions.Delegate.GPU
-    # on windows, set the delegate to CPU
-    if os.name == 'nt':
-        landmarker_delegate = mp.tasks.BaseOptions.Delegate.CPU
+    model_path = ensure_task_model(
+        Path(os.path.dirname(__file__)) / 'pose_landmarker_heavy.task',
+        POSE_LANDMARKER_HEAVY_MODEL_URL,
+    )
 
     options = PoseLandmarkerOptions(
-        base_options=BaseOptions(model_asset_path=model_path,
-                                 delegate=landmarker_delegate
-        ),
+        base_options=build_base_options(model_path),
         running_mode=VisionRunningMode.VIDEO,
     )
 

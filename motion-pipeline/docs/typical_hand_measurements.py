@@ -1,14 +1,11 @@
 from typing import Final
 import numpy as np
-import mediapipe as mp
+from motion_extraction.mp_utils import HandLandmark
 
 # Average hand joint lengths
 # From: https://scielo.conicyt.cl/pdf/ijmorphol/v28n3/art15.pdf
 # "Proportions of Hand Segments"
 # by: Buryanov Alexander & Kotiuk Viktor
-
-HandLandmark: mp.solutions.mediapipe.python.solutions.holistic.HandLandmark = mp.solutions.holistic.HandLandmark
-
 
 # TODO / CORRECTIONS: 
 # * from picture, these distances are of the xray bones. The finger bones don't start in same spot, 

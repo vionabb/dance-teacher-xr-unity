@@ -1,5 +1,4 @@
 from pathlib import Path
-import sys
 import typing as t
 import cv2
 from matplotlib import pyplot as plt
@@ -8,108 +7,95 @@ import numpy as np
 import pandas as pd
 from functools import reduce
 import csv
-import logging
 
 from .utils import throttle
+from .mp_utils import (
+    HAND_CONNECTIONS,
+    HOLISTIC_LANDMARKER_MODEL_URL,
+    POSE_CONNECTIONS,
+    HandLandmark,
+    PoseLandmark,
+    build_base_options,
+    ensure_task_model,
+    landmark_at,
+    landmark_list,
+    rgb_image_to_mp_image,
+)
 
 import mpl_toolkits.mplot3d.art3d as art3d
-
-PoseLandmark = mp.solutions.holistic.PoseLandmark
-HandLandmark = mp.solutions.holistic.HandLandmark
-
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
+from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 T = t.TypeVar('T')
 
 _PRESENCE_THRESHOLD = 0.5
 _VISIBILITY_THRESHOLD = 0.5
 _BGR_CHANNELS = 3
-from typing import List, Tuple, Mapping, Union
-DrawingSpec = mp_drawing.DrawingSpec
-RED_COLOR = (0, 0, 255)
-WHITE_COLOR = (224, 224, 224)
-def custom_draw_landmarks(
+from typing import Iterable
+
+
+def _normalized_to_pixel_coordinates(normalized_x, normalized_y, image_width, image_height):
+    if not (0.0 <= normalized_x <= 1.0 and 0.0 <= normalized_y <= 1.0):
+        return None
+    x_px = min(int(normalized_x * image_width), image_width - 1)
+    y_px = min(int(normalized_y * image_height), image_height - 1)
+    return x_px, y_px
+
+
+def _should_draw_landmark(landmark) -> bool:
+    visibility = getattr(landmark, "visibility", None)
+    if visibility is not None and visibility < _VISIBILITY_THRESHOLD:
+        return False
+
+    presence = getattr(landmark, "presence", None)
+    if presence is not None and presence < _PRESENCE_THRESHOLD:
+        return False
+
+    return True
+
+
+def draw_normalized_landmarks(
     image: np.ndarray,
-    landmark_list: list,
-    connections: t.Optional[List[Tuple[int, int]]] = None,
-    landmark_drawing_spec: Union[DrawingSpec,
-                                 Mapping[int, DrawingSpec]] = DrawingSpec(
-                                     color=RED_COLOR),
-    connection_drawing_spec: Union[DrawingSpec,
-                                   Mapping[Tuple[int, int],
-                                           DrawingSpec]] = DrawingSpec()):
-  """Draws the landmarks and the connections on the image.
-  Args:
-    image: A three channel BGR image represented as numpy ndarray.
-    landmark_list: A normalized landmark list proto message to be annotated on
-      the image.
-    connections: A list of landmark index tuples that specifies how landmarks to
-      be connected in the drawing.
-    landmark_drawing_spec: Either a DrawingSpec object or a mapping from hand
-      landmarks to the DrawingSpecs that specifies the landmarks' drawing
-      settings such as color, line thickness, and circle radius. If this
-      argument is explicitly set to None, no landmarks will be drawn.
-    connection_drawing_spec: Either a DrawingSpec object or a mapping from hand
-      connections to the DrawingSpecs that specifies the connections' drawing
-      settings such as color and line thickness. If this argument is explicitly
-      set to None, no landmark connections will be drawn.
-  Raises:
-    ValueError: If one of the followings:
-      a) If the input image is not three channel BGR.
-      b) If any connetions contain invalid landmark index.
-  """
-  if not landmark_list:
-    return
-  if image.shape[2] != _BGR_CHANNELS:
-    raise ValueError('Input image must contain three channel bgr data.')
-  image_rows, image_cols, _ = image.shape
-  idx_to_coordinates = {}
-  for idx, landmark in enumerate(landmark_list.landmark):
-    if ((landmark.HasField('visibility') and
-         landmark.visibility < _VISIBILITY_THRESHOLD) or
-        (landmark.HasField('presence') and
-         landmark.presence < _PRESENCE_THRESHOLD)):
-      continue
-    landmark_px = mp_drawing._normalized_to_pixel_coordinates(landmark.x, landmark.y,
-                                                   image_cols, image_rows)
-    if landmark_px:
-      idx_to_coordinates[idx] = landmark_px
-  if connections:
-    num_landmarks = len(landmark_list.landmark)
-    # Draws the connections if the start and end landmarks are both visible.
-    for connection in connections:
-      start_idx = connection[0]
-      end_idx = connection[1]
-      if not (0 <= start_idx < num_landmarks and 0 <= end_idx < num_landmarks):
-        raise ValueError(f'Landmark index is out of range. Invalid connection '
-                         f'from landmark #{start_idx} to landmark #{end_idx}.')
-      if start_idx in idx_to_coordinates and end_idx in idx_to_coordinates:
-        if isinstance(connection_drawing_spec, Mapping) and connection_drawing_spec.get(connection) is None:
-            # skip things missing from the mapping
+    landmarks: t.Optional[Iterable],
+    connections: t.Optional[t.Iterable[tuple[int, int]]] = None,
+    landmark_color=(0, 0, 255),
+    connection_color=(224, 224, 224),
+):
+    if image.shape[2] != _BGR_CHANNELS:
+        raise ValueError('Input image must contain three channel bgr data.')
+
+    landmarks = landmark_list(landmarks)
+    if not landmarks:
+        return
+
+    image_rows, image_cols, _ = image.shape
+    idx_to_coordinates = {}
+
+    for idx, landmark in enumerate(landmarks):
+        if not _should_draw_landmark(landmark):
             continue
-        drawing_spec = connection_drawing_spec[connection] if isinstance(
-            connection_drawing_spec, Mapping) else connection_drawing_spec
-        cv2.line(image, idx_to_coordinates[start_idx],
-                 idx_to_coordinates[end_idx], drawing_spec.color,
-                 drawing_spec.thickness)
-  # Draws landmark points after finishing the connection lines, which is
-  # aesthetically better.
-  if landmark_drawing_spec:
-    for idx, landmark_px in idx_to_coordinates.items():
-      if isinstance(landmark_drawing_spec, Mapping) and landmark_drawing_spec.get(idx) is None:
-        # skip things missing from the mapping
-        continue
-      drawing_spec = landmark_drawing_spec[idx] if isinstance(
-          landmark_drawing_spec, Mapping) else landmark_drawing_spec
-      # White circle border
-      circle_border_radius = max(drawing_spec.circle_radius + 1,
-                                 int(drawing_spec.circle_radius * 1.2))
-      cv2.circle(image, landmark_px, circle_border_radius, WHITE_COLOR,
-                 drawing_spec.thickness)
-      # Fill color into the circle
-      cv2.circle(image, landmark_px, drawing_spec.circle_radius,
-                 drawing_spec.color, drawing_spec.thickness)
+        landmark_px = _normalized_to_pixel_coordinates(
+            landmark.x,
+            landmark.y,
+            image_cols,
+            image_rows,
+        )
+        if landmark_px is not None:
+            idx_to_coordinates[idx] = landmark_px
+
+    if connections:
+        for start_idx, end_idx in connections:
+            if start_idx in idx_to_coordinates and end_idx in idx_to_coordinates:
+                cv2.line(
+                    image,
+                    idx_to_coordinates[start_idx],
+                    idx_to_coordinates[end_idx],
+                    connection_color,
+                    2,
+                )
+
+    for landmark_px in idx_to_coordinates.values():
+        cv2.circle(image, landmark_px, 4, (255, 255, 255), -1)
+        cv2.circle(image, landmark_px, 3, landmark_color, -1)
 
 
 
@@ -164,10 +150,7 @@ def transform_to_pose2d_csvrow(
             )
             for pose2d_lm in 
             [
-                (frame_data.pose_landmarks.landmark[landmark_i] if
-                    hasattr(frame_data, 'pose_landmarks') and 
-                    frame_data.pose_landmarks is not None 
-                else None)
+                landmark_at(getattr(frame_data, "pose_landmarks", None), landmark_i)
                 for landmark_i in range(len(PoseLandmark))
             ]
         ]
@@ -197,9 +180,7 @@ def transform_to_holistic_csvrow(frame_i: int, frame_data, as_pdSeries: bool = F
                     lm.visibility
                 ] if lm is not None else [None, None, None, None]
                 for lm in 
-                [(frame_data.pose_world_landmarks.landmark[landmark_i] if frame_data.pose_world_landmarks else None)
-                    for landmark_i in range(len(PoseLandmark))
-                ]
+                [landmark_at(getattr(frame_data, "pose_world_landmarks", None), landmark_i) for landmark_i in range(len(PoseLandmark))]
             ]
         ))
         
@@ -208,9 +189,7 @@ def transform_to_holistic_csvrow(frame_i: int, frame_data, as_pdSeries: bool = F
             [
                 ([lm.x, lm.y, lm.z] if lm is not None else [None, None, None])
                 for lm in 
-                [(frame_data.right_hand_landmarks.landmark[landmark_i] if hasattr(frame_data, 'right_hand_landmarks') and frame_data.right_hand_landmarks is not None else None)
-                    for landmark_i in range(len(HandLandmark))
-                ]
+                [landmark_at(getattr(frame_data, "right_hand_landmarks", None), landmark_i) for landmark_i in range(len(HandLandmark))]
             ]
         ))
 
@@ -219,9 +198,7 @@ def transform_to_holistic_csvrow(frame_i: int, frame_data, as_pdSeries: bool = F
             [
                 ([lm.x, lm.y, lm.z] if lm is not None else [None, None, None])
                 for lm in 
-                [(frame_data.left_hand_landmarks.landmark[landmark_i] if hasattr(frame_data, 'left_hand_landmarks') and frame_data.left_hand_landmarks is not None else None)
-                    for landmark_i in range(len(HandLandmark))
-                ]
+                [landmark_at(getattr(frame_data, "left_hand_landmarks", None), landmark_i) for landmark_i in range(len(HandLandmark))]
             ]
         ))
 
@@ -230,29 +207,33 @@ def transform_to_holistic_csvrow(frame_i: int, frame_data, as_pdSeries: bool = F
 
     return row
 
-def plot_3d_pose(holistic_row_series, fig=None, ax=None, title=None):
+def plot_3d_pose(holistic_row_series, fig=None, ax: t.Optional[Axes3D]=None, title=None):
     if fig is None and ax is None:
         fig = plt.figure(title)
     if ax is None:
-        ax = fig.add_subplot(projection='3d')
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
+        if fig is None:
+            fig = plt.figure(title)
+        ax = fig.add_subplot(projection='3d')  # type: ignore
+    
+    assert ax is not None
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')  # type: ignore
     
     x, y, z = [
-        [
+        np.array([
             holistic_row_series[f'{PoseLandmark(landmark_i).name}_{field}']
             for landmark_i in range(len(PoseLandmark))
-        ]
+        ])
         for field in ('x', 'y', 'z')
     ]
     # Plot the joint positions
-    ax.scatter(x, y, z)
+    ax.scatter(x, y, z) # type: ignore
 
     # Connect joint position skeleton
     segs = [
         [(x[i], y[i], z[i]), (x[j], y[j], z[j])] 
-        for i, j in mp.solutions.holistic.POSE_CONNECTIONS
+        for i, j in POSE_CONNECTIONS
     ]
     lines = art3d.Line3DCollection(
         segs,
@@ -260,10 +241,13 @@ def plot_3d_pose(holistic_row_series, fig=None, ax=None, title=None):
     )
     ax.add_collection3d(lines)
 
-def _perform_by_frame(video_path: Path, on_frame: t.Callable[[cv2.Mat, int], T]):
+def _perform_by_frame(video_path: Path):
+    cap = None
     try:
         cap = cv2.VideoCapture(str(video_path))
         frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        fps = cap.get(cv2.CAP_PROP_FPS) or 0
+        fps = fps if fps > 0 else 30.0
         frame_count = 1 if frame_count == 0 else frame_count
         i = 0
         while cap.isOpened():
@@ -279,15 +263,17 @@ def _perform_by_frame(video_path: Path, on_frame: t.Callable[[cv2.Mat, int], T])
             image.flags.writeable = False
             # percent_done = int(i * 100 / frame_count)
             # print(f'{percent_done}% ', end='')
-            yield i, frame_count, on_frame(image), image
+            timestamp_ms = int((i * 1000) / fps)
+            yield i, frame_count, timestamp_ms, image
 
-            # i += 1
+            i += 1
     finally:
-        cap.release()
+        if cap is not None:
+            cap.release()
 
 def process_video(
     input_video_path: Path, 
-    holistic_solution: mp.solutions.holistic.Holistic,
+    holistic_landmarker,
     holistic_data_output_filepath: Path,
     pose_2d_data_output_filepath: t.Optional[Path] = None,
     frame_output_folder: t.Optional[Path] = None,
@@ -297,9 +283,6 @@ def process_video(
     def print_progress(i, frame_count):
         percent_done = i / frame_count
         print(f'{print_progress_context()}: {i}/{frame_count} {percent_done:.1%}')
-
-    # Reset graph for this new file
-    holistic_solution.reset()
 
     # Get video width / height
     cap = cv2.VideoCapture(str(input_video_path))
@@ -323,7 +306,9 @@ def process_video(
         holistic_data_output_filepath.open('w', encoding='utf-8', newline='') as holistic_file,
     ):
         holistic_csv_writer = csv.writer(holistic_file)
-        for frame_i, (_, frame_count, frame_data, image) in enumerate(_perform_by_frame(input_video_path, holistic_solution.process)):
+        for frame_i, (_, frame_count, timestamp_ms, image) in enumerate(_perform_by_frame(input_video_path)):
+            mp_image = rgb_image_to_mp_image(image)
+            frame_data = holistic_landmarker.detect_for_video(mp_image, timestamp_ms)
 
 
             # cv2.imshow(f'Frame {frame_i}', image)
@@ -368,18 +353,13 @@ def process_video(
                 # )
                 # cv2.imwrite('temp.jpg', imgcpy)
 
-                mp_drawing.draw_landmarks(
-                    image,
-                    frame_data.pose_landmarks,
-                    mp.solutions.holistic.POSE_CONNECTIONS,
-                    landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style(),
-                )
+                draw_normalized_landmarks(image, frame_data.pose_landmarks, POSE_CONNECTIONS)
                 frame_output_folder.mkdir(parents=True, exist_ok=True)
                 out_path_2d = f'{frame_output_folder}/{input_video_path.stem}_2d/{input_video_path.stem}_{frame_i:0{len(str(int(frame_count)))}}.jpg'
                 Path(out_path_2d).parent.mkdir(parents=True, exist_ok=True)
                 cv2.imwrite(out_path_2d, image)
 
-                if frame_data.pose_world_landmarks is not None:
+                if landmark_list(frame_data.pose_world_landmarks):
                     plot_3d_pose(
                         holistic_series_row, 
                         title=f'{holistic_data_output_filepath.name}-frame{frame_i}'
@@ -389,9 +369,9 @@ def process_video(
                     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
 
                     ax = plt.gca()
-                    ax.azim = -92
-                    ax.elev = 118
-                    ax.dist = 10
+                    ax.azim = -92 # type: ignore
+                    ax.elev = 118 # type: ignore
+                    ax.dist = 10  # type: ignore
                     
                     # plt.show(block=True)
                     plt.savefig(out_path)
@@ -421,7 +401,7 @@ def compute_holistic_data(
     rewrite_existing: bool = False,
     print_prefix: t.Callable[[], str]=lambda: '',
 ):
-    holistic_solution: mp.solutions.mediapipe.python.solutions.holistic.Holistic = None
+    holistic_landmarker_options = None
 
     if not output_folder.exists():
         output_folder.mkdir(parents=True)
@@ -452,21 +432,30 @@ def compute_holistic_data(
         else:
            processed_count += 1
 
-        # Lazily initialize the holistic solution (to avoid initializing it if we end up skipping all videos)
-        if holistic_solution is None:
-            holistic_solution = mp.solutions.holistic.Holistic(
-                static_image_mode=False,
-                model_complexity=model_complexity,
-                enable_segmentation=False
+        # Lazily initialize the task options once, but create a fresh VIDEO-mode
+        # landmarker per file because timestamps restart at frame 0 for each video.
+        if holistic_landmarker_options is None:
+            model_dir = Path(__file__).parent / "scripts"
+            model_path = ensure_task_model(
+                model_dir / "holistic_landmarker.task",
+                HOLISTIC_LANDMARKER_MODEL_URL,
+            )
+            base_options = build_base_options(model_path, use_gpu=False)
+            holistic_landmarker_options = mp.tasks.vision.HolisticLandmarkerOptions(
+                base_options=base_options,
+                running_mode=mp.tasks.vision.RunningMode.VIDEO,
+                output_face_blendshapes=False,
+                output_segmentation_mask=False,
             )
 
-        process_video(
-            input_video_path=video_path, 
-            holistic_solution=holistic_solution, 
-            holistic_data_output_filepath=holistic_data_filepath,
-            pose_2d_data_output_filepath=pose_2d_data_filepath,
-            frame_output_folder=frame_output_folder,
-            print_progress_context=lambda: f"{print_prefix()} Video {i+1}/{len(video_paths)} {video_file_relative_stem}")
+        with mp.tasks.vision.HolisticLandmarker.create_from_options(holistic_landmarker_options) as holistic_landmarker:
+            process_video(
+                input_video_path=video_path, 
+                holistic_landmarker=holistic_landmarker, 
+                holistic_data_output_filepath=holistic_data_filepath,
+                pose_2d_data_output_filepath=pose_2d_data_filepath,
+                frame_output_folder=frame_output_folder,
+                print_progress_context=lambda: f"{print_prefix()} Video {i+1}/{len(video_paths)} {video_file_relative_stem}")
 
     print(f"{print_prefix()} Processed {processed_count} videos, skipped {skipped_count} videos")
 

@@ -28,13 +28,13 @@
             // ],
             // "osx": {
                 "args": [
-                    "--database_csv_path=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_data/db.csv",
-                    "--video_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/videos",
-                    "--holistic_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/holistic_data",
-                    "--pose2d_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/pose2d_data",
+                    "--database_csv_path=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_data/db.csv",
+                    "--video_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/videos",
+                    "--holistic_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/holistic_data",
+                    "--pose2d_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/pose2d_data",
                     "--temp_dir=${workspaceFolder}/data/tempCloud/",
-                    "--bundle_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_data",
-                    "--bundle_media_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2025-Cognitive-Stage-Feedback/data/bundle_media/",
+                    "--bundle_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_data",
+                    "--bundle_media_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-j55blanchet@gmail.com/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/",
                     "--include_thumbnail_in_bundle",
                     // "--include_audio_in_bundle",
 

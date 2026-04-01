@@ -3,13 +3,9 @@ from typing import Literal
 import matplotlib.pyplot as plt
 from numpy import isnan
 import pandas as pd
-import mediapipe as mp
-from .mp_utils import PoseLandmark, HandLandmark
+from .mp_utils import HAND_CONNECTIONS, POSE_CONNECTIONS, HandLandmark, PoseLandmark
 
-PoseLandmark = mp.solutions.holistic.PoseLandmark
-HandLandmark = mp.solutions.holistic.HandLandmark
-POSE_CONNETIONS = mp.solutions.holistic.POSE_CONNECTIONS
-HAND_CONNECTIONS = mp.solutions.holistic.HAND_CONNECTIONS
+POSE_CONNETIONS = POSE_CONNECTIONS
 
 lm_pose_connections = [
     (PoseLandmark(i), PoseLandmark(j)) for i, j in POSE_CONNETIONS

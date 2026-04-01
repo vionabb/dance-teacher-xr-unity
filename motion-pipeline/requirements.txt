@@ -1,4 +1,6 @@
-mediapipe == 0.10.32
+# Python uses `mediapipe` and its `mediapipe.tasks.python.vision` API.
+# `@mediapipe/tasks-vision` is the JavaScript package, not a pip dependency.
+mediapipe >= 0.10.33, < 0.11
 pandas == 2.2.3
 #protobuf ~= 3.20
 pytransform3d ~=3.14

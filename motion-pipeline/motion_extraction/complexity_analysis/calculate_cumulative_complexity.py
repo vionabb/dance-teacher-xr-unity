@@ -2,19 +2,25 @@ from collections import defaultdict
 from pathlib import Path
 import time
 import pandas as pd
-import mediapipe as mp
 import numpy as np
 import typing as t
 import matplotlib.pyplot as plt
 import enum
 import sys
-from tqdm import tqdm, trange
 import itertools
+try:
+    from tqdm import tqdm, trange
+except ImportError:
+    def tqdm(iterable, *args, **kwargs):
+        return iterable
 
+    def trange(*args, **kwargs):
+        return range(*args)
+
+from ..mp_utils import PoseLandmark
 from .uist_complexityanalysis import get_pose_landmarks_present_in_dataframe, DVAJ, calc_scalar_dvaj
 
 BASE_COL_NAME = "base"
-PoseLandmark = mp.solutions.pose.PoseLandmark # type: ignore
 
 def pd_append_replace(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     """Appends pd2 contents of df1, replacing any rows in df1 that have the same index as pd2, 

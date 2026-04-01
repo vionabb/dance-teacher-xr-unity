@@ -8,6 +8,7 @@ from pathlib import Path
 import argparse
 import itertools
 import typing as t
+from collections.abc import Sequence
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -120,7 +121,7 @@ def calculate_visibility_distribution(visibility_df: pd.DataFrame, joint_names: 
         ax.set_ylabel("Frequency")
         ax.set_xlim(0, 1)
         ax.grid(False)
-    for j in range(i + 1, len(axs)):
+    for j in range(len(joint_names), len(axs)):
         axs[j].axis('off')
     fig_path = visibility_output_dir / f"{parentdir}.visibility_histogram.png"
     fig.suptitle(f"Joint Visibility Distributions in {parentdir}", fontsize=16)
@@ -199,13 +200,14 @@ print(f"{script_name}")
 
 print(f"\toutput:\t{visibility_output_dir}")
 
-posefiles_by_parentdir: t.Dict[str | Path, t.List[str | Path]] = {}
+posefiles_by_parentdir: t.Dict[str | Path, Sequence[str | Path]] = {}
 for dir in pose_csvfile_dirs:
     pose_csv_files = list(dir.glob("*.csv"))
     print(f"\t{len(pose_csv_files)} files\t{dir}")
     posefiles_by_parentdir[dir.name] = pose_csv_files
 
 for parentdir, posefiles in posefiles_by_parentdir.items():
+    parentdir_str = str(parentdir)
     print(f"Processing {len(posefiles)} files in {parentdir}")
     # Read all CSV files and concatenate them into a single DataFrame
     df = pd.concat([pd.read_csv(posefile) for posefile in posefiles], ignore_index=True)
@@ -216,7 +218,7 @@ for parentdir, posefiles in posefiles_by_parentdir.items():
     visibility_df = df[visibility_cols]
 
     if not args.skip_visibility:
-        calculate_visibility_distribution(visibility_df, joint_names, parentdir, visibility_output_dir)
+        calculate_visibility_distribution(visibility_df, joint_names, parentdir_str, visibility_output_dir)
 
     if not args.skip_motion_energy:
         visibility_threshold = args.visibility_threshold

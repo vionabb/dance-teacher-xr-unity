@@ -3,10 +3,17 @@ import typing as t
 from ..stepone_get_holistic_data import compute_holistic_data
 from ..update_database import update_database
 from ..complexity_analysis import calculate_cumulative_complexity as cmplxty
-from ..audio_analysis.perform_analysis import perform_audio_analysis, get_audio_result_subdirectory
 from ..complexity_analysis.add_complexity_to_dancetree import add_complexities_to_dancetrees
 from .bundle_data import bundle_dance_data_as_json
 import shutil
+
+
+def _audio_result_subdirectory(
+    results_dir: Path,
+    result_type: t.Literal['analysis', 'dancetrees', 'segmentsimilarity'],
+    input_type: t.Literal['audio', 'video'] = 'video'
+):
+    return results_dir / result_type / input_type
 
 def run_dancetree_pipeline(
     database_csv_path: Path,
@@ -26,7 +33,7 @@ def run_dancetree_pipeline(
 ):
     complexities_temp_dir = temp_dir / 'complexities'
     audio_results_temp_dir = temp_dir / 'audio_analysis'
-    audio_analysis_tree_dir = get_audio_result_subdirectory(
+    audio_analysis_tree_dir = _audio_result_subdirectory(
         results_dir=audio_results_temp_dir, 
         result_type='dancetrees', 
         input_type='video'
@@ -91,16 +98,21 @@ def run_dancetree_pipeline(
     )
     
     current_step += 1
-    perform_audio_analysis(
-        videosrcdir=video_srcdir,
-        audiosrcdir=None,
-        audio_analysis_destdir=audio_results_temp_dir,
-        audiocachedir=audio_cache_dir if audio_cache_dir else temp_dir / 'audio_cache',
-        analysis_summary_out=audio_results_temp_dir / 'audio_analysis_summary.csv',
-        include_mem_usage=False,
-        skip_existing=skip_existing_audioanalysis,
-        print_prefix=lambda: f'{step()} audio analysis:',
-    )
+    if skip_existing_audioanalysis and audio_analysis_tree_dir.exists() and (audio_results_temp_dir / 'audio_analysis_summary.csv').exists():
+        print(f"{step()} audio analysis: reusing existing audio analysis outputs")
+    else:
+        from ..audio_analysis.perform_analysis import perform_audio_analysis
+
+        perform_audio_analysis(
+            videosrcdir=video_srcdir,
+            audiosrcdir=None,
+            audio_analysis_destdir=audio_results_temp_dir,
+            audiocachedir=audio_cache_dir if audio_cache_dir else temp_dir / 'audio_cache',
+            analysis_summary_out=audio_results_temp_dir / 'audio_analysis_summary.csv',
+            include_mem_usage=False,
+            skip_existing=skip_existing_audioanalysis,
+            print_prefix=lambda: f'{step()} audio analysis:',
+        )
 
     current_step += 1
     add_complexities_to_dancetrees(

@@ -1,11 +1,14 @@
 from pathlib import Path
 import typing as t
-import psutil
 import time
 import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 from .audio_analysis import AudioAnalysisResult, analyze_audio_file
 from .audio_dance_tree import  create_dance_tree_from_audioanalysis
@@ -27,6 +30,8 @@ def find_cached_audiofile(video_filepath: Path, input_dir_root: Path, cache_dir_
     return None
 
 def get_memory_usage() -> str:
+    if psutil is None:
+        return "psutil unavailable"
     process = psutil.Process()
     memory_info = process.memory_info()
     memory_usage_MB = memory_info.rss / 1024 / 1024

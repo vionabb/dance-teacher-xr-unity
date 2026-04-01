@@ -5,18 +5,24 @@ import cv2
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from pathlib import Path
+import time
 
 
 from ..utils import throttle
 
-from ..stepone_get_holistic_data import transform_to_holistic_csvrow, plot_3d_pose
-
-PoseLandmark: mp.solutions.holistic.PoseLandmark = mp.solutions.holistic.PoseLandmark
-HandLandmark: mp.solutions.holistic.HandLandmark = mp.solutions.holistic.HandLandmark
-
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
-mp_pose = mp.solutions.pose
+from ..mp_utils import (
+    POSE_CONNECTIONS,
+    POSE_LANDMARKER_HEAVY_MODEL_URL,
+    build_base_options,
+    ensure_task_model,
+    landmark_list,
+    rgb_image_to_mp_image,
+)
+from ..stepone_get_holistic_data import (
+    draw_normalized_landmarks,
+    plot_3d_pose,
+    transform_to_holistic_csvrow,
+)
 
 @throttle(1)
 def print_throttled(txt: str):
@@ -46,11 +52,16 @@ def stream_realtime(
     # Can use this to use images instead of webcam (for a sequence of images)
     # cap = cv2.VideoCapture('path/to/image_%d.jpg') 
 
-    with mp_pose.Pose(
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5,
-        model_complexity=0,
-        ) as pose:
+    model_path = ensure_task_model(
+        Path(__file__).resolve().parent.parent / "scripts" / "pose_landmarker_heavy.task",
+        POSE_LANDMARKER_HEAVY_MODEL_URL,
+    )
+    options = mp.tasks.vision.PoseLandmarkerOptions(
+        base_options=build_base_options(model_path),
+        running_mode=mp.tasks.vision.RunningMode.VIDEO,
+    )
+
+    with mp.tasks.vision.PoseLandmarker.create_from_options(options) as pose:
         while cap.isOpened():
             success, image = cap.read()
             if not success:
@@ -73,21 +84,18 @@ def stream_realtime(
             # To improve performance, optionally mark the image as not writeable to
             # pass by reference.
             image.flags.writeable = False
-            results = pose.process(image) # flip again before mp processing for accuratel left & right hand info
+            mp_image = rgb_image_to_mp_image(image)
+            timestamp_ms = time.monotonic_ns() // 1_000_000
+            results = pose.detect_for_video(mp_image, timestamp_ms)
 
             # Draw the pose annotation on the image.
             image.flags.writeable = True
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            landmark_drawing_spec = mp_drawing_styles.get_default_pose_landmarks_style()
-            mp_drawing.draw_landmarks(
-                image,
-                results.pose_landmarks, 
-                mp_pose.POSE_CONNECTIONS,
-                landmark_drawing_spec=landmark_drawing_spec,
-            )
+            pose_landmarks = results.pose_landmarks[0] if results.pose_landmarks else None
+            draw_normalized_landmarks(image, pose_landmarks, POSE_CONNECTIONS)
 
             holistic_row = transform_to_holistic_csvrow(frame_i, results, as_pdSeries=True)
-            if results.pose_world_landmarks == None:
+            if not results.pose_world_landmarks:
                 on_pose(None)
             else:
                 on_pose(holistic_row)
