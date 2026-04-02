@@ -1,0 +1,108 @@
+name: Dependency Maintenance
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 14 * * 1'
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/dependency-maintenance.yml'
+
+concurrency:
+  group: dependency-maintenance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.2
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Capture outdated packages
+        run: |
+          pnpm outdated --format json > outdated.json || true
+          node <<'EOF'
+          const fs = require('fs');
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          const raw = fs.readFileSync('outdated.json', 'utf8').trim();
+          const data = raw ? JSON.parse(raw) : {};
+          const entries = Object.entries(data);
+          let output = '## Outdated packages\n\n';
+          if (entries.length === 0) {
+            output += 'All dependencies are up to date.\n';
+          } else {
+            output += '| Package | Current | Wanted | Latest |\n';
+            output += '| --- | --- | --- | --- |\n';
+            for (const [name, info] of entries) {
+              output += `| ${name} | ${info.current} | ${info.wanted} | ${info.latest} |\n`;
+            }
+          }
+          fs.appendFileSync(summaryPath, output);
+          EOF
+
+      - name: Capture security audit
+        run: |
+          pnpm audit --json > audit.json || true
+          node <<'EOF'
+          const fs = require('fs');
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          const data = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+          const vulns = data.metadata?.vulnerabilities ?? {};
+          let output = '\n## Security audit\n\n';
+          output += `Critical: ${vulns.critical ?? 0}\n\n`;
+          output += `High: ${vulns.high ?? 0}\n\n`;
+          output += `Moderate: ${vulns.moderate ?? 0}\n\n`;
+          output += `Low: ${vulns.low ?? 0}\n\n`;
+          fs.appendFileSync(summaryPath, output);
+          EOF
+
+      - name: Upload dependency reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-maintenance-report
+          path: |
+            outdated.json
+            audit.json
+
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.2
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
