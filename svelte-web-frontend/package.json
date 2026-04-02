@@ -12,8 +12,8 @@
 		"prepare": "svelte-kit sync",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"lint": "prettier --check . && eslint .",
-		"format": "prettier --write .",
+		"lint": "prettier --check \"src/**/*.{ts,svelte,js,json,scss,css,html}\" \"scripts/**/*.js\" \"*.{js,cjs,mjs,ts,json}\" && eslint .",
+		"format": "prettier --write \"src/**/*.{ts,svelte,js,json,scss,css,html}\" \"scripts/**/*.js\" \"*.{js,cjs,mjs,ts,json}\"",
 		"test": "vitest",
 		"coverage": "vitest run --coverage",
 		"supabase:localsync": "node ./scripts/syncStorageAssets.js"

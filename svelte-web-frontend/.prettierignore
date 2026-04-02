@@ -3,6 +3,16 @@ node_modules
 /build
 /.svelte-kit
 /package
+/.vercel
+/artifacts
+/testResults
+.github
+.vscode
+supabase/functions/.vscode
+static/mediapipe
+src/lib/ai/motionmetrics/testdata/**/*.json
+src/lib/data/bundle/*.json
+*.code-workspace
 .env
 .env.*
 !.env.example
