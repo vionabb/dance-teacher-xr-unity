@@ -1,10 +1,11 @@
 import librosa
 import numpy as np
 import typing as t
-import moviepy as mp
 from pathlib import Path
 import dataclasses as dc
 import dataclasses_json as dcj
+from pydub import AudioSegment
+from pydub.utils import mediainfo
 
 @dc.dataclass
 class MusicPhrase(dcj.DataClassJsonMixin):
@@ -113,20 +114,12 @@ def save_audio_from_video(video_path: Path, output_audio_path: Path, as_mono: bo
     # Create the output directory if it doesn't exist
     output_audio_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Use MoviePy to extract the audio track from the video file
-    with mp.VideoFileClip(str(video_path)) as video_clip:
-        audio_clip = video_clip.audio
-        ffmpeg_params = []
+    audio_segment = AudioSegment.from_file(video_path)
 
-        if as_mono:
-            ffmpeg_params.extend(['-ac', '1'])
+    if as_mono:
+        audio_segment = audio_segment.set_channels(1)
 
-        audio_clip.write_audiofile( # type: ignore
-            str(output_audio_path),
-            ffmpeg_params=ffmpeg_params,
-            # verbose=False, 
-            logger=None
-        ) 
+    audio_segment.export(output_audio_path, format=output_audio_path.suffix.lstrip('.'))
 
 def load_audio(path: Path, as_mono: bool = False) -> t.Tuple[np.ndarray, float]:
     """
@@ -141,23 +134,23 @@ def load_audio(path: Path, as_mono: bool = False) -> t.Tuple[np.ndarray, float]:
     # Check if the file is a video file
     audio_array, sample_rate = None, None # type: ignore
     if path.suffix in ('.mp4', '.avi', '.mov'):
-        # Load the video file
-        video = mp.VideoFileClip(str(path))
+        audio_segment = AudioSegment.from_file(path)
 
-        if video.audio == None:
+        if len(audio_segment) == 0:
             raise Exception('No audio found in video file.')
 
-        # Extract the audio from the video
-        audio = video.audio
-
         if as_mono:
-            audio.nchannels = 1
-        
-        # Convert the audio to a NumPy array
-        audio_array: np.ndarray = audio.to_soundarray()
+            audio_segment = audio_segment.set_channels(1)
 
-        # Get the sample rate of the audio
-        sample_rate = float(audio.fps)
+        samples = np.array(audio_segment.get_array_of_samples())
+        if audio_segment.channels > 1:
+            samples = samples.reshape((-1, audio_segment.channels))
+            if as_mono:
+                samples = samples.mean(axis=1)
+
+        scale = float(1 << (8 * audio_segment.sample_width - 1))
+        audio_array = samples.astype(np.float32) / scale
+        sample_rate = float(audio_segment.frame_rate)
 
     # Otherwise, assume it's an audio file
     else:
@@ -169,7 +162,7 @@ def load_audio(path: Path, as_mono: bool = False) -> t.Tuple[np.ndarray, float]:
             # See https://stackoverflow.com/questions/74496808/mp3-loading-using-librosa-return-empty-data-when-start-time-metadata-is-0
             import pydub
             import math
-            mi = pydub.utils.mediainfo(path)
+            mi = mediainfo(path)
             duration = float(mi['duration'])
             # duration = math.floor(duration)
             audio_array, sample_rate = librosa.load(path, sr=None, mono=True, duration=duration)
