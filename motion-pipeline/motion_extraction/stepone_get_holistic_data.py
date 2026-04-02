@@ -3,6 +3,7 @@ import typing as t
 import cv2
 from matplotlib import pyplot as plt
 import mediapipe as mp
+from mediapipe.python.solutions import holistic as mp_holistic
 import numpy as np
 import pandas as pd
 from functools import reduce
@@ -11,15 +12,11 @@ import csv
 from .utils import throttle
 from .mp_utils import (
     HAND_CONNECTIONS,
-    HOLISTIC_LANDMARKER_MODEL_URL,
     POSE_CONNECTIONS,
     HandLandmark,
     PoseLandmark,
-    build_base_options,
-    ensure_task_model,
     landmark_at,
     landmark_list,
-    rgb_image_to_mp_image,
 )
 
 import mpl_toolkits.mplot3d.art3d as art3d
@@ -273,7 +270,7 @@ def _perform_by_frame(video_path: Path):
 
 def process_video(
     input_video_path: Path, 
-    holistic_landmarker,
+    model_complexity: int,
     holistic_data_output_filepath: Path,
     pose_2d_data_output_filepath: t.Optional[Path] = None,
     frame_output_folder: t.Optional[Path] = None,
@@ -304,11 +301,16 @@ def process_video(
 
     with(
         holistic_data_output_filepath.open('w', encoding='utf-8', newline='') as holistic_file,
+        mp_holistic.Holistic(
+            static_image_mode=True,
+            model_complexity=model_complexity,
+            refine_face_landmarks=False,
+            enable_segmentation=False,
+        ) as holistic_processor,
     ):
         holistic_csv_writer = csv.writer(holistic_file)
-        for frame_i, (_, frame_count, timestamp_ms, image) in enumerate(_perform_by_frame(input_video_path)):
-            mp_image = rgb_image_to_mp_image(image)
-            frame_data = holistic_landmarker.detect_for_video(mp_image, timestamp_ms)
+        for frame_i, (_, frame_count, _timestamp_ms, image) in enumerate(_perform_by_frame(input_video_path)):
+            frame_data: t.Any = holistic_processor.process(image)
 
 
             # cv2.imshow(f'Frame {frame_i}', image)
@@ -401,8 +403,6 @@ def compute_holistic_data(
     rewrite_existing: bool = False,
     print_prefix: t.Callable[[], str]=lambda: '',
 ):
-    holistic_landmarker_options = None
-
     if not output_folder.exists():
         output_folder.mkdir(parents=True)
 
@@ -426,36 +426,28 @@ def compute_holistic_data(
         holistic_data_filepath = output_folder / video_file_relative.with_suffix(".holisticdata.csv")
         pose_2d_data_filepath = (pose2d_output_folder / video_file_relative.with_suffix(".pose2d.csv")) if pose2d_output_folder is not None else None
 
-        if not rewrite_existing and holistic_data_filepath.exists() and (pose_2d_data_filepath is None or pose_2d_data_filepath.exists()):
+        holistic_is_valid = (
+            holistic_data_filepath.exists() and holistic_data_filepath.stat().st_size > 0
+        )
+        pose2d_is_valid = (
+            pose_2d_data_filepath is None
+            or (pose_2d_data_filepath.exists() and pose_2d_data_filepath.stat().st_size > 0)
+        )
+
+        if not rewrite_existing and holistic_is_valid and pose2d_is_valid:
             skipped_count += 1
             continue
         else:
            processed_count += 1
 
-        # Lazily initialize the task options once, but create a fresh VIDEO-mode
-        # landmarker per file because timestamps restart at frame 0 for each video.
-        if holistic_landmarker_options is None:
-            model_dir = Path(__file__).parent / "scripts"
-            model_path = ensure_task_model(
-                model_dir / "holistic_landmarker.task",
-                HOLISTIC_LANDMARKER_MODEL_URL,
-            )
-            base_options = build_base_options(model_path, use_gpu=False)
-            holistic_landmarker_options = mp.tasks.vision.HolisticLandmarkerOptions(
-                base_options=base_options,
-                running_mode=mp.tasks.vision.RunningMode.VIDEO,
-                output_face_blendshapes=False,
-                output_segmentation_mask=False,
-            )
-
-        with mp.tasks.vision.HolisticLandmarker.create_from_options(holistic_landmarker_options) as holistic_landmarker:
-            process_video(
-                input_video_path=video_path, 
-                holistic_landmarker=holistic_landmarker, 
-                holistic_data_output_filepath=holistic_data_filepath,
-                pose_2d_data_output_filepath=pose_2d_data_filepath,
-                frame_output_folder=frame_output_folder,
-                print_progress_context=lambda: f"{print_prefix()} Video {i+1}/{len(video_paths)} {video_file_relative_stem}")
+        process_video(
+            input_video_path=video_path,
+            model_complexity=model_complexity,
+            holistic_data_output_filepath=holistic_data_filepath,
+            pose_2d_data_output_filepath=pose_2d_data_filepath,
+            frame_output_folder=frame_output_folder,
+            print_progress_context=lambda: f"{print_prefix()} Video {i+1}/{len(video_paths)} {video_file_relative_stem}",
+        )
 
     print(f"{print_prefix()} Processed {processed_count} videos, skipped {skipped_count} videos")
 

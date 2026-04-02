@@ -9,7 +9,7 @@ import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python import BaseOptions, vision
 
-PoseLandmark = vision.PoseLandmark
+PoseLandmark = mp.solutions.pose.PoseLandmark
 
 
 class HandLandmark(enum.IntEnum):
