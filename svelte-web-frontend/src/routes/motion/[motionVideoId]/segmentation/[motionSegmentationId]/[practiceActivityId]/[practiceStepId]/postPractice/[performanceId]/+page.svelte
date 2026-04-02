@@ -7,7 +7,6 @@
 	import { waitSecs } from '$lib/utils/async.js';
     import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
-	import { actions } from '../../../../../../../../account/+page.server.js';
     let { data } = $props();
 
     const teachingAgent = GetTeachingAgent();

@@ -10,20 +10,28 @@ import {
 let writeFileSync: typeof import('fs').writeFileSync;
 let mkdirSync: typeof import('fs').mkdirSync;
 
-if (typeof process !== 'undefined' && process.versions != null && process.versions.node != null) {
-    // We are in a Node.js environment
-    import('fs').then(fs => {
+function initializeFilesystemFns() {
+    if (typeof process === 'undefined' || process.versions == null || process.versions.node == null) {
+        return;
+    }
+
+    // Delay Node-only resolution so the browser bundle never tries to import fs.
+    const loadNodeFs = new Function('return import("node:" + "fs")') as () => Promise<typeof import('fs')>;
+    loadNodeFs().then(fs => {
         writeFileSync = fs.writeFileSync;
         mkdirSync = fs.mkdirSync;
     }).catch(() => {
         writeFileSync = () => {};
         mkdirSync = () => {};
     });
-} else {
-    // make a no-op function if we're not in node
+}
+
+// Default to no-op functions until/unless we are running in Node.js.
+if (writeFileSync === undefined || mkdirSync === undefined) {
     writeFileSync = () => {};
     mkdirSync = () => {};
 }
+initializeFilesystemFns();
 
 type TemporalAlignmentEvaluationMetricOutput = ReturnType<TemporalAlignmentEvaluationMetric['summarizeMetric']>;
 type TemporalAlignmentEvaluationMetricFormattedOutput = ReturnType<TemporalAlignmentEvaluationMetric['formatSummary']>;

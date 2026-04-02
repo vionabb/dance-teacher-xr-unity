@@ -1,7 +1,6 @@
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel, UserLearningModelDb, UserPerformanceAttempt, UserPerformanceAttemptDb, UserPerformanceAttemptEvaluation, UserPerformanceAttemptSelfReport, UserPerformanceAttemptPracticeContext } from "./IDataBackend";
 import type { ActivityProgress, PracticePlanProgress, StepProgressData } from "$lib/data/activity-progress";
-import { browser } from "$app/environment";
 import type { Database, Json } from "$lib/ai/backend/SupabaseTypes";
 import { getContext } from "svelte";
 import { get } from "svelte/store";
