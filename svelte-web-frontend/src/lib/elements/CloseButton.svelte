@@ -1,10 +1,9 @@
-
 <script lang="ts">
-    export let isVisible: boolean = true;
+	export let isVisible: boolean = true;
 </script>
 
 <button class="delete" class:isHidden={!isVisible} aria-label="close" on:click>
-    <!-- <div class="svgContainer">    
+	<!-- <div class="svgContainer">    
         <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 1 1">

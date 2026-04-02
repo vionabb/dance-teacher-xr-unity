@@ -1,48 +1,48 @@
 <script lang="ts">
-import { navbarProps } from "$lib/elements/NavBar.svelte";
-import { onMount } from "svelte";
-import EmailAuthView from "$lib/elements/auth/EmailAuthView.svelte";
-	import { goto } from "$app/navigation";
+	import { navbarProps } from '$lib/elements/NavBar.svelte';
+	import { onMount } from 'svelte';
+	import EmailAuthView from '$lib/elements/auth/EmailAuthView.svelte';
+	import { goto } from '$app/navigation';
 
-export let data
+	export let data;
 
-let state = "sign_in" as "sign_in" | "sign_up" | "forgot_password";
+	let state = 'sign_in' as 'sign_in' | 'sign_up' | 'forgot_password';
 
-let forgotPasswordRedirectPath: string;
-$: forgotPasswordRedirectPath = `${data.origin}/auth/callback`;
-onMount(() => {
-	navbarProps.set({
-		collapsed: true,
-		pageTitle: "Login",
+	let forgotPasswordRedirectPath: string;
+	$: forgotPasswordRedirectPath = `${data.origin}/auth/callback`;
+	onMount(() => {
+		navbarProps.set({
+			collapsed: true,
+			pageTitle: 'Login'
+		});
+		forgotPasswordRedirectPath = `${data.origin}/auth/callback`;
+		return {};
 	});
-	forgotPasswordRedirectPath = `${data.origin}/auth/callback`;
-	return {}
-})
-$: console.log('Redirect path: ', forgotPasswordRedirectPath);
+	$: console.log('Redirect path: ', forgotPasswordRedirectPath);
 </script>
 
 <svelte:head>
 	<title>Login | DanceTeacher</title>
 	<meta name="description" content="Dance Teacher Login Page" />
-</svelte:head>	
+</svelte:head>
 
-<div class="flex items-center mt-4 justify-center">
+<div class="mt-4 flex items-center justify-center">
 	<EmailAuthView
 		supabaseClient={data.supabase}
 		view={state}
-		forgotPasswordRedirectPath={forgotPasswordRedirectPath}
+		{forgotPasswordRedirectPath}
 		on:signedup={() => {
-			goto("/menu")
+			goto('/menu');
 			// goto("/account")
 		}}
 		on:signedin={() => {
-			goto("/menu")
+			goto('/menu');
 		}}
-		/>
+	/>
 </div>
 
 <style>
 	.buttons {
-		gap:0.25rem;
+		gap: 0.25rem;
 	}
 </style>

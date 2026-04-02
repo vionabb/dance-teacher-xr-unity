@@ -1,38 +1,27 @@
 <script lang="ts">
-
-import metronomeClickSoundSrc from '$lib/media/audio/metronome.mp3';
+	import metronomeClickSoundSrc from '$lib/media/audio/metronome.mp3';
 	import { onMount } from 'svelte';
-export let bpm = 120;
-export let playing = false;
-export let volume: number = 1.0;
+	export let bpm = 120;
+	export let playing = false;
+	export let volume: number = 1.0;
 
-let intervalMs: number;
-$: intervalMs = 60 / bpm * 1000;
+	let intervalMs: number;
+	$: intervalMs = (60 / bpm) * 1000;
 
-let audioElement: HTMLAudioElement;
+	let audioElement: HTMLAudioElement;
 
-onMount(() => {
-    
-    let animFrameId: number | undefined;
-    function playNextClick() {
-        
-        if (playing) {
-            audioElement.play();         
-        }
+	onMount(() => {
+		let animFrameId: number | undefined;
+		function playNextClick() {
+			if (playing) {
+				audioElement.play();
+			}
 
-        animFrameId = requestAnimationFrame(playNextClick);
-    }    
+			animFrameId = requestAnimationFrame(playNextClick);
+		}
 
-
-    return () => {
-    }
-});
-
+		return () => {};
+	});
 </script>
 
-
-<audio 
-    bind:this={audioElement} 
-    src={metronomeClickSoundSrc}
-    bind:volume={volume} />
-
+<audio bind:this={audioElement} src={metronomeClickSoundSrc} bind:volume />

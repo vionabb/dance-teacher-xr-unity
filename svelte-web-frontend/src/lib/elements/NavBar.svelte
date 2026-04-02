@@ -1,87 +1,86 @@
 <script context="module" lang="ts">
+	// Code in the script-level module is shared among all instances of NavBar
+	// (which there should only be one of). It also gives child pages a way to
+	// alter properties of the NavBar (such as the page title). They can do that
+	// by importing these writable stores (which are singletons, at the module level),
+	// and writing to them as needed (likely during `onMount`).
+	import { writable } from 'svelte/store';
+	import { navigating } from '$app/stores';
+	import Icon from '@iconify/svelte';
+	import ProgressEllipses from '$lib/elements/ProgressEllipses.svelte';
 
-// Code in the script-level module is shared among all instances of NavBar 
-// (which there should only be one of). It also gives child pages a way to 
-// alter properties of the NavBar (such as the page title). They can do that
-// by importing these writable stores (which are singletons, at the module level),
-// and writing to them as needed (likely during `onMount`).
-import { writable } from "svelte/store";
-import { navigating } from '$app/stores'
-import Icon from '@iconify/svelte';
-import ProgressEllipses from '$lib/elements/ProgressEllipses.svelte';
+	export type NavBarProps = {
+		collapsed: boolean;
+		pageTitle: string;
+		subtitle?: string;
+		back?: {
+			url: string;
+			title: string;
+		};
+		hideSettings?: boolean;
+	};
 
-export type NavBarProps = {
-    collapsed: boolean;
-    pageTitle: string;
-    subtitle?: string;
-    back?: {
-        url: string;
-        title: string;
-    };
-    hideSettings?: boolean;
-}
-
-export let navbarProps = writable<NavBarProps>({
-    collapsed: true,
-    pageTitle: 'LearnThatDance',
-});
+	export let navbarProps = writable<NavBarProps>({
+		collapsed: true,
+		pageTitle: 'LearnThatDance'
+	});
 </script>
 
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
+	import { createEventDispatcher } from 'svelte';
 
-const dispatch = createEventDispatcher();
+	const dispatch = createEventDispatcher();
 
-export let settingsActive: boolean;
-
+	export let settingsActive: boolean;
 </script>
 
-<nav class="daisy-navbar bg-primary text-primary-content gap-4" 
-     aria-label="main navigation" 
-     class:collapsed={$navbarProps.collapsed}>
-    
-    <div class="flex-none">
-        <!-- Container for left-aligned content -->
-        {#if $navbarProps.back}
-            
-            <a class="daisy-btn" href={$navbarProps.back.url}>
-                {#if !$navigating}
-                    <span class="icon"><Icon icon="icon-park-outline:down" rotate={1} /></span>&nbsp;{$navbarProps.back.title}
-                {:else}
-                    Navigating<ProgressEllipses />
-                {/if}
-            </a>
-            
-        {:else}
-            <!-- <div></div> -->
-        {/if}
-    </div>
+<nav
+	class="daisy-navbar gap-4 bg-primary text-primary-content"
+	aria-label="main navigation"
+	class:collapsed={$navbarProps.collapsed}
+>
+	<div class="flex-none">
+		<!-- Container for left-aligned content -->
+		{#if $navbarProps.back}
+			<a class="daisy-btn" href={$navbarProps.back.url}>
+				{#if !$navigating}
+					<span class="icon"><Icon icon="icon-park-outline:down" rotate={1} /></span
+					>&nbsp;{$navbarProps.back.title}
+				{:else}
+					Navigating<ProgressEllipses />
+				{/if}
+			</a>
+		{:else}
+			<!-- <div></div> -->
+		{/if}
+	</div>
 
-    <!-- Container for centered content-->
-    <div class="flex-1 justify-center">
-        <span class="text-xl">
-            {$navbarProps.pageTitle}
-            {#if $navbarProps.subtitle}
-                <span class="text-base">
-                    &nbsp;{$navbarProps.subtitle}
-                </span>
-            {/if}
-        </span>
-    </div>
+	<!-- Container for centered content-->
+	<div class="flex-1 justify-center">
+		<span class="text-xl">
+			{$navbarProps.pageTitle}
+			{#if $navbarProps.subtitle}
+				<span class="text-base">
+					&nbsp;{$navbarProps.subtitle}
+				</span>
+			{/if}
+		</span>
+	</div>
 
-    <!-- Container for right-aligned content-->
-    <div class="flex-none">
-        {#if !$navbarProps.hideSettings}
-        <a class="daisy-btn flex items-center justify-center settings"
-            class:active={settingsActive}
-            role="button"
-            tabindex="0"
-            aria-label="Settings"
-            on:click={() => dispatch('settingsButtonClicked')}>
-            <svg 
-                xmlns="http://www.w3.org</svg></svg>/2000/svg"
-                viewBox="0 0 45.973 45.973">
-                <path d="M43.454,18.443h-2.437c-0.453-1.766-1.16-3.42-2.082-4.933l1.752-1.756c0.473-0.473,0.733-1.104,0.733-1.774
+	<!-- Container for right-aligned content-->
+	<div class="flex-none">
+		{#if !$navbarProps.hideSettings}
+			<a
+				class="settings daisy-btn flex items-center justify-center"
+				class:active={settingsActive}
+				role="button"
+				tabindex="0"
+				aria-label="Settings"
+				on:click={() => dispatch('settingsButtonClicked')}
+			>
+				<svg xmlns="http://www.w3.org</svg></svg>/2000/svg" viewBox="0 0 45.973 45.973">
+					<path
+						d="M43.454,18.443h-2.437c-0.453-1.766-1.16-3.42-2.082-4.933l1.752-1.756c0.473-0.473,0.733-1.104,0.733-1.774
                     c0-0.669-0.262-1.301-0.733-1.773l-2.92-2.917c-0.947-0.948-2.602-0.947-3.545-0.001l-1.826,1.815
                     C30.9,6.232,29.296,5.56,27.529,5.128V2.52c0-1.383-1.105-2.52-2.488-2.52h-4.128c-1.383,0-2.471,1.137-2.471,2.52v2.607
                     c-1.766,0.431-3.38,1.104-4.878,1.977l-1.825-1.815c-0.946-0.948-2.602-0.947-3.551-0.001L5.27,8.205
@@ -93,33 +92,33 @@ export let settingsActive: boolean;
                     c0.67,0,1.301-0.261,1.774-0.733l2.92-2.917c0.473-0.472,0.732-1.103,0.734-1.772c0-0.67-0.262-1.299-0.734-1.773l-1.75-1.77
                     c0.92-1.514,1.627-3.179,2.08-4.943h2.438c1.383,0,2.52-1.087,2.52-2.471v-4.125C45.973,19.555,44.837,18.443,43.454,18.443z
                     M22.976,30.85c-4.378,0-7.928-3.517-7.928-7.852c0-4.338,3.55-7.85,7.928-7.85c4.379,0,7.931,3.512,7.931,7.85
-                    C30.906,27.334,27.355,30.85,22.976,30.85z"/>
-            </svg>
-        </a>
-        {/if}
-    </div>
+                    C30.906,27.334,27.355,30.85,22.976,30.85z"
+					/>
+				</svg>
+			</a>
+		{/if}
+	</div>
 </nav>
 
 <style lang="scss">
+	nav.collapsed {
+		height: 0;
+	}
 
-nav.collapsed {
-    height: 0;
-}
+	.settings {
+		transition: background-color 0.5s ease-in-out;
+	}
 
-.settings {
-    transition: background-color 0.5s ease-in-out;
-}
+	.settings.active {
+		& svg {
+			transform: rotate(180deg);
+		}
+	}
 
-.settings.active {
-    & svg {
-        transform: rotate(180deg);
-    }
-}
-    
-.settings svg{
-    width: 1em;
-    height: 1em;
-    transition: transform 0.5s ease-in-out;
-    fill: currentColor;
-}
+	.settings svg {
+		width: 1em;
+		height: 1em;
+		transition: transform 0.5s ease-in-out;
+		fill: currentColor;
+	}
 </style>

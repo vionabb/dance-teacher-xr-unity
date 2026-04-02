@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ServiceWorkerMessageSession } from './../service-worker.ts';
-	
+
 	import '../app.pcss';
 	import { onMount, setContext } from 'svelte';
 	import NavBar, { navbarProps } from '$lib/elements/NavBar.svelte';
@@ -9,7 +9,6 @@
 	import { invalidate } from '$app/navigation';
 	import Dialog from '$lib/elements/Dialog.svelte';
 	import { NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL } from '$env/static/public';
-	
 
 	let showingSettings = $state(false);
 	async function toggleSettings(setValue?: boolean) {
@@ -18,7 +17,7 @@
 	}
 
 	let { data, children } = $props();
-	const { supabase, databackend } = (data);
+	const { supabase, databackend } = data;
 	let { session } = $derived(data);
 
 	// Setting client as context is a convenient way to give non-route Svelte elements
@@ -45,19 +44,20 @@
 		controller.postMessage(message);
 	});
 
-	// No need to make this a writeable store since it doesn't become invalid 
+	// No need to make this a writeable store since it doesn't become invalid
 	// with session changes (it will use the latest session internally)
 	setContext('supabase', supabase);
 
 	onMount(() => {
 		// Register service worker
 		if ('serviceWorker' in navigator) {
-			const serviceWorkerUrl = new URL('./../service-worker', import.meta.url)
-			navigator.serviceWorker.register(serviceWorkerUrl)
-				.then(reg => {
+			const serviceWorkerUrl = new URL('./../service-worker', import.meta.url);
+			navigator.serviceWorker
+				.register(serviceWorkerUrl)
+				.then((reg) => {
 					console.log('Service worker registered:', reg);
 				})
-				.catch(err => {
+				.catch((err) => {
 					console.error('Service worker registration failed:', err);
 				});
 		}
@@ -69,7 +69,6 @@
 		});
 		return () => listener.subscription.unsubscribe();
 	});
-
 </script>
 
 <NavBar on:settingsButtonClicked={() => toggleSettings()} settingsActive={showingSettings} />

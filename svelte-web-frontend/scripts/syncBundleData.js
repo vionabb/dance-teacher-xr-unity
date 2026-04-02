@@ -1,11 +1,11 @@
 /**
  * syncBundleData.js
- * 
+ *
  * @author Jules Blanchet
- * 
+ *
  * Synchronizes json files outputted from the motion processing pipeline
  * to the frontend database. This includes:
- *   * `dances.json`, containing information on each dance video 
+ *   * `dances.json`, containing information on each dance video
  *   * `danceTrees.json`, containing recursive segmentations of the various dances
  */
 
@@ -206,7 +206,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 
 dotenv.config({
-    path: 'src/env/.env'
+	path: 'src/env/.env'
 });
 
 /**
@@ -221,188 +221,217 @@ dotenv.config({
  * @returns {Promise<void>}
  */
 async function syncBundleData(args) {
-    const { url, key, dancesJsonPath, danceTreesJsonPath, isAsync = false, dryRun = false } = args;
+	const { url, key, dancesJsonPath, danceTreesJsonPath, isAsync = false, dryRun = false } = args;
 
-    /** @type {import('@supabase/supabase-js').SupabaseClient<import('../src/lib/ai/backend/SupabaseTypes').Database>} */
-    const supabase = createClient(url, key);
+	/** @type {import('@supabase/supabase-js').SupabaseClient<import('../src/lib/ai/backend/SupabaseTypes').Database>} */
+	const supabase = createClient(url, key);
 
-    // Load the dances.json file
-    const dances = JSON.parse(fs.readFileSync(dancesJsonPath, 'utf-8'));
+	// Load the dances.json file
+	const dances = JSON.parse(fs.readFileSync(dancesJsonPath, 'utf-8'));
 
-    // Load the danceTrees.json file
-    const danceTrees = JSON.parse(fs.readFileSync(danceTreesJsonPath, 'utf-8'));
+	// Load the danceTrees.json file
+	const danceTrees = JSON.parse(fs.readFileSync(danceTreesJsonPath, 'utf-8'));
 
-    // Sync the dances and dance trees to Supabase
-    let danceCount = 0;
-    // Maps clipRelativeStem to motion_video entry id
-    let motionVideoEntryIds = {};
-    for (const dance of dances) {
-        danceCount++;
-        const progressStr = `Dance [${danceCount}/${dances.length}] `;
+	// Sync the dances and dance trees to Supabase
+	let danceCount = 0;
+	// Maps clipRelativeStem to motion_video entry id
+	let motionVideoEntryIds = {};
+	for (const dance of dances) {
+		danceCount++;
+		const progressStr = `Dance [${danceCount}/${dances.length}] `;
 
-        const matchedEntry = await supabase.from('motion_video')
-            .select('*')
-            .eq('video_src', dance.clipPath)
-            .eq('motion_start', dance.startTime)
-            .eq('motion_end', dance.endTime)
-            .single();
+		const matchedEntry = await supabase
+			.from('motion_video')
+			.select('*')
+			.eq('video_src', dance.clipPath)
+			.eq('motion_start', dance.startTime)
+			.eq('motion_end', dance.endTime)
+			.single();
 
-        const matchedId = matchedEntry.data?.id;
+		const matchedId = matchedEntry.data?.id;
 
-        // Error code 406 means no rows found, which is fine
-        if (matchedEntry.error && matchedEntry.status !== 406) {
-            throw new Error('Error querying existing entry:', matchedEntry.error);
-        }
+		// Error code 406 means no rows found, which is fine
+		if (matchedEntry.error && matchedEntry.status !== 406) {
+			throw new Error('Error querying existing entry:', matchedEntry.error);
+		}
 
-        if (matchedId) {
-            console.log(`${progressStr} Entry for ${dance.clipPath} already exists with id ${matchedId}, skipping insert.`);
-            motionVideoEntryIds[dance.clipRelativeStem] = matchedId;
-            continue;
-        }
+		if (matchedId) {
+			console.log(
+				`${progressStr} Entry for ${dance.clipPath} already exists with id ${matchedId}, skipping insert.`
+			);
+			motionVideoEntryIds[dance.clipRelativeStem] = matchedId;
+			continue;
+		}
 
-        if (dryRun) {
-            console.log(`${progressStr} [Dry Run] Would insert entry for ${dance.clipPath}`);
-            continue;
-        }
+		if (dryRun) {
+			console.log(`${progressStr} [Dry Run] Would insert entry for ${dance.clipPath}`);
+			continue;
+		}
 
-        //// Table definition for reference:
-        //     CREATE TABLE IF NOT EXISTS "public"."motion_video" (
-        //     "id" bigint NOT NULL,
-        //     "display_name" "text" NOT NULL,
-        //     "uploader" "uuid",
-        //     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-        //     "video_src" "text" NOT NULL,
-        //     "thumbnail_src" "text" NOT NULL,
-        //     "height" integer NOT NULL,
-        //     "width" integer NOT NULL,
-        //     "video_duration" double precision NOT NULL,
-        //     "motion_start" double precision NOT NULL,
-        //     "motion_end" double precision NOT NULL,
-        //     "fps" double precision NOT NULL,
-        //     "detected_bpm" double precision,
-        //     "detected_bpm_offset" double precision,
-        //     "manual_bpm" double precision
-        // );
+		//// Table definition for reference:
+		//     CREATE TABLE IF NOT EXISTS "public"."motion_video" (
+		//     "id" bigint NOT NULL,
+		//     "display_name" "text" NOT NULL,
+		//     "uploader" "uuid",
+		//     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+		//     "video_src" "text" NOT NULL,
+		//     "thumbnail_src" "text" NOT NULL,
+		//     "height" integer NOT NULL,
+		//     "width" integer NOT NULL,
+		//     "video_duration" double precision NOT NULL,
+		//     "motion_start" double precision NOT NULL,
+		//     "motion_end" double precision NOT NULL,
+		//     "fps" double precision NOT NULL,
+		//     "detected_bpm" double precision,
+		//     "detected_bpm_offset" double precision,
+		//     "manual_bpm" double precision
+		// );
 
-        const insertResult = await supabase.from('motion_video')
-            .insert({
-                display_name: dance.title,
-                video_src: dance.clipPath,
-                thumbnail_src: dance.thumbnailSrc,
-                height: dance.height,
-                width: dance.width,
-                video_duration: dance.duration,
-                motion_start: dance.startTime,
-                motion_end: dance.endTime,
-                fps: dance.fps,
-                detected_bpm: dance.bpm || null,
-                detected_bpm_offset: dance.beat_offset || null,
-                manual_bpm: dance.manualBPM || null,
-                landmarks_pose_2d_src: `${dance.clipRelativeStem}.pose2d.csv`,
-                landmarks_holistic_3d_src: `${dance.clipRelativeStem}.holisticdata.csv`,
-            },
-        ).select('id').single();
-        
-        if (!insertResult.data?.id || insertResult.error) {
-            throw new Error(`${progressStr} Error inserting entry for ${dance.clipPath}:`, insertResult.error);
-        }
+		const insertResult = await supabase
+			.from('motion_video')
+			.insert({
+				display_name: dance.title,
+				video_src: dance.clipPath,
+				thumbnail_src: dance.thumbnailSrc,
+				height: dance.height,
+				width: dance.width,
+				video_duration: dance.duration,
+				motion_start: dance.startTime,
+				motion_end: dance.endTime,
+				fps: dance.fps,
+				detected_bpm: dance.bpm || null,
+				detected_bpm_offset: dance.beat_offset || null,
+				manual_bpm: dance.manualBPM || null,
+				landmarks_pose_2d_src: `${dance.clipRelativeStem}.pose2d.csv`,
+				landmarks_holistic_3d_src: `${dance.clipRelativeStem}.holisticdata.csv`
+			})
+			.select('id')
+			.single();
 
-        motionVideoEntryIds[dance.clipRelativeStem] = insertResult.data?.id;
-        console.log(`${progressStr} Inserted entry for ${dance.clipPath} successfully.`);
-    }
+		if (!insertResult.data?.id || insertResult.error) {
+			throw new Error(
+				`${progressStr} Error inserting entry for ${dance.clipPath}:`,
+				insertResult.error
+			);
+		}
 
-    // Sync the dance trees
-    let treeCount = 0;
-    for (const [clipRelativeStem, trees] of Object.entries(danceTrees)) {
-        treeCount++;
-        const progressStr = `Segmentation Tree [${treeCount}/${Object.keys(danceTrees).length}] `;
-        
-        const motionVideoId = motionVideoEntryIds[clipRelativeStem];
-        if (!motionVideoId) {
-            console.warn(`${progressStr} No motion video entry found for clipRelativeStem ${clipRelativeStem}, skipping associated dance trees.`);
-            continue;
-        }
-        
-        for (const tree of trees) {
-            const treeName = tree.tree_name || 'default tree name';
-            const matchedTreeEntry = await supabase.from('motion_video_segmentation')
-                .select('*')
-                .eq('video_id', motionVideoId)
-                .eq('display_name', treeName)
-                .single();
-                    
-            const matchedTreeId = matchedTreeEntry.data?.id;
-            // Error code 406 means no rows found, which is fine
-            if (matchedTreeEntry.error && matchedTreeEntry.status !== 406) {
-                throw new Error('Error querying existing tree entry:', matchedTreeEntry.error);
-            }
+		motionVideoEntryIds[dance.clipRelativeStem] = insertResult.data?.id;
+		console.log(`${progressStr} Inserted entry for ${dance.clipPath} successfully.`);
+	}
 
-            if (matchedTreeId) {
-                console.log(`${progressStr} Tree entry for motionVideoId ${motionVideoId} with name ${treeName} already exists with id ${matchedTreeId}, skipping insert.`);
-                continue;
-            }
-            
-            if (dryRun) {
-                console.log(`${progressStr} [Dry Run] Would insert tree entry for motionVideoId ${motionVideoId} with name ${treeName}`);
-                continue;
-            }
-            
-            //// Table definition for reference:
-            //     CREATE TABLE IF NOT EXISTS "public"."motion_video_segmentation" (
-            //     "id" bigint NOT NULL,
-            //     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-            //     "video_id" bigint, -- references motion_video(id)
-            //     "display_name" "text",
-            //     "generation_info" "text" NOT NULL,
-            //     "data" "jsonb" NOT NULL,
-            //     "created_for" "uuid"
-            // );
-            
-            const insertTreeResult = await supabase.from('motion_video_segmentation')
-                .insert({
-                    video_id: motionVideoId,
-                    display_name: treeName,
-                    generation_info: JSON.stringify(tree.generation_data || {}),
-                    data: tree,
-                },
-            ).select('id').single();
-            
-            if (!insertTreeResult.data?.id || insertTreeResult.error) {
-                throw new Error(`${progressStr} Error inserting tree entry for motionVideoId ${motionVideoId} with name ${treeName}:`, insertTreeResult.error);
-            }
-    
-            console.log(`${progressStr} Inserted tree entry for motionVideoId ${motionVideoId} with name ${treeName} successfully.`);
-        }
-    }
+	// Sync the dance trees
+	let treeCount = 0;
+	for (const [clipRelativeStem, trees] of Object.entries(danceTrees)) {
+		treeCount++;
+		const progressStr = `Segmentation Tree [${treeCount}/${Object.keys(danceTrees).length}] `;
+
+		const motionVideoId = motionVideoEntryIds[clipRelativeStem];
+		if (!motionVideoId) {
+			console.warn(
+				`${progressStr} No motion video entry found for clipRelativeStem ${clipRelativeStem}, skipping associated dance trees.`
+			);
+			continue;
+		}
+
+		for (const tree of trees) {
+			const treeName = tree.tree_name || 'default tree name';
+			const matchedTreeEntry = await supabase
+				.from('motion_video_segmentation')
+				.select('*')
+				.eq('video_id', motionVideoId)
+				.eq('display_name', treeName)
+				.single();
+
+			const matchedTreeId = matchedTreeEntry.data?.id;
+			// Error code 406 means no rows found, which is fine
+			if (matchedTreeEntry.error && matchedTreeEntry.status !== 406) {
+				throw new Error('Error querying existing tree entry:', matchedTreeEntry.error);
+			}
+
+			if (matchedTreeId) {
+				console.log(
+					`${progressStr} Tree entry for motionVideoId ${motionVideoId} with name ${treeName} already exists with id ${matchedTreeId}, skipping insert.`
+				);
+				continue;
+			}
+
+			if (dryRun) {
+				console.log(
+					`${progressStr} [Dry Run] Would insert tree entry for motionVideoId ${motionVideoId} with name ${treeName}`
+				);
+				continue;
+			}
+
+			//// Table definition for reference:
+			//     CREATE TABLE IF NOT EXISTS "public"."motion_video_segmentation" (
+			//     "id" bigint NOT NULL,
+			//     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+			//     "video_id" bigint, -- references motion_video(id)
+			//     "display_name" "text",
+			//     "generation_info" "text" NOT NULL,
+			//     "data" "jsonb" NOT NULL,
+			//     "created_for" "uuid"
+			// );
+
+			const insertTreeResult = await supabase
+				.from('motion_video_segmentation')
+				.insert({
+					video_id: motionVideoId,
+					display_name: treeName,
+					generation_info: JSON.stringify(tree.generation_data || {}),
+					data: tree
+				})
+				.select('id')
+				.single();
+
+			if (!insertTreeResult.data?.id || insertTreeResult.error) {
+				throw new Error(
+					`${progressStr} Error inserting tree entry for motionVideoId ${motionVideoId} with name ${treeName}:`,
+					insertTreeResult.error
+				);
+			}
+
+			console.log(
+				`${progressStr} Inserted tree entry for motionVideoId ${motionVideoId} with name ${treeName} successfully.`
+			);
+		}
+	}
 }
 
 async function main() {
+	const dryRun = process.argv.includes('--dry-run');
+	const onProduction = process.argv.includes('--production');
+	const async = process.argv.includes('--async');
 
-    const dryRun = process.argv.includes('--dry-run');
-    const onProduction = process.argv.includes('--production');
-    const async = process.argv.includes('--async');
+	const url = onProduction
+		? process.env.PRODUCTION_SUPABASE_URL
+		: process.env.NEXT_PUBLIC_SUPABASE_URL;
+	let key = onProduction
+		? process.env.PRODUCTION_SUPABASE_SERVICE_ROLE_KEY
+		: process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const url = onProduction ? process.env.PRODUCTION_SUPABASE_URL : process.env.NEXT_PUBLIC_SUPABASE_URL;
-    let key = onProduction ? process.env.PRODUCTION_SUPABASE_SERVICE_ROLE_KEY : process.env.SUPABASE_SERVICE_ROLE_KEY;
+	const defaultDancesJsonPath = 'src/lib/data/bundle/dances.json';
+	const defaultDanceTreesJsonPath = 'src/lib/data/bundle/danceTrees.json';
 
-    const defaultDancesJsonPath = 'src/lib/data/bundle/dances.json';
-    const defaultDanceTreesJsonPath = 'src/lib/data/bundle/danceTrees.json';
+	const args = {
+		dancesJsonPath: process.argv.includes('--dances-json-path')
+			? process.argv[process.argv.indexOf('--dances-json-path') + 1]
+			: defaultDancesJsonPath,
+		danceTreesJsonPath: process.argv.includes('--dance-trees-json-path')
+			? process.argv[process.argv.indexOf('--dance-trees-json-path') + 1]
+			: defaultDanceTreesJsonPath,
+		isAsync: async,
+		dryRun: dryRun
+	};
 
-    const args = {
-        dancesJsonPath: process.argv.includes('--dances-json-path') ? process.argv[process.argv.indexOf('--dances-json-path') + 1] : defaultDancesJsonPath,
-        danceTreesJsonPath: process.argv.includes('--dance-trees-json-path') ? process.argv[process.argv.indexOf('--dance-trees-json-path') + 1] : defaultDanceTreesJsonPath,
-        isAsync: async,
-        dryRun: dryRun,
-    };
-
-    await syncBundleData({ url, key, ...args });
+	await syncBundleData({ url, key, ...args });
 }
 
 const __filename = fileURLToPath(import.meta.url);
 
 if (__filename === process.argv[1]) {
-    main().catch((error) => {
-        console.error(error);
-        process.exit(1);
-    });
+	main().catch((error) => {
+		console.error(error);
+		process.exit(1);
+	});
 }

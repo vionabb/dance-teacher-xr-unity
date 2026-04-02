@@ -1,12 +1,11 @@
-import { redirect } from "@sveltejs/kit"
+import { redirect } from '@sveltejs/kit';
 
 export const load = async ({ locals: { supabase, session } }) => {
-  
-    if (!session) {
-      redirect(303, '/');
-    }
+	if (!session) {
+		redirect(303, '/');
+	}
 
-    return {
-        session
-    }
-}
+	return {
+		session
+	};
+};

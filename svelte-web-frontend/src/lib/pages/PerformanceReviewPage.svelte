@@ -60,14 +60,16 @@
 	let recordingVideoHeight = $state(1);
 	let referenceVideoWidth = $state(1);
 	let referenceVideoHeight = $state(1);
-	let recordingAspectRatio = $derived(recordingVideoWidth > 0 && recordingVideoHeight > 0 ? 
-    recordingVideoWidth / recordingVideoHeight
-    : 1
-  );
-  let referenceAspectRatio = $derived(referenceVideoWidth > 0 && referenceVideoHeight > 0 ? 
-    recordingVideoWidth / referenceVideoHeight
-    : 1
-  );
+	let recordingAspectRatio = $derived(
+		recordingVideoWidth > 0 && recordingVideoHeight > 0
+			? recordingVideoWidth / recordingVideoHeight
+			: 1
+	);
+	let referenceAspectRatio = $derived(
+		referenceVideoWidth > 0 && referenceVideoHeight > 0
+			? recordingVideoWidth / referenceVideoHeight
+			: 1
+	);
 
 	function togglePlayPauseRecording() {
 		if (recordingVideoPaused) {
@@ -119,8 +121,8 @@
 				referenceVideoTime = referenceVideoStart;
 			}}
 		>
-      <track kind="captions" />
-  </video>
+			<track kind="captions" />
+		</video>
 	</div>
 	<div class="recordedVideoWrapper videoWrapper">
 		<video
@@ -137,8 +139,8 @@
 				recordingVideoPaused = true;
 			}}
 		>
-      <track kind="captions" />
-    </video>
+			<track kind="captions" />
+		</video>
 	</div>
 
 	<div class="controls">

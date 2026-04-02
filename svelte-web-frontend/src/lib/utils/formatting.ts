@@ -1,33 +1,31 @@
-
 export function replaceJSONForStringifyDisplay(key: any, value: any) {
+	// If the value is a map, convert it to an object
+	if (value instanceof Map) {
+		return Object.fromEntries(value);
+	}
 
-  // If the value is a map, convert it to an object
-  if (value instanceof Map) {
-    return Object.fromEntries(value);
-  }
+	// Limit decimals to 2 for floats
+	if (value?.toFixed) {
+		return parseFloat(value.toFixed(2));
+	}
 
-  // Limit decimals to 2 for floats
-  if (value?.toFixed) {
-    return parseFloat(value.toFixed(2));
-  }
-
-  return value;
+	return value;
 }
 
-const enOrdinalRules = new Intl.PluralRules("en-US", { type: "ordinal" });
+const enOrdinalRules = new Intl.PluralRules('en-US', { type: 'ordinal' });
 
 const suffixes = new Map([
-  ["one", "st"],
-  ["two", "nd"],
-  ["few", "rd"],
-  ["other", "th"],
+	['one', 'st'],
+	['two', 'nd'],
+	['few', 'rd'],
+	['other', 'th']
 ]);
 
 /**
  * Takes a number and returns a string representing the ordinal of the number
  * @param n Number to format as an ordinal
  * @returns A string representing the ordinal of the number
- * 
+ *
  * @example
  * formatOrdinals(0) // "0th"
  * formatOrdinals(1) // "1st"
@@ -39,7 +37,7 @@ const suffixes = new Map([
  * formatOrdinals(21) // "21st"
  */
 export function formatOrdinals(n: number) {
-  const rule = enOrdinalRules.select(n);
-  const suffix = suffixes.get(rule);
-  return `${n}${suffix}`;
-};
+	const rule = enOrdinalRules.select(n);
+	const suffix = suffixes.get(rule);
+	return `${n}${suffix}`;
+}

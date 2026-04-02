@@ -1,86 +1,86 @@
 /**
  * Code for interfacing with the sqllite3 database used
  * for storing the motion metric outputs.
- * 
- * 
+ *
+ *
  */
 
-import sqlite3 from "sqlite3";
-import { readFile, writeFile } from "fs/promises";
-import fs from "fs";
-import Papa from "papaparse";
+import sqlite3 from 'sqlite3';
+import { readFile, writeFile } from 'fs/promises';
+import fs from 'fs';
+import Papa from 'papaparse';
 
-const DB_NAME = "motion_metrics.db"; // hosted at cwd
-const TABLE_NAME = "motion_metrics";
+const DB_NAME = 'motion_metrics.db'; // hosted at cwd
+const TABLE_NAME = 'motion_metrics';
 
 // Helper function to promisify database operations for a specific database instance
 function getPromisifiedDb(db: sqlite3.Database) {
-    return {
-        run: (sql: string, ...params: any[]) => {
-            return new Promise<void>((resolve, reject) => {
-                db.run(sql, params, function(this: sqlite3.RunResult, err: Error | null) {
-                    if (err) reject(err);
-                    else resolve();
-                });
-            });
-        },
-        get: (sql: string, ...params: any[]) => {
-            return new Promise((resolve, reject) => {
-                db.get(sql, params, (err: Error | null, row: any) => {
-                    if (err) reject(err);
-                    else resolve(row);
-                });
-            });
-        },
-        all: (sql: string, ...params: any[]) => {
-            return new Promise((resolve, reject) => {
-                db.all(sql, params, (err: Error | null, rows: any[]) => {
-                    if (err) reject(err);
-                    else resolve(rows);
-                });
-            });
-        }
-    };
+	return {
+		run: (sql: string, ...params: any[]) => {
+			return new Promise<void>((resolve, reject) => {
+				db.run(sql, params, function (this: sqlite3.RunResult, err: Error | null) {
+					if (err) reject(err);
+					else resolve();
+				});
+			});
+		},
+		get: (sql: string, ...params: any[]) => {
+			return new Promise((resolve, reject) => {
+				db.get(sql, params, (err: Error | null, row: any) => {
+					if (err) reject(err);
+					else resolve(row);
+				});
+			});
+		},
+		all: (sql: string, ...params: any[]) => {
+			return new Promise((resolve, reject) => {
+				db.all(sql, params, (err: Error | null, rows: any[]) => {
+					if (err) reject(err);
+					else resolve(rows);
+				});
+			});
+		}
+	};
 }
 
 type ID_COLS = {
-    userId: number;
-    danceId: string;
-    studyName: string;
-    workflowId: string;
-    clipNumber: number;
-    collectionId: string;
-}
+	userId: number;
+	danceId: string;
+	studyName: string;
+	workflowId: string;
+	clipNumber: number;
+	collectionId: string;
+};
 
 type FIXED_COLS = ID_COLS & {
-    danceName: string;
-    studyName: string;
-    condition: string;
-    performanceSpeed: number;
-    frameCount: number;
-}
+	danceName: string;
+	studyName: string;
+	condition: string;
+	performanceSpeed: number;
+	frameCount: number;
+};
 
 // There are also dynamic columns that are added to the table for
-// each metric that is run. Metrics can add multiple columns if they 
+// each metric that is run. Metrics can add multiple columns if they
 // output multiple quantitative values for a single metric.
 async function createTableIfNecessary(db: sqlite3.Database) {
-    const promiseDb = getPromisifiedDb(db);
+	const promiseDb = getPromisifiedDb(db);
 
-    try {
-        // Check if table exists
-        const row = await promiseDb.get(
-            `SELECT name FROM sqlite_master WHERE type='table' AND name='${TABLE_NAME}'`
-        );
+	try {
+		// Check if table exists
+		const row = await promiseDb.get(
+			`SELECT name FROM sqlite_master WHERE type='table' AND name='${TABLE_NAME}'`
+		);
 
-        if (row !== undefined) {
-            console.log('Table already exists, skipping creation.');
-            return;
-        }
+		if (row !== undefined) {
+			console.log('Table already exists, skipping creation.');
+			return;
+		}
 
-        console.log('Creating table...');
+		console.log('Creating table...');
 
-        // Create table
-        const sql = `
+		// Create table
+		const sql = `
             CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
                 userId INTEGER,
                 danceId TEXT,
@@ -95,37 +95,37 @@ async function createTableIfNecessary(db: sqlite3.Database) {
             );
         `;
 
-        await promiseDb.run(sql);
-        console.log('Table created successfully.');
+		await promiseDb.run(sql);
+		console.log('Table created successfully.');
 
-        // Add composite primary key constraint
-        const compositeKeyConstraint = "PRIMARY KEY (userId, danceId, workflowId, clipNumber, collectionId)";
-        const addConstraintSQL = `ALTER TABLE ${TABLE_NAME} ADD CONSTRAINT ${compositeKeyConstraint};`;
-        
-        await promiseDb.run(addConstraintSQL);
-        console.log('Composite primary key constraint added.');
-    } catch (err) {
-        console.error('Error in createTableIfNecessary:', err);
-        throw err;
-    }
+		// Add composite primary key constraint
+		const compositeKeyConstraint =
+			'PRIMARY KEY (userId, danceId, workflowId, clipNumber, collectionId)';
+		const addConstraintSQL = `ALTER TABLE ${TABLE_NAME} ADD CONSTRAINT ${compositeKeyConstraint};`;
+
+		await promiseDb.run(addConstraintSQL);
+		console.log('Composite primary key constraint added.');
+	} catch (err) {
+		console.error('Error in createTableIfNecessary:', err);
+		throw err;
+	}
 }
 
 export const dbPath = `${process.cwd()}/artifacts/${DB_NAME}`;
 
 export async function loadDB() {
+	// Db will be created if it doesn't exist
+	const db = new sqlite3.Database(dbPath, (err: any) => {
+		if (err) {
+			console.error('Error opening database ' + err.message);
+		} else {
+			console.log('Connected to the SQlite database.');
+		}
+	});
 
-    // Db will be created if it doesn't exist
-    const db = new sqlite3.Database(dbPath, (err: any) => {
-        if (err) {
-            console.error('Error opening database ' + err.message);
-        } else {
-            console.log('Connected to the SQlite database.');
-        }
-    });
+	await createTableIfNecessary(db);
 
-    await createTableIfNecessary(db);
-
-    return db;
+	return db;
 }
 
 // Corresponding to:
@@ -140,17 +140,17 @@ export async function loadDB() {
 //      performanceSpeed REAL,
 //      frameCount INTEGER
 export type RowData = {
-    userId: number;
-    danceId: string;
-    studyName: string;
-    workflowId: string;
-    clipNumber: number;
-    collectionId: string;
-    danceName: string;
-    condition: string;
-    performanceSpeed: number;
-    frameCount: number;
-}
+	userId: number;
+	danceId: string;
+	studyName: string;
+	workflowId: string;
+	clipNumber: number;
+	collectionId: string;
+	danceName: string;
+	condition: string;
+	performanceSpeed: number;
+	frameCount: number;
+};
 
 /**
  * Add a column to the motion metrics table if it doesn't exist (type=REAL)
@@ -158,19 +158,19 @@ export type RowData = {
  * @param columnName The name of the column to ensure exists
  */
 export async function ensureMetricColumnInTable(db: sqlite3.Database, columnName: string) {
-    const promiseDb = getPromisifiedDb(db);
-    const sql = `ALTER TABLE ${TABLE_NAME} ADD COLUMN ${columnName} REAL`;
+	const promiseDb = getPromisifiedDb(db);
+	const sql = `ALTER TABLE ${TABLE_NAME} ADD COLUMN ${columnName} REAL`;
 
-    try {
-        await promiseDb.run(sql);
-        console.log(`Column ${columnName} added to metricDB successfully.`);
-    } catch (err: any) {
-        if (err.message.includes("duplicate column name")) {
-            return; // Column already exists, do nothing
-        }
-        console.error('Error adding column:', err);
-        throw err;
-    }
+	try {
+		await promiseDb.run(sql);
+		console.log(`Column ${columnName} added to metricDB successfully.`);
+	} catch (err: any) {
+		if (err.message.includes('duplicate column name')) {
+			return; // Column already exists, do nothing
+		}
+		console.error('Error adding column:', err);
+		throw err;
+	}
 }
 
 /**
@@ -181,54 +181,77 @@ export async function ensureMetricColumnInTable(db: sqlite3.Database, columnName
  * @param rowData Fixed motion clip data (not from a motion metric)
  * @param metricData Computed metric data (from a motion metric)
  */
-export async function upsertMetricDbRow(db: sqlite3.Database, rowData: RowData, metricData: Record<string, number>) {
-    const promiseDb = getPromisifiedDb(db);
-    const { userId, danceId, studyName, workflowId, clipNumber, collectionId } = rowData;
+export async function upsertMetricDbRow(
+	db: sqlite3.Database,
+	rowData: RowData,
+	metricData: Record<string, number>
+) {
+	const promiseDb = getPromisifiedDb(db);
+	const { userId, danceId, studyName, workflowId, clipNumber, collectionId } = rowData;
 
-    // Check if the row already exists
-    const sqlCheck = `SELECT * FROM ${TABLE_NAME} WHERE userId = ? AND danceId = ? AND studyName = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
-    try {
-        // Check if the row already exists using promisified db
-        const row = await promiseDb.get(sqlCheck, userId, danceId, studyName, workflowId, clipNumber, collectionId);
+	// Check if the row already exists
+	const sqlCheck = `SELECT * FROM ${TABLE_NAME} WHERE userId = ? AND danceId = ? AND studyName = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
+	try {
+		// Check if the row already exists using promisified db
+		const row = await promiseDb.get(
+			sqlCheck,
+			userId,
+			danceId,
+			studyName,
+			workflowId,
+			clipNumber,
+			collectionId
+		);
 
-        if (row) {
-            // Row exists, update it
-            const updateSql = `UPDATE ${TABLE_NAME} SET ${Object.keys(metricData).map(key => `${key} = ?`).join(', ')} WHERE userId = ? AND danceId = ? AND studyName = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
-            const params = [...Object.values(metricData), userId, danceId, studyName, workflowId, clipNumber, collectionId];
-            await promiseDb.run(updateSql, ...params);
-            return true; // Indicate that the row was updated
-        } else {
-            // Row does not exist, insert it
-            const insertSql = `INSERT INTO ${TABLE_NAME} (${Object.keys(rowData).concat(Object.keys(metricData)).join(', ')}) VALUES (${[...Array(Object.keys(rowData).length + Object.keys(metricData).length)].map(() => '?').join(', ')})`;
-            const params = [...Object.values(rowData), ...Object.values(metricData)];
-            await promiseDb.run(insertSql, ...params);
-            return false;
-        }
-    } catch (err) {
-        console.error('Error in upsertMetricDbRow:', err);
-        throw err;
-    }
-
+		if (row) {
+			// Row exists, update it
+			const updateSql = `UPDATE ${TABLE_NAME} SET ${Object.keys(metricData)
+				.map((key) => `${key} = ?`)
+				.join(
+					', '
+				)} WHERE userId = ? AND danceId = ? AND studyName = ? AND workflowId = ? AND clipNumber = ? AND collectionId = ?`;
+			const params = [
+				...Object.values(metricData),
+				userId,
+				danceId,
+				studyName,
+				workflowId,
+				clipNumber,
+				collectionId
+			];
+			await promiseDb.run(updateSql, ...params);
+			return true; // Indicate that the row was updated
+		} else {
+			// Row does not exist, insert it
+			const insertSql = `INSERT INTO ${TABLE_NAME} (${Object.keys(rowData).concat(Object.keys(metricData)).join(', ')}) VALUES (${[...Array(Object.keys(rowData).length + Object.keys(metricData).length)].map(() => '?').join(', ')})`;
+			const params = [...Object.values(rowData), ...Object.values(metricData)];
+			await promiseDb.run(insertSql, ...params);
+			return false;
+		}
+	} catch (err) {
+		console.error('Error in upsertMetricDbRow:', err);
+		throw err;
+	}
 }
 
 export const motionMetricsCsvPath = `artifacts/motion_metrics.csv`;
 
 export async function exportCSV(db: sqlite3.Database) {
-    const csvPath = motionMetricsCsvPath;
-    const promiseDb = getPromisifiedDb(db);
+	const csvPath = motionMetricsCsvPath;
+	const promiseDb = getPromisifiedDb(db);
 
-    try {
-        // Fetch all rows from the database table
-        const rows = await promiseDb.all(`SELECT * FROM ${TABLE_NAME}`);
+	try {
+		// Fetch all rows from the database table
+		const rows = await promiseDb.all(`SELECT * FROM ${TABLE_NAME}`);
 
-        // Convert rows to CSV format (ensure rows are cast to an array of objects)
-        const csv = Papa.unparse(rows as Record<string, unknown>[]);
+		// Convert rows to CSV format (ensure rows are cast to an array of objects)
+		const csv = Papa.unparse(rows as Record<string, unknown>[]);
 
-        // Write the CSV data to the file
-        await writeFile(csvPath, csv, "utf8");
-        console.log("CSV exported successfully.");
-    } catch (err) {
-        console.error("Error exporting CSV:", err);
-        throw err;
-    }
+		// Write the CSV data to the file
+		await writeFile(csvPath, csv, 'utf8');
+		console.log('CSV exported successfully.');
+	} catch (err) {
+		console.error('Error exporting CSV:', err);
+		throw err;
+	}
 }

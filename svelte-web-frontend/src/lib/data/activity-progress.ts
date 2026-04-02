@@ -1,14 +1,13 @@
-
 export type StepProgressData = {
-    completed: boolean;
-    started?: boolean;
-}
+	completed: boolean;
+	started?: boolean;
+};
 export type ActivityProgress = {
-    [step_id: string]: StepProgressData;
-}
+	[step_id: string]: StepProgressData;
+};
 export type PracticePlanProgress = {
-    [activity_id: string]: ActivityProgress;
-}
+	[activity_id: string]: ActivityProgress;
+};
 
 // export function get_practiceplan_progress(
 //     supabase: SupabaseClient,
@@ -24,14 +23,13 @@ export type PracticePlanProgress = {
 //     //     .filter('dance_id', 'eq', dance_id)
 //     //     .filter('practiceplan_id', 'eq', plan_id)
 //     //     .
-    
 
 //     const key = `progress_${dance_id}_${plan_id}`;
 //     const tree_progress_string = localStorage.getItem(key);
 //     if (tree_progress_string === null) {
 //         console.log("no tree_progress_string found in localstorage for:", key)
 //         return {};
-//     } 
+//     }
 //     console.log('got a tree_progress_string', tree_progress_string, key);
 //     let localstorage_data = null;
 //     try {

@@ -1,5 +1,5 @@
 /** anthropic.ts
- * 
+ *
  *  This file contains the code for the anthropic.ai API integration.
  *  Helpful links:
  *     > Prompt Design: https://docs.anthropic.com/claude/docs/introduction-to-prompt-design
@@ -9,7 +9,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { ANTHROPIC_API_KEY } from '$env/static/private';
 
 const anthropic = new Anthropic({
-    apiKey: ANTHROPIC_API_KEY,
+	apiKey: ANTHROPIC_API_KEY
 });
 
 const taskStatement = `
@@ -21,75 +21,76 @@ Please generate a message that describes how they did on their performance. It s
 In the user-visible feedback, you should refrain from going into excessive detail about the mechanics of how the feedback is being generated. Instead, you should pretend that YOU, as an AI dance coach, have made these observations, thereby mimicing the experience of learning from a human dance coach.
 
 You should treat the student as a peer, and you should not use language that is overly formal or technical. In particular, you should not refer to the 'data' or 'distillation' you have been provided, or describe their format. Focus on the what the student would care about. If some of the system provided information is corrupted or missing, refrain from implying anything about their performance or need for more practice. Instead, simply encourage them to practice as they see fit.
-`
+`;
 
 const example = '';
 
-export async function runPrompt(
-    prompt: string,
-) {
-    const params: Anthropic.CompletionCreateParamsNonStreaming = {
-        prompt: prompt,
-        model: 'claude-instant-1',
-        max_tokens_to_sample: 4000,
-    }
+export async function runPrompt(prompt: string) {
+	const params: Anthropic.CompletionCreateParamsNonStreaming = {
+		prompt: prompt,
+		model: 'claude-instant-1',
+		max_tokens_to_sample: 4000
+	};
 
-    const completion: Anthropic.Completion = await anthropic.completions.create(params); 
-    const claudeText = completion.completion;
-    console.log('Stop Reason', completion.stop_reason);
+	const completion: Anthropic.Completion = await anthropic.completions.create(params);
+	const claudeText = completion.completion;
+	console.log('Stop Reason', completion.stop_reason);
 
-    return claudeText;
+	return claudeText;
 }
 
 export async function getFeedback(
-    danceStructureDistillation: string,
-    currentSectionName: string,
-    performanceDistillation: string,
-    performanceHistoryDistillation: string,
-    achivementsDistillation?: string,
-){
-    
-    const achievmentDistillationEntry = achivementsDistillation ? `<achievements>${achivementsDistillation}</achievements>` : '';
+	danceStructureDistillation: string,
+	currentSectionName: string,
+	performanceDistillation: string,
+	performanceHistoryDistillation: string,
+	achivementsDistillation?: string
+) {
+	const achievmentDistillationEntry = achivementsDistillation
+		? `<achievements>${achivementsDistillation}</achievements>`
+		: '';
 
-    const dynamicData = `
+	const dynamicData = `
 <danceStructureDistillation>${danceStructureDistillation}</danceStructureDistillation>
 <currentSectionName>${currentSectionName}</currentSectionName>
 <performanceDistillation>${performanceDistillation}</performanceDistillation>
 <performanceHistoryDistillation>${performanceHistoryDistillation}</performanceHistoryDistillation>
-${achievmentDistillationEntry}`
-    
-    const prompt = taskStatement + example + dynamicData + Anthropic.AI_PROMPT;
+${achievmentDistillationEntry}`;
 
-    const claudeText = await runPrompt(prompt);
-    console.log('\nLooking for tags...')
+	const prompt = taskStatement + example + dynamicData + Anthropic.AI_PROMPT;
 
-    // const coachingReflection = claudeText.match(/<coachingreflection>([\s\S]*?)<\/coachingreflection>/)?.[1];
-    const feedbackMessage = claudeText.match(/<feedbackmessage>([\s\S]*?)<\/feedbackmessage>/)?.[1];
-    // const nextSection = claudeText.match(/<nextsection>([\s\S]*?)<\/nextsection>/)?.[1];
-    // const coachingMessage = claudeText.match(/<coachingmessage>([\s\S]*?)<\/coachingmessage>/)?.[1];
-    // const feedbackTitle = claudeText.match(/<feedbacktitle>([\s\S]*?)<\/feedbacktitle>/)?.[1];
+	const claudeText = await runPrompt(prompt);
+	console.log('\nLooking for tags...');
 
-    // if (!coachingReflection) {
-    //     throw new Error(`Invalid Claude Text (missing expected xml for <coachingreflection>): ${claudeText}`);
-    // }
-    if (!feedbackMessage) {
-        throw new Error(`Invalid Claude Text (missing expected xml for <feedbackmessage>): ${claudeText}`);
-    }
-    // if (!nextSection) {
-    //     throw new Error(`Invalid Claude Text (missing expected xml for <nextsection>): ${claudeText}`);
-    // }
-    // if (!coachingMessage) {
-    //     throw new Error(`Invalid Claude Text (missing expected xml for <coachingmessage>): ${claudeText}`);
-    // }
-    // if (!feedbackTitle) {
-    //     throw new Error(`Invalid Claude Text (missing expected xml for <feedbacktitle>): ${claudeText}`);
-    // }
-    
-    return {        
-        // coachingReflection,
-        feedbackMessage, 
-        // nextSection,
-        // coachingMessage,
-        // feedbackTitle,
-    };
+	// const coachingReflection = claudeText.match(/<coachingreflection>([\s\S]*?)<\/coachingreflection>/)?.[1];
+	const feedbackMessage = claudeText.match(/<feedbackmessage>([\s\S]*?)<\/feedbackmessage>/)?.[1];
+	// const nextSection = claudeText.match(/<nextsection>([\s\S]*?)<\/nextsection>/)?.[1];
+	// const coachingMessage = claudeText.match(/<coachingmessage>([\s\S]*?)<\/coachingmessage>/)?.[1];
+	// const feedbackTitle = claudeText.match(/<feedbacktitle>([\s\S]*?)<\/feedbacktitle>/)?.[1];
+
+	// if (!coachingReflection) {
+	//     throw new Error(`Invalid Claude Text (missing expected xml for <coachingreflection>): ${claudeText}`);
+	// }
+	if (!feedbackMessage) {
+		throw new Error(
+			`Invalid Claude Text (missing expected xml for <feedbackmessage>): ${claudeText}`
+		);
+	}
+	// if (!nextSection) {
+	//     throw new Error(`Invalid Claude Text (missing expected xml for <nextsection>): ${claudeText}`);
+	// }
+	// if (!coachingMessage) {
+	//     throw new Error(`Invalid Claude Text (missing expected xml for <coachingmessage>): ${claudeText}`);
+	// }
+	// if (!feedbackTitle) {
+	//     throw new Error(`Invalid Claude Text (missing expected xml for <feedbacktitle>): ${claudeText}`);
+	// }
+
+	return {
+		// coachingReflection,
+		feedbackMessage
+		// nextSection,
+		// coachingMessage,
+		// feedbackTitle,
+	};
 }

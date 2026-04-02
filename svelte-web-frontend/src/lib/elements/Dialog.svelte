@@ -1,59 +1,60 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
+	import { run } from 'svelte/legacy';
 
-import { createEventDispatcher } from "svelte";
-import CloseButton from "./CloseButton.svelte";
+	import { createEventDispatcher } from 'svelte';
+	import CloseButton from './CloseButton.svelte';
 
-const dispatcher = createEventDispatcher();
+	const dispatcher = createEventDispatcher();
 
-  let dialogElement: HTMLDialogElement | undefined = $state();
-  interface Props {
-    open?: boolean;
-    modal?: boolean;
-    showCloseButton?: boolean;
-    closeWhenClickedOutside?: boolean;
-    title?: import('svelte').Snippet;
-    children?: import('svelte').Snippet;
-  }
+	let dialogElement: HTMLDialogElement | undefined = $state();
+	interface Props {
+		open?: boolean;
+		modal?: boolean;
+		showCloseButton?: boolean;
+		closeWhenClickedOutside?: boolean;
+		title?: import('svelte').Snippet;
+		children?: import('svelte').Snippet;
+	}
 
-  let {
-    open = $bindable(false),
-    modal = true,
-    showCloseButton = true,
-    closeWhenClickedOutside = true,
-    title,
-    children
-  }: Props = $props();
+	let {
+		open = $bindable(false),
+		modal = true,
+		showCloseButton = true,
+		closeWhenClickedOutside = true,
+		title,
+		children
+	}: Props = $props();
 
-$effect(() => {
-    if (open) {
-        if (modal) {
-            dialogElement?.showModal();
-        } else {
-            dialogElement?.show();
-        }
-    } else {
-        dialogElement?.close();
-    }
-});
+	$effect(() => {
+		if (open) {
+			if (modal) {
+				dialogElement?.showModal();
+			} else {
+				dialogElement?.show();
+			}
+		} else {
+			dialogElement?.close();
+		}
+	});
 </script>
 
-
 <dialog bind:this={dialogElement} class="daisy-modal">
-    <div class="daisy-modal-box w-auto h-auto ">
-        <form method="dialog">
-            <button class="daisy-btn daisy-btn-sm daisy-btn-circle absolute right-2 top-2"
-                onclick={() => dispatcher('dialog-closed', 'button')}>✕</button>
-        </form>
-        <h3 class="font-bold text-lg">{@render title?.()}</h3>
-        {@render children?.()}
-    </div>
-    {#if closeWhenClickedOutside}
-    <form method="dialog" class="daisy-modal-backdrop">
-        <button onclick={() => dispatcher('dialog-closed', 'click_outside')}>close</button>
-    </form>
-    {/if}
-  </dialog>
+	<div class="daisy-modal-box h-auto w-auto">
+		<form method="dialog">
+			<button
+				class="daisy-btn daisy-btn-circle daisy-btn-sm absolute right-2 top-2"
+				onclick={() => dispatcher('dialog-closed', 'button')}>✕</button
+			>
+		</form>
+		<h3 class="text-lg font-bold">{@render title?.()}</h3>
+		{@render children?.()}
+	</div>
+	{#if closeWhenClickedOutside}
+		<form method="dialog" class="daisy-modal-backdrop">
+			<button onclick={() => dispatcher('dialog-closed', 'click_outside')}>close</button>
+		</form>
+	{/if}
+</dialog>
 
 <!-- 
 <dialog bind:this={dialogElement} class="daisy-modal">
@@ -75,17 +76,16 @@ $effect(() => {
  -->
 
 <style lang="scss">
+	// @import  '../../routes/styles.scss';
 
-// @import  '../../routes/styles.scss';
+	.daisy-modal-box {
+		max-height: calc(100vh - 2rem);
+		max-width: calc(100vw - 2rem);
+	}
 
-.daisy-modal-box {
-    max-height: calc(100vh - 2rem);
-    max-width: calc(100vw - 2rem);
-}
-
-// dialog::backdrop {
-//     background: rgba(0, 0, 0, 0.2);
-// 	backdrop-filter: blur(5px);
-//     --webkit-backdrop-filter: blur(5px);
-// }
+	// dialog::backdrop {
+	//     background: rgba(0, 0, 0, 0.2);
+	// 	backdrop-filter: blur(5px);
+	//     --webkit-backdrop-filter: blur(5px);
+	// }
 </style>

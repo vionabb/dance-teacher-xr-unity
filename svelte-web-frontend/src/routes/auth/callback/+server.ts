@@ -1,13 +1,13 @@
 // src/routes/auth/callback/+server.ts
-import { redirect } from '@sveltejs/kit'
+import { redirect } from '@sveltejs/kit';
 
 export const GET = async ({ url, locals: { supabase } }) => {
-  const code = url.searchParams.get('code')
+	const code = url.searchParams.get('code');
 
-  if (code) {
-    await supabase.auth.exchangeCodeForSession(code)
-    redirect(303, '/updatepassword');
-  }
+	if (code) {
+		await supabase.auth.exchangeCodeForSession(code);
+		redirect(303, '/updatepassword');
+	}
 
-  redirect(303, '/menu');
-}
+	redirect(303, '/menu');
+};

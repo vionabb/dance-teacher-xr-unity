@@ -1,1026 +1,1118 @@
 <script module lang="ts">
 	import DropdownButton from './../elements/DropdownButton.svelte';
 	import type { TerminalFeedback } from '$lib/model/TerminalFeedback';
-    export type PracticePageState = "waitWebcam" | "waitStart" | 'waitStartUserInteraction' | "countdown" | "playing" | "paused" | "feedback";
-    export const INITIAL_STATE: PracticePageState = "waitWebcam";
+	export type PracticePageState =
+		| 'waitWebcam'
+		| 'waitStart'
+		| 'waitStartUserInteraction'
+		| 'countdown'
+		| 'playing'
+		| 'paused'
+		| 'feedback';
+	export const INITIAL_STATE: PracticePageState = 'waitWebcam';
 </script>
+
 <script lang="ts">
-
-import { danceVideoVolume, debugMode__addPlaceholderAchievement, practiceActivities__enablePerformanceRecording } from './../model/settings';
-import { v4 as generateUUIDv4 } from 'uuid';
-import { evaluation_summarizeSubsections } from '$lib/model/settings';
-// import { replaceJSONForStringifyDisplay } from '$lib/utils/formatting';
-import { getAllLeafNodes, getAllNodesInSubtree } from '$lib/data/dances-store';
-import { pauseInPracticePage, debugPauseDurationSecs, debugMode } from '$lib/model/settings';
-import { GetPixelLandmarksFromNormalizedLandmarks, type Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
-import type PracticeStep from "$lib/model/PracticeStep";
-import { getMotionVideoSrc, load2DPoseInformation, type PoseReferenceData, load3DPoseInformation, type MotionSegmentationNode } from "$lib/data/dances-store";
-
-import { Draw2dSkeleton } from '$lib/ai/SkeletonFeedbackVisualization'
-import VirtualMirror from "$lib/elements/VirtualMirror.svelte";
-import poseEstimationService, { type PoseEstimationResultDetail } from '$lib/services/PoseEstimationService';
-import metronomeClickSoundSrc from '$lib/media/audio/metronome.mp3';
-import { onMount, createEventDispatcher, tick, getContext } from "svelte";
-import { webcamStream } from '$lib/webcam/streams';
-import { MirrorXPose, type Pose2DPixelLandmarks } from '$lib/webcam/mediapipe-utils';
-import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import TerminalFeedbackScreen from '$lib/elements/TerminalFeedbackScreen.svelte';
-import { getFrontendDanceEvaluator, type FrontendDanceEvaluator, type FrontendPerformanceSummary, type FrontendLiveEvaluationResult, type FrontendEvaluationTrack } from '$lib/ai/FrontendDanceEvaluator';
-import frontendPerformanceHistory from '$lib/ai/frontendPerformanceHistory';
-import Dialog from '$lib/elements/Dialog.svelte';
-import { waitSecs } from '$lib/utils/async';
-import { PracticeStepDefaultInterfaceSetting, PracticeInterfaceModes, type PracticeStepInterfaceSettings } from '$lib/model/PracticeStep';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { SegmentedProgressBarPropsWithoutCurrentTime } from '$lib/elements/SegmentedProgressBar.svelte';
-import SegmentedProgressBar from '$lib/elements/SegmentedProgressBar.svelte';
-import PerformanceReviewPage from '$lib/pages/PerformanceReviewPage.svelte';
-import type { PracticePlan } from '$lib/model/PracticePlan';
-import PlayableVideoWithSkeleton from '$lib/elements/PlayableVideoWithSkeleton.svelte';
-
-
-import BarCharIcon from 'virtual:icons/mdi/bar-chart';
-import type TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
-import type { Readable } from 'svelte/store';
-import type { IDataBackend, MotionVideo, UserLearningModel, UserPerformanceAttempt } from '$lib/ai/backend/IDataBackend';
-import type { AttemptSettings, IPracticePage, VideoRecording } from '$lib/ai/IPracticePage';
-
-const supabase = getContext('supabase') as SupabaseClient;
-let teachingAgent = getContext('teachingAgent') as Readable<TeachingAgent>;
-
-interface Props {
-    backend: IDataBackend,
-    mirrorForEvaluation?: boolean;
-    motionVideo: MotionVideo;
-    practiceStep: PracticeStep | null;
-    practicePlan?: PracticePlan | undefined;
-    pageActive?: boolean;
-    flipVideo?: boolean;
-    continueBtnTitle?: string;
-    continueBtnIcon?: any;
-    progressBarProps?: SegmentedProgressBarPropsWithoutCurrentTime | undefined;
-    userLearningModel: UserLearningModel | null;
-
-    onPracticeAttemptCompleted?: (attempt: {
-        motionVideoId: number,
-        learningModelId?: string,
-        attemptSettings: AttemptSettings,
-        attemptDurationsSecs?: number,
-        videoRecording?: VideoRecording,
-        performanceSummary?: FrontendPerformanceSummary,
-    }) => Promise<null | TerminalFeedback>;
-} 
-
-let {
-    mirrorForEvaluation = true,
-    motionVideo,
-    practiceStep = $bindable(null as PracticeStep | null),
-    practicePlan = undefined,
-    pageActive = false,
-    flipVideo = false,
-    continueBtnTitle = 'Continue',
-    continueBtnIcon = 'check' as 'nextarrow' | 'check',
-    progressBarProps = undefined,
-    backend: dataBackend,
-    userLearningModel,
-    onPracticeAttemptCompleted = undefined,
-}: Props = $props();
-
-let mainContinueButton: HTMLButtonElement | undefined = $state();
-let hasProgressBar = $derived(progressBarProps !== undefined);
-
-let showingPerformanceReviewPage = $state(false);
-let interfaceSettings: PracticeStepInterfaceSettings = $derived(PracticeInterfaceModes[practiceStep?.interfaceMode ?? PracticeStepDefaultInterfaceSetting]);
-let skeletonDrawingEnabled: boolean = $derived(practiceStep?.showUserSkeleton ?? true);
-let terminalFeedbackEnabled: boolean = $derived(practiceStep?.terminalFeedbackEnabled ?? true);
-
-let isDoingSomeSortOfFeedback = $derived(
-    (terminalFeedbackEnabled ?? false)
-        || (skeletonDrawingEnabled && interfaceSettings.referenceVideo.visibility === 'visible' && interfaceSettings.referenceVideo.skeleton === 'user')
-        || (skeletonDrawingEnabled && interfaceSettings.userVideo.visibility === 'visible' && interfaceSettings.userVideo.skeleton === 'user')
-);
-
-const dispatch = createEventDispatcher<{
-    stateChanged: PracticePageState;
-    'continue-clicked': undefined;
-    nextClicked: undefined;
-}>();
-
-export function test123() {
-
-}
-
-let fitVideoToFlexbox = true;
-
-let hasVisibleReferenceVideo: boolean = $derived(interfaceSettings.referenceVideo.visibility === 'visible');
-
-let pageState: PracticePageState = $state(INITIAL_STATE); 
-
-let hasUserWebcamVisible: boolean = $derived(interfaceSettings.userVideo.visibility === 'visible' ||
-    isDoingSomeSortOfFeedback && pageState=== 'waitWebcam');
-
-let isPlayingOrCountdown: boolean = $derived(pageState=== "playing" || pageState=== "countdown");
-let isShowingFeedback: boolean = $derived(pageState=== 'feedback');
-let feedbackDialogOpen: boolean = $state(false);
-let isMounted = false;
-
-let currentActivityStepIndex: number = 0;
-
-let countdown = $state(-1);
-let countdownActive = $state(false);
-
-let clickAudioElement: HTMLAudioElement;
-let virtualMirrorElement: VirtualMirror | undefined = $state();
-let videoWithSkeleton: PlayableVideoWithSkeleton | undefined = $state();
-let videoCurrentTime: number = $state(0);
-let videoPlaybackSpeed: number = $state(1);
-let videoDuration: number = $state(0);
-let videoVolume: number = $state(0.5);
-let isVideoPausedBinding: boolean = $state(true);
-let motionVideoSrc: string = $state('');
-let poseEstimationEnabled: boolean = $derived(
-    pageActive 
-        && isDoingSomeSortOfFeedback 
-        &&  (countdownActive || !isVideoPausedBinding || pageState==="paused")
-);
-
-let containingSegmentationTreeLeafNodes = $derived.by(() => {
-    if (practiceStep?.motionSegmentationNode && $evaluation_summarizeSubsections == "leafnodes") {
-        return getAllLeafNodes(practiceStep.motionSegmentationNode).filter((node) => node.id !== practiceStep?.motionSegmentationNode?.id);
-    } else if (practiceStep?.motionSegmentationNode && $evaluation_summarizeSubsections == "allnodes") {
-        return getAllNodesInSubtree(practiceStep.motionSegmentationNode).filter((node) => node.id !== practiceStep?.motionSegmentationNode?.id);
-    }
-    return [] as MotionSegmentationNode[]
-});
-
-let beatDuration = $derived.by(() => {
-    const motionBpm = motionVideo?.manual_bpm ?? motionVideo?.detected_bpm ?? 60;
-    const motionSecsPerBeat = 60 / motionBpm;
-    return motionSecsPerBeat / videoPlaybackSpeed;
-});
-
-let poseEstimationReady: Promise<void> | null = null;
-let referenceDancePoses2D: PoseReferenceData<Pose2DPixelLandmarks> | null = $state(null);
-let referenceDancePoses3D: PoseReferenceData<Pose3DLandmarkFrame> | null = null;
-
-let customizedPlaybackSpeed: number | undefined = $state(undefined);
-let effectivePlaybackSpeed: number = $derived( customizedPlaybackSpeed ?? practiceStep?.playbackSpeed ?? 1.0);
-const defaultCustomSpeedOptions = [0.25, 0.5, 0.75, 0.9, 1]
-
-let lastEvaluationResult: FrontendLiveEvaluationResult | null = $state(null);
-let evaluator: FrontendDanceEvaluator | null = $state(null);
-let trialId = $state(null as string | null);
-let trialIdStartDate = $state(null as Date | null);
-let performanceSummary = $state(null as FrontendPerformanceSummary | null);
-let terminalFeedback: TerminalFeedback | null = $state(null);
-
-let cachedVideoRecording: VideoRecording | undefined = $state(undefined);
-
-const debugPauseDuration = 10.0; // if pauseInPracticePage is enabled, we'll pause for this many seconds midway through playback
-let currentPlaybackEndtime = $state(practiceStep?.endTime ?? 0);
-
-let webcamRecorderMimeType = 'video/webm';
-let webcamRecorder: MediaRecorder | null = null;
-let webcamRecordedChunks: Blob[] = [];
-
-// Recording lifecycle helpers (blob-based, no object URLs stored here)
-let savedRecordingBlob: Blob | null = null;
-let webcamRecordingCompletion: Promise<Blob | null> | null = null;
-let resolveWebcamRecordingCompletion: ((blob: Blob | null) => void) | null = null;
-let rejectWebcamRecordingCompletion: ((reason?: any) => void) | null = null;
-
-
-
-let lastNAttemptsAngleSimilarity = $derived(
-    frontendPerformanceHistory.lastNAttempts(
-        practiceStep?.motionVideo?.id ?? -1,
-        'skeleton3DVectorAngleEvaluation',
-        20,
-    )
-);
-
-let unpauseVideoTimeout: number | null  = $state(null);
-function unPauseVideo() {
-    unpauseVideoTimeout = null;
-    currentPlaybackEndtime = practiceStep?.endTime ?? videoDuration;
-    isVideoPausedBinding = false;
-    pageState= "playing";
-}
-
-async function completeVideoRecording() {
-    if (!webcamRecorder) {
-        return null;
-    }
-    // Initiate stop (will trigger final dataavailable + stop events)
-    webcamRecorder.stop();
-
-    if (webcamRecordingCompletion) {
-        try {
-            await webcamRecordingCompletion; // wait until blob assembled
-        } catch (e) {
-            console.warn('completeVideoRecording: recording completion promise rejected', e);
-            return null;
-        }
-    }
-    if (!savedRecordingBlob) {
-        return null;
-    }
-    return {
-        blob: savedRecordingBlob,
-        mimeType: webcamRecorderMimeType,
-        referenceVideoUrl: motionVideoSrc,
-        recordingStartOffset: practiceStep?.startTime ?? 0,
-        recordingSpeed: effectivePlaybackSpeed,
-    } as VideoRecording;
-}
-
-let gettingFeedback = false;
-
-async function playClickSound(silent: boolean = false) {
-    clickAudioElement.currentTime = 0;
-    clickAudioElement.volume = silent ? 0 : 1;
-    return clickAudioElement.play();
-}
-
-let mediaElementsHaveBeenActivated = false;
-
-async function startCountdown() {
-    if (!videoWithSkeleton) {
-        console.warn('startCountdown: videoWithSkeleton not ready');
-        return;
-    }
-    if (countdownActive) return;
-    
-    isVideoPausedBinding = true;
-    pageState= "countdown";
-    countdownActive = true;
-
-    // Safari / webkit disallows media elements from auto-playing without user interaction. We
-    // want to be able to control the playback of the video element programatically, which safari
-    // will only allow once the user has triggered playback through a user interaction. So, we try 
-    // starting playback at the beginning of the countdown. If the 
-    if (!mediaElementsHaveBeenActivated) {
-        videoCurrentTime = practiceStep?.startTime ?? 0;
-        videoVolume = 0.01;
-        videoPlaybackSpeed = 0.0625;// Minimum playback rate: https://stackoverflow.com/questions/30970920/html5-video-what-is-the-maximum-playback-rate
-        let testPlaybackSuccessful = true;
-        try {
-            await playClickSound(true);
-            await videoWithSkeleton.play();
-            mediaElementsHaveBeenActivated = true;
-        }
-        catch(e) {
-            testPlaybackSuccessful = false
-            console.warn('startCountdown: test playback unsuccessful. Will try again after user interaction.', e);
-        }
-    }
-
-    isVideoPausedBinding = true;
-    videoCurrentTime = practiceStep?.startTime ?? 0;
-    videoVolume = $danceVideoVolume;
-    videoPlaybackSpeed = effectivePlaybackSpeed;
-
-    if (!mediaElementsHaveBeenActivated) {
-        pageState= 'waitStartUserInteraction';
-        countdownActive = false;
-        return;
-    }
-
-    try {
-        clickAudioElement.volume = 1;
-        await tick();
-        await waitSecs(beatDuration);
-
-        pageState= "countdown";
-        countdownActive = true;
-        await waitSecs(beatDuration);
-
-        countdown = 5;
-        playClickSound();
-        await waitSecs(beatDuration);
-        if (!isMounted) return
-
-        countdown = 6;
-        playClickSound();
-        await waitSecs(beatDuration);
-        if (!isMounted) return
-
-        countdown = 7;
-        playClickSound();
-        await waitSecs(beatDuration);
-        if (!isMounted) return
-
-        countdown = 8;
-        playClickSound();
-        await waitSecs(beatDuration);
-        if (!isMounted) return
-    } catch(e) {
-        console.warn("Error during countdown", e);
-        return;
-    }
-
-    trialId = generateUUIDv4();
-    trialIdStartDate = new Date();
-    pageState= "playing";
-    
-    countdown = -1;
-
-    savedRecordingBlob = null;
-    webcamRecorder?.stop(); // ensure prior recorder (if any) is stopped
-    webcamRecorder = null;
-    webcamRecordedChunks = [];
-    webcamRecordingCompletion = null;
-    resolveWebcamRecordingCompletion = null;
-    rejectWebcamRecordingCompletion = null;
-
-    if ($practiceActivities__enablePerformanceRecording && $webcamStream) {
-        if (MediaRecorder.isTypeSupported('video/webm')) {
-            webcamRecorderMimeType = 'video/webm';
-        } else if (MediaRecorder.isTypeSupported('video/mp4')) {
-            webcamRecorderMimeType = 'video/mp4';
-        } else {
-            console.warn('No supported MediaRecorder mime type found, defaulting to video/webm');
-            webcamRecorderMimeType = 'video/webm';
-        }
-        webcamRecorder = new MediaRecorder($webcamStream, { mimeType: webcamRecorderMimeType });
-        webcamRecordedChunks = [];
-        savedRecordingBlob = null;
-        webcamRecordingCompletion = new Promise((resolve, reject) => {
-            resolveWebcamRecordingCompletion = resolve;
-            rejectWebcamRecordingCompletion = reject;
-        });
-        webcamRecorder.addEventListener('dataavailable', (e) => {
-            webcamRecordedChunks.push(e.data);
-        });
-        webcamRecorder.addEventListener('stop', () => {
-            try {
-                if (webcamRecordedChunks.length === 0) {
-                    savedRecordingBlob = null;
-                } else {
-                    savedRecordingBlob = new Blob(webcamRecordedChunks, { type: webcamRecorderMimeType });
-                }
-                resolveWebcamRecordingCompletion?.(savedRecordingBlob);
-            } catch (err) {
-                console.warn('Error assembling recording blob', err);
-                rejectWebcamRecordingCompletion?.(err);
-            } finally {
-                resolveWebcamRecordingCompletion = null;
-                rejectWebcamRecordingCompletion = null;
-            }
-        });
-        webcamRecorder.start();
-    }
-
-    isVideoPausedBinding = false;
-    countdownActive = false;
-}
-
-export async function reset(start: boolean = false) {
-    console.log('Reseting practice page');
-    showingPerformanceReviewPage = false;
-
-    if (unpauseVideoTimeout !== null) {
-        clearTimeout(unpauseVideoTimeout);
-    }
-    if (!practiceStep) {
-        console.warn('Null practice activity during reset() call');
-    }
-
-    if(!virtualMirrorElement) {
-        await tick();
-    }
-    if (!virtualMirrorElement) {
-        console.warn('Virtual mirror element not ready during reset() call');
-        return;
-    }
-
-    terminalFeedback = null;
-    feedbackDialogOpen = false;
-    mainContinueButton?.focus();
-    trialId = null;
-    currentActivityStepIndex = 0;
-    pageState= "waitWebcam";
-    lastEvaluationResult = null;
-    isVideoPausedBinding = true;
-    cachedVideoRecording = undefined;
-    videoCurrentTime = practiceStep?.startTime ?? 0;
-    const playDuration = (practiceStep?.endTime ?? videoDuration) - (videoCurrentTime)
-    currentPlaybackEndtime = $pauseInPracticePage ? videoCurrentTime + playDuration / 2 : practiceStep?.endTime ?? videoDuration;
-
-    // Start doing these 3d tasks in parallel, wait for them
-    // all to complete betore continuing.
-    const promises = [] as Promise<any>[];
-    if (virtualMirrorElement && hasUserWebcamVisible) {
-        promises.push(virtualMirrorElement.webcamStartedPromise);
-    }
-    let ref2dPosesPromise: ReturnType<typeof load2DPoseInformation> | null = null;
-    let ref3dPosesPromise: ReturnType<typeof load3DPoseInformation> | null = null;
-    if (!referenceDancePoses2D) {
-        ref2dPosesPromise = load2DPoseInformation(supabase, motionVideo);
-        promises.push(ref2dPosesPromise);
-    }  
-    if (!referenceDancePoses3D) {
-        ref3dPosesPromise = load3DPoseInformation(supabase, motionVideo);
-        promises.push(ref3dPosesPromise);
-    }
-    if (ref2dPosesPromise) { referenceDancePoses2D = await ref2dPosesPromise; }
-    if (ref3dPosesPromise) { referenceDancePoses3D = await ref3dPosesPromise; }
-    await Promise.all(promises);
-
-    pageState= "waitStart";
-
-    evaluator = getFrontendDanceEvaluator(
-        referenceDancePoses2D!,
-        referenceDancePoses3D!
-    );
-
-    isVideoPausedBinding = true;
-    videoCurrentTime = practiceStep?.startTime ?? 0;
-
-    await tick();
-
-    // TODO: prime pose estimation
-    // if (poseEstimationEnabled) {
-    //     console.log("Triggering pose estimation priming");
-    //     await virtualMirrorElement.primePoseEstimation();
-    // }
-
-    await waitSecs(beatDuration);
-
-    // pageState= 'waitStartUserInteraction';
-    // showStartCountdownDialog = true;
-    if (start ?? false) {
-        startCountdown();
-    } else {
-        pageState= 'waitStartUserInteraction';
-    }
-}
-
-
-let poseEstimationCorrespondances: Map<number, {
-    videoTimeSecs: number;
-    actualTimeInMs: number;
-    pageState: PracticePageState;
-}> = new Map();
-let lastPoseEstimationVideoTime: number = -1;
-let lastPoseEstimationSentTimestamp: Date = new Date();
-const maximumPoseEstimationFrequencyHz = 10;
-const minimumPoseEsstimationIntervalMs = 1000 / maximumPoseEstimationFrequencyHz;
-
-function poseEstimationFrameSent(frameId: number, timestampMs: number) {
-    // Associate the webcam frame being sent for pose estimation
-    // with the current video timestamp, so that we can later
-    // compare the user's pose with the dance pose at that time.
-    // console.log("poseEstimationFrameSent", e.detail.frameId, videoCurrentTime);
-    poseEstimationCorrespondances.set(frameId, {
-        videoTimeSecs: videoCurrentTime,
-        actualTimeInMs: Date.now(),
-        pageState: pageState,
-    });
-    lastPoseEstimationVideoTime = videoCurrentTime;
-}
-
-/**
- * An override function used by the virtual mirror element to determine
- * whether or not to send the next frame to pose estimation. When pose estimation
- * is enabled (`poseEstimationEnabled`), VirtualMirror will call this function
- * just before sending the next frame to pose estimation. If this function returns
- * false, the frame will not be sent. This is useful for limiting the frequency
- * of pose estimation to save resources during situations when high pose estimation
- * frequency is unnecessary (such as during the countdown when the video is paused).
- */
-function shouldSendNextPoseEstimationFrame() {
-
-    // When the video is paused (such as during countdown), limit the fps 
-    // of pose estimation to avoid wasting resources.
-    if (
-        lastPoseEstimationVideoTime === videoCurrentTime && 
-        lastPoseEstimationSentTimestamp.getTime() > Date.now() - minimumPoseEsstimationIntervalMs
-    ) {
-        return false;
-    }
-    return true;
-}
-
-function poseEstimationFrameReceived(detail: PoseEstimationResultDetail) {
-     // console.log("poseEstimationFrameReceived", e.detail.frameId, e.detail.result);
-
-    if (!referenceDancePoses2D) {
-        console.log("No dance pose information", detail);
-        return;
-    };
-    
-    const frameId = detail.frameId;
-    if (!poseEstimationCorrespondances.has(frameId)) {
-        console.log(`No matching correspondance for ${frameId}`, detail, "current correspondances: ", poseEstimationCorrespondances)
-        return;
-    };
-    const {
-        videoTimeSecs,
-        actualTimeInMs,
-        pageState
-    } = poseEstimationCorrespondances.get(frameId)!;
-
-    poseEstimationCorrespondances.delete(frameId);
-
-    const srcWidth = detail.srcWidth;
-    const srcHeight = detail.srcHeight;
-    const userNormalizedPose = (detail.estimated2DPose ?? null) as NormalizedLandmark[] | null;
-    const user3DPose = (detail.estimated3DPose ?? null) as Pose3DLandmarkFrame | null;
-    if (!userNormalizedPose || !user3DPose) { return; }
-
-    // Flip normalized pose, since the user will be mirroring the dance
-    let evaluation2DPose = GetPixelLandmarksFromNormalizedLandmarks(userNormalizedPose, srcWidth, srcHeight);
-    let evaluation3DPose = user3DPose;MirrorXPose
-    if (mirrorForEvaluation) {
-        const userDanceFlippedNormalizedPose = MirrorXPose(userNormalizedPose);
-        const userDanceFlippedPixelPose = GetPixelLandmarksFromNormalizedLandmarks(userDanceFlippedNormalizedPose, srcWidth, srcHeight);
-        evaluation2DPose = userDanceFlippedPixelPose;
-        evaluation3DPose = MirrorXPose(user3DPose);
-    }
-    if (!evaluation2DPose) { return; }
-
-    try {
-        lastEvaluationResult = evaluator?.evaluateFrame(
-            trialId,
-            motionVideo.id,
-            practiceStep?.segmentDescription ?? 'undefined',
-            videoTimeSecs,
-            actualTimeInMs,
-            evaluation2DPose,
-            evaluation3DPose,
-            pageState !== 'playing' || trialId === null,
-        ) ?? null;
-    }
-    catch (e) {
-        lastEvaluationResult = null;
-        console.warn('Error evaluating frame', e);
-    }
-}
-
-let drawReferenceDanceSkeleton = false;
-let toggleSkeletonInvervel: null | number = null;
-//  window.setInterval(() => {
-//     drawReferenceDanceSkeleton = !drawReferenceDanceSkeleton;
-// }, 1000);
-
-onMount(() => {
-    if (!virtualMirrorElement) {
-        console.warn('Virtual mirror element not ready during onMount() call');
-    }
-
-    // Prepare pose estimation, so that it'll be ready 
-    // when we need it, as opposed to creating the model
-    // after the video starts playing.
-    clickAudioElement = new Audio(metronomeClickSoundSrc);
-    videoCurrentTime = practiceStep?.startTime ?? 0;
-    poseEstimationReady = Promise.resolve(); //virtualMirrorElement?.setupPoseEstimation() ?? Promise.reject("Virtual mirror is undefined or setupPoseEstimation returned a null promise");
-    reset().catch(e => {
-        console.warn("Error resetting practice step (from onMount)", e);
-    });
-    isMounted = true;
-
-    // Subscribe to poseEstimationService event
-    const handlePoseEstimationResult = (detail: PoseEstimationResultDetail) => {
-        poseEstimationFrameReceived(detail);
-    }
-    poseEstimationService.addEventListener('poseEstimationResult', handlePoseEstimationResult);
-
-    return () => {
-        if (unpauseVideoTimeout) {
-            clearTimeout(unpauseVideoTimeout);
-        }
-        if (toggleSkeletonInvervel) {
-            clearInterval(toggleSkeletonInvervel);
-        }
-        if (webcamRecorder) {
-            webcamRecorder.stop();
-            webcamRecorder = null;
-        }
-        poseEstimationService.removeEventListener('poseEstimationResult', handlePoseEstimationResult);
-        isMounted = false;
-    }
-})
-
-function onContinueClicked() {
-    reset(false).catch(e => {
-        console.warn("Error resetting practice step (from onContinueClicked)", e);
-    });
-    dispatch('nextClicked');
-}
-
-async function practiceAttemptCompleted() {
-    console.log("Practice activity is over");
-    pageState= "feedback";
-    
-    terminalFeedback = null;
-    performanceSummary = null;
-    let recordedTrack = null as null | FrontendEvaluationTrack;
-    
-    let subsequences = Object.fromEntries(
-        containingSegmentationTreeLeafNodes.map((node) => 
-            [node.id, { startTime: node.start_time, endTime: node.end_time }]
-        )
-    );
-
-    let trialDurationMs = -1;
-    if (trialIdStartDate) {
-        trialDurationMs = (new Date()).getTime() - trialIdStartDate.getTime();
-    }
-
-    if (trialId) {
-        const summary = evaluator?.generatePerformanceSummary(
-            trialId, 
-            subsequences,
-            "terminalfeedback-plots"
-        ) ?? null;
-        performanceSummary = summary;
-
-        console.log("saving performance summary", $state.snapshot(performanceSummary));
-        recordedTrack = performanceSummary?.adjustedTrack ?? null;
-    } else {
-        console.warn("PracticePage:: No trialId, cannot generate performance summary");
-    }
-    trialId = null;
-    trialIdStartDate = null;
-    
-    cachedVideoRecording = await completeVideoRecording() ?? undefined;
-
-    if (onPracticeAttemptCompleted) {
-        terminalFeedback = await onPracticeAttemptCompleted({
-            motionVideoId: motionVideo.id,
-            learningModelId: userLearningModel?.id,
-            attemptDurationsSecs: trialDurationMs !== -1 ? trialDurationMs / 1000 : undefined,
-            videoRecording: cachedVideoRecording,
-            performanceSummary: performanceSummary ?? undefined,
-            attemptSettings: {
-                effectivePlaybackSpeed: effectivePlaybackSpeed,
-                referenceVideoVisible: interfaceSettings.referenceVideo.visibility === 'visible',
-                userVideoVisible: interfaceSettings.userVideo.visibility === 'visible',
-            }
-        });
-        feedbackDialogOpen = true;
-    } else {
-        console.debug("PracticePage:: No onPracticeAttemptCompleted callback provided, skipping it");
-    }
-}
-
-// this is the effect that keeeps doing to infinite depth
-// Auto-pause the video when the practice activity is over
-$effect(() => {
-    if (pageState=== "feedback" || pageState=== "paused"){
-        return;
-    }
-
-    const isAtOrPastEndOfPracticeStep = practiceStep?.endTime !== undefined && videoCurrentTime >= practiceStep.endTime;
-    const isAtOrPastEndOfVideo = videoDuration > 0 && videoCurrentTime >= videoDuration;
-    const isAtOrPastPausePoint = $pauseInPracticePage && videoCurrentTime >= currentPlaybackEndtime;
-    const shouldStop = isAtOrPastEndOfVideo || isAtOrPastEndOfPracticeStep || isAtOrPastPausePoint;
-
-    if (!shouldStop) {
-        return;
-    }
-
-    isVideoPausedBinding = true;
-    const stopReason = isAtOrPastEndOfPracticeStep ? "end of practice step" : 
-        isAtOrPastEndOfVideo ? "end of video" : 
-        "pause point";
-    console.log('Pausing video at', videoCurrentTime, 'because reached', stopReason);
-
-    if (isAtOrPastEndOfPracticeStep || isAtOrPastEndOfVideo) {
-        practiceAttemptCompleted().catch(e => {
-            console.warn("Error completing practice activity", e);
-        });
-        return;
-    } else if (isAtOrPastPausePoint) {
-        console.log("Reached a pause point in the middle of the practice activity");
-        pageState= "paused"
-        if (unpauseVideoTimeout === null) {
-            unpauseVideoTimeout = window.setTimeout(unPauseVideo, 1000 * $debugPauseDurationSecs);
-        }  
-        return;
-    } else {
-        console.error("PracticePage:: error in pause detection, reached an unexpected stopping point");
-    }
-});
-
-$inspect(pageState).with((state) => {
-    console.log("PracticePage state", state);
-    dispatch('stateChanged', state as PracticePageState);
-});
-
-$inspect(videoDuration);
-$inspect(performanceSummary);
-
-$effect(() => {
-    // reset the customized playback speed if it's not valid for the current practice step
-    if (customizedPlaybackSpeed && 
-        (!practiceStep?.speedAdjustment?.enabled ||
-        practiceStep.speedAdjustment?.speedOptions.indexOf(customizedPlaybackSpeed) === -1
-        )) 
-    {
-        customizedPlaybackSpeed = undefined;
-    } 
-});
-
-$effect(() => {
-    console.log('trialId changed, now is: ', trialId);
-});
-
-$effect(() => {
-    motionVideoSrc = getMotionVideoSrc(supabase, motionVideo.video_src) ?? "";
-});
-
+	import {
+		danceVideoVolume,
+		debugMode__addPlaceholderAchievement,
+		practiceActivities__enablePerformanceRecording
+	} from './../model/settings';
+	import { v4 as generateUUIDv4 } from 'uuid';
+	import { evaluation_summarizeSubsections } from '$lib/model/settings';
+	// import { replaceJSONForStringifyDisplay } from '$lib/utils/formatting';
+	import { getAllLeafNodes, getAllNodesInSubtree } from '$lib/data/dances-store';
+	import { pauseInPracticePage, debugPauseDurationSecs, debugMode } from '$lib/model/settings';
+	import {
+		GetPixelLandmarksFromNormalizedLandmarks,
+		type Pose3DLandmarkFrame
+	} from '$lib/webcam/mediapipe-utils';
+	import type PracticeStep from '$lib/model/PracticeStep';
+	import {
+		getMotionVideoSrc,
+		load2DPoseInformation,
+		type PoseReferenceData,
+		load3DPoseInformation,
+		type MotionSegmentationNode
+	} from '$lib/data/dances-store';
+
+	import { Draw2dSkeleton } from '$lib/ai/SkeletonFeedbackVisualization';
+	import VirtualMirror from '$lib/elements/VirtualMirror.svelte';
+	import poseEstimationService, {
+		type PoseEstimationResultDetail
+	} from '$lib/services/PoseEstimationService';
+	import metronomeClickSoundSrc from '$lib/media/audio/metronome.mp3';
+	import { onMount, createEventDispatcher, tick, getContext } from 'svelte';
+	import { webcamStream } from '$lib/webcam/streams';
+	import { MirrorXPose, type Pose2DPixelLandmarks } from '$lib/webcam/mediapipe-utils';
+	import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
+	import TerminalFeedbackScreen from '$lib/elements/TerminalFeedbackScreen.svelte';
+	import {
+		getFrontendDanceEvaluator,
+		type FrontendDanceEvaluator,
+		type FrontendPerformanceSummary,
+		type FrontendLiveEvaluationResult,
+		type FrontendEvaluationTrack
+	} from '$lib/ai/FrontendDanceEvaluator';
+	import frontendPerformanceHistory from '$lib/ai/frontendPerformanceHistory';
+	import Dialog from '$lib/elements/Dialog.svelte';
+	import { waitSecs } from '$lib/utils/async';
+	import {
+		PracticeStepDefaultInterfaceSetting,
+		PracticeInterfaceModes,
+		type PracticeStepInterfaceSettings
+	} from '$lib/model/PracticeStep';
+	import type { SupabaseClient } from '@supabase/supabase-js';
+	import type { SegmentedProgressBarPropsWithoutCurrentTime } from '$lib/elements/SegmentedProgressBar.svelte';
+	import SegmentedProgressBar from '$lib/elements/SegmentedProgressBar.svelte';
+	import PerformanceReviewPage from '$lib/pages/PerformanceReviewPage.svelte';
+	import type { PracticePlan } from '$lib/model/PracticePlan';
+	import PlayableVideoWithSkeleton from '$lib/elements/PlayableVideoWithSkeleton.svelte';
+
+	import BarCharIcon from 'virtual:icons/mdi/bar-chart';
+	import type TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
+	import type { Readable } from 'svelte/store';
+	import type {
+		IDataBackend,
+		MotionVideo,
+		UserLearningModel,
+		UserPerformanceAttempt
+	} from '$lib/ai/backend/IDataBackend';
+	import type { AttemptSettings, IPracticePage, VideoRecording } from '$lib/ai/IPracticePage';
+
+	const supabase = getContext('supabase') as SupabaseClient;
+	let teachingAgent = getContext('teachingAgent') as Readable<TeachingAgent>;
+
+	interface Props {
+		backend: IDataBackend;
+		mirrorForEvaluation?: boolean;
+		motionVideo: MotionVideo;
+		practiceStep: PracticeStep | null;
+		practicePlan?: PracticePlan | undefined;
+		pageActive?: boolean;
+		flipVideo?: boolean;
+		continueBtnTitle?: string;
+		continueBtnIcon?: any;
+		progressBarProps?: SegmentedProgressBarPropsWithoutCurrentTime | undefined;
+		userLearningModel: UserLearningModel | null;
+
+		onPracticeAttemptCompleted?: (attempt: {
+			motionVideoId: number;
+			learningModelId?: string;
+			attemptSettings: AttemptSettings;
+			attemptDurationsSecs?: number;
+			videoRecording?: VideoRecording;
+			performanceSummary?: FrontendPerformanceSummary;
+		}) => Promise<null | TerminalFeedback>;
+	}
+
+	let {
+		mirrorForEvaluation = true,
+		motionVideo,
+		practiceStep = $bindable(null as PracticeStep | null),
+		practicePlan = undefined,
+		pageActive = false,
+		flipVideo = false,
+		continueBtnTitle = 'Continue',
+		continueBtnIcon = 'check' as 'nextarrow' | 'check',
+		progressBarProps = undefined,
+		backend: dataBackend,
+		userLearningModel,
+		onPracticeAttemptCompleted = undefined
+	}: Props = $props();
+
+	let mainContinueButton: HTMLButtonElement | undefined = $state();
+	let hasProgressBar = $derived(progressBarProps !== undefined);
+
+	let showingPerformanceReviewPage = $state(false);
+	let interfaceSettings: PracticeStepInterfaceSettings = $derived(
+		PracticeInterfaceModes[practiceStep?.interfaceMode ?? PracticeStepDefaultInterfaceSetting]
+	);
+	let skeletonDrawingEnabled: boolean = $derived(practiceStep?.showUserSkeleton ?? true);
+	let terminalFeedbackEnabled: boolean = $derived(practiceStep?.terminalFeedbackEnabled ?? true);
+
+	let isDoingSomeSortOfFeedback = $derived(
+		(terminalFeedbackEnabled ?? false) ||
+			(skeletonDrawingEnabled &&
+				interfaceSettings.referenceVideo.visibility === 'visible' &&
+				interfaceSettings.referenceVideo.skeleton === 'user') ||
+			(skeletonDrawingEnabled &&
+				interfaceSettings.userVideo.visibility === 'visible' &&
+				interfaceSettings.userVideo.skeleton === 'user')
+	);
+
+	const dispatch = createEventDispatcher<{
+		stateChanged: PracticePageState;
+		'continue-clicked': undefined;
+		nextClicked: undefined;
+	}>();
+
+	export function test123() {}
+
+	let fitVideoToFlexbox = true;
+
+	let hasVisibleReferenceVideo: boolean = $derived(
+		interfaceSettings.referenceVideo.visibility === 'visible'
+	);
+
+	let pageState: PracticePageState = $state(INITIAL_STATE);
+
+	let hasUserWebcamVisible: boolean = $derived(
+		interfaceSettings.userVideo.visibility === 'visible' ||
+			(isDoingSomeSortOfFeedback && pageState === 'waitWebcam')
+	);
+
+	let isPlayingOrCountdown: boolean = $derived(
+		pageState === 'playing' || pageState === 'countdown'
+	);
+	let isShowingFeedback: boolean = $derived(pageState === 'feedback');
+	let feedbackDialogOpen: boolean = $state(false);
+	let isMounted = false;
+
+	let currentActivityStepIndex: number = 0;
+
+	let countdown = $state(-1);
+	let countdownActive = $state(false);
+
+	let clickAudioElement: HTMLAudioElement;
+	let virtualMirrorElement: VirtualMirror | undefined = $state();
+	let videoWithSkeleton: PlayableVideoWithSkeleton | undefined = $state();
+	let videoCurrentTime: number = $state(0);
+	let videoPlaybackSpeed: number = $state(1);
+	let videoDuration: number = $state(0);
+	let videoVolume: number = $state(0.5);
+	let isVideoPausedBinding: boolean = $state(true);
+	let motionVideoSrc: string = $state('');
+	let poseEstimationEnabled: boolean = $derived(
+		pageActive &&
+			isDoingSomeSortOfFeedback &&
+			(countdownActive || !isVideoPausedBinding || pageState === 'paused')
+	);
+
+	let containingSegmentationTreeLeafNodes = $derived.by(() => {
+		if (practiceStep?.motionSegmentationNode && $evaluation_summarizeSubsections == 'leafnodes') {
+			return getAllLeafNodes(practiceStep.motionSegmentationNode).filter(
+				(node) => node.id !== practiceStep?.motionSegmentationNode?.id
+			);
+		} else if (
+			practiceStep?.motionSegmentationNode &&
+			$evaluation_summarizeSubsections == 'allnodes'
+		) {
+			return getAllNodesInSubtree(practiceStep.motionSegmentationNode).filter(
+				(node) => node.id !== practiceStep?.motionSegmentationNode?.id
+			);
+		}
+		return [] as MotionSegmentationNode[];
+	});
+
+	let beatDuration = $derived.by(() => {
+		const motionBpm = motionVideo?.manual_bpm ?? motionVideo?.detected_bpm ?? 60;
+		const motionSecsPerBeat = 60 / motionBpm;
+		return motionSecsPerBeat / videoPlaybackSpeed;
+	});
+
+	let poseEstimationReady: Promise<void> | null = null;
+	let referenceDancePoses2D: PoseReferenceData<Pose2DPixelLandmarks> | null = $state(null);
+	let referenceDancePoses3D: PoseReferenceData<Pose3DLandmarkFrame> | null = null;
+
+	let customizedPlaybackSpeed: number | undefined = $state(undefined);
+	let effectivePlaybackSpeed: number = $derived(
+		customizedPlaybackSpeed ?? practiceStep?.playbackSpeed ?? 1.0
+	);
+	const defaultCustomSpeedOptions = [0.25, 0.5, 0.75, 0.9, 1];
+
+	let lastEvaluationResult: FrontendLiveEvaluationResult | null = $state(null);
+	let evaluator: FrontendDanceEvaluator | null = $state(null);
+	let trialId = $state(null as string | null);
+	let trialIdStartDate = $state(null as Date | null);
+	let performanceSummary = $state(null as FrontendPerformanceSummary | null);
+	let terminalFeedback: TerminalFeedback | null = $state(null);
+
+	let cachedVideoRecording: VideoRecording | undefined = $state(undefined);
+
+	const debugPauseDuration = 10.0; // if pauseInPracticePage is enabled, we'll pause for this many seconds midway through playback
+	let currentPlaybackEndtime = $state(practiceStep?.endTime ?? 0);
+
+	let webcamRecorderMimeType = 'video/webm';
+	let webcamRecorder: MediaRecorder | null = null;
+	let webcamRecordedChunks: Blob[] = [];
+
+	// Recording lifecycle helpers (blob-based, no object URLs stored here)
+	let savedRecordingBlob: Blob | null = null;
+	let webcamRecordingCompletion: Promise<Blob | null> | null = null;
+	let resolveWebcamRecordingCompletion: ((blob: Blob | null) => void) | null = null;
+	let rejectWebcamRecordingCompletion: ((reason?: any) => void) | null = null;
+
+	let lastNAttemptsAngleSimilarity = $derived(
+		frontendPerformanceHistory.lastNAttempts(
+			practiceStep?.motionVideo?.id ?? -1,
+			'skeleton3DVectorAngleEvaluation',
+			20
+		)
+	);
+
+	let unpauseVideoTimeout: number | null = $state(null);
+	function unPauseVideo() {
+		unpauseVideoTimeout = null;
+		currentPlaybackEndtime = practiceStep?.endTime ?? videoDuration;
+		isVideoPausedBinding = false;
+		pageState = 'playing';
+	}
+
+	async function completeVideoRecording() {
+		if (!webcamRecorder) {
+			return null;
+		}
+		// Initiate stop (will trigger final dataavailable + stop events)
+		webcamRecorder.stop();
+
+		if (webcamRecordingCompletion) {
+			try {
+				await webcamRecordingCompletion; // wait until blob assembled
+			} catch (e) {
+				console.warn('completeVideoRecording: recording completion promise rejected', e);
+				return null;
+			}
+		}
+		if (!savedRecordingBlob) {
+			return null;
+		}
+		return {
+			blob: savedRecordingBlob,
+			mimeType: webcamRecorderMimeType,
+			referenceVideoUrl: motionVideoSrc,
+			recordingStartOffset: practiceStep?.startTime ?? 0,
+			recordingSpeed: effectivePlaybackSpeed
+		} as VideoRecording;
+	}
+
+	let gettingFeedback = false;
+
+	async function playClickSound(silent: boolean = false) {
+		clickAudioElement.currentTime = 0;
+		clickAudioElement.volume = silent ? 0 : 1;
+		return clickAudioElement.play();
+	}
+
+	let mediaElementsHaveBeenActivated = false;
+
+	async function startCountdown() {
+		if (!videoWithSkeleton) {
+			console.warn('startCountdown: videoWithSkeleton not ready');
+			return;
+		}
+		if (countdownActive) return;
+
+		isVideoPausedBinding = true;
+		pageState = 'countdown';
+		countdownActive = true;
+
+		// Safari / webkit disallows media elements from auto-playing without user interaction. We
+		// want to be able to control the playback of the video element programatically, which safari
+		// will only allow once the user has triggered playback through a user interaction. So, we try
+		// starting playback at the beginning of the countdown. If the
+		if (!mediaElementsHaveBeenActivated) {
+			videoCurrentTime = practiceStep?.startTime ?? 0;
+			videoVolume = 0.01;
+			videoPlaybackSpeed = 0.0625; // Minimum playback rate: https://stackoverflow.com/questions/30970920/html5-video-what-is-the-maximum-playback-rate
+			let testPlaybackSuccessful = true;
+			try {
+				await playClickSound(true);
+				await videoWithSkeleton.play();
+				mediaElementsHaveBeenActivated = true;
+			} catch (e) {
+				testPlaybackSuccessful = false;
+				console.warn(
+					'startCountdown: test playback unsuccessful. Will try again after user interaction.',
+					e
+				);
+			}
+		}
+
+		isVideoPausedBinding = true;
+		videoCurrentTime = practiceStep?.startTime ?? 0;
+		videoVolume = $danceVideoVolume;
+		videoPlaybackSpeed = effectivePlaybackSpeed;
+
+		if (!mediaElementsHaveBeenActivated) {
+			pageState = 'waitStartUserInteraction';
+			countdownActive = false;
+			return;
+		}
+
+		try {
+			clickAudioElement.volume = 1;
+			await tick();
+			await waitSecs(beatDuration);
+
+			pageState = 'countdown';
+			countdownActive = true;
+			await waitSecs(beatDuration);
+
+			countdown = 5;
+			playClickSound();
+			await waitSecs(beatDuration);
+			if (!isMounted) return;
+
+			countdown = 6;
+			playClickSound();
+			await waitSecs(beatDuration);
+			if (!isMounted) return;
+
+			countdown = 7;
+			playClickSound();
+			await waitSecs(beatDuration);
+			if (!isMounted) return;
+
+			countdown = 8;
+			playClickSound();
+			await waitSecs(beatDuration);
+			if (!isMounted) return;
+		} catch (e) {
+			console.warn('Error during countdown', e);
+			return;
+		}
+
+		trialId = generateUUIDv4();
+		trialIdStartDate = new Date();
+		pageState = 'playing';
+
+		countdown = -1;
+
+		savedRecordingBlob = null;
+		webcamRecorder?.stop(); // ensure prior recorder (if any) is stopped
+		webcamRecorder = null;
+		webcamRecordedChunks = [];
+		webcamRecordingCompletion = null;
+		resolveWebcamRecordingCompletion = null;
+		rejectWebcamRecordingCompletion = null;
+
+		if ($practiceActivities__enablePerformanceRecording && $webcamStream) {
+			if (MediaRecorder.isTypeSupported('video/webm')) {
+				webcamRecorderMimeType = 'video/webm';
+			} else if (MediaRecorder.isTypeSupported('video/mp4')) {
+				webcamRecorderMimeType = 'video/mp4';
+			} else {
+				console.warn('No supported MediaRecorder mime type found, defaulting to video/webm');
+				webcamRecorderMimeType = 'video/webm';
+			}
+			webcamRecorder = new MediaRecorder($webcamStream, { mimeType: webcamRecorderMimeType });
+			webcamRecordedChunks = [];
+			savedRecordingBlob = null;
+			webcamRecordingCompletion = new Promise((resolve, reject) => {
+				resolveWebcamRecordingCompletion = resolve;
+				rejectWebcamRecordingCompletion = reject;
+			});
+			webcamRecorder.addEventListener('dataavailable', (e) => {
+				webcamRecordedChunks.push(e.data);
+			});
+			webcamRecorder.addEventListener('stop', () => {
+				try {
+					if (webcamRecordedChunks.length === 0) {
+						savedRecordingBlob = null;
+					} else {
+						savedRecordingBlob = new Blob(webcamRecordedChunks, { type: webcamRecorderMimeType });
+					}
+					resolveWebcamRecordingCompletion?.(savedRecordingBlob);
+				} catch (err) {
+					console.warn('Error assembling recording blob', err);
+					rejectWebcamRecordingCompletion?.(err);
+				} finally {
+					resolveWebcamRecordingCompletion = null;
+					rejectWebcamRecordingCompletion = null;
+				}
+			});
+			webcamRecorder.start();
+		}
+
+		isVideoPausedBinding = false;
+		countdownActive = false;
+	}
+
+	export async function reset(start: boolean = false) {
+		console.log('Reseting practice page');
+		showingPerformanceReviewPage = false;
+
+		if (unpauseVideoTimeout !== null) {
+			clearTimeout(unpauseVideoTimeout);
+		}
+		if (!practiceStep) {
+			console.warn('Null practice activity during reset() call');
+		}
+
+		if (!virtualMirrorElement) {
+			await tick();
+		}
+		if (!virtualMirrorElement) {
+			console.warn('Virtual mirror element not ready during reset() call');
+			return;
+		}
+
+		terminalFeedback = null;
+		feedbackDialogOpen = false;
+		mainContinueButton?.focus();
+		trialId = null;
+		currentActivityStepIndex = 0;
+		pageState = 'waitWebcam';
+		lastEvaluationResult = null;
+		isVideoPausedBinding = true;
+		cachedVideoRecording = undefined;
+		videoCurrentTime = practiceStep?.startTime ?? 0;
+		const playDuration = (practiceStep?.endTime ?? videoDuration) - videoCurrentTime;
+		currentPlaybackEndtime = $pauseInPracticePage
+			? videoCurrentTime + playDuration / 2
+			: (practiceStep?.endTime ?? videoDuration);
+
+		// Start doing these 3d tasks in parallel, wait for them
+		// all to complete betore continuing.
+		const promises = [] as Promise<any>[];
+		if (virtualMirrorElement && hasUserWebcamVisible) {
+			promises.push(virtualMirrorElement.webcamStartedPromise);
+		}
+		let ref2dPosesPromise: ReturnType<typeof load2DPoseInformation> | null = null;
+		let ref3dPosesPromise: ReturnType<typeof load3DPoseInformation> | null = null;
+		if (!referenceDancePoses2D) {
+			ref2dPosesPromise = load2DPoseInformation(supabase, motionVideo);
+			promises.push(ref2dPosesPromise);
+		}
+		if (!referenceDancePoses3D) {
+			ref3dPosesPromise = load3DPoseInformation(supabase, motionVideo);
+			promises.push(ref3dPosesPromise);
+		}
+		if (ref2dPosesPromise) {
+			referenceDancePoses2D = await ref2dPosesPromise;
+		}
+		if (ref3dPosesPromise) {
+			referenceDancePoses3D = await ref3dPosesPromise;
+		}
+		await Promise.all(promises);
+
+		pageState = 'waitStart';
+
+		evaluator = getFrontendDanceEvaluator(referenceDancePoses2D!, referenceDancePoses3D!);
+
+		isVideoPausedBinding = true;
+		videoCurrentTime = practiceStep?.startTime ?? 0;
+
+		await tick();
+
+		// TODO: prime pose estimation
+		// if (poseEstimationEnabled) {
+		//     console.log("Triggering pose estimation priming");
+		//     await virtualMirrorElement.primePoseEstimation();
+		// }
+
+		await waitSecs(beatDuration);
+
+		// pageState= 'waitStartUserInteraction';
+		// showStartCountdownDialog = true;
+		if (start ?? false) {
+			startCountdown();
+		} else {
+			pageState = 'waitStartUserInteraction';
+		}
+	}
+
+	let poseEstimationCorrespondances: Map<
+		number,
+		{
+			videoTimeSecs: number;
+			actualTimeInMs: number;
+			pageState: PracticePageState;
+		}
+	> = new Map();
+	let lastPoseEstimationVideoTime: number = -1;
+	let lastPoseEstimationSentTimestamp: Date = new Date();
+	const maximumPoseEstimationFrequencyHz = 10;
+	const minimumPoseEsstimationIntervalMs = 1000 / maximumPoseEstimationFrequencyHz;
+
+	function poseEstimationFrameSent(frameId: number, timestampMs: number) {
+		// Associate the webcam frame being sent for pose estimation
+		// with the current video timestamp, so that we can later
+		// compare the user's pose with the dance pose at that time.
+		// console.log("poseEstimationFrameSent", e.detail.frameId, videoCurrentTime);
+		poseEstimationCorrespondances.set(frameId, {
+			videoTimeSecs: videoCurrentTime,
+			actualTimeInMs: Date.now(),
+			pageState: pageState
+		});
+		lastPoseEstimationVideoTime = videoCurrentTime;
+	}
+
+	/**
+	 * An override function used by the virtual mirror element to determine
+	 * whether or not to send the next frame to pose estimation. When pose estimation
+	 * is enabled (`poseEstimationEnabled`), VirtualMirror will call this function
+	 * just before sending the next frame to pose estimation. If this function returns
+	 * false, the frame will not be sent. This is useful for limiting the frequency
+	 * of pose estimation to save resources during situations when high pose estimation
+	 * frequency is unnecessary (such as during the countdown when the video is paused).
+	 */
+	function shouldSendNextPoseEstimationFrame() {
+		// When the video is paused (such as during countdown), limit the fps
+		// of pose estimation to avoid wasting resources.
+		if (
+			lastPoseEstimationVideoTime === videoCurrentTime &&
+			lastPoseEstimationSentTimestamp.getTime() > Date.now() - minimumPoseEsstimationIntervalMs
+		) {
+			return false;
+		}
+		return true;
+	}
+
+	function poseEstimationFrameReceived(detail: PoseEstimationResultDetail) {
+		// console.log("poseEstimationFrameReceived", e.detail.frameId, e.detail.result);
+
+		if (!referenceDancePoses2D) {
+			console.log('No dance pose information', detail);
+			return;
+		}
+
+		const frameId = detail.frameId;
+		if (!poseEstimationCorrespondances.has(frameId)) {
+			console.log(
+				`No matching correspondance for ${frameId}`,
+				detail,
+				'current correspondances: ',
+				poseEstimationCorrespondances
+			);
+			return;
+		}
+		const { videoTimeSecs, actualTimeInMs, pageState } =
+			poseEstimationCorrespondances.get(frameId)!;
+
+		poseEstimationCorrespondances.delete(frameId);
+
+		const srcWidth = detail.srcWidth;
+		const srcHeight = detail.srcHeight;
+		const userNormalizedPose = (detail.estimated2DPose ?? null) as NormalizedLandmark[] | null;
+		const user3DPose = (detail.estimated3DPose ?? null) as Pose3DLandmarkFrame | null;
+		if (!userNormalizedPose || !user3DPose) {
+			return;
+		}
+
+		// Flip normalized pose, since the user will be mirroring the dance
+		let evaluation2DPose = GetPixelLandmarksFromNormalizedLandmarks(
+			userNormalizedPose,
+			srcWidth,
+			srcHeight
+		);
+		let evaluation3DPose = user3DPose;
+		MirrorXPose;
+		if (mirrorForEvaluation) {
+			const userDanceFlippedNormalizedPose = MirrorXPose(userNormalizedPose);
+			const userDanceFlippedPixelPose = GetPixelLandmarksFromNormalizedLandmarks(
+				userDanceFlippedNormalizedPose,
+				srcWidth,
+				srcHeight
+			);
+			evaluation2DPose = userDanceFlippedPixelPose;
+			evaluation3DPose = MirrorXPose(user3DPose);
+		}
+		if (!evaluation2DPose) {
+			return;
+		}
+
+		try {
+			lastEvaluationResult =
+				evaluator?.evaluateFrame(
+					trialId,
+					motionVideo.id,
+					practiceStep?.segmentDescription ?? 'undefined',
+					videoTimeSecs,
+					actualTimeInMs,
+					evaluation2DPose,
+					evaluation3DPose,
+					pageState !== 'playing' || trialId === null
+				) ?? null;
+		} catch (e) {
+			lastEvaluationResult = null;
+			console.warn('Error evaluating frame', e);
+		}
+	}
+
+	let drawReferenceDanceSkeleton = false;
+	let toggleSkeletonInvervel: null | number = null;
+	//  window.setInterval(() => {
+	//     drawReferenceDanceSkeleton = !drawReferenceDanceSkeleton;
+	// }, 1000);
+
+	onMount(() => {
+		if (!virtualMirrorElement) {
+			console.warn('Virtual mirror element not ready during onMount() call');
+		}
+
+		// Prepare pose estimation, so that it'll be ready
+		// when we need it, as opposed to creating the model
+		// after the video starts playing.
+		clickAudioElement = new Audio(metronomeClickSoundSrc);
+		videoCurrentTime = practiceStep?.startTime ?? 0;
+		poseEstimationReady = Promise.resolve(); //virtualMirrorElement?.setupPoseEstimation() ?? Promise.reject("Virtual mirror is undefined or setupPoseEstimation returned a null promise");
+		reset().catch((e) => {
+			console.warn('Error resetting practice step (from onMount)', e);
+		});
+		isMounted = true;
+
+		// Subscribe to poseEstimationService event
+		const handlePoseEstimationResult = (detail: PoseEstimationResultDetail) => {
+			poseEstimationFrameReceived(detail);
+		};
+		poseEstimationService.addEventListener('poseEstimationResult', handlePoseEstimationResult);
+
+		return () => {
+			if (unpauseVideoTimeout) {
+				clearTimeout(unpauseVideoTimeout);
+			}
+			if (toggleSkeletonInvervel) {
+				clearInterval(toggleSkeletonInvervel);
+			}
+			if (webcamRecorder) {
+				webcamRecorder.stop();
+				webcamRecorder = null;
+			}
+			poseEstimationService.removeEventListener('poseEstimationResult', handlePoseEstimationResult);
+			isMounted = false;
+		};
+	});
+
+	function onContinueClicked() {
+		reset(false).catch((e) => {
+			console.warn('Error resetting practice step (from onContinueClicked)', e);
+		});
+		dispatch('nextClicked');
+	}
+
+	async function practiceAttemptCompleted() {
+		console.log('Practice activity is over');
+		pageState = 'feedback';
+
+		terminalFeedback = null;
+		performanceSummary = null;
+		let recordedTrack = null as null | FrontendEvaluationTrack;
+
+		let subsequences = Object.fromEntries(
+			containingSegmentationTreeLeafNodes.map((node) => [
+				node.id,
+				{ startTime: node.start_time, endTime: node.end_time }
+			])
+		);
+
+		let trialDurationMs = -1;
+		if (trialIdStartDate) {
+			trialDurationMs = new Date().getTime() - trialIdStartDate.getTime();
+		}
+
+		if (trialId) {
+			const summary =
+				evaluator?.generatePerformanceSummary(trialId, subsequences, 'terminalfeedback-plots') ??
+				null;
+			performanceSummary = summary;
+
+			console.log('saving performance summary', $state.snapshot(performanceSummary));
+			recordedTrack = performanceSummary?.adjustedTrack ?? null;
+		} else {
+			console.warn('PracticePage:: No trialId, cannot generate performance summary');
+		}
+		trialId = null;
+		trialIdStartDate = null;
+
+		cachedVideoRecording = (await completeVideoRecording()) ?? undefined;
+
+		if (onPracticeAttemptCompleted) {
+			terminalFeedback = await onPracticeAttemptCompleted({
+				motionVideoId: motionVideo.id,
+				learningModelId: userLearningModel?.id,
+				attemptDurationsSecs: trialDurationMs !== -1 ? trialDurationMs / 1000 : undefined,
+				videoRecording: cachedVideoRecording,
+				performanceSummary: performanceSummary ?? undefined,
+				attemptSettings: {
+					effectivePlaybackSpeed: effectivePlaybackSpeed,
+					referenceVideoVisible: interfaceSettings.referenceVideo.visibility === 'visible',
+					userVideoVisible: interfaceSettings.userVideo.visibility === 'visible'
+				}
+			});
+			feedbackDialogOpen = true;
+		} else {
+			console.debug('PracticePage:: No onPracticeAttemptCompleted callback provided, skipping it');
+		}
+	}
+
+	// this is the effect that keeeps doing to infinite depth
+	// Auto-pause the video when the practice activity is over
+	$effect(() => {
+		if (pageState === 'feedback' || pageState === 'paused') {
+			return;
+		}
+
+		const isAtOrPastEndOfPracticeStep =
+			practiceStep?.endTime !== undefined && videoCurrentTime >= practiceStep.endTime;
+		const isAtOrPastEndOfVideo = videoDuration > 0 && videoCurrentTime >= videoDuration;
+		const isAtOrPastPausePoint = $pauseInPracticePage && videoCurrentTime >= currentPlaybackEndtime;
+		const shouldStop = isAtOrPastEndOfVideo || isAtOrPastEndOfPracticeStep || isAtOrPastPausePoint;
+
+		if (!shouldStop) {
+			return;
+		}
+
+		isVideoPausedBinding = true;
+		const stopReason = isAtOrPastEndOfPracticeStep
+			? 'end of practice step'
+			: isAtOrPastEndOfVideo
+				? 'end of video'
+				: 'pause point';
+		console.log('Pausing video at', videoCurrentTime, 'because reached', stopReason);
+
+		if (isAtOrPastEndOfPracticeStep || isAtOrPastEndOfVideo) {
+			practiceAttemptCompleted().catch((e) => {
+				console.warn('Error completing practice activity', e);
+			});
+			return;
+		} else if (isAtOrPastPausePoint) {
+			console.log('Reached a pause point in the middle of the practice activity');
+			pageState = 'paused';
+			if (unpauseVideoTimeout === null) {
+				unpauseVideoTimeout = window.setTimeout(unPauseVideo, 1000 * $debugPauseDurationSecs);
+			}
+			return;
+		} else {
+			console.error(
+				'PracticePage:: error in pause detection, reached an unexpected stopping point'
+			);
+		}
+	});
+
+	$inspect(pageState).with((state) => {
+		console.log('PracticePage state', state);
+		dispatch('stateChanged', state as PracticePageState);
+	});
+
+	$inspect(videoDuration);
+	$inspect(performanceSummary);
+
+	$effect(() => {
+		// reset the customized playback speed if it's not valid for the current practice step
+		if (
+			customizedPlaybackSpeed &&
+			(!practiceStep?.speedAdjustment?.enabled ||
+				practiceStep.speedAdjustment?.speedOptions.indexOf(customizedPlaybackSpeed) === -1)
+		) {
+			customizedPlaybackSpeed = undefined;
+		}
+	});
+
+	$effect(() => {
+		console.log('trialId changed, now is: ', trialId);
+	});
+
+	$effect(() => {
+		motionVideoSrc = getMotionVideoSrc(supabase, motionVideo.video_src) ?? '';
+	});
 </script>
 
-<section class="practicePage" 
-    class:hasDanceTree={practiceStep?.motionSegmentation}
-    class:hasProgressBar={hasProgressBar}
-    class:hasFeedback={isShowingFeedback}
-    class:isPracticing={!isShowingFeedback}
-    class:hasOnlyDemoVideo={hasVisibleReferenceVideo && !hasUserWebcamVisible}
-    class:hasOnlyUserMirror={hasUserWebcamVisible && !hasVisibleReferenceVideo}
-    >
+<section
+	class="practicePage"
+	class:hasDanceTree={practiceStep?.motionSegmentation}
+	class:hasProgressBar
+	class:hasFeedback={isShowingFeedback}
+	class:isPracticing={!isShowingFeedback}
+	class:hasOnlyDemoVideo={hasVisibleReferenceVideo && !hasUserWebcamVisible}
+	class:hasOnlyUserMirror={hasUserWebcamVisible && !hasVisibleReferenceVideo}
+>
+	<div class="demovid gridItem" style:display={!hasVisibleReferenceVideo ? 'none' : 'flex'}>
+		<PlayableVideoWithSkeleton
+			bind:this={videoWithSkeleton}
+			bind:currentTime={videoCurrentTime}
+			bind:playbackRate={videoPlaybackSpeed}
+			bind:paused={isVideoPausedBinding}
+			bind:duration={videoDuration}
+			flipHorizontal={flipVideo}
+			fitToFlexbox={fitVideoToFlexbox}
+			poseData={referenceDancePoses2D}
+			drawSkeleton={drawReferenceDanceSkeleton}
+			volume={videoVolume}
+			src={motionVideoSrc}
+		>
+			{#snippet children()}
+				<source src={motionVideoSrc} type="video/mp4" />
+			{/snippet}
+		</PlayableVideoWithSkeleton>
+	</div>
+	<div class="mirror gridItem flex" class:hidden={!hasUserWebcamVisible}>
+		<div class="absolute inset-0">
+			<VirtualMirror
+				bind:this={virtualMirrorElement}
+				{poseEstimationEnabled}
+				drawSkeleton={false}
+				poseEstimationCheckFunction={shouldSendNextPoseEstimationFrame}
+				customDrawFn={(ctx, pose) => {
+					if (!skeletonDrawingEnabled) return;
 
-    <div class="demovid gridItem" style:display={!hasVisibleReferenceVideo ? 'none' : 'flex'}>
-        <PlayableVideoWithSkeleton
-            bind:this={videoWithSkeleton}
-            bind:currentTime={videoCurrentTime}
-            bind:playbackRate={videoPlaybackSpeed}
-            bind:paused={isVideoPausedBinding}
-            bind:duration={videoDuration}
-            flipHorizontal={flipVideo}
-            fitToFlexbox={fitVideoToFlexbox}
-            poseData={referenceDancePoses2D}
-            drawSkeleton={drawReferenceDanceSkeleton}
-            volume={videoVolume}
-            src={motionVideoSrc}
-        >
-            {#snippet children()}
-                <source src={motionVideoSrc} type="video/mp4" />    
-            {/snippet}
-        </PlayableVideoWithSkeleton>
-    </div>
-    <div 
-        class="mirror gridItem flex"
-        class:hidden={!hasUserWebcamVisible}
-        >
-        <div class="absolute inset-0">
-            <VirtualMirror
-                bind:this={virtualMirrorElement}
-                {poseEstimationEnabled}
-                drawSkeleton={false}
-                poseEstimationCheckFunction={shouldSendNextPoseEstimationFrame}
-                customDrawFn={(ctx, pose) => {
-                    if (!skeletonDrawingEnabled) return;
-                    
-                    const evalResToPass = skeletonDrawingEnabled ? lastEvaluationResult : null;
-                    Draw2dSkeleton(ctx, pose, evalResToPass, mirrorForEvaluation);
-                }}
-                onPoseEstimationFrameSent={poseEstimationFrameSent}
-            />
-    </div>
-    </div>
-    {#if hasProgressBar && progressBarProps !== undefined}
+					const evalResToPass = skeletonDrawingEnabled ? lastEvaluationResult : null;
+					Draw2dSkeleton(ctx, pose, evalResToPass, mirrorForEvaluation);
+				}}
+				onPoseEstimationFrameSent={poseEstimationFrameSent}
+			/>
+		</div>
+	</div>
+	{#if hasProgressBar && progressBarProps !== undefined}
+		<div class="progressBar flex flex-col items-center space-y-4">
+			<SegmentedProgressBar {...progressBarProps} currentTime={videoCurrentTime} />
+			<div class="flex w-full justify-between gap-4">
+				<div class="left flex items-center space-x-4">
+					<DropdownButton position="top">
+						{#snippet buttonTitle()}
+							<span class="iconify-[icon-park-solid--speed] text-xl"></span>
+							{effectivePlaybackSpeed.toFixed(2)}x
+						{/snippet}
+						<div class="daisy-card daisy-card-compact mb-1 bg-neutral text-neutral-content">
+							<div class="daisy-card-body grid grid-cols-2-maxcontent items-center">
+								<label for="speedSelect">Speed</label>
+								<select
+									id="speedSelect"
+									disabled={!practiceStep?.speedAdjustment?.enabled}
+									class="daisy-select daisy-select-bordered daisy-select-sm max-w-xs"
+									bind:value={customizedPlaybackSpeed}
+								>
+									<option selected value={undefined}
+										>Default {`(${(practiceStep?.playbackSpeed ?? 1).toFixed(2)}x)`}</option
+									>
+									{#each practiceStep?.speedAdjustment?.speedOptions ?? [] as speed}
+										<option value={speed}>{speed.toFixed(2)}x</option>
+									{/each}
+								</select>
+							</div>
+						</div>
+					</DropdownButton>
+				</div>
+				<div class="center space-x-4">
+					<button
+						class="daisy-btn"
+						class:daisy-btn-primary={pageState === 'waitStartUserInteraction'}
+						disabled={countdownActive || pageState === 'waitWebcam'}
+						bind:this={mainContinueButton}
+						onclick={() => reset(true)}
+					>
+						{#if pageState === 'waitStartUserInteraction'}
+							Start Countdown
+						{:else if pageState === 'feedback'}
+							Do Again
+						{:else if pageState === 'playing'}
+							Restart
+						{:else if pageState === 'waitWebcam'}
+							Waiting for webcam
+						{:else}
+							<span class="daisy-loading daisy-loading-spinner"></span>
+						{/if}
+					</button>
+				</div>
+				<div class="right space-x-4">
+					{#if cachedVideoRecording !== undefined && pageState === 'feedback' && $practiceActivities__enablePerformanceRecording}
+						<button
+							class="daisy-btn"
+							onclick={() => {
+								showingPerformanceReviewPage = !showingPerformanceReviewPage;
+							}}
+						>
+							<BarCharIcon class="text-xl" />
+							Review
+						</button>
+					{/if}
+					<div
+						class="daisy-dropdown daisy-dropdown-end daisy-dropdown-top"
+						class:daisy-dropdown-open={feedbackDialogOpen}
+						class:hidden={pageState !== 'feedback'}
+					>
+						<button
+							class="daisy-btn daisy-btn-neutral"
+							tabindex="0"
+							onclick={() => {
+								feedbackDialogOpen = !feedbackDialogOpen;
+								// unfocus the dialog
+								if (!feedbackDialogOpen) {
+									mainContinueButton?.focus();
+								}
+							}}
+							>Feedback
+							{#if feedbackDialogOpen}
+								<span class="iconify-[lucide--chevron-up]"></span>
+							{:else}
+								<span class="iconify-[lucide--chevron-down]"></span>
+							{/if}
+						</button>
+						<div
+							class="daisy-card daisy-dropdown-content daisy-card-compact m-1 h-auto w-[55ch] max-w-[90vw] bg-neutral p-2 text-neutral-content shadow"
+						>
+							<div
+								class="daisy-card-body space-y-4 overflow-y-scroll"
+								style="max-height: calc(100vh - 10rem);"
+							>
+								<TerminalFeedbackScreen
+									feedback={terminalFeedback}
+									performanceSummary={performanceSummary ?? undefined}
+								/>
 
-    <div class="progressBar flex items-center flex-col space-y-4">
-        <SegmentedProgressBar {...progressBarProps} 
-            currentTime={videoCurrentTime} />
-        <div class="flex gap-4 w-full justify-between" >
-            <div class="left space-x-4 flex items-center">
-                <DropdownButton position="top">
-                    {#snippet buttonTitle()}
-                            <span class="iconify-[icon-park-solid--speed] text-xl"></span>
-                            {effectivePlaybackSpeed.toFixed(2)}x
-                    {/snippet}
-                    <div class="daisy-card daisy-card-compact bg-neutral text-neutral-content mb-1">
-                        <div class="daisy-card-body grid grid-cols-2-maxcontent items-center">
+								<div id="terminalfeedback-plots"></div>
 
-                            <label for="speedSelect">Speed</label>
-                            <select id="speedSelect" disabled={!practiceStep?.speedAdjustment?.enabled} 
-                                    class="daisy-select daisy-select-sm daisy-select-bordered max-w-xs" 
-                                    bind:value={customizedPlaybackSpeed}>
-                                <option selected value={undefined}>Default {`(${(practiceStep?.playbackSpeed ?? 1).toFixed(2)}x)`}</option>
-                                {#each practiceStep?.speedAdjustment?.speedOptions ?? [] as speed}
-                                    <option value={speed}>{speed.toFixed(2)}x</option>
-                                {/each}
-                            </select>
-                        </div>
-                    </div>
-                </DropdownButton>
-            
-            </div>
-            <div class="center space-x-4">
-                <button 
-                    
-                    class="daisy-btn" 
-                    class:daisy-btn-primary={pageState=== 'waitStartUserInteraction'}
-                    disabled={countdownActive || pageState=== "waitWebcam"} 
-                    bind:this={mainContinueButton}
-                    onclick={() => reset(true)}
-                >
-                    {#if pageState=== 'waitStartUserInteraction'}
-                        Start Countdown
-                    {:else if pageState=== 'feedback'}
-                        Do Again
-                    {:else if pageState=== "playing"}
-                        Restart
-                    {:else if pageState=== "waitWebcam"}
-                        Waiting for webcam
-                    {:else}
-                        <span class="daisy-loading daisy-loading-spinner"></span>
-                    {/if}
-                </button>
-            </div>
-            <div class="right space-x-4">
-                {#if cachedVideoRecording !== undefined && pageState === "feedback" && $practiceActivities__enablePerformanceRecording}
-                <button 
-                    class="daisy-btn" 
-                    onclick={() => {showingPerformanceReviewPage = !showingPerformanceReviewPage}}>
-                    <BarCharIcon class="text-xl" />
-                    Review
-                </button>
-                {/if}
-                <div class="daisy-dropdown  daisy-dropdown-top daisy-dropdown-end"
-                    class:daisy-dropdown-open={feedbackDialogOpen}
-                    class:hidden={pageState!== "feedback"}>
-                    <button class="daisy-btn daisy-btn-neutral" tabindex="0" onclick={() => {
-                        feedbackDialogOpen = !feedbackDialogOpen;
-                        // unfocus the dialog
-                        if (!feedbackDialogOpen) {
-                            mainContinueButton?.focus();
-                        }
-                        
-                    }}>Feedback
-                        {#if feedbackDialogOpen}
-                            <span class="iconify-[lucide--chevron-up]"></span>
-                        {:else}
-                            <span class="iconify-[lucide--chevron-down]"></span>
-                        {/if}
-                    
-                    </button>
-                    <div class="daisy-dropdown-content daisy-card daisy-card-compact w-[55ch] max-w-[90vw] h-auto p-2 m-1 shadow bg-neutral text-neutral-content">
-                        <div class="daisy-card-body space-y-4 overflow-y-scroll"
-                            style="max-height: calc(100vh - 10rem);">
-                            <TerminalFeedbackScreen 
-                                feedback={terminalFeedback}
-                                performanceSummary={performanceSummary ?? undefined}
-                            />
+								<div class="text-center">
+									<div class="daisy-join">
+										<button
+											class="daisy-btn daisy-join-item"
+											onclick={() => reset(true)}
+											class:daisy-btn-accent={terminalFeedback?.suggestedAction === 'repeat'}
+										>
+											Do Again
+										</button>
+										<button
+											class="daisy-btn daisy-join-item"
+											class:daisy-btn-success={terminalFeedback?.suggestedAction === 'next'}
+											onclick={() => onContinueClicked()}
+										>
+											{continueBtnTitle}
 
-                            <div id="terminalfeedback-plots">
-                            </div>
+											{#if continueBtnIcon === 'nextarrow'}
+												<span class="iconify-[lucide--arrow-big-right]"></span>
+											{:else if continueBtnIcon === 'check'}
+												<span class="iconify-[lucide--check-circle]"></span>
+											{/if}
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 
-                            <div class="text-center">
-                                <div class="daisy-join">
-                                    <button class="daisy-btn daisy-join-item" 
-                                        onclick={() => reset(true)}
-                                        class:daisy-btn-accent={terminalFeedback?.suggestedAction === "repeat"}>
-                                        Do Again
-                                    </button>
-                                    <button 
-                                        class="daisy-btn daisy-join-item" 
-                                        class:daisy-btn-success={terminalFeedback?.suggestedAction === "next"}
-                                        onclick={() => onContinueClicked()}
-                                    >
-                                        {continueBtnTitle}
+	<Dialog
+		open={showingPerformanceReviewPage && cachedVideoRecording !== undefined}
+		on:dialog-closed={() => (showingPerformanceReviewPage = false)}
+	>
+		{#snippet title()}
+			<span>Performance Review</span>
+		{/snippet}
+		<div class="reviewPageWrapper">
+			{#if cachedVideoRecording !== undefined}
+				<PerformanceReviewPage
+					recordingBlob={cachedVideoRecording.blob}
+					recordingMimeType={cachedVideoRecording.mimeType}
+					referenceVideoUrl={cachedVideoRecording.referenceVideoUrl}
+					recordingStartOffset={cachedVideoRecording.recordingStartOffset}
+					recordingSpeed={cachedVideoRecording.recordingSpeed}
+				/>
+			{/if}
+		</div>
+	</Dialog>
 
-                                        {#if continueBtnIcon === "nextarrow"}
-                                            <span class="iconify-[lucide--arrow-big-right]"></span>
-                                        {:else if continueBtnIcon === "check"}
-                                            <span class="iconify-[lucide--check-circle]"></span>
-                                        {/if}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>     
-            </div>
-        </div>
-    </div>
-    {/if}
-
-    <Dialog 
-        open={showingPerformanceReviewPage && cachedVideoRecording !== undefined} 
-        on:dialog-closed={() => showingPerformanceReviewPage = false }>
-        {#snippet title()}
-            <span>Performance Review</span>
-        {/snippet}
-        <div class="reviewPageWrapper">
-            {#if cachedVideoRecording !== undefined}
-            <PerformanceReviewPage 
-                recordingBlob={cachedVideoRecording.blob}
-                recordingMimeType={cachedVideoRecording.mimeType}
-                referenceVideoUrl={cachedVideoRecording.referenceVideoUrl}
-                recordingStartOffset={cachedVideoRecording.recordingStartOffset}
-                recordingSpeed={cachedVideoRecording.recordingSpeed}
-            />
-            {/if}
-        </div>
-    </Dialog>
-
-    {#if countdown >= 0}
-    <div class="absolute inset-0 flex justify-center items-center">
-        <div class="bg-accent rounded-full p-4 size-24 text-accent-content grid items-center justify-center shadow-xl">
-            <span class="text-6xl">
-                {countdown}
-            </span>
-        </div>
-    </div>
-    {/if}
+	{#if countdown >= 0}
+		<div class="absolute inset-0 flex items-center justify-center">
+			<div
+				class="grid size-24 items-center justify-center rounded-full bg-accent p-4 text-accent-content shadow-xl"
+			>
+				<span class="text-6xl">
+					{countdown}
+				</span>
+			</div>
+		</div>
+	{/if}
 </section>
 
 <style lang="scss">
+	.demovid {
+		grid-area: demovid;
+		max-height: calc(100% - 94px - 1rem);
+	}
+	.mirror {
+		grid-area: mirror;
+	}
+	// .feedback { grid-area: feedback; overflow: hidden;}
 
-.demovid { 
-    grid-area: demovid; 
-    max-height: calc(100% - 94px - 1rem);
-}
-.mirror {  grid-area: mirror;  }
-// .feedback { grid-area: feedback; overflow: hidden;}
+	.practicePage {
+		overflow: hidden;
+		display: grid;
+		grid-template: 'demovid mirror' 1fr / 1fr 1fr;
+		align-items: center;
+		justify-content: stretch;
+		box-sizing: border-box;
+		height: 100%;
+		width: 100%;
+		gap: 1rem;
 
-.practicePage {
-    overflow: hidden;
-    display: grid;
-    grid-template: "demovid mirror" 1fr / 1fr 1fr;
-    align-items: center;
-    justify-content: stretch;
-    box-sizing: border-box;
-    height: 100%;
-    width: 100%;
-    gap: 1rem;
+		&.hasOnlyDemoVideo {
+			grid-template: 'demovid' 1fr / 1fr;
+		}
+		&.hasOnlyUserMirror {
+			grid-template: 'mirror' 1fr / 1fr;
+		}
 
-    &.hasOnlyDemoVideo {
-        grid-template: "demovid" 1fr / 1fr;
-    }
-    &.hasOnlyUserMirror {
-        grid-template: "mirror" 1fr / 1fr;
-    }
+		&.hasProgressBar {
+			grid-template:
+				'demovid mirror' 1fr
+				'progress progress' auto / 1fr 1fr;
 
-    &.hasProgressBar {
-        grid-template: "demovid mirror" 1fr 
-            "progress progress" auto / 1fr 1fr;
+			&.hasOnlyDemoVideo {
+				grid-template:
+					'demovid' 1fr
+					'progress' auto / 1fr;
+			}
+			&.hasOnlyUserMirror {
+				grid-template:
+					'mirror' 1fr
+					'progress' auto / 1fr;
+			}
+		}
 
-        &.hasOnlyDemoVideo {
-            grid-template: "demovid" 1fr 
-                "progress" auto / 1fr;
-        }
-        &.hasOnlyUserMirror {
-            grid-template: "mirror" 1fr 
-                "progress" auto / 1fr;
-        }
-    }
+		& > .gridItem {
+			place-self: center;
+			position: relative;
+			flex-grow: 1;
+			flex-shrink: 1;
+			flex-basis: 1rem;
+			width: 100%;
+			height: 100%;
+			border-radius: 0.5em;
+			display: flex;
+			align-items: stretch;
+			justify-content: stretch;
+			flex-direction: column;
+		}
 
-    & > .gridItem {
-        place-self: center;
-        position: relative;
-        flex-grow: 1;
-        flex-shrink: 1;
-        flex-basis: 1rem;
-        width: 100%;
-        height: 100%;
-        border-radius: 0.5em;
-        display: flex;
-        align-items: stretch;
-        justify-content: stretch;
-        flex-direction: column;
-    }
+		.progressBar {
+			grid-area: progress;
+		}
+	}
 
-    .progressBar {
-        grid-area: progress; 
-    }
-}
+	// .countdown {
+	//     position: absolute;
+	//     top: 0;
+	//     left: 0;
+	//     right: 0;
+	//     bottom: 0;
+	//     display: flex;
+	//     align-items: center;
+	//     justify-content: center;
+	//     pointer-events: none;
+	// }
 
-// .countdown {
-//     position: absolute;
-//     top: 0;
-//     left: 0;
-//     right: 0;
-//     bottom: 0;
-//     display: flex;
-//     align-items: center;
-//     justify-content: center;
-//     pointer-events: none;
-// }
+	// .count {
+	//     width: 4rem;
+	//     height: 4rem;
+	//     text-align: center;
+	//     font-size: 4rem;
+	//     font-weight: bold;
+	//     color: white;
+	//     background-color: rgba(0, 0, 0, 0.2);
+	//     //  add background blur
+	//     backdrop-filter: blur(5px);
+	//     -webkit-backdrop-filter: blur(5px);
 
-// .count {
-//     width: 4rem;
-//     height: 4rem;
-//     text-align: center;
-//     font-size: 4rem;
-//     font-weight: bold;
-//     color: white;
-//     background-color: rgba(0, 0, 0, 0.2);
-//     //  add background blur
-//     backdrop-filter: blur(5px);
-//     -webkit-backdrop-filter: blur(5px);
+	//     padding: 3rem;
+	//     border-radius: 50%;
+	// }
 
-//     padding: 3rem;
-//     border-radius: 50%;
-// }
-
-.hidden {
-    position: absolute !important; 
-    left: 9999vw !important;
-}
-
+	.hidden {
+		position: absolute !important;
+		left: 9999vw !important;
+	}
 </style>

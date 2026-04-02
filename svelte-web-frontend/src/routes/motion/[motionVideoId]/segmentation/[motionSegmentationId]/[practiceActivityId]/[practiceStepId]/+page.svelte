@@ -237,7 +237,7 @@
 					practiceStep: cleanPracticeStep(data.practiceStep)
 				},
 				consecutive_attempt_number: consecutiveAttemptNumber,
-				previous_attempt: previousAttemptId,
+				previous_attempt: previousAttemptId
 			})
 			.then((attemptRow) => {
 				// Queue a video upload if we have a recording

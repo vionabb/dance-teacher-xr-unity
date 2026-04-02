@@ -1,13 +1,38 @@
-import { type MotionSegmentation, type MotionSegmentationNode, getAllLeafNodes } from '../../data/dances-store'
+import {
+	type MotionSegmentation,
+	type MotionSegmentationNode,
+	getAllLeafNodes
+} from '../../data/dances-store';
 import type PracticeStep from '$lib/model/PracticeStep';
 import type { PracticeStepModeKey } from '$lib/model/PracticeStep';
-import type { CheckpointActivity, DrillActivity, FinaleActivity, PracticePlan, PracticePlanActivity, SegmentActivity } from '$lib/model/PracticePlan';
+import type {
+	CheckpointActivity,
+	DrillActivity,
+	FinaleActivity,
+	PracticePlan,
+	PracticePlanActivity,
+	SegmentActivity
+} from '$lib/model/PracticePlan';
 import { CreateMarkingStep } from './marking-step';
 import { CreateDrillStep } from './drill-step';
 import { CreateFulloutStep } from './fullout-step';
-import { writable, type Writable, type Readable, derived, get, readable, readonly } from 'svelte/store';
+import {
+	writable,
+	type Writable,
+	type Readable,
+	derived,
+	get,
+	readable,
+	readonly
+} from 'svelte/store';
 import { type PracticePlanProgress, type StepProgressData } from '$lib/data/activity-progress';
-import type { IDataBackend, MotionVideo, MotionVideoSegmentation, UserLearningModel, UserPerformanceAttempt } from '../backend/IDataBackend';
+import type {
+	IDataBackend,
+	MotionVideo,
+	MotionVideoSegmentation,
+	UserLearningModel,
+	UserPerformanceAttempt
+} from '../backend/IDataBackend';
 import { getContext } from 'svelte';
 import { getMotionHomeUrl, getPracticeStepUrl } from '$lib/utils/appurls';
 
@@ -17,437 +42,441 @@ import { getMotionHomeUrl, getPracticeStepUrl } from '$lib/utils/appurls';
 // }
 
 type PostPracticeAttemptActionBase = {
-    internalReason: string;
-    displayText?: string;
-}
+	internalReason: string;
+	displayText?: string;
+};
 
 export type PostPracticeAttemptAction_ImmediateRepeat = PostPracticeAttemptActionBase & {
-    action: 'immediateRepeat';
-    delaySecs: number;
-}
+	action: 'immediateRepeat';
+	delaySecs: number;
+};
 
 export type PostPracticeAttemptAction_AskNavigation = PostPracticeAttemptActionBase & {
-    action: 'askNavigation';
-    navigationOptions: {
-        displayText: string;
-        url: URL;
-    }[]
-}
+	action: 'askNavigation';
+	navigationOptions: {
+		displayText: string;
+		url: URL;
+	}[];
+};
 
 export type PostPracticeAttemptAction_Review = PostPracticeAttemptActionBase & {
-    action: 'reviewFeedback';
-    selfReports: PostPracticeAttemptSelfReportQuestion[],
-    showVideo: boolean,
-}
+	action: 'reviewFeedback';
+	selfReports: PostPracticeAttemptSelfReportQuestion[];
+	showVideo: boolean;
+};
 
-export type PostPracticeAttemptAction = PostPracticeAttemptAction_ImmediateRepeat | PostPracticeAttemptAction_AskNavigation | PostPracticeAttemptAction_Review;
+export type PostPracticeAttemptAction =
+	| PostPracticeAttemptAction_ImmediateRepeat
+	| PostPracticeAttemptAction_AskNavigation
+	| PostPracticeAttemptAction_Review;
 
 export function buildDefaultNavigationAction(args: {
-    motionVideo: MotionVideo,
-    segmentation: MotionSegmentation,
-    userLearningModel: UserLearningModel,
-    priorPerformanceAttempt: UserPerformanceAttempt,
-    currentPracticeActivityId: string,
-    currentPracticeStepId: string,
-    requestingURL?: URL,
+	motionVideo: MotionVideo;
+	segmentation: MotionSegmentation;
+	userLearningModel: UserLearningModel;
+	priorPerformanceAttempt: UserPerformanceAttempt;
+	currentPracticeActivityId: string;
+	currentPracticeStepId: string;
+	requestingURL?: URL;
 }): PostPracticeAttemptAction_AskNavigation {
+	const baseURL = new URL(args.requestingURL?.origin ?? window.location.origin);
 
-    const baseURL = new URL(args.requestingURL?.origin ?? window.location.origin);
+	let navigationOptions: PostPracticeAttemptAction_AskNavigation['navigationOptions'] = [
+		{
+			displayText: 'Repeat this step',
+			url: getPracticeStepUrl({
+				motionVideoId: args.motionVideo.id,
+				motionSegmentationId: args.segmentation.id,
+				practiceActivityId: args.currentPracticeActivityId,
+				practiceStepId: args.currentPracticeStepId,
+				consecutiveAttemptNumber:
+					(args.priorPerformanceAttempt.consecutive_attempt_number ?? 1) + 1,
+				previousAttemptId: args.priorPerformanceAttempt.id,
+				baseURL
+			})
+		}
+	];
 
-    let navigationOptions: PostPracticeAttemptAction_AskNavigation['navigationOptions'] = [
-        {
-            displayText: 'Repeat this step',
-            url: getPracticeStepUrl({
-                motionVideoId: args.motionVideo.id,
-                motionSegmentationId: args.segmentation.id,
-                practiceActivityId: args.currentPracticeActivityId,
-                practiceStepId: args.currentPracticeStepId,
-                consecutiveAttemptNumber: (args.priorPerformanceAttempt.consecutive_attempt_number ?? 1) + 1,
-                previousAttemptId: args.priorPerformanceAttempt.id,
-                baseURL
-            })
-        }
-    ];
+	const curActivity =
+		args.userLearningModel.plan.stages
+			.flatMap((stage) => stage.activities)
+			.find((activity) => activity.id == args.currentPracticeActivityId) ?? null;
 
-    const curActivity = args.userLearningModel.plan.stages
-        .flatMap(stage => stage.activities)
-        .find(activity => activity.id == args.currentPracticeActivityId) ?? null;
+	const curStepIndex =
+		curActivity?.steps.findIndex((step) => step.id == args.currentPracticeStepId) ?? -1;
 
-    const curStepIndex = curActivity?.steps.findIndex(step => step.id == args.currentPracticeStepId) ?? -1;
+	const nextStepInCurrentActivity =
+		curActivity && curStepIndex >= 0 && curStepIndex < curActivity.steps.length - 1
+			? curActivity.steps[curStepIndex + 1]
+			: null;
 
-    const nextStepInCurrentActivity = (curActivity && curStepIndex >= 0 && curStepIndex < curActivity.steps.length - 1) ?
-        curActivity.steps[curStepIndex + 1] : null;
+	if (nextStepInCurrentActivity) {
+		navigationOptions.push({
+			displayText: 'Move onto next step',
+			url: getPracticeStepUrl({
+				motionVideoId: args.motionVideo.id,
+				motionSegmentationId: args.segmentation.id,
+				practiceActivityId: args.currentPracticeActivityId,
+				practiceStepId: nextStepInCurrentActivity.id,
+				baseURL: baseURL
+			})
+		});
+	}
 
-    if (nextStepInCurrentActivity) {
-        navigationOptions.push({
-            displayText: 'Move onto next step',
-            url: getPracticeStepUrl({
-                motionVideoId: args.motionVideo.id,
-                motionSegmentationId: args.segmentation.id,
-                practiceActivityId: args.currentPracticeActivityId,
-                practiceStepId: nextStepInCurrentActivity.id,
-                baseURL: baseURL
-            })
-        });
-    }
+	const nextActivity = nextIncompleteActivity(
+		args.userLearningModel.plan,
+		args.userLearningModel.progress
+	);
 
-    const nextActivity = nextIncompleteActivity(
-        args.userLearningModel.plan,
-        args.userLearningModel.progress
-    );
+	if (!nextStepInCurrentActivity && nextActivity) {
+		navigationOptions.push({
+			displayText: 'Move onto next activity',
+			url: getPracticeStepUrl({
+				motionVideoId: args.motionVideo.id,
+				motionSegmentationId: args.segmentation.id,
+				practiceActivityId: nextActivity.id,
+				practiceStepId: nextActivity.steps[0].id,
+				baseURL: baseURL
+			})
+		});
+	}
 
-    if (!nextStepInCurrentActivity && nextActivity) {
-        navigationOptions.push({
-            displayText: 'Move onto next activity',
-            url: getPracticeStepUrl({
-                motionVideoId: args.motionVideo.id,
-                motionSegmentationId: args.segmentation.id,
-                practiceActivityId: nextActivity.id,
-                practiceStepId: nextActivity.steps[0].id,
-                baseURL: baseURL
-            })
-        });
-    }
+	navigationOptions.push({
+		displayText: 'Go to practice plan overview',
+		url: getMotionHomeUrl({
+			motionVideoId: args.motionVideo.id,
+			motionSegmentationId: args.segmentation.id,
+			baseURL: baseURL
+		})
+	});
 
-    navigationOptions.push({
-        displayText: 'Go to practice plan overview',
-        url: getMotionHomeUrl({
-            motionVideoId: args.motionVideo.id,
-            motionSegmentationId: args.segmentation.id,
-            baseURL: baseURL,
-        })
-    });
+	const defaultNavigationAction: PostPracticeAttemptAction_AskNavigation = {
+		action: 'askNavigation',
+		internalReason: 'defaultNavigation',
+		displayText: 'What would you like to do next?',
+		navigationOptions
+	};
 
-    const defaultNavigationAction: PostPracticeAttemptAction_AskNavigation = {
-        action: 'askNavigation',
-        internalReason: 'defaultNavigation',
-        displayText: 'What would you like to do next?',
-        navigationOptions
-    };
-
-    return defaultNavigationAction;
+	return defaultNavigationAction;
 }
 
-function buildMarkingAction(
-    userLearningModel: UserLearningModel,
-) {
-
-}
+function buildMarkingAction(userLearningModel: UserLearningModel) {}
 
 function GenerateMarkDrillFulloutSteps(
-    segmentDescription: string,
-    startTime: number,
-    endTime: number,
-    parentActivityId: string,
+	segmentDescription: string,
+	startTime: number,
+	endTime: number,
+	parentActivityId: string
 ) {
-    const stepBase = {
-        segmentDescription: segmentDescription,
-        startTime: startTime,
-        endTime: endTime,
-    } satisfies Partial<PracticeStep>;
+	const stepBase = {
+		segmentDescription: segmentDescription,
+		startTime: startTime,
+		endTime: endTime
+	} satisfies Partial<PracticeStep>;
 
-    const mark = CreateMarkingStep(segmentDescription, startTime, endTime)
-    const drill = CreateDrillStep(segmentDescription, startTime, endTime)
-    const fullOut = CreateFulloutStep(segmentDescription, startTime, endTime)
+	const mark = CreateMarkingStep(segmentDescription, startTime, endTime);
+	const drill = CreateDrillStep(segmentDescription, startTime, endTime);
+	const fullOut = CreateFulloutStep(segmentDescription, startTime, endTime);
 
-    const steps = [mark, drill, fullOut]
-    steps.forEach((step) => { step.parentActivityId = parentActivityId; });
-    return steps;
+	const steps = [mark, drill, fullOut];
+	steps.forEach((step) => {
+		step.parentActivityId = parentActivityId;
+	});
+	return steps;
 }
 
-function GenerateStepsForSegment(
-    node: MotionSegmentationNode,
-    parentActivityId: string,
-) {
+function GenerateStepsForSegment(node: MotionSegmentationNode, parentActivityId: string) {
+	const steps = GenerateMarkDrillFulloutSteps(
+		node.id,
+		node.start_time,
+		node.end_time,
+		parentActivityId
+	);
 
-    const steps = GenerateMarkDrillFulloutSteps(
-        node.id,
-        node.start_time,
-        node.end_time,
-        parentActivityId,
-    );
-
-    return steps;
+	return steps;
 }
 
 function getSegementLabel(segmentIndex: number, segmentCountTotal: number) {
+	// If there are enough letters in the alphabet to label each segment, use letters
+	if (segmentCountTotal < 26) {
+		const segmentLabel = String.fromCharCode(65 + segmentIndex); // Uppercase letter at the index of the alphabet
+		return segmentLabel;
+	}
 
-    // If there are enough letters in the alphabet to label each segment, use letters
-    if (segmentCountTotal < 26) {
-        const segmentLabel = String.fromCharCode(65 + segmentIndex); // Uppercase letter at the index of the alphabet
-        return segmentLabel;
-    }
-
-    // Otherwise, use numbers
-    return `${segmentIndex + 1}`;
+	// Otherwise, use numbers
+	return `${segmentIndex + 1}`;
 }
 
 function makeEnglishList(items: string[]) {
-    if (items.length == 1) {
-        return items[0];
-    }
-    if (items.length == 2) {
-        return items.join(' and ');
-    }
-    return items.slice(0, items.length - 1).join(', ') + ', and ' + items[items.length - 1];
+	if (items.length == 1) {
+		return items[0];
+	}
+	if (items.length == 2) {
+		return items.join(' and ');
+	}
+	return items.slice(0, items.length - 1).join(', ') + ', and ' + items[items.length - 1];
 }
 
 function makeCheckpointActivity(segmentActivities: SegmentActivity[]): CheckpointActivity {
-    const segmentLabels = segmentActivities
-        .map((segmentActivity) => segmentActivity.segmentTitle);
+	const segmentLabels = segmentActivities.map((segmentActivity) => segmentActivity.segmentTitle);
 
-    const checkpointId = `checkpoint-${segmentLabels.join('-')}`;
-    return {
-        id: checkpointId,
-        type: 'checkpoint',
-        title: "Checkpoint (" + makeEnglishList(segmentLabels) + ')',
-        steps: GenerateMarkDrillFulloutSteps(
-            checkpointId,
-            segmentActivities[0].steps[0].startTime,
-            segmentActivities[segmentActivities.length - 1].steps[0].endTime,
-            checkpointId
-        ),
-    }
+	const checkpointId = `checkpoint-${segmentLabels.join('-')}`;
+	return {
+		id: checkpointId,
+		type: 'checkpoint',
+		title: 'Checkpoint (' + makeEnglishList(segmentLabels) + ')',
+		steps: GenerateMarkDrillFulloutSteps(
+			checkpointId,
+			segmentActivities[0].steps[0].startTime,
+			segmentActivities[segmentActivities.length - 1].steps[0].endTime,
+			checkpointId
+		)
+	};
 }
 
 function makeFinaleActivity(startTime: number, endTime: number): FinaleActivity {
-    const activityId = 'finale';
-    return {
-        id: activityId,
-        type: 'finale',
-        title: 'Finale',
-        steps: GenerateMarkDrillFulloutSteps(
-            `finale-wholesong`,
-            startTime,
-            endTime,
-            activityId
-        )
-    }
+	const activityId = 'finale';
+	return {
+		id: activityId,
+		type: 'finale',
+		title: 'Finale',
+		steps: GenerateMarkDrillFulloutSteps(`finale-wholesong`, startTime, endTime, activityId)
+	};
 }
 
-function GeneratePracticePlan(
-    danceTree: MotionSegmentation,
-): PracticePlan {
+function GeneratePracticePlan(danceTree: MotionSegmentation): PracticePlan {
+	const CHECKPOINT_SEGMENT_COUNT = 3;
 
-    const CHECKPOINT_SEGMENT_COUNT = 3;
+	const phraseNodes = getAllLeafNodes(
+		danceTree.root,
+		(node) => node.id.includes('phrase') && !node.id.includes('group')
+	);
 
-    const phraseNodes = getAllLeafNodes(
-        danceTree.root,
-        (node) => node.id.includes('phrase') && !node.id.includes('group'));
+	const stages: PracticePlan['stages'] = [];
+	let currentStage: PracticePlan['stages'][0] = {
+		// type: '',
+		activities: []
+	};
+	let currentSegmentIndex = 0;
+	phraseNodes.forEach((phraseNode, node_i) => {
+		let remainingActivitiesCount = phraseNodes.length - node_i;
 
-    const stages: PracticePlan['stages'] = [];
-    let currentStage: PracticePlan['stages'][0] = {
-        // type: '',
-        activities: [],
-    };
-    let currentSegmentIndex = 0;
-    phraseNodes.forEach((phraseNode, node_i) => {
-        let remainingActivitiesCount = phraseNodes.length - node_i;
+		if (
+			(currentStage.activities.length >= CHECKPOINT_SEGMENT_COUNT &&
+				remainingActivitiesCount > 1) ||
+			(currentStage.activities.length >= 2 && remainingActivitiesCount == 2)
+		) {
+			currentStage.activities.push(
+				makeCheckpointActivity(currentStage.activities as SegmentActivity[])
+			);
+			stages.push(currentStage);
+			currentStage = {
+				// type: '',
+				activities: []
+			};
+		}
 
-        if ((currentStage.activities.length >= CHECKPOINT_SEGMENT_COUNT && remainingActivitiesCount > 1)
-            || currentStage.activities.length >= 2 && remainingActivitiesCount == 2) {
+		const segmentLabel = getSegementLabel(currentSegmentIndex, phraseNodes.length);
+		const activityId = `learn-segment-${phraseNode.id}`;
+		const segmentActivity: SegmentActivity = {
+			id: activityId,
+			type: 'segment',
+			title: 'Learn Segment ' + segmentLabel,
+			steps: GenerateStepsForSegment(phraseNode, activityId), // todo: mark > drill > full-out
+			segmentTitle: segmentLabel,
+			segmentIndex: currentSegmentIndex
+		};
+		currentStage.activities.push(segmentActivity);
+		currentSegmentIndex += 1;
+	});
+	currentStage.activities.push(
+		makeCheckpointActivity(currentStage.activities as SegmentActivity[])
+	);
+	stages.push(currentStage);
 
+	// Remove checkpoint activity if there is only 1 stage, as
+	// the finale activity will serve as the checkpoint.
+	if (
+		stages.length == 1 &&
+		stages[0].activities.length > 0 &&
+		stages[0].activities[stages[0].activities.length - 1].type == 'checkpoint'
+	) {
+		stages[0].activities.pop();
+	}
 
-            currentStage.activities.push(makeCheckpointActivity(currentStage.activities as SegmentActivity[]));
-            stages.push(currentStage);
-            currentStage = {
-                // type: '',
-                activities: [],
-            };
-        }
-
-        const segmentLabel = getSegementLabel(currentSegmentIndex, phraseNodes.length);
-        const activityId = `learn-segment-${phraseNode.id}`;
-        const segmentActivity: SegmentActivity = {
-            id: activityId,
-            type: 'segment',
-            title: "Learn Segment " + segmentLabel,
-            steps: GenerateStepsForSegment(phraseNode, activityId), // todo: mark > drill > full-out
-            segmentTitle: segmentLabel,
-            segmentIndex: currentSegmentIndex,
-        };
-        currentStage.activities.push(segmentActivity);
-        currentSegmentIndex += 1;
-    })
-    currentStage.activities.push(makeCheckpointActivity(currentStage.activities as SegmentActivity[]));
-    stages.push(currentStage);
-
-    // Remove checkpoint activity if there is only 1 stage, as
-    // the finale activity will serve as the checkpoint.
-    if (stages.length == 1
-        && stages[0].activities.length > 0 &&
-        stages[0].activities[stages[0].activities.length - 1].type == 'checkpoint') {
-        stages[0].activities.pop();
-    }
-
-    stages.push({
-        // type: '',
-        activities: [
-            // makeDrillActivity(danceTree.root.start_time, danceTree.root.end_time),
-            makeFinaleActivity(danceTree.root.start_time, danceTree.root.end_time),
-        ],
-    });
-    return {
-        id: `practiceplan-${danceTree.tree_name.replaceAll(" ", "-")}`,
-        startTime: danceTree.root.start_time,
-        endTime: danceTree.root.end_time,
-        stages: stages,
-        demoSegmentation: {
-            segmentBreaks: phraseNodes.slice(1).map((node) => node.start_time),
-            segmentLabels: phraseNodes.map((node, index) => getSegementLabel(index, phraseNodes.length)),
-        },
-    }
+	stages.push({
+		// type: '',
+		activities: [
+			// makeDrillActivity(danceTree.root.start_time, danceTree.root.end_time),
+			makeFinaleActivity(danceTree.root.start_time, danceTree.root.end_time)
+		]
+	});
+	return {
+		id: `practiceplan-${danceTree.tree_name.replaceAll(' ', '-')}`,
+		startTime: danceTree.root.start_time,
+		endTime: danceTree.root.end_time,
+		stages: stages,
+		demoSegmentation: {
+			segmentBreaks: phraseNodes.slice(1).map((node) => node.start_time),
+			segmentLabels: phraseNodes.map((node, index) => getSegementLabel(index, phraseNodes.length))
+		}
+	};
 }
 
 function isActivityComplete(activity: PracticePlanActivity, progress: PracticePlanProgress) {
-    return activity.steps.reduce(
-        (acc, step) => acc && (
-            (progress?.[activity.id]?.[step.id]?.completed) ?? false),
-        true
-    );
+	return activity.steps.reduce(
+		(acc, step) => acc && (progress?.[activity.id]?.[step.id]?.completed ?? false),
+		true
+	);
 }
 
 function nextIncompleteActivity(practicePlan: PracticePlan, progress: PracticePlanProgress) {
+	const allActivities = practicePlan.stages.flatMap((stage) => stage.activities);
+	const firstIncompleteActivity = allActivities.find(
+		(activity) => !isActivityComplete(activity, progress!)
+	);
 
-    const allActivities = practicePlan.stages.flatMap(stage => stage.activities);
-    const firstIncompleteActivity = allActivities.find(
-        activity => !isActivityComplete(activity, progress!)
-    );
-
-    return firstIncompleteActivity;
+	return firstIncompleteActivity;
 }
 
 const PROGRESS_REFRESH_MIN_INTERVAL_SECS = 60 * 10; // 10 minutes
 
 export type PostPracticeAttemptSelfReportQuestion = {
-    question_class: string;
-    prompt: string,
-    options: { value: string, label: string }[]
-}
+	question_class: string;
+	prompt: string;
+	options: { value: string; label: string }[];
+};
 
 class TeachingAgent {
-    private motionVideo: MotionVideo;
-    private motionSegmentation: MotionVideoSegmentation;
-    private dataBackend: IDataBackend;
+	private motionVideo: MotionVideo;
+	private motionSegmentation: MotionVideoSegmentation;
+	private dataBackend: IDataBackend;
 
-    private userLearningModel: Writable<UserLearningModel>;
-    public practicePlan: Readable<PracticePlan>;
-    public progress: Readable<PracticePlanProgress>
+	private userLearningModel: Writable<UserLearningModel>;
+	public practicePlan: Readable<PracticePlan>;
+	public progress: Readable<PracticePlanProgress>;
 
-    constructor(
-        opts: {
-            motionSegmentation: MotionVideoSegmentation,
-            motionVideo: MotionVideo,
-            dataBackend: IDataBackend,
-            userLearningModel: UserLearningModel
-        },
-    ) {
-        this.motionVideo = opts.motionVideo;
-        this.motionSegmentation = opts.motionSegmentation;
-        this.dataBackend = opts.dataBackend;
+	constructor(opts: {
+		motionSegmentation: MotionVideoSegmentation;
+		motionVideo: MotionVideo;
+		dataBackend: IDataBackend;
+		userLearningModel: UserLearningModel;
+	}) {
+		this.motionVideo = opts.motionVideo;
+		this.motionSegmentation = opts.motionSegmentation;
+		this.dataBackend = opts.dataBackend;
 
-        this.userLearningModel = writable(opts.userLearningModel);
-        this.practicePlan = derived(this.userLearningModel, ($model) => $model.plan);
-        this.progress = derived(this.userLearningModel, ($model) => $model.progress);
-    }
+		this.userLearningModel = writable(opts.userLearningModel);
+		this.practicePlan = derived(this.userLearningModel, ($model) => $model.plan);
+		this.progress = derived(this.userLearningModel, ($model) => $model.progress);
+	}
 
-    nextIncompleteActivity(progress: PracticePlanProgress | undefined) {
+	nextIncompleteActivity(progress: PracticePlanProgress | undefined) {
+		const plan = get(this.practicePlan);
+		if (progress === undefined) {
+			return plan.stages[0].activities[0];
+		}
 
-        const plan = get(this.practicePlan);
-        if (progress === undefined) {
-            return plan.stages[0].activities[0];
-        }
+		const allActivities = plan.stages.flatMap((stage) => stage.activities);
+		const firstIncompleteActivity = allActivities.find(
+			(activity) => !isActivityComplete(activity, progress!)
+		);
 
-        const allActivities = plan.stages.flatMap(stage => stage.activities);
-        const firstIncompleteActivity = allActivities.find(
-            activity => !isActivityComplete(activity, progress!)
-        );
+		return firstIncompleteActivity;
+	}
 
-        return firstIncompleteActivity;
-    }
+	async updateActivityStepProgress(
+		progressModel: PracticePlanProgress,
+		activityId: string,
+		stepId: string,
+		stepProgress: StepProgressData
+	): Promise<PracticePlanProgress> {
+		console.debug(
+			'TeachingAgent.ts Updating progress for activity',
+			activityId,
+			'step:',
+			stepId,
+			'stepProgress:',
+			stepProgress
+		);
 
-    async updateActivityStepProgress(progressModel: PracticePlanProgress, activityId: string, stepId: string, stepProgress: StepProgressData): Promise<PracticePlanProgress> {
-        console.debug('TeachingAgent.ts Updating progress for activity', activityId, 'step:', stepId, 'stepProgress:', stepProgress);
+		const curProgress = progressModel;
 
-        const curProgress = progressModel;
+		// Update local progress synchronously
+		const newProgress = { ...curProgress };
+		newProgress[activityId] = newProgress[activityId] ?? {};
+		newProgress[activityId][stepId] = stepProgress;
 
-        // Update local progress synchronously
-        const newProgress = { ...curProgress };
-        newProgress[activityId] = newProgress[activityId] ?? {};
-        newProgress[activityId][stepId] = stepProgress;
+		this.userLearningModel.update((model) => {
+			return {
+				...model,
+				progress: newProgress
+			};
+		});
 
-        this.userLearningModel.update(model => {
-            return {
-                ...model,
-                progress: newProgress,
-            }
-        });
+		// Save to backend asynchronously
+		try {
+			await this.dataBackend.updateUserLearningModel(get(this.userLearningModel).id, {
+				progress: newProgress
+			});
+		} catch (error) {
+			console.error('TeachingAgent.ts Error saving practice step progress:', error);
+			throw error;
+		}
+		return newProgress;
+	}
 
-        // Save to backend asynchronously
-        try {
-            await this.dataBackend.updateUserLearningModel(
-                get(this.userLearningModel).id,
-                { progress: newProgress }
-            );
+	getPostPracticeAttemptSelfReportQuestion(args: {
+		performanceAttempt: UserPerformanceAttempt;
+	}): PostPracticeAttemptSelfReportQuestion | undefined {
+		if (args.performanceAttempt.self_report?.selection) {
+			return undefined; // already submitted a self-report
+		}
 
-        } catch (error) {
-            console.error('TeachingAgent.ts Error saving practice step progress:', error);
-            throw error;
-        }
-        return newProgress;
-    }
+		return {
+			prompt: 'How was that practice attempt?',
+			question_class: 'difficulty_rating',
+			options: [
+				{ value: 'too_easy', label: 'Too easy (move on)' },
+				{ value: 'about_right', label: 'About right (do again)' },
+				{ value: 'too_hard', label: 'Too hard (repeat step)' },
+				{ value: 'got_it', label: 'Got it (move on)' }
+			]
+		};
+	}
 
-    getPostPracticeAttemptSelfReportQuestion(args: {
-        performanceAttempt: UserPerformanceAttempt,
-    }): PostPracticeAttemptSelfReportQuestion | undefined {
-        if (args.performanceAttempt.self_report?.selection) {
-            return undefined; // already submitted a self-report
-        }
+	async decidePostPracticeAttemptAction(args: {
+		motionVideo: MotionVideo;
+		motionSegmentation: MotionSegmentation;
+		userLearningModel: UserLearningModel;
+		practiceActivity: PracticePlanActivity;
+		practiceStep: PracticeStep;
+		performanceAttempt: UserPerformanceAttempt;
+		requestingURL?: URL;
+	}): Promise<PostPracticeAttemptAction> {
+		const defaultNavigationAction = buildDefaultNavigationAction({
+			motionVideo: args.motionVideo,
+			segmentation: args.motionSegmentation,
+			userLearningModel: args.userLearningModel,
+			currentPracticeActivityId: args.practiceActivity.id,
+			currentPracticeStepId: args.practiceStep.id,
+			priorPerformanceAttempt: args.performanceAttempt,
+			requestingURL: args.requestingURL
+		});
+		return defaultNavigationAction;
+	}
 
-        return {
-            prompt: 'How was that practice attempt?',
-            question_class: 'difficulty_rating',
-            options: [
-                { value: 'too_easy', label: 'Too easy (move on)' },
-                { value: 'about_right', label: 'About right (do again)' },
-                { value: 'too_hard', label: 'Too hard (repeat step)' },
-                { value: 'got_it', label: 'Got it (move on)' },
-            ]
-        }
-    }
-
-    async decidePostPracticeAttemptAction(args: {
-        motionVideo: MotionVideo,
-        motionSegmentation: MotionSegmentation,
-        userLearningModel: UserLearningModel,
-        practiceActivity: PracticePlanActivity,
-        practiceStep: PracticeStep,
-        performanceAttempt: UserPerformanceAttempt,
-        requestingURL?: URL,
-    }): Promise<PostPracticeAttemptAction> {
-        const defaultNavigationAction = buildDefaultNavigationAction({
-            motionVideo: args.motionVideo,
-            segmentation: args.motionSegmentation,
-            userLearningModel: args.userLearningModel,
-            currentPracticeActivityId: args.practiceActivity.id,
-            currentPracticeStepId: args.practiceStep.id,
-            priorPerformanceAttempt: args.performanceAttempt,
-            requestingURL: args.requestingURL,
-        });
-        return defaultNavigationAction;
-    }
-
-    static generateNewUserLearningModel(
-        motionVideo: MotionVideo,
-        motionSegmentation: MotionVideoSegmentation,
-    ): Omit<UserLearningModel, 'id' | 'created_at' | 'updated_at' | 'user_id'> {
-        return {
-            progress: {},
-            plan: GeneratePracticePlan(motionSegmentation.segmentation),
-            segmentation_id: motionSegmentation.id,
-            video_id: motionVideo.id,
-        }
-    }
+	static generateNewUserLearningModel(
+		motionVideo: MotionVideo,
+		motionSegmentation: MotionVideoSegmentation
+	): Omit<UserLearningModel, 'id' | 'created_at' | 'updated_at' | 'user_id'> {
+		return {
+			progress: {},
+			plan: GeneratePracticePlan(motionSegmentation.segmentation),
+			segmentation_id: motionSegmentation.id,
+			video_id: motionVideo.id
+		};
+	}
 }
 
 export default TeachingAgent;
@@ -455,12 +484,14 @@ export default TeachingAgent;
 /**
  * Gets the current TeachingAgent from the Svelte context.
  * Current page must be a child of a TeachingAgentProvider.
- * @returns 
+ * @returns
  */
 export function GetTeachingAgent() {
-    const agent = getContext<Readable<TeachingAgent>>('teachingAgent');
-    if (!agent) {
-        throw new Error('TeachingAgent.ts TeachingAgent not found in context. Ensure you are within a TeachingAgentProvider.');
-    }
-    return agent;
+	const agent = getContext<Readable<TeachingAgent>>('teachingAgent');
+	if (!agent) {
+		throw new Error(
+			'TeachingAgent.ts TeachingAgent not found in context. Ensure you are within a TeachingAgentProvider.'
+		);
+	}
+	return agent;
 }

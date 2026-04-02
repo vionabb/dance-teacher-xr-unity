@@ -2,29 +2,28 @@
 
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import Icons from 'unplugin-icons/vite'
-
+import Icons from 'unplugin-icons/vite';
 
 export default defineConfig({
 	plugins: [
 		sveltekit(),
 		Icons({
-			compiler: 'svelte',
+			compiler: 'svelte'
 		})
 	],
 	worker: {
-		format: 'es',
+		format: 'es'
 	},
 	test: {
 		coverage: {
 			reportsDirectory: './testResults/coverage',
-			reporter: ['lcov', 'text'],
+			reporter: ['lcov', 'text']
 		}
 	},
 	css: {
 		preprocessorOptions: {
 			scss: {
-				api: 'modern',
+				api: 'modern'
 				// additionalData: '@use "sass:math";'
 			}
 		}
