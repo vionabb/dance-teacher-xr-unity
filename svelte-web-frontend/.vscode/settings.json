@@ -34,5 +34,8 @@
     "typescript.inlayHints.variableTypes.enabled": false,
     "files.autoSave": "onFocusChange",
     "editor.wordWrap": "wordWrapColumn",
-    "editor.aiStats.enabled": true
+    "editor.aiStats.enabled": true,
+    "chat.tools.terminal.autoApprove": {
+        "pnpm": true
+    }
 }
