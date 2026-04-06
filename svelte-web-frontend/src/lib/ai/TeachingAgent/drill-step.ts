@@ -108,7 +108,7 @@ export const GenerateDrillFeedback: FeedbackFunction = async (args) => {
 		}
 
 		feedbackText = msgText;
-	} catch (e) {
+	} catch {
 		feedbackText =
 			'There was an error generating feedback. Please try again and consider refreshing the page.';
 	}

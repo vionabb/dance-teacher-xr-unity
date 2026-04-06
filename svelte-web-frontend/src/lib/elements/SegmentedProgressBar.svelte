@@ -65,7 +65,6 @@
 			(isolatedSegments === segment.index ||
 				(Array.isArray(isolatedSegments) && isolatedSegments.includes(segment.index)))}
 		{@const isNonActiveSegment = hasAnIsolatedSegment && !isIsolatedSegment}
-		{@const isActiveSegment = !isNonActiveSegment}
 		<button
 			class="progressbutton daisy-btn rounded-full text-sm"
 			class:clickable={enableSegmentClick === true ||

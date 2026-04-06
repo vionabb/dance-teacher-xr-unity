@@ -1,17 +1,7 @@
 <script lang="ts">
 	import { poseEstimation__interFrameIdleTimeMs } from '$lib/model/settings';
-	import {
-		PoseLandmarkKeys,
-		type Pose3DLandmarkFrame,
-		PostMessages as PoseEstimationMessages,
-		ResponseMessages as PoseEsimationResponses
-	} from '$lib/webcam/mediapipe-utils';
-	import type {
-		DrawingUtils,
-		PoseLandmarker,
-		NormalizedLandmark,
-		PoseLandmarkerResult
-	} from '@mediapipe/tasks-vision';
+	import { PoseLandmarkKeys } from '$lib/webcam/mediapipe-utils';
+	import type { DrawingUtils, NormalizedLandmark } from '@mediapipe/tasks-vision';
 	import { onMount, tick, onDestroy } from 'svelte';
 	import { webcamStream, webcamStreamId } from '../webcam/streams';
 	import WebcamSelector from '../webcam/WebcamSelector.svelte';
@@ -20,14 +10,9 @@
 	import type { PoseEstimationResultDetail } from '$lib/services/PoseEstimationService';
 	import poseEstimationService from '$lib/services/PoseEstimationService';
 	import { get } from 'svelte/store';
-	import { render } from 'svelte/server';
-
-	const INITIALIZING_FRAME_ID = -1000;
 
 	// Whether the pose estimation has been primed with the first frame.
 	// let poseEstimationStartedPriming = false;
-	let resolvePoseEstimationPrimed: (() => void) | undefined;
-
 	let webcamConnected = $state(false);
 	let videoElement: HTMLVideoElement | undefined = $state(undefined);
 	let canvasElement: HTMLCanvasElement | undefined = $state(undefined);
@@ -56,7 +41,6 @@
 		customDrawFn?:
 			| null
 			| ((ctx: CanvasRenderingContext2D, userPose: null | NormalizedLandmark[]) => void);
-		poseEstimationPrimedPromise?: any;
 		mirrorHorizontally?: boolean;
 		onPoseEstimationResult?: (data: PoseEstimationResultDetail) => void;
 		onPoseEstimationFrameSent?: (frameId: number, timestampMs: number) => void;
@@ -68,9 +52,6 @@
 		muted = $bindable(true),
 		poseEstimationCheckFunction = () => true,
 		customDrawFn = null,
-		poseEstimationPrimedPromise = $bindable(
-			new Promise<void>((res) => (resolvePoseEstimationPrimed = res))
-		),
 		mirrorHorizontally = true,
 		onPoseEstimationResult = () => {},
 		onPoseEstimationFrameSent = () => {}
@@ -125,7 +106,7 @@
 		// Schedule a canvas resize
 		tick().then(resizeCanvas);
 
-		const resizeObserver = new ResizeObserver((entries) => {
+		const resizeObserver = new ResizeObserver(() => {
 			if (!containerElement) return;
 			const [width, height] = getContentSize(containerElement!);
 			containerWidth = width;

@@ -38,18 +38,6 @@
 			true
 		);
 	}
-	function getActivityCompletionPercent(
-		activity: PracticePlanActivity,
-		progress: PracticePlanProgress
-	) {
-		const numSteps = activity.steps.length;
-		const numCompletedSteps = activity.steps.reduce(
-			(acc, step) => acc + (practicePlanProgress?.[activity.id]?.[step.id]?.completed ? 1 : 0),
-			0
-		);
-		return numCompletedSteps / numSteps;
-	}
-
 	let nextSuggestedActivity = undefined as undefined | PracticePlanActivityBase;
 	function nextIncompleteActivity(progress: PracticePlanProgress | undefined) {
 		if (progress === undefined) {
@@ -72,12 +60,11 @@
 		});
 	});
 	let nextSuggestedStep = undefined as undefined | PracticeStep;
-	$: (practicePlanProgress,
-		(nextSuggestedStep = (nextSuggestedActivity?.steps ?? []).find((step) => {
-			const progressStatus = practicePlanProgress?.[nextSuggestedActivity?.id ?? '']?.[step.id];
-			const isCompleted = progressStatus?.completed ?? false;
-			return !isCompleted;
-		})));
+	$: nextSuggestedStep = (nextSuggestedActivity?.steps ?? []).find((step) => {
+		const progressStatus = practicePlanProgress?.[nextSuggestedActivity?.id ?? '']?.[step.id];
+		const isCompleted = progressStatus?.completed ?? false;
+		return !isCompleted;
+	});
 
 	function onPracticeStepClicked(activity: PracticePlanActivity, step: PracticeStep) {
 		dispatch('practiceStepClicked', { activity, step });
@@ -112,16 +99,12 @@
 </details> -->
 
 <div class="learning-journey relative flex flex-col items-center gap-20">
-	{#each practicePlan.stages as stage, stage_i}
+	{#each practicePlan.stages as stage}
 		<div class="relative flex flex-row flex-wrap justify-center gap-4">
-			{#each stage.activities as activity, activity_i}
+			{#each stage.activities as activity}
 				{@const isComplete =
 					practicePlanProgress?.[activity.id] !== undefined &&
 					isActivityComplete(activity, practicePlanProgress)}
-				{@const percentComplete =
-					practicePlanProgress?.[activity.id] !== undefined
-						? getActivityCompletionPercent(activity, practicePlanProgress)
-						: 0}
 				{@const isActivitySuggested = nextSuggestedActivity?.id === activity.id}
 				{@const isDropdownOpen = openActivityDropdowns[activity.id] ?? false}
 				{@const activitySuggestedStepId = isActivitySuggested ? nextSuggestedStep?.id : undefined}

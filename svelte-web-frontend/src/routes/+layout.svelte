@@ -17,8 +17,7 @@
 	}
 
 	let { data, children } = $props();
-	const { supabase, databackend } = data;
-	let { session } = $derived(data);
+	const { supabase } = data;
 
 	// Setting client as context is a convenient way to give non-route Svelte elements
 	// access to the Supabase client -- otherwise, we'd need to make this properties of every

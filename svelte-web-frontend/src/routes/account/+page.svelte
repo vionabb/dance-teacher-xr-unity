@@ -18,15 +18,13 @@
 	export let data;
 	export let form;
 
-	let { session, supabase, profile } = data;
-	$: ({ session, supabase, profile } = data);
+	let { session, profile } = data;
+	$: ({ session, profile } = data);
 
 	let profileForm: HTMLFormElement;
 	let loading = false;
 	let fullName: string = profile?.full_name ?? '';
 	let username: string = profile?.username ?? '';
-	let avatarUrl: string = profile?.avatar_url ?? '';
-
 	/** @type {import('./$types').SubmitFunction} */
 	const handleSubmit = () => {
 		loading = true;

@@ -20,14 +20,8 @@ import {
 	distillFrontendPerformanceSummaryToTextualRepresentation,
 	distillPerformanceHistoryToTextualRepresentation
 } from './textual-distillation';
-import {
-	getRandomBadTrialHeadline,
-	getRandomGoodTrialHeadline,
-	getRandomNoFeedbackHeadline
-} from './precomputed-feedback-msgs';
 import type { FrontendDancePeformanceHistory } from './frontendPerformanceHistory';
 import detectAchievements from './detectAchievements';
-import { get } from 'svelte/store';
 
 // Variable to store the value of the evaluation threshold, initialized to 1.0
 let evaluation_GoodBadTrialThresholdValue = 1.0;
@@ -85,14 +79,12 @@ export function generateFeedbackRuleBased(
 	dancePerformanceHistory: FrontendDancePeformanceHistory | undefined,
 	currentSectionName: string | undefined
 ): TerminalFeedback {
-	let headline: string;
 	let subHeadline: string;
 	let suggestedAction: TerminalFeedbackAction;
 	let incorrectBodyPartsToHighlight: TerminalFeedbackBodyPart[] | undefined;
 	let correctBodyPartsToHighlight: TerminalFeedbackBodyPart[] | undefined;
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const [worstComparisonVectorIndex, worstVectorScore] = Object.keys(qijiaByVectorScores)
+	const [worstComparisonVectorIndex] = Object.keys(qijiaByVectorScores)
 		.map((vectorName: string) => {
 			const vectorIndex = QijiaMethodComparisionVectorNamesToIndexMap.get(vectorName);
 			if (vectorIndex === undefined) {
@@ -117,14 +109,12 @@ export function generateFeedbackRuleBased(
 		);
 
 	if (qijiaOverallScore > evaluation_GoodBadTrialThresholdValue) {
-		headline = getRandomGoodTrialHeadline();
 		subHeadline = 'You did great on that trial! Would you like to move on now?';
 		suggestedAction = 'next';
 		correctBodyPartsToHighlight = [
 			...(Object.keys(TerminalFeedbackBodyParts) as TerminalFeedbackBodyPart[])
 		];
 	} else {
-		headline = getRandomBadTrialHeadline();
 		subHeadline = 'Want to try again?';
 		suggestedAction = 'repeat';
 

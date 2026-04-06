@@ -91,7 +91,7 @@ const defaultAllNodeAchievementSuffixFunction = (attemptCount: number) =>
  * the user-facing achievement message.
  */
 const ALL_NODES_ATTEMPT_ACHIEVEMENTS = new Map([
-	[1, { prefix: 'Great start on your first attempt!', suffixFn: (attemptCount: number) => `` }],
+	[1, { prefix: 'Great start on your first attempt!', suffixFn: () => `` }],
 	[5, { prefix: 'That a way! Five attempts already!', suffixFn: () => `` }],
 	[
 		10,

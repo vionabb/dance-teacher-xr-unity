@@ -33,7 +33,7 @@ class FakeFrameSeriesMetric extends FrameAlignedMotionQuantifierMetric {
 	}
 
 	quantify(
-		track: Readonly<SingleTrackMetricTrack>
+		_track: Readonly<SingleTrackMetricTrack>
 	): MotionMetricTimeSeries<QuantifierFrameAlignedRow>[] {
 		return [
 			{

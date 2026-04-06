@@ -1,16 +1,11 @@
 import { browser } from '$app/environment';
-import { poseEstimation__interFrameIdleTimeMs } from '$lib/model/settings';
 import {
-	PoseLandmarkKeys,
 	type Pose3DLandmarkFrame,
 	PostMessages as PoseEstimationMessages,
-	ResponseMessages as PoseEsimationResponses,
-	type Pose2DPixelLandmarks
+	ResponseMessages as PoseEsimationResponses
 } from '$lib/webcam/mediapipe-utils';
 import type { NormalizedLandmark, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 import EventHub from '$lib/utils/EventHub';
-
-const INITIALIZING_FRAME_ID = -1000;
 
 export type PoseEstimationResultDetail = {
 	frameId: number;

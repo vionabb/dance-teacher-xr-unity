@@ -1,24 +1,17 @@
-import type { User, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
 	IDataBackend,
 	MotionVideo,
 	MotionVideoSegmentation,
 	UserLearningModel,
-	UserLearningModelDb,
 	UserPerformanceAttempt,
 	UserPerformanceAttemptDb,
 	UserPerformanceAttemptEvaluation,
 	UserPerformanceAttemptSelfReport,
 	UserPerformanceAttemptPracticeContext
 } from './IDataBackend';
-import type {
-	ActivityProgress,
-	PracticePlanProgress,
-	StepProgressData
-} from '$lib/data/activity-progress';
+import type { PracticePlanProgress } from '$lib/data/activity-progress';
 import type { Database, Json } from '$lib/ai/backend/SupabaseTypes';
-import { getContext } from 'svelte';
-import { get } from 'svelte/store';
 import type { PracticePlan } from '$lib/model/PracticePlan';
 import type { MotionSegmentation } from '$lib/data/dances-store';
 import type { VideoRecording } from '../IPracticePage';
@@ -39,15 +32,13 @@ function toUserPerformanceAttempt(data: UserPerformanceAttemptDb): UserPerforman
  */
 function sanitizePracticeStep(step: any) {
 	if (!step || typeof step !== 'object') return step;
-	const {
-		motionVideo,
-		motionSegmentation,
-		motionSegmentationNode,
-		feedbackFunction,
-		state,
-		...rest
-	} = step;
-	return rest;
+	const sanitizedStep = { ...step };
+	delete sanitizedStep.motionVideo;
+	delete sanitizedStep.motionSegmentation;
+	delete sanitizedStep.motionSegmentationNode;
+	delete sanitizedStep.feedbackFunction;
+	delete sanitizedStep.state;
+	return sanitizedStep;
 }
 
 function sanitizePracticeContext(ctx: any): UserPerformanceAttemptPracticeContext | null {

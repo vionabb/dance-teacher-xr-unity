@@ -10,11 +10,7 @@ import {
 	type KinematicValues,
 	type ScalarWithVisibility
 } from './compute-kinematic-motion-descriptors.js';
-import type {
-	Pose2DPixelLandmarks,
-	PixelLandmark,
-	Pose3DLandmarkFrame
-} from '$lib/webcam/mediapipe-utils.js';
+import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils.js';
 
 describe('calculateJointVels', () => {
 	it('should calculate correct velocities for 2D poses', () => {

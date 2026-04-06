@@ -1,7 +1,6 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 import { OPENAI_API_KEY } from '$env/static/private';
-import type { BaseLanguageModelInput } from '@langchain/core/language_models/base';
 
 const model = new ChatOpenAI({
 	apiKey: OPENAI_API_KEY,

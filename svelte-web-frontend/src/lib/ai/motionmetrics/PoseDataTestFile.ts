@@ -1,5 +1,3 @@
-import study1CsvUrl from './testdata/user1-seg-ratings.csv?url';
-import study2CsvUrl from './testdata/user2-seg-ratings.csv?url';
 import Papa from 'papaparse';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'path';
@@ -179,7 +177,7 @@ function getWholePixelPoseData(filename: string, study: Study): SegmentInfo | nu
 		}
 		const workflowId1 = parts.splice(0, 5).join('-'); // first 5 parts are the workflow ID, user ID, dance name, workflow ID again, and study phase
 		const userIdRaw = parts.splice(0, 1)[0]; // next part is the user ID
-		let userId = Number.parseInt(userIdRaw);
+		const userId = Number.parseInt(userIdRaw);
 		if (Number.isNaN(userId)) {
 			// some filenames have "anonomous" as the user ID, which is not a valid number
 			// we don't use these (so return null), but no need to warn about it
@@ -305,7 +303,7 @@ function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
 	const targetPartCount = isStudy1 ? 5 : 4; // study 2, study2 segmented
 	const conditionSeparator = isStudy1 ? '--' : '-';
 
-	let fileparts = filename.split('_').filter((s) => s.length > 0);
+	const fileparts = filename.split('_').filter((s) => s.length > 0);
 	if (fileparts.length !== targetPartCount) return null;
 
 	let study1phase = undefined;
@@ -331,15 +329,15 @@ function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
 			`Something is wrong with: ${filename}. Expected 4 parts, got ${fileparts.length}`
 		);
 
-	let [userPart, danceConditionPart, workflowPart, clipPart] = fileparts;
-	userPart = userPart.replace('user', '');
-	let userId = Number.parseInt(userPart);
+	const [rawUserPart, danceConditionPart, workflowPart, clipPart] = fileparts;
+	const userPart = rawUserPart.replace('user', '');
+	const userId = Number.parseInt(userPart);
 	if (Number.isNaN(userId)) return null;
 
-	let [studyName, rawDanceName, condition] = danceConditionPart.split(conditionSeparator);
+	const [, rawDanceName, condition] = danceConditionPart.split(conditionSeparator);
 
-	let workflowId = workflowPart.replace('workflowid-', '');
-	let clipNumber = Number.parseInt(clipPart.replace('clip', '').replace('.pose.csv', ''));
+	const workflowId = workflowPart.replace('workflowid-', '');
+	const clipNumber = Number.parseInt(clipPart.replace('clip', '').replace('.pose.csv', ''));
 	const canonicalResult = canonicalizeDanceName(rawDanceName);
 
 	if (!canonicalResult) return null;
@@ -366,7 +364,7 @@ function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
 }
 
 function getTikTokClipInfo(filename: string): TikTokClipInfo | null {
-	let parts = filename.replace('.pixel_cords.', '').replace('.pose.csv', '').split('.');
+	const parts = filename.replace('.pixel_cords.', '').replace('.pose.csv', '').split('.');
 	if (parts.length != 2) {
 		return null;
 	}
@@ -524,7 +522,7 @@ export async function* loadPoses<T extends Study | OtherPoseSource>(
 						});
 					}
 				},
-				error: (error: Error, file: Papa.LocalFile) => {
+				error: (error: Error) => {
 					rej(error);
 				}
 			});

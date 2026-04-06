@@ -1,7 +1,4 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
-	import type { TerminalFeedback } from '$lib/model/TerminalFeedback';
 	import { debugMode } from '$lib/model/settings';
 
 	import SeekToStartIcon from 'virtual:icons/lucide/arrow-left-to-line';
@@ -21,8 +18,7 @@
 		referenceVideoUrl,
 		recordingBlob,
 		recordingStartOffset = 0,
-		recordingSpeed = $bindable(1),
-		recordingMimeType
+		recordingSpeed = $bindable(1)
 	}: Props = $props();
 
 	let lastRecordingBlobUrl: string | undefined = undefined;
@@ -51,8 +47,6 @@
 	let referenceCorrespondingDuration = $derived(recordingDuration * recordingSpeed);
 	let referenceVideoStart = $derived(recordingStartOffset);
 	let referenceVideoEnd = $derived(recordingStartOffset + referenceCorrespondingDuration);
-	let isNearPlaybackEnd = $derived(referenceVideoTime > referenceVideoEnd - 0.5);
-
 	let referenceVideoPaused = $state(true);
 	let recordingVideoPaused = $state(true);
 

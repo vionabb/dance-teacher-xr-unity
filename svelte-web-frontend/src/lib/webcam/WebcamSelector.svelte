@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { error } from '@sveltejs/kit';
-
 	import { webcamStream } from './streams';
 
 	let state: 'start' | 'busy' | 'devicelist' | 'success' = 'start';

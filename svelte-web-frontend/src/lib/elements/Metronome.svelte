@@ -5,21 +5,9 @@
 	export let playing = false;
 	export let volume: number = 1.0;
 
-	let intervalMs: number;
-	$: intervalMs = (60 / bpm) * 1000;
-
 	let audioElement: HTMLAudioElement;
 
 	onMount(() => {
-		let animFrameId: number | undefined;
-		function playNextClick() {
-			if (playing) {
-				audioElement.play();
-			}
-
-			animFrameId = requestAnimationFrame(playNextClick);
-		}
-
 		return () => {};
 	});
 </script>

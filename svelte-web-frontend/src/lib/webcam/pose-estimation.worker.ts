@@ -1,5 +1,4 @@
 import type { PoseLandmarker } from '@mediapipe/tasks-vision';
-import type { Image } from 'plotly.js-dist-min';
 
 // The minified code for wasmFeatureDetect.
 // * Included in this file to avoid importScript errors for the web worker.
@@ -28,13 +27,15 @@ declare const wasmFeatureDetect: {
 	typeReflection(): Promise<boolean>;
 	typedFunctionReferences(): Promise<boolean>;
 };
-// @ts-ignore
-!(function (e, n) {
-	'object' == typeof exports && 'undefined' != typeof module
-		? (module.exports = n())
-		: 'function' == typeof define && define.amd
-			? define(n)
-			: ((e = 'undefined' != typeof globalThis ? globalThis : e || self).wasmFeatureDetect = n());
+// @ts-expect-error bundled worker shim assigns `wasmFeatureDetect` to the global scope
+(function (e, n) {
+	if ('object' == typeof exports && 'undefined' != typeof module) {
+		module.exports = n();
+	} else if ('function' == typeof define && define.amd) {
+		define(n);
+	} else {
+		(e = 'undefined' != typeof globalThis ? globalThis : e || self).wasmFeatureDetect = n();
+	}
 })(this, function () {
 	'use strict';
 	return {
@@ -42,7 +43,7 @@ declare const wasmFeatureDetect: {
 			(async (e) => {
 				try {
 					return (await WebAssembly.instantiate(e)).instance.exports.b(BigInt(0)) === BigInt(0);
-				} catch (e) {
+				} catch {
 					return !1;
 				}
 			})(
@@ -76,7 +77,7 @@ declare const wasmFeatureDetect: {
 						),
 						!0
 					);
-				} catch (e) {
+				} catch {
 					return !1;
 				}
 			})(),
@@ -105,7 +106,7 @@ declare const wasmFeatureDetect: {
 						),
 						!0
 					);
-				} catch (e) {
+				} catch {
 					return !1;
 				}
 			})(),
@@ -121,7 +122,7 @@ declare const wasmFeatureDetect: {
 						),
 						!0
 					);
-				} catch (e) {
+				} catch {
 					return !1;
 				}
 			})(),
@@ -189,7 +190,7 @@ declare const wasmFeatureDetect: {
 							new MessageChannel().port1.postMessage(new SharedArrayBuffer(1)),
 						WebAssembly.validate(e)
 					);
-				} catch (e) {
+				} catch {
 					return !1;
 				}
 			})(
@@ -213,7 +214,7 @@ declare const wasmFeatureDetect: {
 						),
 						!0
 					);
-				} catch (e) {
+				} catch {
 					return !1;
 				}
 			})()
@@ -273,9 +274,7 @@ async function loadPoseLandmarkerModel() {
 }
 
 self.onmessage = async function (event: MessageEvent) {
-	const data = event.data;
-
-	// console.log('Got message in pose estimation worker: ', data);
+	// console.log('Got message in pose estimation worker: ', event.data);
 
 	if (!event.data.type) {
 		console.warn('pose-estimation.worker.ts:: Received message without type', event);

@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
-
 	import type { SupabaseClient } from '@supabase/supabase-js';
 	import { createEventDispatcher } from 'svelte';
 
@@ -66,7 +64,6 @@
 			if (resetPasswordEmailResult.error) {
 				error = resetPasswordEmailResult.error.message;
 			} else {
-				resetPasswordEmailResult.data;
 				message = 'Check your email for the password reset link';
 			}
 		}

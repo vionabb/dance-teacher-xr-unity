@@ -10,10 +10,6 @@
 		feedback_YellowThreshold,
 		feedback_GreenThreshold,
 		resetSettingsToDefault,
-		pauseDurationMin,
-		pauseDurationMax,
-		stepMin,
-		stepMax,
 		useAIFeedback,
 		evaluation_summarizeSubsections,
 		evaluation_summarizeSubsectionsOptions,
@@ -25,7 +21,6 @@
 		summaryFeedback_skeleton3d_goodPerformanceThreshold,
 		danceVideoVolume
 	} from '$lib/model/settings';
-	import { lerp } from '$lib/utils/math';
 	import type { User } from '@supabase/supabase-js';
 	import { createEventDispatcher } from 'svelte';
 
@@ -37,12 +32,6 @@
 	// increase as the value increases. This is to make it easier to select a value
 	// precisely when the value is small, and easier to select a value quickly when
 	// the value is large.
-	let pauseDurationStep = 0.1;
-	$: pauseDurationStep =
-		Math.round(
-			10 * lerp($debugPauseDurationSecs, pauseDurationMin, pauseDurationMax, stepMin, stepMax, true)
-		) / 10;
-
 	const qijiaScoreMin = 0;
 	const qijiaScoreMax = 5;
 

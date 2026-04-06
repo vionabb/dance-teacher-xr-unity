@@ -103,7 +103,7 @@ describe('AllMetricsComparison', {}, async () => {
 	}
 	// Set high test timeout for each test
 	const testTimeout = 20 * 60 * 1000; // 20 minutes in milliseconds
-	it.skip('skeleton3DAngleDistanceDTWEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+	it.skip('skeleton3DAngleDistanceDTWEvaluation', { timeout: testTimeout }, async () => {
 		const metric = new Skeleton3DAngleDistanceDTWEvaluationMetric();
 		const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
 			const summary = metric.summarizeMetric(trackHistory);
@@ -122,9 +122,9 @@ describe('AllMetricsComparison', {}, async () => {
 		await updateDbWithMetric('skeleton3DAngleDistanceDTWEvaluation', metricRunner);
 	});
 
-	it('qijia2DPoseEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+	it('qijia2DPoseEvaluation', { timeout: testTimeout }, async () => {
 		const metric = new Qijia2DPoseEvaluationMetric();
-		const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
+		const metricRunner: MetricRunner = (track: TestTrack) => {
 			const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
 			return {
 				metricName: 'qijia2DPoseEvaluation',
@@ -136,9 +136,9 @@ describe('AllMetricsComparison', {}, async () => {
 		await updateDbWithMetric('qijia2DPoseEvaluation', metricRunner);
 	});
 
-	it('jules2DPoseEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+	it('jules2DPoseEvaluation', { timeout: testTimeout }, async () => {
 		const metric = new Jules2DPoseEvaluationMetric();
-		const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
+		const metricRunner: MetricRunner = (track: TestTrack) => {
 			const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
 			return {
 				metricName: 'jules2DPoseEvaluation',
@@ -152,9 +152,9 @@ describe('AllMetricsComparison', {}, async () => {
 		await updateDbWithMetric('jules2DPoseEvaluation', metricRunner);
 	});
 
-	it('skeleton3DVectorAngleEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+	it('skeleton3DVectorAngleEvaluation', { timeout: testTimeout }, async () => {
 		const metric = new Skeleton3DVectorAngleEvaluationMetric();
-		const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
+		const metricRunner: MetricRunner = (track: TestTrack) => {
 			const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
 			return {
 				metricName: 'skeleton3DVectorAngleEvaluation',
@@ -166,7 +166,7 @@ describe('AllMetricsComparison', {}, async () => {
 		await updateDbWithMetric('skeleton3DVectorAngleEvaluation', metricRunner);
 	});
 
-	it('temporalAlignmentEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+	it('temporalAlignmentEvaluation', { timeout: testTimeout }, async () => {
 		const metric = new TemporalAlignmentEvaluationMetric();
 		const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
 			const summary = metric.summarizeMetric(trackHistory);
@@ -180,7 +180,7 @@ describe('AllMetricsComparison', {}, async () => {
 		await updateDbWithMetric('temporalAlignmentEvaluation', metricRunner);
 	});
 
-	it('kinematicErrorEvaluation', { timeout: testTimeout }, async ({ expect }) => {
+	it('kinematicErrorEvaluation', { timeout: testTimeout }, async () => {
 		const metricNoVisibliityScale = new KinematicErrorEvaluationMetric({
 			calculateValues: {
 				scaleIndicator: null //no size scaling,
@@ -250,7 +250,7 @@ describe('AllMetricsComparison', {}, async () => {
 		await updateDbWithMetric('kinematicErrorEvaluation', metricRunner);
 	});
 
-	it('humanRating', { timeout: testTimeout }, async ({ expect }) => {
+	it('humanRating', { timeout: testTimeout }, async () => {
 		const metricRunner: MetricRunner = (
 			track: TestTrack,
 			trackHistory: EvaluationTrackHistory,

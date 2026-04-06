@@ -221,7 +221,7 @@ dotenv.config({
  * @returns {Promise<void>}
  */
 async function syncBundleData(args) {
-	const { url, key, dancesJsonPath, danceTreesJsonPath, isAsync = false, dryRun = false } = args;
+	const { url, key, dancesJsonPath, danceTreesJsonPath, dryRun = false } = args;
 
 	/** @type {import('@supabase/supabase-js').SupabaseClient<import('../src/lib/ai/backend/SupabaseTypes').Database>} */
 	const supabase = createClient(url, key);

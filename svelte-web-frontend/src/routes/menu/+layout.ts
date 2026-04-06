@@ -1,7 +1,7 @@
 import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
 import type { LayoutLoad } from './$types';
 
-export const load: LayoutLoad = async ({ fetch, parent }) => {
+export const load: LayoutLoad = async ({ parent }) => {
 	const { databackend } = await parent();
 
 	const motionVideos: MotionVideo[] = await databackend.getMotionVideos();

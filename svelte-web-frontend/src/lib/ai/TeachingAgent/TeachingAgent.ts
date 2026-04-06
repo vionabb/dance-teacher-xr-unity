@@ -4,10 +4,8 @@ import {
 	getAllLeafNodes
 } from '../../data/dances-store';
 import type PracticeStep from '$lib/model/PracticeStep';
-import type { PracticeStepModeKey } from '$lib/model/PracticeStep';
 import type {
 	CheckpointActivity,
-	DrillActivity,
 	FinaleActivity,
 	PracticePlan,
 	PracticePlanActivity,
@@ -16,15 +14,7 @@ import type {
 import { CreateMarkingStep } from './marking-step';
 import { CreateDrillStep } from './drill-step';
 import { CreateFulloutStep } from './fullout-step';
-import {
-	writable,
-	type Writable,
-	type Readable,
-	derived,
-	get,
-	readable,
-	readonly
-} from 'svelte/store';
+import { writable, type Writable, type Readable, derived, get } from 'svelte/store';
 import { type PracticePlanProgress, type StepProgressData } from '$lib/data/activity-progress';
 import type {
 	IDataBackend,
@@ -81,7 +71,7 @@ export function buildDefaultNavigationAction(args: {
 }): PostPracticeAttemptAction_AskNavigation {
 	const baseURL = new URL(args.requestingURL?.origin ?? window.location.origin);
 
-	let navigationOptions: PostPracticeAttemptAction_AskNavigation['navigationOptions'] = [
+	const navigationOptions: PostPracticeAttemptAction_AskNavigation['navigationOptions'] = [
 		{
 			displayText: 'Repeat this step',
 			url: getPracticeStepUrl({
@@ -160,20 +150,12 @@ export function buildDefaultNavigationAction(args: {
 	return defaultNavigationAction;
 }
 
-function buildMarkingAction(userLearningModel: UserLearningModel) {}
-
 function GenerateMarkDrillFulloutSteps(
 	segmentDescription: string,
 	startTime: number,
 	endTime: number,
 	parentActivityId: string
 ) {
-	const stepBase = {
-		segmentDescription: segmentDescription,
-		startTime: startTime,
-		endTime: endTime
-	} satisfies Partial<PracticeStep>;
-
 	const mark = CreateMarkingStep(segmentDescription, startTime, endTime);
 	const drill = CreateDrillStep(segmentDescription, startTime, endTime);
 	const fullOut = CreateFulloutStep(segmentDescription, startTime, endTime);
@@ -259,7 +241,7 @@ function GeneratePracticePlan(danceTree: MotionSegmentation): PracticePlan {
 	};
 	let currentSegmentIndex = 0;
 	phraseNodes.forEach((phraseNode, node_i) => {
-		let remainingActivitiesCount = phraseNodes.length - node_i;
+		const remainingActivitiesCount = phraseNodes.length - node_i;
 
 		if (
 			(currentStage.activities.length >= CHECKPOINT_SEGMENT_COUNT &&
@@ -338,8 +320,6 @@ function nextIncompleteActivity(practicePlan: PracticePlan, progress: PracticePl
 
 	return firstIncompleteActivity;
 }
-
-const PROGRESS_REFRESH_MIN_INTERVAL_SECS = 60 * 10; // 10 minutes
 
 export type PostPracticeAttemptSelfReportQuestion = {
 	question_class: string;

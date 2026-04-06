@@ -1,11 +1,5 @@
-import type { ValueOf } from '$lib/data/dances-store';
-import type { Pose3DLandmarkFrame, Pose2DPixelLandmarks } from '$lib/webcam/mediapipe-utils';
-import {
-	BodyInnerAnglesComparisons,
-	getInnerAngleFromFrame,
-	GetHarmonicMean,
-	getArraySD
-} from '../EvaluationCommonUtils';
+import type { Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
+import { BodyInnerAnglesComparisons } from '../EvaluationCommonUtils';
 import {
 	getSegmentFrameRanges,
 	type EvaluationTrackHistory,
@@ -17,13 +11,7 @@ import {
 	compute3dAngleSimilarity,
 	computeSkeleton3DVectorAngleSimilarity
 } from './Skeleton3DVectorAngleEvaluationMetric';
-
-import { browser } from '$app/environment';
-
 // let Plotly: typeof import("plotly.js-dist-min");
-
-type AngleComparisonKey = keyof typeof BodyInnerAnglesComparisons;
-type AngleComparisonValue = ValueOf<typeof BodyInnerAnglesComparisons>;
 
 type Angle3D_DtwMetricSummaryOutput = ReturnType<
 	Skeleton3DAngleDistanceDTWEvaluationMetric['summarizeMetric']

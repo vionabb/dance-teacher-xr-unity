@@ -1,10 +1,6 @@
 import type { FeedbackFunction } from '$lib/model/PracticeStep';
 import type PracticeStep from '$lib/model/PracticeStep';
 import type { TerminalFeedback } from '$lib/model/TerminalFeedback';
-import type {
-	FrontendEvaluationTrack,
-	FrontendPerformanceSummary
-} from '../FrontendDanceEvaluator';
 
 export function CreateMarkingStep(
 	segmentDescription: string,
@@ -31,7 +27,7 @@ export function CreateMarkingStep(
 	return markStep;
 }
 
-const GenerateMarkingFeedback: FeedbackFunction = async (args) => {
+const GenerateMarkingFeedback: FeedbackFunction = async () => {
 	const feedback: TerminalFeedback = {
 		paragraphs: [
 			'Do you feel like you have a good understanding of the moves?',

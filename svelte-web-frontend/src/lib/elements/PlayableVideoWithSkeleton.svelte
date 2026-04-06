@@ -1,20 +1,13 @@
 <!-- @migration-task Error while migrating Svelte code: This migration would change the name of a slot making the component unusable -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { PoseReferenceData } from '$lib/data/dances-store';
 	import { createEventDispatcher, onMount } from 'svelte';
-	import {
-		type Pose2DPixelLandmarks,
-		GetNormalizedLandmarksFromPixelLandmarks
-	} from '$lib/webcam/mediapipe-utils';
-	import type { DrawingUtils, PoseLandmarker, NormalizedLandmark } from '@mediapipe/tasks-vision';
+	import type { DrawingUtils } from '@mediapipe/tasks-vision';
 	import { getContentSize } from '$lib/utils/resizing';
 	import SegmentedProgressBar, {
 		type SegmentedProgressBarProps,
 		type SegmentedProgressBarPropsWithoutCurrentTime
 	} from './SegmentedProgressBar.svelte';
-	import Icon from '@iconify/svelte';
-	import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
 
 	const dispatch = createEventDispatcher();
 
@@ -52,8 +45,6 @@
 		src?: string | MediaStream | MediaSource | Blob | undefined;
 		duration?: number;
 		ended?: boolean;
-		dance?: MotionVideo | null;
-		poseData?: PoseReferenceData<Pose2DPixelLandmarks> | null;
 		drawSkeleton?: boolean;
 		controls?: ControlOptions | boolean;
 		drawOnVideo?: drawVideoFn;

@@ -15,7 +15,7 @@ export const load = async ({ locals: { supabase, session, user } }) => {
 };
 
 export const actions = {
-	update: async ({ request, locals: { supabase, safeGetSession, user, session } }) => {
+	update: async ({ request, locals: { supabase, user } }) => {
 		const formData = await request.formData();
 		const fullName = formData.get('fullName') as string;
 		const username = formData.get('username') as string;

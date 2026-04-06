@@ -32,7 +32,7 @@
 </script>
 
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -1 14 55" preserveAspectRatio="xMinYMin slice">
-	{#each allBodyParts as bodyPart, i}
+	{#each allBodyParts as bodyPart}
 		<path
 			d={bodyPartPaths[bodyPart]}
 			fill={stdFillColor}
@@ -40,7 +40,7 @@
 			stroke-width="0.5"
 		/>
 	{/each}
-	{#each highlights as highlight, i}
+	{#each highlights as highlight}
 		<path
 			d={bodyPartPaths[highlight.bodyPart]}
 			fill={highlight.fillColor ?? highlightFillColor}

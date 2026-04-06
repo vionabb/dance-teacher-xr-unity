@@ -9,7 +9,6 @@ import KinematicErrorEvaluationMetric from './motionmetrics/KinematicErrorEvalua
 
 import frontendPerformanceHistory from './frontendPerformanceHistory';
 import TemporalAlignmentEvaluationMetric from './motionmetrics/TemporalAlignmentEvaluationMetric';
-import Skeleton3DAngleDistanceDTWEvaluationMetric from './motionmetrics/Skeleton3DAngleDistanceDTWEvaluationMetric';
 
 export const FrontendLiveMetrics = Object.freeze({
 	qijia2DPoseEvaluation: new Qijia2DPoseEvaluationMetric(),

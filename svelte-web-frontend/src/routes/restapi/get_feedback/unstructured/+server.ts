@@ -1,4 +1,3 @@
-import { runPrompt as runPromptOnClaude } from '$lib/ai/backend/anthropic';
 import { runPrompt as runPromptOnOpenAI } from '$lib/ai/backend/openai';
 import { json, type RequestEvent } from '@sveltejs/kit';
 

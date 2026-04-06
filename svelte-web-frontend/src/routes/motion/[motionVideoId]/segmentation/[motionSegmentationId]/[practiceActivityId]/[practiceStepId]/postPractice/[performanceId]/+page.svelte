@@ -1,18 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import Jules2DPoseEvaluationMetric from '$lib/ai/motionmetrics/Jules2DPoseEvaluationMetric.js';
 	import {
 		GetTeachingAgent,
 		type PostPracticeAttemptAction,
 		type PostPracticeAttemptAction_Review,
-		type PostPracticeAttemptSelfReportQuestion,
 		buildDefaultNavigationAction
 	} from '$lib/ai/TeachingAgent/TeachingAgent';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
 	import { getPracticeStepUrl } from '$lib/utils/appurls.js';
 	import { waitSecs } from '$lib/utils/async.js';
 	import { onMount } from 'svelte';
-	import { get } from 'svelte/store';
 	let { data } = $props();
 
 	const teachingAgent = GetTeachingAgent();

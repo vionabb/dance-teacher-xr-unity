@@ -6,8 +6,7 @@
  */
 
 import sqlite3 from 'sqlite3';
-import { readFile, writeFile } from 'fs/promises';
-import fs from 'fs';
+import { writeFile } from 'fs/promises';
 import Papa from 'papaparse';
 
 const DB_NAME = 'motion_metrics.db'; // hosted at cwd
@@ -42,23 +41,6 @@ function getPromisifiedDb(db: sqlite3.Database) {
 		}
 	};
 }
-
-type ID_COLS = {
-	userId: number;
-	danceId: string;
-	studyName: string;
-	workflowId: string;
-	clipNumber: number;
-	collectionId: string;
-};
-
-type FIXED_COLS = ID_COLS & {
-	danceName: string;
-	studyName: string;
-	condition: string;
-	performanceSpeed: number;
-	frameCount: number;
-};
 
 // There are also dynamic columns that are added to the table for
 // each metric that is run. Metrics can add multiple columns if they

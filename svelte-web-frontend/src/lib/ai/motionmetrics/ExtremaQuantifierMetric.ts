@@ -4,11 +4,7 @@ import {
 	type QuantifierDerivedRow,
 	type SingleTrackMetricTrack
 } from './MotionMetric';
-import {
-	getFrameAlignedSeriesValues,
-	getSeriesById,
-	getSegmentIndexForFrame
-} from './quantifierUtils';
+import { getFrameAlignedSeriesValues, getSeriesById } from './quantifierUtils';
 
 export type ExtremaMode = 'min' | 'max' | 'both';
 

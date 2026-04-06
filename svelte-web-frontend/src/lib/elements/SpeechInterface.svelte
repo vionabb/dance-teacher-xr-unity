@@ -25,7 +25,6 @@
 	import { createEventDispatcher, onMount, tick } from 'svelte';
 	import { useTextToSpeech } from '$lib/model/settings';
 	import { lerp } from '$lib/utils/math';
-	import { text } from '@sveltejs/kit';
 
 	export let textToSpeak: string = '';
 
@@ -33,8 +32,6 @@
 
 	let currentUtterance: SpeechSynthesisUtterance | undefined = undefined;
 	let speechSythensizer: SpeechSynthesis | undefined;
-	let speechRecognition: any | undefined;
-
 	let alreadySpokenText = '';
 	let currentlySpeakingText = '';
 	let notYetSpokenText = '';
@@ -187,10 +184,6 @@
 		}
 		console.log('SpeechInterface mounted');
 		speechSythensizer = window.speechSynthesis;
-
-		const SpeechRecognitionConstructor: any | undefined =
-			(window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
-		speechRecognition = SpeechRecognitionConstructor ? new SpeechRecognitionConstructor() : null;
 
 		isMounted = true;
 

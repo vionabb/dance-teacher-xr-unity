@@ -11,9 +11,7 @@ import {
 	loadTiktokWholePoses,
 	OtherPoseSource,
 	Study,
-	type SegmentInfo,
 	type StudySegmentData,
-	type TikTokClipInfo,
 	type TiktokDanceClipData
 } from './PoseDataTestFile';
 import Skeleton3DAngleDistanceDTWEvaluationMetric from './Skeleton3DAngleDistanceDTWEvaluationMetric';
@@ -85,8 +83,8 @@ describe('Skeleton3DAngleDistanceDTWEvaluationMetric', {}, async () => {
 			'can match a user pose file to one of the tiktok clips & run dtw',
 			{},
 			async ({ expect }) => {
-				let data = takeAsnc(allPoses, 1);
-				let userPoseData = await data.next();
+				const data = takeAsnc(allPoses, 1);
+				const userPoseData = await data.next();
 				expect(userPoseData.value).toBeTruthy();
 				expect(userPoseData.value?.poses).not.toBe(null);
 

@@ -1,7 +1,5 @@
 import { describe, it } from 'vitest';
 import {
-	runLiveEvaluationMetricOnTestTrack,
-	publishLiveMetricOutputForTracks,
 	loadTestTrack,
 	generateAllTestTracks,
 	runSummaryMetricOnTestTrack,

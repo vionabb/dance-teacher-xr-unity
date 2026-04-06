@@ -223,8 +223,8 @@ export async function loadPoseInformation<T extends Pose2DPixelLandmarks | Pose3
 	let text: string = '';
 	if (!useFetch) {
 		// use nodefs/promises in tests
-		const fs = require('fs').promises;
-		text = await fs.readFile(csvpath, 'utf-8');
+		const { readFile } = await import('node:fs/promises');
+		text = await readFile(csvpath, 'utf-8');
 	} else {
 		const response = await fetch(csvpath);
 		text = await response.text();

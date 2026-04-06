@@ -1,4 +1,4 @@
-import { json, redirect, type RequestEvent } from '@sveltejs/kit';
+import { redirect, type RequestEvent } from '@sveltejs/kit';
 
 export async function GET(event: RequestEvent) {
 	if (!event.locals.session) {

@@ -27,7 +27,7 @@ export async function load({ params, parent, url }) {
 		dataBackend: parentData.databackend
 	});
 
-	let action = await teachingAgent.decidePostPracticeAttemptAction({
+	const action = await teachingAgent.decidePostPracticeAttemptAction({
 		motionVideo: parentData.motionVideo,
 		motionSegmentation: parentData.motionSegmentation,
 		userLearningModel: parentData.userLearningModel,

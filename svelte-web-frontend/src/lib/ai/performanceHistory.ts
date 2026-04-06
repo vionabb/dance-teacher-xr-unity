@@ -71,8 +71,6 @@ function loadPerformanceHistoryFromLocalstorage<
 	}
 }
 
-let a = writable(0);
-
 export function createPerformanceHistoryStore<
 	MetricTypes extends Record<string, BaseMetric<any, any>>
 >() {

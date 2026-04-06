@@ -1,5 +1,5 @@
 export function SwapArrayElements(arr: Array<any>, i: number, j: number) {
-	let temp = arr[i];
+	const temp = arr[i];
 	arr[i] = arr[j];
 	arr[j] = temp;
 }

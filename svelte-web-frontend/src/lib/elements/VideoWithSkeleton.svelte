@@ -5,13 +5,12 @@
 		type Pose2DPixelLandmarks,
 		GetNormalizedLandmarksFromPixelLandmarks
 	} from '$lib/webcam/mediapipe-utils';
-	import type { DrawingUtils, PoseLandmarker, NormalizedLandmark } from '@mediapipe/tasks-vision';
+	import type { DrawingUtils, NormalizedLandmark } from '@mediapipe/tasks-vision';
 	import { getContentSize } from '$lib/utils/resizing';
 	import SegmentedProgressBar, {
 		type SegmentedProgressBarProps,
 		type SegmentedProgressBarPropsWithoutCurrentTime
 	} from './SegmentedProgressBar.svelte';
-	import Icon from '@iconify/svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -119,9 +118,15 @@
 			: null;
 	}
 
-	let requestedAnimationFrameId: number | null = null;
-
-	$: (canvasElement, canvasCtx, poseToDraw, drawSkeleton, drawCanvas());
+	let redrawToken = 0;
+	$: redrawToken =
+		Number(Boolean(canvasElement)) +
+		Number(Boolean(canvasCtx)) +
+		Number(Boolean(poseToDraw)) +
+		Number(Boolean(drawSkeleton));
+	$: if (redrawToken >= 0) {
+		drawCanvas();
+	}
 
 	function drawCanvas() {
 		if (!canvasElement) return;
@@ -165,7 +170,7 @@
 
 	onMount(() => {
 		// requestedAnimationFrameId = requestAnimationFrame(drawCanvas);
-		const resizeObserver = new ResizeObserver((entries) => {
+		const resizeObserver = new ResizeObserver(() => {
 			if (!videoElement) return;
 			const [width, height] = getContentSize(videoElement);
 			videoElementWidth = width;
@@ -230,7 +235,7 @@
 	</div>
 	<div class="control-container absolute inset-0 gap-4 p-2">
 		<span class="hidden">
-			{#each seekable ?? [] as seekableRange, i}
+			{#each seekable ?? [] as seekableRange}
 				<span>{seekableRange.start}-{seekableRange.end}</span>&nbsp;
 			{/each}
 		</span>

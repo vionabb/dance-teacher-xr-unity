@@ -57,7 +57,6 @@ async function loadPoseLandmarkerModel() {
 	return poseLandmarker;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-function
 function no_op() {}
 
 export default class PoseEstimationWorker {

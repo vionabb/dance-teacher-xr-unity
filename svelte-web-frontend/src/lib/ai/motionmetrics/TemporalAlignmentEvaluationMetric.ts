@@ -65,7 +65,7 @@ function calculateImpactEnvelope(frameHistory: Pose3DLandmarkFrame[], debugFileR
 	// Step 2: Construct the Posegram -- bin each pose flow vector into a 2D histogram
 	//      where the x-axis is the frame index and the y-axis is the directional bin (8 directions).
 	const binDirections = 8;
-	const posegram = poseFlow.map((frame, frameIndex) => {
+	const posegram = poseFlow.map((frame) => {
 		const bins = new Array<number>(binDirections).fill(0);
 		if (!frame) {
 			return bins;

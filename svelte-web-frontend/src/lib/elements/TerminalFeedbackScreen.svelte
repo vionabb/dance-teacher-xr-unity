@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
 	// TerminalFeedbackDialog.svelte
 	//
 	// A component for offering feedback after a user has completed a
@@ -9,39 +7,21 @@
 	import type { TerminalFeedback } from '$lib/model/TerminalFeedback';
 	import type { BodyPartHighlight } from '$lib/elements/StaticSkeletonVisual.svelte';
 	import StaticSkeletonVisual from '$lib/elements/StaticSkeletonVisual.svelte';
-	import { createEventDispatcher, onMount, tick } from 'svelte';
 	import { debugMode } from '$lib/model/settings';
-	import { replaceJSONForStringifyDisplay } from '$lib/utils/formatting';
 	import Dialog from './Dialog.svelte';
 	import ProgressEllipses from './ProgressEllipses.svelte';
 	import SpeechInterface from './SpeechInterface.svelte';
-	import PerformanceReviewPage from '$lib/pages/PerformanceReviewPage.svelte';
-
-	import InfoIcon from 'virtual:icons/mdi/information';
 	import StarIcon from 'virtual:icons/mdi/star';
-
-	const dispatch = createEventDispatcher();
 
 	interface Props {
 		feedback?: TerminalFeedback | null;
 		performanceSummary?: FrontendPerformanceSummary | undefined;
 	}
 
-	let { feedback = null, performanceSummary = undefined }: Props = $props();
+	let { feedback = null }: Props = $props();
 
-	let showingPerformanceSummary = $state(false);
 	let showingLLMOutput = $state(false);
 	let showingTerminalFeedbackJson = $state(false);
-
-	let performanceSummaryWithoutTrack = $derived.by(() => {
-		if (!performanceSummary) {
-			return undefined;
-		}
-		return {
-			...performanceSummary,
-			adjustedTrack: undefined
-		};
-	});
 
 	let skeletonHighlights: BodyPartHighlight[] = $derived.by(() => {
 		const incorrectHighlights = (feedback?.incorrectBodyPartsToHighlight ?? []).map((bodyPart) => {
@@ -52,24 +32,6 @@
 		});
 		return [...incorrectHighlights, ...correctHighlights];
 	});
-
-	function promptDownload(objUrl: string, filename: string) {
-		const link = document.createElement('a');
-		link.href = objUrl;
-		link.download = filename;
-		link.click();
-	}
-
-	function getTrackDataUrl(track: any, description: string) {
-		let trackDictionary = track.asDictWithoutTimeSeriesResults();
-		trackDictionary = {
-			...trackDictionary,
-			trackDescription: description
-		};
-		const trackJson = JSON.stringify(trackDictionary, replaceJSONForStringifyDisplay);
-		const blob = new Blob([trackJson], { type: 'application/json' });
-		return URL.createObjectURL(blob);
-	}
 
 	// function exportRecordings() {
 
@@ -108,7 +70,7 @@
 <div class="feedbackForm text-xl">
 	{#if !feedback}<h2>Thinking<ProgressEllipses /></h2>{/if}
 
-	{#each feedback?.achievements ?? [] as achivement, i}
+	{#each feedback?.achievements ?? [] as achivement}
 		<p class="achievement animate pop"><StarIcon /><span>{achivement}</span></p>
 	{/each}
 

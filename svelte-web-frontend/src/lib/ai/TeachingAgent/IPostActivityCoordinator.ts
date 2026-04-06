@@ -1,4 +1,3 @@
-import type { SvelteComponent } from 'svelte';
 import type { IPracticePage } from '../IPracticePage';
 import type { FrontendDanceEvaluator } from '../FrontendDanceEvaluator';
 

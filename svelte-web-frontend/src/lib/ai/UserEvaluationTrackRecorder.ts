@@ -239,7 +239,7 @@ export class PerformanceEvaluationTrack<T extends Record<string, unknown>> {
  * Class for recording user performance evaluations.
  * @template LiveMetricResultsType - The type of evaluation data to be recorded.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export class UserEvaluationTrackRecorder<LiveMetricResultsType extends Record<string, any>> {
 	public tracks: Map<string, PerformanceEvaluationTrack<LiveMetricResultsType>> = new Map();
 

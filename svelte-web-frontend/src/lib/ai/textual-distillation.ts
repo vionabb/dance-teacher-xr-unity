@@ -41,13 +41,12 @@ export function distillSegmentation(segmentation: DanceSegmentation) {
 		};
 	});
 
-	let distillation =
+	const distillation =
 		'To help with learning, the system has broken down the dance into segments that can be learned individually or in groups - as stepping stones to learning the entire dance. The following segments have been identified:\n';
 
 	segments
 		.map(
-			(x, i) =>
-				`* Segment '${x.label}', from (${x.startTime.toFixed(2)}s to ${x.endTime.toFixed(2)}s)`
+			(x) => `* Segment '${x.label}', from (${x.startTime.toFixed(2)}s to ${x.endTime.toFixed(2)}s)`
 		)
 		.join('\n');
 	return distillation;
@@ -89,7 +88,7 @@ export function distillPracticePlan(plan: PracticePlan): string {
 	}
 	plan.stages.forEach((stage, stageIndex) => {
 		distillation += `* Stage ${stageIndex + 1} consists of ${stage.activities.length} learning activities. `;
-		stage.activities.forEach((activity, activityIndex) => {
+		stage.activities.forEach((activity) => {
 			distillation += `Activity "${activity.title}") has ${activity.steps.length} steps (${activity.steps.map((s) => distillPracticeStep(s)).join('; ')}). `;
 		});
 	});

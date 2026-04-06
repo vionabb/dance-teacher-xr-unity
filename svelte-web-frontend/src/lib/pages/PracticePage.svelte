@@ -15,14 +15,13 @@
 <script lang="ts">
 	import {
 		danceVideoVolume,
-		debugMode__addPlaceholderAchievement,
 		practiceActivities__enablePerformanceRecording
 	} from './../model/settings';
 	import { v4 as generateUUIDv4 } from 'uuid';
 	import { evaluation_summarizeSubsections } from '$lib/model/settings';
 	// import { replaceJSONForStringifyDisplay } from '$lib/utils/formatting';
 	import { getAllLeafNodes, getAllNodesInSubtree } from '$lib/data/dances-store';
-	import { pauseInPracticePage, debugPauseDurationSecs, debugMode } from '$lib/model/settings';
+	import { pauseInPracticePage, debugPauseDurationSecs } from '$lib/model/settings';
 	import {
 		GetPixelLandmarksFromNormalizedLandmarks,
 		type Pose3DLandmarkFrame
@@ -51,10 +50,8 @@
 		getFrontendDanceEvaluator,
 		type FrontendDanceEvaluator,
 		type FrontendPerformanceSummary,
-		type FrontendLiveEvaluationResult,
-		type FrontendEvaluationTrack
+		type FrontendLiveEvaluationResult
 	} from '$lib/ai/FrontendDanceEvaluator';
-	import frontendPerformanceHistory from '$lib/ai/frontendPerformanceHistory';
 	import Dialog from '$lib/elements/Dialog.svelte';
 	import { waitSecs } from '$lib/utils/async';
 	import {
@@ -72,16 +69,11 @@
 	import BarCharIcon from 'virtual:icons/mdi/bar-chart';
 	import type TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
 	import type { Readable } from 'svelte/store';
-	import type {
-		IDataBackend,
-		MotionVideo,
-		UserLearningModel,
-		UserPerformanceAttempt
-	} from '$lib/ai/backend/IDataBackend';
-	import type { AttemptSettings, IPracticePage, VideoRecording } from '$lib/ai/IPracticePage';
+	import type { IDataBackend, MotionVideo, UserLearningModel } from '$lib/ai/backend/IDataBackend';
+	import type { AttemptSettings, VideoRecording } from '$lib/ai/IPracticePage';
 
 	const supabase = getContext('supabase') as SupabaseClient;
-	let teachingAgent = getContext('teachingAgent') as Readable<TeachingAgent>;
+	getContext('teachingAgent') as Readable<TeachingAgent>;
 
 	interface Props {
 		backend: IDataBackend;
@@ -110,13 +102,11 @@
 		mirrorForEvaluation = true,
 		motionVideo,
 		practiceStep = $bindable(null as PracticeStep | null),
-		practicePlan = undefined,
 		pageActive = false,
 		flipVideo = false,
 		continueBtnTitle = 'Continue',
 		continueBtnIcon = 'check' as 'nextarrow' | 'check',
 		progressBarProps = undefined,
-		backend: dataBackend,
 		userLearningModel,
 		onPracticeAttemptCompleted = undefined
 	}: Props = $props();
@@ -162,14 +152,9 @@
 			(isDoingSomeSortOfFeedback && pageState === 'waitWebcam')
 	);
 
-	let isPlayingOrCountdown: boolean = $derived(
-		pageState === 'playing' || pageState === 'countdown'
-	);
 	let isShowingFeedback: boolean = $derived(pageState === 'feedback');
 	let feedbackDialogOpen: boolean = $state(false);
 	let isMounted = false;
-
-	let currentActivityStepIndex: number = 0;
 
 	let countdown = $state(-1);
 	let countdownActive = $state(false);
@@ -211,7 +196,6 @@
 		return motionSecsPerBeat / videoPlaybackSpeed;
 	});
 
-	let poseEstimationReady: Promise<void> | null = null;
 	let referenceDancePoses2D: PoseReferenceData<Pose2DPixelLandmarks> | null = $state(null);
 	let referenceDancePoses3D: PoseReferenceData<Pose3DLandmarkFrame> | null = null;
 
@@ -219,8 +203,6 @@
 	let effectivePlaybackSpeed: number = $derived(
 		customizedPlaybackSpeed ?? practiceStep?.playbackSpeed ?? 1.0
 	);
-	const defaultCustomSpeedOptions = [0.25, 0.5, 0.75, 0.9, 1];
-
 	let lastEvaluationResult: FrontendLiveEvaluationResult | null = $state(null);
 	let evaluator: FrontendDanceEvaluator | null = $state(null);
 	let trialId = $state(null as string | null);
@@ -230,7 +212,6 @@
 
 	let cachedVideoRecording: VideoRecording | undefined = $state(undefined);
 
-	const debugPauseDuration = 10.0; // if pauseInPracticePage is enabled, we'll pause for this many seconds midway through playback
 	let currentPlaybackEndtime = $state(practiceStep?.endTime ?? 0);
 
 	let webcamRecorderMimeType = 'video/webm';
@@ -242,14 +223,6 @@
 	let webcamRecordingCompletion: Promise<Blob | null> | null = null;
 	let resolveWebcamRecordingCompletion: ((blob: Blob | null) => void) | null = null;
 	let rejectWebcamRecordingCompletion: ((reason?: any) => void) | null = null;
-
-	let lastNAttemptsAngleSimilarity = $derived(
-		frontendPerformanceHistory.lastNAttempts(
-			practiceStep?.motionVideo?.id ?? -1,
-			'skeleton3DVectorAngleEvaluation',
-			20
-		)
-	);
 
 	let unpauseVideoTimeout: number | null = $state(null);
 	function unPauseVideo() {
@@ -286,8 +259,6 @@
 		} as VideoRecording;
 	}
 
-	let gettingFeedback = false;
-
 	async function playClickSound(silent: boolean = false) {
 		clickAudioElement.currentTime = 0;
 		clickAudioElement.volume = silent ? 0 : 1;
@@ -315,13 +286,11 @@
 			videoCurrentTime = practiceStep?.startTime ?? 0;
 			videoVolume = 0.01;
 			videoPlaybackSpeed = 0.0625; // Minimum playback rate: https://stackoverflow.com/questions/30970920/html5-video-what-is-the-maximum-playback-rate
-			let testPlaybackSuccessful = true;
 			try {
 				await playClickSound(true);
 				await videoWithSkeleton.play();
 				mediaElementsHaveBeenActivated = true;
 			} catch (e) {
-				testPlaybackSuccessful = false;
 				console.warn(
 					'startCountdown: test playback unsuccessful. Will try again after user interaction.',
 					e
@@ -452,7 +421,6 @@
 		feedbackDialogOpen = false;
 		mainContinueButton?.focus();
 		trialId = null;
-		currentActivityStepIndex = 0;
 		pageState = 'waitWebcam';
 		lastEvaluationResult = null;
 		isVideoPausedBinding = true;
@@ -526,7 +494,7 @@
 	const maximumPoseEstimationFrequencyHz = 10;
 	const minimumPoseEsstimationIntervalMs = 1000 / maximumPoseEstimationFrequencyHz;
 
-	function poseEstimationFrameSent(frameId: number, timestampMs: number) {
+	function poseEstimationFrameSent(frameId: number) {
 		// Associate the webcam frame being sent for pose estimation
 		// with the current video timestamp, so that we can later
 		// compare the user's pose with the dance pose at that time.
@@ -598,7 +566,6 @@
 			srcHeight
 		);
 		let evaluation3DPose = user3DPose;
-		MirrorXPose;
 		if (mirrorForEvaluation) {
 			const userDanceFlippedNormalizedPose = MirrorXPose(userNormalizedPose);
 			const userDanceFlippedPixelPose = GetPixelLandmarksFromNormalizedLandmarks(
@@ -647,7 +614,6 @@
 		// after the video starts playing.
 		clickAudioElement = new Audio(metronomeClickSoundSrc);
 		videoCurrentTime = practiceStep?.startTime ?? 0;
-		poseEstimationReady = Promise.resolve(); //virtualMirrorElement?.setupPoseEstimation() ?? Promise.reject("Virtual mirror is undefined or setupPoseEstimation returned a null promise");
 		reset().catch((e) => {
 			console.warn('Error resetting practice step (from onMount)', e);
 		});
@@ -688,8 +654,6 @@
 
 		terminalFeedback = null;
 		performanceSummary = null;
-		let recordedTrack = null as null | FrontendEvaluationTrack;
-
 		let subsequences = Object.fromEntries(
 			containingSegmentationTreeLeafNodes.map((node) => [
 				node.id,
@@ -709,7 +673,6 @@
 			performanceSummary = summary;
 
 			console.log('saving performance summary', $state.snapshot(performanceSummary));
-			recordedTrack = performanceSummary?.adjustedTrack ?? null;
 		} else {
 			console.warn('PracticePage:: No trialId, cannot generate performance summary');
 		}

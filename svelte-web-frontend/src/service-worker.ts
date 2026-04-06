@@ -41,8 +41,7 @@ const idb: AsyncStorage = {
 	}
 };
 
-var supabase: SupabaseClient<Database> | null = null;
-var backend: SupabaseDataBackend | null = null;
+let supabase: SupabaseClient<Database> | null = null;
 
 // receive session from the page and install it
 self.addEventListener('message', (e: any) => {
@@ -76,7 +75,7 @@ self.addEventListener('message', (e: any) => {
 				refresh_token: refreshToken
 			})
 		);
-		backend = new SupabaseDataBackend(supabase, userId);
+		new SupabaseDataBackend(supabase, userId);
 		return;
 	}
 });

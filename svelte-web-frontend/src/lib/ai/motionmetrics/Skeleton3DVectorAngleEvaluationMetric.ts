@@ -42,8 +42,6 @@ export function compute3dAngleSimilarity(
 
 	// clamp the score to be between 0 and 1,
 	// as it's possible for the user to bend beyond the expected range of motion
-	const score = Math.max(0, Math.min(1, rawScore));
-
 	return {
 		user: userInnerAngle,
 		ref: refInnerAngle,

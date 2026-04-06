@@ -1,4 +1,4 @@
-import type { DrawingUtils, NormalizedLandmark, LandmarkData } from '@mediapipe/tasks-vision';
+import type { NormalizedLandmark, LandmarkData } from '@mediapipe/tasks-vision';
 import { SwapLeftRightLandmarks } from '$lib/webcam/mediapipe-utils';
 
 import { feedback_YellowThreshold, feedback_GreenThreshold } from '$lib/model/settings';

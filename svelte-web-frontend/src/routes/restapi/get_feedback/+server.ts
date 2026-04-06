@@ -1,6 +1,5 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 
-import { getFeedback as getAnthropicLLMFeedback } from '$lib/ai/backend/anthropic';
 import { getFeedback as getOpenAILLMFeedback } from '$lib/ai/backend/openai';
 
 export async function POST(event: RequestEvent) {

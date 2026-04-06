@@ -198,7 +198,7 @@ export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3D
 		let pPoses: UserRefPair<T> | undefined = undefined;
 		let pVelocities: UserRefPair<VecWithVisibility[]> | undefined = undefined;
 		let pAccelerations: UserRefPair<VecWithVisibility[]> | undefined = undefined;
-		let pFrameTimes: number[] = [];
+		const pFrameTimes: number[] = [];
 
 		for (let i = 0; i < matchingUserPoses.length; i++) {
 			const curPoses: UserRefPair<T> = {
@@ -337,7 +337,7 @@ export function calculateKinematicErrorDescriptors(
 	kinematicValues: KinematicValues,
 	options?: KinematicErrorDescriptorsOptions
 ) {
-	const { poses, vels, velErrors, accels, accelErrors, jerks, jerkErrors } = kinematicValues;
+	const { poses, velErrors, accelErrors, jerkErrors } = kinematicValues;
 
 	const { visibilityBehavior = 'none', landmarkWeights: optLandmarkWeights = undefined } =
 		options || {};
@@ -361,7 +361,7 @@ export function calculateKinematicErrorDescriptors(
 		if (visibilityBehavior === 'none') {
 			weightedVals = allFrames.map((frameVals) => {
 				let frameVisibility = 0;
-				const vals = frameVals.map((v, landmark_i) => {
+				const vals = frameVals.map((v) => {
 					frameVisibility += v.visibility;
 					return v.value;
 				});
@@ -370,7 +370,7 @@ export function calculateKinematicErrorDescriptors(
 			});
 			avgVisibility /= allFrames.length;
 		} else if (visibilityBehavior === 'scale') {
-			let visibilityTotals = new Array(numLandmarks).fill(0);
+			const visibilityTotals = new Array(numLandmarks).fill(0);
 			weightedVals = allFrames
 				.map((frameVals) =>
 					frameVals.map((v, landmark_i) => {

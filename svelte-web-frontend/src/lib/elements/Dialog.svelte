@@ -1,8 +1,5 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
 	import { createEventDispatcher } from 'svelte';
-	import CloseButton from './CloseButton.svelte';
 
 	const dispatcher = createEventDispatcher();
 
@@ -19,7 +16,6 @@
 	let {
 		open = $bindable(false),
 		modal = true,
-		showCloseButton = true,
 		closeWhenClickedOutside = true,
 		title,
 		children

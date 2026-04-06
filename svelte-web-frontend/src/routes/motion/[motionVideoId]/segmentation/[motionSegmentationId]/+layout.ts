@@ -1,7 +1,6 @@
 import { error } from '@sveltejs/kit';
 
 import TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
-import { get } from 'svelte/store';
 import type { UserLearningModel } from '$lib/ai/backend/IDataBackend';
 
 /** @type {import('./$types').PageLoad} */

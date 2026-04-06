@@ -1,23 +1,18 @@
 <script lang="ts">
-	import { error } from '@sveltejs/kit';
-
 	import VideoWithSkeleton from '$lib/elements/VideoWithSkeleton.svelte';
 	import LearningJourneyTrail from '$lib/elements/LearningJourneyTrailUI.svelte';
 	import { getMotionVideoSrc } from '$lib/data/dances-store';
 	import type { SupabaseClient } from '@supabase/supabase-js';
-	import { getContext, onMount, tick } from 'svelte';
+	import { getContext } from 'svelte';
 	import { danceVideoVolume } from '$lib/model/settings';
 	import type { PracticePlan, PracticePlanActivity } from '$lib/model/PracticePlan';
-	import Icon from '@iconify/svelte';
 	import { goto } from '$app/navigation';
 	import type PracticeStep from '$lib/model/PracticeStep';
 	import { type PracticePlanProgress } from '$lib/data/activity-progress';
-	import { GetTeachingAgent } from '$lib/ai/TeachingAgent/TeachingAgent';
-	import { derived, get, readable, type Readable } from 'svelte/store';
+	import type { Readable } from 'svelte/store';
 	import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
 
 	const supabase: SupabaseClient = getContext('supabase');
-	const teachingAgent = GetTeachingAgent();
 
 	export let motionVideo: MotionVideo;
 	export let practicePlan: PracticePlan;
@@ -98,7 +93,7 @@
 		lastClickedSegmentStartTime = -1;
 	}
 
-	function onSkipBackClicked(e: Event) {
+	function onSkipBackClicked() {
 		clearFocusedSegment();
 	}
 

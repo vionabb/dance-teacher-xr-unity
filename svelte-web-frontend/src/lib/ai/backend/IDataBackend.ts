@@ -1,8 +1,7 @@
-import type { PracticePlanProgress, StepProgressData } from '$lib/data/activity-progress';
+import type { PracticePlanProgress } from '$lib/data/activity-progress';
 import type { PracticePlan } from '$lib/model/PracticePlan';
 import type { Database } from '$lib/ai/backend/SupabaseTypes';
 import type { MotionSegmentation } from '$lib/data/dances-store';
-import type { Data } from 'plotly.js-dist-min';
 import type { VideoRecording } from '../IPracticePage';
 import type PracticeStep from '$lib/model/PracticeStep';
 /**

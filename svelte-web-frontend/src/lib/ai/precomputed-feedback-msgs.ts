@@ -18,7 +18,7 @@ const GoodTrialHeadlines = Object.freeze([
 	"You're a Pro!",
 	'Outstanding Performance!'
 ]);
-let lastGoodTrialHeadlineIndex = -1;
+const lastGoodTrialHeadlineIndex = -1;
 export function getRandomGoodTrialHeadline() {
 	let index = lastGoodTrialHeadlineIndex;
 	while (index === lastGoodTrialHeadlineIndex) {
@@ -51,7 +51,7 @@ const BadTrialHeadline = Object.freeze([
 	'Stay Tenacious!'
 ]);
 
-let lastBadTrialHeadlineIndex = -1;
+const lastBadTrialHeadlineIndex = -1;
 export function getRandomBadTrialHeadline() {
 	let index = lastBadTrialHeadlineIndex;
 	while (index === lastBadTrialHeadlineIndex) {
@@ -67,7 +67,7 @@ const NoFeedbackHeadlines = Object.freeze([
 	'How did you feel?'
 ]);
 
-let lastNoFeedbackHeadlineIndex = -1;
+const lastNoFeedbackHeadlineIndex = -1;
 export function getRandomNoFeedbackHeadline() {
 	let index = lastNoFeedbackHeadlineIndex;
 	while (index === lastNoFeedbackHeadlineIndex) {

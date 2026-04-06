@@ -2,9 +2,8 @@
 	import type { SegmentedProgressBarPropsWithoutCurrentTime } from '$lib/elements/SegmentedProgressBar.svelte';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
 	import PracticePage from '$lib/pages/PracticePage.svelte';
-	import type { SupabaseClient } from '@supabase/supabase-js';
 	import { getContext } from 'svelte';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import type PracticeStep from '$lib/model/PracticeStep.js';
 	import type { PracticePlan, PracticePlanActivity } from '$lib/model/PracticePlan';
@@ -12,16 +11,7 @@
 
 	import { GetTeachingAgent } from '$lib/ai/TeachingAgent/TeachingAgent.js';
 	import type { AttemptSettings, VideoRecording } from '$lib/ai/IPracticePage.js';
-	import type {
-		FrontendEvaluationTrack,
-		FrontendPerformanceSummary
-	} from '$lib/ai/FrontendDanceEvaluator.js';
-	import type { TerminalFeedback } from '$lib/model/TerminalFeedback.js';
-	import { generateFeedbackNoPerformance } from '$lib/ai/feedback';
-
-	import frontendPerformanceHistory from '$lib/ai/frontendPerformanceHistory';
-	import { debugMode, debugMode__addPlaceholderAchievement } from '$lib/model/settings.js';
-	import { applyAction } from '$app/forms';
+	import type { FrontendPerformanceSummary } from '$lib/ai/FrontendDanceEvaluator.js';
 
 	let { data } = $props();
 
@@ -45,15 +35,13 @@
 	// Helper to strip heavy / circular fields from a PracticeStep before persisting
 	function cleanPracticeStep(step: PracticeStep) {
 		if (!step) return step as any;
-		const {
-			motionVideo,
-			motionSegmentation,
-			motionSegmentationNode,
-			feedbackFunction,
-			state,
-			...rest
-		} = step as any;
-		return rest;
+		const sanitizedStep = { ...(step as any) };
+		delete sanitizedStep.motionVideo;
+		delete sanitizedStep.motionSegmentation;
+		delete sanitizedStep.motionSegmentationNode;
+		delete sanitizedStep.feedbackFunction;
+		delete sanitizedStep.state;
+		return sanitizedStep;
 	}
 
 	const practicePlan = getContext<Readable<PracticePlan>>('practicePlan');
@@ -174,47 +162,6 @@
 		practicePage?.reset();
 	}
 
-	let gettingFeedback: boolean = false;
-	async function getFeedback(
-		perfSummary: FrontendPerformanceSummary | null,
-		recordedTrack: FrontendEvaluationTrack | null,
-		attemptSettings: AttemptSettings
-	) {
-		if (gettingFeedback) return;
-		gettingFeedback = true;
-
-		let feedback: TerminalFeedback | undefined = undefined;
-
-		if (!data.practiceStep?.feedbackFunction) {
-			feedback = generateFeedbackNoPerformance(
-				$frontendPerformanceHistory,
-				data.practiceStep?.motionSegmentationNode?.id ?? ''
-			);
-		} else {
-			feedback = await data.practiceStep.feedbackFunction({
-				attemptSettings: {
-					startTime: data.practiceStep?.startTime ?? 0,
-					endTime: data.practiceStep?.endTime ?? data.motionVideo.duration,
-					playbackSpeed: attemptSettings.effectivePlaybackSpeed,
-					referenceVideoVisible: attemptSettings.referenceVideoVisible,
-					userVideoVisible: attemptSettings.userVideoVisible
-				},
-				practiceStep: data.practiceStep,
-				practicePlan: data.userLearningModel.plan,
-				performanceSummary: perfSummary,
-				recordedTrack
-			});
-		}
-
-		gettingFeedback = false;
-
-		if ($debugMode && $debugMode__addPlaceholderAchievement) {
-			feedback?.achievements?.push('placeholder achievement');
-		}
-
-		return feedback;
-	}
-
 	async function onPracticeAttemptCompleted(attempt: {
 		motionVideoId: number;
 		learningModelId?: string;
@@ -223,8 +170,6 @@
 		videoRecording?: VideoRecording;
 		performanceSummary?: FrontendPerformanceSummary;
 	}): Promise<null | TerminalFeedback> {
-		let recordedTrack = attempt.performanceSummary?.adjustedTrack ?? null;
-
 		let performanceAttemptPromise = data.databackend
 			.createUserPerformanceAttempt({
 				self_report: {},
