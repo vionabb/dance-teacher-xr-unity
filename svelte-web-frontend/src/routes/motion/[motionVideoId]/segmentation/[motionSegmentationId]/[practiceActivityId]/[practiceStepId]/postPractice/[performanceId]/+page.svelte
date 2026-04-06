@@ -11,24 +11,33 @@
 	import { waitSecs } from '$lib/utils/async.js';
 	import { onMount } from 'svelte';
 	let { data } = $props();
+	const initialDisplayText = $derived(data.action.displayText ?? 'Loading...');
+	const routeIds = $derived.by(() => ({
+		motionVideoId: data.motionVideoId,
+		motionSegmentationId: data.motionSegmentationId
+	}));
+	const priorSelfReportSelection = $derived(
+		data.performanceAttempt?.self_report?.selection as string | undefined
+	);
 
 	const teachingAgent = GetTeachingAgent();
 
-	let displayText = $state(data.action.displayText ?? 'Loading...');
+	let displayText = $state('Loading...');
+	let performanceAttempt = $state<(typeof data)['performanceAttempt'] | null>(null);
+	let performanceVideoUrl = $state<string | null>(null);
 
-	let { performanceAttempt, performanceVideoUrl, motionVideoId, motionSegmentationId } =
-		data as typeof data & { motionVideoId: number; motionSegmentationId: number };
-
-	let priorSelfReportSelection = data.performanceAttempt?.self_report?.selection as
-		| string
-		| undefined;
+	$effect(() => {
+		displayText = initialDisplayText;
+		performanceAttempt = data.performanceAttempt;
+		performanceVideoUrl = data.performanceVideoUrl;
+	});
 
 	// Configure navbar back button to segmentation landing page
 	onMount(() => {
 		navbarProps.update((p) => ({
 			...p,
 			back: {
-				url: `/motion/${motionVideoId}/segmentation/${motionSegmentationId}/`,
+				url: `/motion/${routeIds.motionVideoId}/segmentation/${routeIds.motionSegmentationId}/`,
 				title: 'Back'
 			},
 			pageTitle: 'Performance Review'

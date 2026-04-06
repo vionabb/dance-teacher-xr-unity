@@ -827,8 +827,8 @@
 							<span class="iconify-[icon-park-solid--speed] text-xl"></span>
 							{effectivePlaybackSpeed.toFixed(2)}x
 						{/snippet}
-						<div class="daisy-card daisy-card-compact mb-1 bg-neutral text-neutral-content">
-							<div class="daisy-card-body grid grid-cols-2-maxcontent items-center">
+						<div class="daisy-card daisy-card-compact bg-neutral text-neutral-content mb-1">
+							<div class="daisy-card-body grid-cols-2-maxcontent grid items-center">
 								<label for="speedSelect">Speed</label>
 								<select
 									id="speedSelect"
@@ -903,7 +903,7 @@
 							{/if}
 						</button>
 						<div
-							class="daisy-card daisy-dropdown-content daisy-card-compact m-1 h-auto w-[55ch] max-w-[90vw] bg-neutral p-2 text-neutral-content shadow"
+							class="daisy-card daisy-dropdown-content daisy-card-compact bg-neutral text-neutral-content m-1 h-auto w-[55ch] max-w-[90vw] p-2 shadow"
 						>
 							<div
 								class="daisy-card-body space-y-4 overflow-y-scroll"
@@ -971,7 +971,7 @@
 	{#if countdown >= 0}
 		<div class="absolute inset-0 flex items-center justify-center">
 			<div
-				class="grid size-24 items-center justify-center rounded-full bg-accent p-4 text-accent-content shadow-xl"
+				class="bg-accent text-accent-content grid size-24 items-center justify-center rounded-full p-4 shadow-xl"
 			>
 				<span class="text-6xl">
 					{countdown}

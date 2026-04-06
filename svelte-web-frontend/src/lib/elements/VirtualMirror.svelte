@@ -301,7 +301,7 @@
 		<canvas bind:this={canvasElement} class:flippedHorizontal={mirrorHorizontally}></canvas>
 		<!-- <span>Pose Estimation: {poseEstimationEnabled}</span> -->
 	{:else}
-		<div class="absolute inset-0 rounded bg-base-200"></div>
+		<div class="bg-base-200 absolute inset-0 rounded"></div>
 		<div class="absolute inset-0 grid items-center justify-center">
 			<WebcamSelector />
 			<!-- <p>$webcamStream: {$webcamStream}</p> -->

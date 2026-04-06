@@ -167,8 +167,8 @@
 							{/if}
 						</summary>
 						<div
-							class="daisy-card daisy-dropdown-content daisy-card-compact z-[2] w-64 bg-base-200 p-2
-                    text-base-content shadow shadow-primary"
+							class="daisy-card daisy-dropdown-content daisy-card-compact bg-base-200 text-base-content shadow-primary z-[2]
+                    w-64 p-2 shadow"
 						>
 							<div class="daisy-card-body p-0">
 								<!-- <h3 class="daisy-card-title">Card title!</h3> -->

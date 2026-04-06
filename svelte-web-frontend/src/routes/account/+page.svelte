@@ -52,7 +52,7 @@
 <div class="accountPage">
 	<div class="mt-4 flex flex-col justify-center space-y-2">
 		<form
-			class="grid grid-cols-2-maxcontent items-center justify-center gap-2 gap-y-4"
+			class="grid-cols-2-maxcontent grid items-center justify-center gap-2 gap-y-4"
 			method="post"
 			action="?/update"
 			use:enhance={handleSubmit}

@@ -225,7 +225,7 @@
 		bind:seekable
 		src={src as string}
 		class:flipped={flipHorizontal}
-		class="rounded bg-base-200"
+		class="bg-base-200 rounded"
 		{preload}
 	>
 		<slot />

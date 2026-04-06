@@ -1,7 +1,15 @@
 <script lang="ts">
 	import TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
 	import { getContext, onDestroy, setContext } from 'svelte';
-	import { derived, get, readonly, writable, type Readable, type Writable } from 'svelte/store';
+	import {
+		derived,
+		get,
+		readonly,
+		toStore,
+		writable,
+		type Readable,
+		type Writable
+	} from 'svelte/store';
 	import type { PracticePlan } from '$lib/model/PracticePlan';
 	import type { PracticePlanProgress } from '$lib/data/activity-progress';
 	import type { MotionVideo, MotionVideoSegmentation } from '$lib/ai/backend/IDataBackend.js';
@@ -11,7 +19,9 @@
 	// let danceId = $derived(page.params.danceId);
 	// let danceTreeName = $derived(page.params.danceTreeName);
 
-	const motionSegmentation = writable<MotionVideoSegmentation>(data.motionSegmentation);
+	const motionSegmentation = toStore<MotionVideoSegmentation>(() => data.motionSegmentation);
+	const dataBackend = toStore(() => data.databackend);
+	const userLearningModel = toStore(() => data.userLearningModel);
 	const motionVideoReadOnly = getContext<Readable<MotionVideo>>('motionVideo');
 	const motionSegmentationReadOnly = derived(
 		motionSegmentation,
@@ -19,16 +29,13 @@
 	);
 	setContext<Readable<MotionVideo>>('motionVideo', motionVideoReadOnly);
 	setContext<Readable<MotionVideoSegmentation>>('motionSegmentation', motionSegmentationReadOnly);
-	$effect(() => {
-		motionSegmentation.set(data.motionSegmentation);
-	});
 
 	const teachingAgent = writable<TeachingAgent>(
 		new TeachingAgent({
-			motionVideo: data.motionVideo,
-			motionSegmentation: data.motionSegmentation,
-			dataBackend: data.databackend,
-			userLearningModel: data.userLearningModel
+			motionVideo: get(motionVideoReadOnly),
+			motionSegmentation: get(motionSegmentationReadOnly),
+			dataBackend: get(dataBackend),
+			userLearningModel: get(userLearningModel)
 		})
 	);
 
@@ -53,9 +60,9 @@
 		console.debug('+layout.svelte: data changed, re-initializing teachingAgent');
 		const ta = new TeachingAgent({
 			motionVideo: $motionVideoReadOnly,
-			motionSegmentation: data.motionSegmentation,
-			dataBackend: data.databackend,
-			userLearningModel: data.userLearningModel
+			motionSegmentation: $motionSegmentation,
+			dataBackend: $dataBackend,
+			userLearningModel: $userLearningModel
 		});
 		teachingAgent.set(ta);
 		progressUpdaterUnsubscribe();

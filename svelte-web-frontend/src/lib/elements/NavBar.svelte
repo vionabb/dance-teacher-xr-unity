@@ -35,7 +35,7 @@
 </script>
 
 <nav
-	class="daisy-navbar gap-4 bg-primary text-primary-content"
+	class="daisy-navbar bg-primary text-primary-content gap-4"
 	aria-label="main navigation"
 	class:collapsed={$navbarProps.collapsed}
 >

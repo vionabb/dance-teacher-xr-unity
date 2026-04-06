@@ -23,7 +23,7 @@
     xl:mt-16 2xl:mt-20"
 >
 	<h2
-		class="mx-4 mb-2 mt-4
+		class="mx-4 mt-4 mb-2
         text-xl sm:mb-4 sm:text-center md:mb-8
         md:text-2xl lg:text-3xl xl:text-4xl"
 	>

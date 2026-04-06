@@ -38,7 +38,7 @@
 	<div class="daisy-modal-box h-auto w-auto">
 		<form method="dialog">
 			<button
-				class="daisy-btn daisy-btn-circle daisy-btn-sm absolute right-2 top-2"
+				class="daisy-btn daisy-btn-circle daisy-btn-sm absolute top-2 right-2"
 				onclick={() => dispatcher('dialog-closed', 'button')}>✕</button
 			>
 		</form>

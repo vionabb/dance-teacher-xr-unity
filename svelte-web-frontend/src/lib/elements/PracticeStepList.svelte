@@ -29,7 +29,7 @@
 		<a
 			tabindex="0"
 			data-content={stepLabel}
-			class={`daisy-step rounded-box p-1 text-base-content ${stepClasses}`}
+			class={`daisy-step rounded-box text-base-content p-1 ${stepClasses}`}
 			role="button"
 			class:daisy-step-primary={isStepSuggested}
 			class:daisy-step-success={!isStepSuggested && isStepComplete}
