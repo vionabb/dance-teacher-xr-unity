@@ -84,7 +84,7 @@
 		pageActive?: boolean;
 		flipVideo?: boolean;
 		continueBtnTitle?: string;
-		continueBtnIcon?: any;
+		continueBtnIcon?: string | undefined;
 		progressBarProps?: SegmentedProgressBarPropsWithoutCurrentTime | undefined;
 		userLearningModel: UserLearningModel | null;
 
@@ -222,7 +222,7 @@
 	let savedRecordingBlob: Blob | null = null;
 	let webcamRecordingCompletion: Promise<Blob | null> | null = null;
 	let resolveWebcamRecordingCompletion: ((blob: Blob | null) => void) | null = null;
-	let rejectWebcamRecordingCompletion: ((reason?: any) => void) | null = null;
+	let rejectWebcamRecordingCompletion: ((reason?: Error | string) => void) | null = null;
 
 	let unpauseVideoTimeout: number | null = $state(null);
 	function unPauseVideo() {

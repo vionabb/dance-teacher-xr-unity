@@ -8,10 +8,11 @@
 	export const supportsSpeechSynthesis = readonly(supportingSpeechSynthesis);
 
 	if (browser) {
-		const SpeechRecognitionConstructor: any | undefined =
-			(window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+		const SpeechRecognitionConstructor =
+			(window as any).SpeechRecognition ??
+			((window as any).webkitSpeechRecognition as typeof SpeechRecognition | undefined);
 		const speechRecognition = SpeechRecognitionConstructor
-			? new SpeechRecognitionConstructor()
+			? (new SpeechRecognitionConstructor() as SpeechRecognition)
 			: null;
 		supportingSpeechRecognition.set(!!speechRecognition);
 

@@ -1,11 +1,11 @@
-export function replaceJSONForStringifyDisplay(key: any, value: any) {
+export function replaceJSONForStringifyDisplay(key: string | number, value: unknown) {
 	// If the value is a map, convert it to an object
 	if (value instanceof Map) {
 		return Object.fromEntries(value);
 	}
 
 	// Limit decimals to 2 for floats
-	if (value?.toFixed) {
+	if (typeof value === 'number' && value?.toFixed) {
 		return parseFloat(value.toFixed(2));
 	}
 

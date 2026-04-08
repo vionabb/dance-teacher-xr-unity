@@ -41,7 +41,7 @@ export class PoseEstimationService {
 		this.worker.onmessage = this.onWorkerMessage.bind(this);
 	}
 
-	onWorkerMessage(msg: any) {
+	onWorkerMessage(msg: MessageEvent<{ type: string; [key: string]: unknown }>) {
 		if (!msg.data.type) {
 			console.error('PoseEstimationService:: invalid msg from PoseEstim worker', msg);
 			return;

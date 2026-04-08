@@ -44,8 +44,8 @@ const idb: AsyncStorage = {
 let supabase: SupabaseClient<Database> | null = null;
 
 // receive session from the page and install it
-self.addEventListener('message', (e: any) => {
-	const msg = e.data;
+self.addEventListener('message', (e: ExtendableMessageEvent) => {
+	const msg = e.data as ServiceWorkerMessage;
 	if (!msg.type) {
 		console.error('Unknown message received in SW', msg);
 		return;

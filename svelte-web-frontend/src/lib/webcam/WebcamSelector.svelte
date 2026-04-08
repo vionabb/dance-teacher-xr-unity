@@ -3,7 +3,7 @@
 
 	let state: 'start' | 'busy' | 'devicelist' | 'success' = 'start';
 	let busyText = '';
-	let lastError: any | undefined = undefined;
+	let lastError: Error | null | undefined = undefined;
 	let videoDeviceList: MediaDeviceInfo[] = [];
 	let audioDeviceList: MediaDeviceInfo[] = [];
 

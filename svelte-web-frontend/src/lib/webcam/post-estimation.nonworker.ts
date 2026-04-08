@@ -62,11 +62,14 @@ function no_op() {}
 export default class PoseEstimationWorker {
 	private poseLandmarker: null | PoseLandmarker = null;
 
-	public onmessage: (msg: any) => void = no_op;
+	public onmessage: (
+		msg: MessageEvent<{ type: PostMessages; frameId: number; [key: string]: unknown }>
+	) => void = no_op;
 
 	public ready: Promise<void>;
 
-	private responseFunctions: Map<PostMessages, (id: number, msg: any) => void> = new Map();
+	private responseFunctions: Map<PostMessages, (id: number, msg: Record<string, unknown>) => void> =
+		new Map();
 
 	constructor() {
 		this.ready = loadPoseLandmarkerModel().then((poseLandmarker) => {
@@ -93,7 +96,7 @@ export default class PoseEstimationWorker {
 	 * ```
 	 * @param msg Message from the main thread. Should contain an image and a timestamp
 	 */
-	public postMessage(msg: any): void {
+	public postMessage(msg: MessageEvent<Record<string, unknown>> | Record<string, unknown>): void {
 		// Messages receieved as a WebWorker have the data object placed in `msg.data`, whereas
 		// when we're not loaded as a WebWorker and this function is called in the main thread, the
 		// data object will be the parameter itself. This is a bit of a hack to make it work in both
@@ -123,7 +126,7 @@ export default class PoseEstimationWorker {
 		this.responseFunctions.get(msgData.type)?.(frameId, msgData);
 	}
 
-	private handleReset(frameId: number, _msgData: any) {
+	private handleReset(frameId: number, _msgData: Record<string, unknown>) {
 		this.poseLandmarker?.close();
 		this.poseLandmarker = null;
 		this.ready = loadPoseLandmarkerModel().then(
@@ -139,7 +142,7 @@ export default class PoseEstimationWorker {
 		);
 	}
 
-	private handlePoseEstimationRequest(frameId: number, msgData: any) {
+	private handlePoseEstimationRequest(frameId: number, msgData: Record<string, unknown>) {
 		// Ensure poseLandmarker is initialized
 		if (!this.poseLandmarker) {
 			this.respondWithError(frameId, 'PoseLandmarker not initialized');
@@ -179,7 +182,11 @@ export default class PoseEstimationWorker {
 	 * post the message back to the main thread.
 	 * @param msg Message to send
 	 */
-	private respondWithMessage(type: ResponseMessages, frameId: number, data: any) {
+	private respondWithMessage(
+		type: ResponseMessages,
+		frameId: number,
+		data: Record<string, unknown>
+	): void {
 		let msg = {
 			...data,
 			frameId,

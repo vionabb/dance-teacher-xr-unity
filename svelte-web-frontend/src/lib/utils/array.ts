@@ -1,4 +1,4 @@
-export function SwapArrayElements(arr: Array<any>, i: number, j: number) {
+export function SwapArrayElements<T>(arr: Array<T>, i: number, j: number) {
 	const temp = arr[i];
 	arr[i] = arr[j];
 	arr[j] = temp;
