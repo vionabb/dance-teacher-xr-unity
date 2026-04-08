@@ -13,6 +13,23 @@
         return "qs_" + nextID;
     }
 
+    function escapeHTML(value) {
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function formatLabelTitle(title) {
+        return "<b>" + escapeHTML(title) + "</b>";
+    }
+
+    function formatLabelTitleValue(title, value) {
+        return "<b>" + escapeHTML(title) + ":</b> " + escapeHTML(value);
+    }
+
     function createLabel(title, container) {
         var label = createElement("div", null, "qs_label", container);
         label.innerHTML = title;
@@ -790,7 +807,7 @@
                 return this.addText(title, color, callback);
             }
             var container = this._createContainer();
-            var label = createLabel("<b>" + title + ":</b> " + color, container);
+            var label = createLabel(formatLabelTitleValue(title, color), container);
             var id = getNextID();
             var colorInput = createInput("color", id, "qs_color", container);
             colorInput.value = color || "#ff0000";
@@ -810,7 +827,7 @@
                 setValue: function (value) {
                     this.control.value = value;
                     this.colorLabel.style.backgroundColor = colorInput.value;
-                    this.label.innerHTML = "<b>" + this.title + ":</b> " + this.control.value;
+                    this.label.innerHTML = formatLabelTitleValue(this.title, this.control.value);
                     if (callback) {
                         callback(value);
                     }
@@ -819,7 +836,7 @@
 
             var self = this;
             colorInput.addEventListener("input", function () {
-                label.innerHTML = "<b>" + title + ":</b> " + colorInput.value;
+                label.innerHTML = formatLabelTitleValue(title, colorInput.value);
                 colorLabel.style.backgroundColor = colorInput.value;
                 if (callback) {
                     callback(colorInput.value);
@@ -871,7 +888,7 @@
                 return this.addText(title, dateStr, callback);
             }
             var container = this._createContainer();
-            var label = createLabel("<b>" + title + "</b>", container);
+            var label = createLabel(formatLabelTitle(title), container);
 
             var dateInput = createInput("date", getNextID(), "qs_text_input", container);
             dateInput.value = dateStr || "";
@@ -942,7 +959,7 @@
         addDropDown: function (title, items, callback) {
             var container = this._createContainer();
 
-            var label = createLabel("<b>" + title + "</b>", container);
+            var label = createLabel(formatLabelTitle(title), container);
             var select = createElement("select", null, "qs_select", container);
             for (var i = 0; i < items.length; i++) {
                 var option = createElement("option"),
@@ -1035,7 +1052,7 @@
          */
         addElement: function (title, element) {
             var container = this._createContainer(),
-                label = createLabel("<b>" + title + "</b>", container);
+                label = createLabel(formatLabelTitle(title), container);
 
             container.appendChild(element);
 
@@ -1064,7 +1081,7 @@
          */
         addFileChooser: function (title, labelStr, filter, callback) {
             var container = this._createContainer();
-            var label = createLabel("<b>" + title + "</b>", container);
+            var label = createLabel(formatLabelTitle(title), container);
             var id = getNextID();
             var fileChooser = createInput("file", id, "qs_file_chooser", container);
             if (filter) {
@@ -1111,7 +1128,7 @@
          */
         addHTML: function (title, html) {
             var container = this._createContainer();
-            var label = createLabel("<b>" + title + ":</b> ", container);
+            var label = createLabel(formatLabelTitleValue(title, ""), container);
 
             var div = createElement("div", null, null, container);
             div.innerHTML = html;
@@ -1143,7 +1160,7 @@
          */
         addImage: function (title, imageURL, callback) {
             var container = this._createContainer(),
-                label = createLabel("<b>" + title + "</b>", container);
+                label = createLabel(formatLabelTitle(title), container);
             img = createElement("img", null, "qs_image", container);
             img.src = imageURL;
 
@@ -1212,7 +1229,7 @@
             input.step = step || 1;
             input.value = value || 0;
 
-            label.innerHTML = "<b>" + title + ":</b> " + input.value;
+            label.innerHTML = formatLabelTitleValue(title, input.value);
 
 
             this._controls[title] = {
@@ -1226,7 +1243,7 @@
                 },
                 setValue: function (value) {
                     this.control.value = value;
-                    this.label.innerHTML = "<b>" + this.title + ":</b> " + this.control.value;
+                    this.label.innerHTML = formatLabelTitleValue(this.title, this.control.value);
                     if (callback) {
                         callback(parseFloat(value));
                     }
@@ -1239,7 +1256,7 @@
             }
             var self = this;
             input.addEventListener(eventName, function () {
-                label.innerHTML = "<b>" + title + ":</b> " + input.value;
+                label.innerHTML = formatLabelTitleValue(title, input.value);
                 if (callback) {
                     callback(parseFloat(input.value));
                 }
@@ -1364,13 +1381,13 @@
             valueDiv.style.width = (value / max * 100) + "%";
 
             if (valueDisplay === "numbers") {
-                label.innerHTML = "<b>" + title + ":</b> " + value + " / " + max;
+                label.innerHTML = formatLabelTitleValue(title, value + " / " + max);
             }
             else if (valueDisplay === "percent") {
-                label.innerHTML = "<b>" + title + ":</b> " + Math.round(value / max * 100) + "%";
+                label.innerHTML = formatLabelTitleValue(title, Math.round(value / max * 100) + "%");
             }
             else {
-                label.innerHTML = "<b>" + title + "</b>";
+                label.innerHTML = formatLabelTitle(title);
             }
 
             this._controls[title] = {
@@ -1389,10 +1406,10 @@
                     this.value = Math.max(0, Math.min(value, this.max));
                     this.valueDiv.style.width = (this.value / this.max * 100) + "%";
                     if (this.valueDisplay === "numbers") {
-                        this.label.innerHTML = "<b>" + this.title + ":</b> " + this.value + " / " + this.max;
+                        this.label.innerHTML = formatLabelTitleValue(this.title, this.value + " / " + this.max);
                     }
                     else if (this.valueDisplay === "percent") {
-                        this.label.innerHTML = "<b>" + this.title + ":</b> " + Math.round(this.value / this.max * 100) + "%";
+                        this.label.innerHTML = formatLabelTitleValue(this.title, Math.round(this.value / this.max * 100) + "%");
                     }
                 }
             };
@@ -1412,13 +1429,13 @@
             control.valueDiv.style.width = (control.value / control.max * 100) + "%";
 
             if (control.valueDisplay === "numbers") {
-                control.label.innerHTML = "<b>" + control.title + ":</b> " + control.value + " / " + control.max;
+                control.label.innerHTML = formatLabelTitleValue(control.title, control.value + " / " + control.max);
             }
             else if (control.valueDisplay === "percent") {
-                control.label.innerHTML = "<b>" + control.title + ":</b> " + Math.round(control.value / control.max * 100) + "%";
+                control.label.innerHTML = formatLabelTitleValue(control.title, Math.round(control.value / control.max * 100) + "%");
             }
             else {
-                control.label.innerHTML = "<b>" + control.title + "</b>";
+                control.label.innerHTML = formatLabelTitle(control.title);
             }
             return this;
         },
@@ -1441,7 +1458,7 @@
 
         _addText: function (type, title, text, callback) {
             var container = this._createContainer();
-            var label = createLabel("<b>" + title + "</b>", container);
+            var label = createLabel(formatLabelTitle(title), container);
             var textInput;
 
             if (type === "textarea") {
@@ -1565,7 +1582,7 @@
             }
 
             var container = this._createContainer();
-            var label = createLabel("<b>" + title + "</b>", container);
+            var label = createLabel(formatLabelTitle(title), container);
 
             var timeInput = createInput("time", getNextID(), "qs_text_input", container);
             timeInput.value = timeStr || "";
