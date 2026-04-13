@@ -73,20 +73,13 @@ async function createTableIfNecessary(db: sqlite3.Database) {
                 danceName TEXT,
                 condition TEXT,
                 performanceSpeed REAL,
-                frameCount INTEGER
+                frameCount INTEGER,
+                PRIMARY KEY (userId, danceId, studyName, workflowId, clipNumber, collectionId)
             );
         `;
 
 		await promiseDb.run(sql);
 		console.log('Table created successfully.');
-
-		// Add composite primary key constraint
-		const compositeKeyConstraint =
-			'PRIMARY KEY (userId, danceId, workflowId, clipNumber, collectionId)';
-		const addConstraintSQL = `ALTER TABLE ${TABLE_NAME} ADD CONSTRAINT ${compositeKeyConstraint};`;
-
-		await promiseDb.run(addConstraintSQL);
-		console.log('Composite primary key constraint added.');
 	} catch (err) {
 		console.error('Error in createTableIfNecessary:', err);
 		throw err;
