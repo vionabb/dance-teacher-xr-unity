@@ -22,6 +22,21 @@ describe('TemporalAlignmentEvaluationMetric', () => {
 		expect(summary?.temporalOffsetSecs).toMatchInlineSnapshot(`0.01280945111833809`);
 	});
 
+	it('returns an empty summary for clips shorter than two frames', ({ expect }) => {
+		const metric = new TemporalAlignmentEvaluationMetric();
+		const summary = metric.summarizeMetric({
+			videoFrameTimesInSecs: [0],
+			actualTimesInMs: [0],
+			user3DFrameHistory: [[]],
+			ref3DFrameHistory: [[]],
+			user2DFrameHistory: [[]],
+			ref2DFrameHistory: [[]]
+		});
+
+		expect(summary.temporalOffsetSecs).toBeNaN();
+		expect(summary.crossCorrelation).toEqual([]);
+	});
+
 	it('publishing metric outputs should not throw', ({ expect }) => {
 		expect(() => {
 			publishSummaryMetricOutputForTracks(

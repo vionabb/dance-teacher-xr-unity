@@ -247,6 +247,22 @@ describe('calculateKinematicValues', () => {
 			'Mismatched array lengths between matchingUserPoses and referencePoses.'
 		);
 	});
+
+	it('should skip frames with no detected landmarks', () => {
+		const emptyFrame: Pose2DPixelLandmarks = [];
+		const poseFrame: Pose2DPixelLandmarks = [
+			{ x: 10, y: 10, dist_from_camera: 0, visibility: 1.0 }
+		];
+
+		const values = calculateKinematicValues(
+			[emptyFrame, poseFrame],
+			[emptyFrame, poseFrame],
+			[0, 1]
+		);
+
+		expect(values.poses).toHaveLength(1);
+		expect(values.poses[0].user).toEqual(poseFrame);
+	});
 });
 
 describe('calculateKinematicErrorDescriptors', () => {
@@ -420,6 +436,27 @@ describe('calculateKinematicErrorDescriptors', () => {
 				landmarkWeights: [1, 2] // There's only 1 landmark in the mock
 			})
 		).toThrow();
+	});
+
+	it('should return null metrics when there are no valid poses', () => {
+		const emptyKinematicValues: KinematicValues = {
+			poses: [],
+			vels: [],
+			velErrors: [],
+			accels: [],
+			accelErrors: [],
+			jerks: [],
+			jerkErrors: []
+		};
+
+		expect(calculateKinematicErrorDescriptors(emptyKinematicValues)).toEqual({
+			velMAE: null,
+			velRMSE: null,
+			accelMAE: null,
+			accelRMSE: null,
+			jerkMAE: null,
+			jerkRMSE: null
+		});
 	});
 });
 

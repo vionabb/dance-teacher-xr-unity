@@ -226,9 +226,15 @@ export default class TemporalAlignmentEvaluationMetric implements SummaryEvaluat
 			);
 		}
 		if (history.user3DFrameHistory.length < 2) {
-			throw new Error(
-				'Impact envelope calculation failed: not enough frames to calculate impact envelope'
-			);
+			return {
+				temporalOffsetSecs: NaN,
+				temporalOffsetFrames: NaN,
+				userImpactEnvelope: [],
+				referenceImpactEnvelope: [],
+				userWeightedEnvelope: [],
+				referenceWeightedEnvelope: [],
+				crossCorrelation: []
+			};
 		}
 
 		const {

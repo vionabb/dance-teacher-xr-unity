@@ -222,6 +222,12 @@ export function calculateKinematicValues<T extends Pose2DPixelLandmarks | Pose3D
 				throw new Error('Mismatched array lengths between user and reference poses.');
 			}
 
+			if (curPoses.user.length === 0) {
+				// Some clips contain frames with no detected landmarks at all.
+				// Skip those frames so downstream summary code can treat the clip as missing data.
+				continue;
+			}
+
 			if (
 				curPoses.user[0].x === undefined ||
 				curPoses.user[0].x == null ||
@@ -341,6 +347,17 @@ export function calculateKinematicErrorDescriptors(
 
 	const { visibilityBehavior = 'none', landmarkWeights: optLandmarkWeights = undefined } =
 		options || {};
+
+	if (poses.length === 0) {
+		return {
+			velMAE: null,
+			velRMSE: null,
+			accelMAE: null,
+			accelRMSE: null,
+			jerkMAE: null,
+			jerkRMSE: null
+		};
+	}
 
 	const numLandmarks = poses[0].user.length;
 

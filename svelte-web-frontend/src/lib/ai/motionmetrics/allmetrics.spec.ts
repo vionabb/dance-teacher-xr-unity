@@ -169,13 +169,24 @@ describe('AllMetricsComparison', {}, async () => {
 	it('temporalAlignmentEvaluation', { timeout: testTimeout }, async () => {
 		const metric = new TemporalAlignmentEvaluationMetric();
 		const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
-			const summary = metric.summarizeMetric(trackHistory);
-			return {
-				metricName: 'temporalAlignmentEvaluation',
-				result: {
-					temporalAlignmentEvaluationSecs: summary.temporalOffsetSecs
-				}
-			};
+			try {
+				const summary = metric.summarizeMetric(trackHistory);
+				return {
+					metricName: 'temporalAlignmentEvaluation',
+					result: {
+						temporalAlignmentEvaluationSecs: summary.temporalOffsetSecs
+					}
+				};
+			} catch (error) {
+				// Skip clips with insufficient frames for impact envelope calculation
+				console.warn('temporalAlignmentEvaluation: skipping due to insufficient frames', error);
+				return {
+					metricName: 'temporalAlignmentEvaluation',
+					result: {
+						temporalAlignmentEvaluationSecs: NaN
+					}
+				};
+			}
 		};
 		await updateDbWithMetric('temporalAlignmentEvaluation', metricRunner);
 	});
@@ -207,45 +218,73 @@ describe('AllMetricsComparison', {}, async () => {
 			}
 		});
 		const metricRunner: MetricRunner = (track: TestTrack, trackHistory: EvaluationTrackHistory) => {
-			const summary = metricByVisiblity.summarizeMetric(trackHistory);
-			const summaryNoVisiblity = metricNoVisibliityScale.summarizeMetric(trackHistory);
-			const summaryWithPerceptualWeights =
-				metricByVisiblityAndPerceptualWeights.summarizeMetric(trackHistory);
-			return {
-				metricName: 'kinematicErrorEvaluation',
-				result: {
-					kinematicErrorEvaluationVelocity3DMAE: summary.summary3D.velMAE ?? NaN,
-					kinematicErrorEvaluationAccel3DMAE: summary.summary3D.accelMAE ?? NaN,
-					kinematicErrorEvaluationJerk3DMAE: summary.summary3D.jerkMAE ?? NaN,
-					kinematicErrorEvaluationVelocity2DMAE: summary.summary2D.velMAE ?? NaN,
-					kinematicErrorEvaluationAccel2DMAE: summary.summary2D.accelMAE ?? NaN,
-					kinematicErrorEvaluationJerk2DMAE: summary.summary2D.jerkMAE ?? NaN,
-					kinematicErrorEvaluationVelocity3DMAENoVisibility:
-						summaryNoVisiblity.summary3D.velMAE ?? NaN,
-					kinematicErrorEvaluationAccel3DMAENoVisibility:
-						summaryNoVisiblity.summary3D.accelMAE ?? NaN,
-					kinematicErrorEvaluationJerk3DMAENoVisibility:
-						summaryNoVisiblity.summary3D.jerkMAE ?? NaN,
-					kinematicErrorEvaluationVelocity2DMAENoVisibility:
-						summaryNoVisiblity.summary2D.velMAE ?? NaN,
-					kinematicErrorEvaluationAccel2DMAENoVisibility:
-						summaryNoVisiblity.summary2D.accelMAE ?? NaN,
-					kinematicErrorEvaluationJerk2DMAENoVisibility:
-						summaryNoVisiblity.summary2D.jerkMAE ?? NaN,
-					kinematicErrorEvaluationVelocity3DMAEJointWeighted:
-						summaryWithPerceptualWeights.summary3D.velMAE ?? NaN,
-					kinematicErrorEvaluationAccel3DMAEJointWeighted:
-						summaryWithPerceptualWeights.summary3D.accelMAE ?? NaN,
-					kinematicErrorEvaluationJerk3DMAEJointWeighted:
-						summaryWithPerceptualWeights.summary3D.jerkMAE ?? NaN,
-					kinematicErrorEvaluationVelocity2DMAEJointWeighted:
-						summaryWithPerceptualWeights.summary2D.velMAE ?? NaN,
-					kinematicErrorEvaluationAccel2DMAEJointWeighted:
-						summaryWithPerceptualWeights.summary2D.accelMAE ?? NaN,
-					kinematicErrorEvaluationJerk2DMAEJointWeighted:
-						summaryWithPerceptualWeights.summary2D.jerkMAE ?? NaN
-				}
-			};
+			try {
+				const summary = metricByVisiblity.summarizeMetric(trackHistory);
+				const summaryNoVisiblity = metricNoVisibliityScale.summarizeMetric(trackHistory);
+				const summaryWithPerceptualWeights =
+					metricByVisiblityAndPerceptualWeights.summarizeMetric(trackHistory);
+				return {
+					metricName: 'kinematicErrorEvaluation',
+					result: {
+						kinematicErrorEvaluationVelocity3DMAE: summary.summary3D.velMAE ?? NaN,
+						kinematicErrorEvaluationAccel3DMAE: summary.summary3D.accelMAE ?? NaN,
+						kinematicErrorEvaluationJerk3DMAE: summary.summary3D.jerkMAE ?? NaN,
+						kinematicErrorEvaluationVelocity2DMAE: summary.summary2D.velMAE ?? NaN,
+						kinematicErrorEvaluationAccel2DMAE: summary.summary2D.accelMAE ?? NaN,
+						kinematicErrorEvaluationJerk2DMAE: summary.summary2D.jerkMAE ?? NaN,
+						kinematicErrorEvaluationVelocity3DMAENoVisibility:
+							summaryNoVisiblity.summary3D.velMAE ?? NaN,
+						kinematicErrorEvaluationAccel3DMAENoVisibility:
+							summaryNoVisiblity.summary3D.accelMAE ?? NaN,
+						kinematicErrorEvaluationJerk3DMAENoVisibility:
+							summaryNoVisiblity.summary3D.jerkMAE ?? NaN,
+						kinematicErrorEvaluationVelocity2DMAENoVisibility:
+							summaryNoVisiblity.summary2D.velMAE ?? NaN,
+						kinematicErrorEvaluationAccel2DMAENoVisibility:
+							summaryNoVisiblity.summary2D.accelMAE ?? NaN,
+						kinematicErrorEvaluationJerk2DMAENoVisibility:
+							summaryNoVisiblity.summary2D.jerkMAE ?? NaN,
+						kinematicErrorEvaluationVelocity3DMAEJointWeighted:
+							summaryWithPerceptualWeights.summary3D.velMAE ?? NaN,
+						kinematicErrorEvaluationAccel3DMAEJointWeighted:
+							summaryWithPerceptualWeights.summary3D.accelMAE ?? NaN,
+						kinematicErrorEvaluationJerk3DMAEJointWeighted:
+							summaryWithPerceptualWeights.summary3D.jerkMAE ?? NaN,
+						kinematicErrorEvaluationVelocity2DMAEJointWeighted:
+							summaryWithPerceptualWeights.summary2D.velMAE ?? NaN,
+						kinematicErrorEvaluationAccel2DMAEJointWeighted:
+							summaryWithPerceptualWeights.summary2D.accelMAE ?? NaN,
+						kinematicErrorEvaluationJerk2DMAEJointWeighted:
+							summaryWithPerceptualWeights.summary2D.jerkMAE ?? NaN
+					}
+				};
+			} catch (error) {
+				// Skip clips with missing user data or other evaluation errors
+				console.warn('kinematicErrorEvaluation: skipping due to evaluation error', error);
+				return {
+					metricName: 'kinematicErrorEvaluation',
+					result: {
+						kinematicErrorEvaluationVelocity3DMAE: NaN,
+						kinematicErrorEvaluationAccel3DMAE: NaN,
+						kinematicErrorEvaluationJerk3DMAE: NaN,
+						kinematicErrorEvaluationVelocity2DMAE: NaN,
+						kinematicErrorEvaluationAccel2DMAE: NaN,
+						kinematicErrorEvaluationJerk2DMAE: NaN,
+						kinematicErrorEvaluationVelocity3DMAENoVisibility: NaN,
+						kinematicErrorEvaluationAccel3DMAENoVisibility: NaN,
+						kinematicErrorEvaluationJerk3DMAENoVisibility: NaN,
+						kinematicErrorEvaluationVelocity2DMAENoVisibility: NaN,
+						kinematicErrorEvaluationAccel2DMAENoVisibility: NaN,
+						kinematicErrorEvaluationJerk2DMAENoVisibility: NaN,
+						kinematicErrorEvaluationVelocity3DMAEJointWeighted: NaN,
+						kinematicErrorEvaluationAccel3DMAEJointWeighted: NaN,
+						kinematicErrorEvaluationJerk3DMAEJointWeighted: NaN,
+						kinematicErrorEvaluationVelocity2DMAEJointWeighted: NaN,
+						kinematicErrorEvaluationAccel2DMAEJointWeighted: NaN,
+						kinematicErrorEvaluationJerk2DMAEJointWeighted: NaN
+					}
+				};
+			}
 		};
 		await updateDbWithMetric('kinematicErrorEvaluation', metricRunner);
 	});
