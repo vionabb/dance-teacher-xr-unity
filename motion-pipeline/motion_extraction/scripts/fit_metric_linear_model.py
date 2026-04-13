@@ -48,6 +48,25 @@ args = parser.parse_args()
 data_path: pathlib.Path = args.data_path
 df = pd.read_csv(args.data_path)
 
+
+def resolve_metric_columns(
+    dataframe: pd.DataFrame,
+    metric_aliases: dict[str, list[str]],
+) -> tuple[list[str], dict[str, str], list[str]]:
+    resolved_columns: list[str] = []
+    resolved_labels: dict[str, str] = {}
+    missing_labels: list[str] = []
+
+    for label, aliases in metric_aliases.items():
+        matched = next((column for column in aliases if column in dataframe.columns), None)
+        if matched is None:
+            missing_labels.append(label)
+            continue
+        resolved_columns.append(matched)
+        resolved_labels[matched] = label
+
+    return resolved_columns, resolved_labels, missing_labels
+
 # Create output directory
 output_dir = args.output_dir
 if output_dir is None:
@@ -55,24 +74,69 @@ if output_dir is None:
 
 # Accuracy metrics: those that are already in [0, 1] range, with 1 being a "good" score,
 # corresponding to a low error and hopefully a 1 human rating.
-accuracy_metrics = [
-    "qijia2d",
-    "jules2d",
-    "vectorAngle3D",
-]
+accuracy_metric_aliases = {
+    "qijia2d": ["qijia2d", "qijia2DPoseEvaluation"],
+    "jules2d": ["jules2d", "jules2DPoseEvaluation"],
+    "vectorAngle3D": ["vectorAngle3D", "skeleton3DVectorAngleEvaluation"],
+}
 
 # Error metrics: those that are in an unbounded range, where lower is better.
 # These will be inverted and normalized to fit into the [0, 1] range.
-error_metrics = [ 
-    "angle3D_dtw_distance", 
-    "angle3D_dtw_dist_avg", 
-    "angle3D_warping_factor",
-    "velocity_3d_MAE", 
-    "velocity_3d_MAE_jointweighted",
-    "accel_3d_MAE", 
-    "jerk_3d_MAE"
-]
+error_metric_aliases = {
+    "angle3D_dtw_distance": [
+        "angle3D_dtw_distance",
+        "skeleton3DAngleDistanceDTWEvaluationDistance",
+    ],
+    "angle3D_dtw_dist_avg": [
+        "angle3D_dtw_dist_avg",
+        "skeleton3DAngleDistanceDTWEvaluationDistanceAverage",
+    ],
+    "angle3D_warping_factor": [
+        "angle3D_warping_factor",
+        "skeleton3DAngleDistanceDTWEvaluationWarpingFactor",
+    ],
+    "velocity_3d_MAE": [
+        "velocity_3d_MAE",
+        "kinematicErrorEvaluationVelocity3DMAE",
+    ],
+    "velocity_3d_MAE_jointweighted": [
+        "velocity_3d_MAE_jointweighted",
+        "kinematicErrorEvaluationVelocity3DMAEJointWeighted",
+    ],
+    "accel_3d_MAE": [
+        "accel_3d_MAE",
+        "kinematicErrorEvaluationAccel3DMAE",
+    ],
+    "jerk_3d_MAE": [
+        "jerk_3d_MAE",
+        "kinematicErrorEvaluationJerk3DMAE",
+    ],
+}
+
+accuracy_metrics, resolved_metric_labels, missing_accuracy_metrics = resolve_metric_columns(
+    df, accuracy_metric_aliases
+)
+error_metrics, resolved_error_metric_labels, missing_error_metrics = resolve_metric_columns(
+    df, error_metric_aliases
+)
+resolved_metric_labels.update(resolved_error_metric_labels)
+missing_metrics = missing_accuracy_metrics + missing_error_metrics
 all_metrics = accuracy_metrics + error_metrics
+
+if len(all_metrics) == 0:
+    raise ValueError("No expected metric columns were found in the input CSV.")
+
+if missing_metrics:
+    print("=== Missing Expected Metrics ===")
+    for metric in missing_metrics:
+        print(f"Skipping unavailable metric column: {metric}")
+    print()
+
+print("=== Resolved Metric Columns ===")
+for metric_col in all_metrics:
+    print(f"{resolved_metric_labels[metric_col]} -> {metric_col}")
+print()
+
 target_col = args.target_col
 
 # Normalize metrics (invert error metrics to turn them into "accuracy-like" metrics)
@@ -167,7 +231,8 @@ for col in all_metrics:
         spearman_corr, _ = spearmanr(normalized_df.loc[valid_rows, col], df.loc[valid_rows, target_col])
         pearson_corr, _ = pearsonr(normalized_df.loc[valid_rows, col], df.loc[valid_rows, target_col])
     correlations.append({
-        "metric": col,
+        "metric": resolved_metric_labels[col],
+        "source_column": col,
         "spearman": spearman_corr,
         "pearson": pearson_corr
     })
@@ -197,8 +262,9 @@ for i in range(len(all_metrics)):
 
 ax1.set_xticks(range(len(all_metrics)))
 ax1.set_yticks(range(len(all_metrics)))
-ax1.set_xticklabels(all_metrics, rotation=90)
-ax1.set_yticklabels(all_metrics)
+resolved_metric_names = [resolved_metric_labels[col] for col in all_metrics]
+ax1.set_xticklabels(resolved_metric_names, rotation=90)
+ax1.set_yticklabels(resolved_metric_names)
 ax1.set_title('Metric-to-Metric Correlations')
 
 # Second subplot: Metric-to-target correlations
@@ -239,9 +305,10 @@ for col in all_metrics:
     z = np.polyfit(normalized_df[col], df[target_col], 1)
     p = np.poly1d(z)
     plt.plot(normalized_df[col], p(normalized_df[col]), "r--", linewidth=1)
-    plt.xlabel(f"{col} (normalized)")
+    metric_label = resolved_metric_labels[col]
+    plt.xlabel(f"{metric_label} (normalized)")
     plt.ylabel(f"{target_col}")
-    plt.title(f"{col} vs. {target_col}")
+    plt.title(f"{metric_label} vs. {target_col}")
     # Compute and annotate Spearman correlation and R²
     spearman_corr, _ = spearmanr(normalized_df[col], df[target_col])
     y_pred_line = p(normalized_df[col])
@@ -249,7 +316,7 @@ for col in all_metrics:
     plt.annotate(f"Spearman r = {spearman_corr:.2f}\nR² = {r2_val:.2f}", xy=(0.05, 0.95), xycoords='axes fraction', fontsize=10, verticalalignment='top')
     plt.grid(True)
     plt.tight_layout()
-    save_path = scatterplot_output_dir / f"{col}_vs_{target_col}.png"
+    save_path = scatterplot_output_dir / f"{metric_label}_vs_{target_col}.png"
     plt.savefig(str(save_path), dpi=300)
     plt.close()
     rel_path = save_path.relative_to(output_dir)
@@ -320,7 +387,8 @@ for model_constructor in models:
     if is_linear_model:
         # Create a DataFrame with the feature names and their coefficients
         coef_df = pd.DataFrame({
-            'Metric': all_metrics,
+            'Metric': [resolved_metric_labels[col] for col in all_metrics],
+            'SourceColumn': all_metrics,
             'Coefficient': model.coef_
         })
 
@@ -339,15 +407,19 @@ for model_constructor in models:
         # print("Testing performance with fewer and fewer features")
 
         # Sort features by absolute coefficient value
-        sorted_features = coef_df['Metric'].tolist()
-        n_features = len(sorted_features)
+        sorted_feature_columns = coef_df['SourceColumn'].tolist()
+        n_features = len(sorted_feature_columns)
 
         elimination_results = []
 
         # Test models with decreasing number of features
         for i in range(n_features, 0, -1):
-            selected_features = sorted_features[:i]
-            X_selected = normalized_df[selected_features].values
+            selected_feature_columns = sorted_feature_columns[:i]
+            selected_feature_labels = [
+                resolved_metric_labels[column]
+                for column in selected_feature_columns
+            ]
+            X_selected = normalized_df[selected_feature_columns].values
             
             # Cross-validate with selected features
             cv_scores = cross_val_score(model_constructor(), X_selected, y, cv=cv, scoring="r2")
@@ -356,7 +428,7 @@ for model_constructor in models:
             
             elimination_results.append({
                 'num_features': i,
-                'features': selected_features,
+                'features': selected_feature_labels,
                 'mean_R²': mean_r2,
                 'std_R²': std_r2
             })
@@ -364,7 +436,7 @@ for model_constructor in models:
             if mean_r2 > max_r2[full_model_name]:
                 max_r2[full_model_name] = mean_r2
                 model_variant_names[full_model_name] = f"{full_model_name} (using {i}/{len(all_metrics)} features)"
-                model_retained_features[full_model_name] = selected_features
+                model_retained_features[full_model_name] = selected_feature_labels
 
             # print(f"{i} features: R² = {mean_r2:.3f} ± {std_r2:.3f}")
             # print(f"   Features used: {', '.join(selected_features)}")

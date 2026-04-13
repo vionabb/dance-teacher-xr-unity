@@ -18,3 +18,25 @@ Keep `.repository-summary.md` up to date when you make changes that alter:
 - or the practical importance of major subprojects.
 
 Do not rewrite the summary for trivial local edits. Update it when a future agent would otherwise be misled.
+
+## Artifact Archive
+
+When the user asks to archive an artifact, place it under `artifact-archive/`.
+
+Naming convention:
+
+- use `TIMESTAMP-label` names;
+- if the artifact is a single file, save it directly as a file at `artifact-archive/TIMESTAMP-label.ext`;
+- if the artifact is a plot or plot set, create a folder at `artifact-archive/TIMESTAMP-label/`.
+
+For archived plots:
+
+- save the rendered plot as PDF;
+- save the underlying data needed to recreate the plot;
+- if relevant, also save any script, query, or command output needed to replot for a different paper template or target.
+
+Optional commentary:
+
+- you may ask the user whether they want to provide commentary for the archive entry;
+- if provided, save it as `commentary.md` inside the artifact folder;
+- if the archived artifact is otherwise a single file and commentary is provided, use a folder so `commentary.md` can live alongside the artifact.
