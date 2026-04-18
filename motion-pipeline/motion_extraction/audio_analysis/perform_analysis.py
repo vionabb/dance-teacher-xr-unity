@@ -2,14 +2,18 @@ from pathlib import Path
 import typing as t
 import time
 import json
+import shutil
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 try:
     import psutil
 except ImportError:
     psutil = None
 
+from ..artifacts import build_artifact_report, resolve_artifact_output_dir
 from .audio_analysis import AudioAnalysisResult, analyze_audio_file
 from .audio_dance_tree import  create_dance_tree_from_audioanalysis
 from .audio_tools import save_audio_from_video
@@ -62,9 +66,23 @@ def perform_audio_analysis(
         include_mem_usage: bool = False,
         skip_existing: bool = False,
         print_prefix: t.Callable[[], str] = lambda: '',
+        artifact_archive_root: t.Optional[Path] = None,
+        artifact_output_dir: t.Optional[Path] = None,
 ):
     def print_with_prefix(s: str="", **kwargs):
         print(f"{print_prefix()}{s}", **kwargs)
+
+    artifact_dir = resolve_artifact_output_dir(
+        artifact_archive_root=artifact_archive_root,
+        artifact_output_dir=artifact_output_dir,
+        default_label="audio-analysis",
+    )
+    artifact_plots_dir = None if artifact_dir is None else artifact_dir / "plots"
+    artifact_similarity_dir = None if artifact_dir is None else artifact_dir / "cross_similarity"
+    if artifact_plots_dir is not None:
+        artifact_plots_dir.mkdir(parents=True, exist_ok=True)
+    if artifact_similarity_dir is not None:
+        artifact_similarity_dir.mkdir(parents=True, exist_ok=True)
 
     print_with_prefix(f"Running audio analysis...")
     force_redo_analysis = not skip_existing
@@ -152,6 +170,13 @@ def perform_audio_analysis(
             analysis_output_filepath.parent.mkdir(parents=True, exist_ok=True)
             with open(analysis_output_filepath, 'w') as f:
                 json.dump(analysis_result.to_dict(), f, indent=4)
+
+        if artifact_plots_dir is not None:
+            tempo_plot_path = plots_folder / f"{audio_filepath.stem}.tempo_analysis.pdf"
+            if tempo_plot_path.exists():
+                artifact_plot_path = artifact_plots_dir / relative_filepath.with_suffix(".tempo_analysis.pdf")
+                artifact_plot_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(tempo_plot_path, artifact_plot_path)
             
         # Plot cross similarity matrix (if it doesn't already exist)
         similarity_dir = get_audio_result_subdirectory(
@@ -166,6 +191,10 @@ def perform_audio_analysis(
             cross_similarity_figpath.parent.mkdir(parents=True, exist_ok=True)
             fig.savefig(cross_similarity_figpath)
             plt.close(fig)
+        if artifact_similarity_dir is not None and cross_similarity_figpath.exists():
+            artifact_similarity_path = artifact_similarity_dir / relative_filepath.with_suffix(".pdf")
+            artifact_similarity_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(cross_similarity_figpath, artifact_similarity_path)
 
         # Create / save dance tree files
         dance_tree_dir = get_audio_result_subdirectory(
@@ -203,4 +232,39 @@ def perform_audio_analysis(
     summary_df.sort_index(inplace=True)
     summary_df.to_csv(str(analysis_summary_out))
 
+    if artifact_dir is not None:
+        artifact_summary_path = artifact_dir / "analysis_summary.csv"
+        shutil.copy2(analysis_summary_out, artifact_summary_path)
+
+        report = build_artifact_report(
+            artifact_dir,
+            title="Audio Analysis Report",
+            intro=(
+                f"Analyzed audio inputs from `{videosrcdir}` and `{audiosrcdir}` into `{audio_analysis_destdir}`."
+            ),
+        )
+        report.add_heading("Run Summary")
+        report.add_list(
+            [
+                f"Video source dir: `{videosrcdir}`" if videosrcdir else "Video source dir: none",
+                f"Audio source dir: `{audiosrcdir}`" if audiosrcdir else "Audio source dir: none",
+                f"Analysis output dir: `{audio_analysis_destdir}`",
+                f"Audio cache dir: `{audiocachedir}`",
+                f"Summary CSV: `{analysis_summary_out}`",
+                f"Copied artifact summary: `{artifact_summary_path.name}`",
+                f"Input video count: `{len(input_video_filepaths)}`",
+                f"Input audio count: `{len(input_audio_filepaths)}`",
+                f"Skip existing: `{skip_existing}`",
+            ]
+        )
+        report.add_heading("Analysis Summary")
+        report.add_dataframe(
+            "audio_analysis_summary",
+            summary_df.reset_index(),
+            max_rows_in_markdown=20,
+            preview_rows=10,
+        )
+        report.write()
+
     print_with_time("Finished")
+    return summary_df

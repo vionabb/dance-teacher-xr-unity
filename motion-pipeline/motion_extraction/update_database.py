@@ -7,6 +7,8 @@ import typing as t
 from enum import Enum
 import unicodedata
 
+from .artifacts import build_artifact_report, resolve_artifact_output_dir
+
 class ClipType(str, Enum):
     video = 'video'
     mocap = 'mocap'
@@ -139,6 +141,8 @@ def update_database(
         thumbnails_dir: t.Optional[PathLike],
         replace_existing_thumbnails: bool = False,
         print_prefix: t.Callable[[], str] = lambda: '',
+        artifact_archive_root: t.Optional[Path] = None,
+        artifact_output_dir: t.Optional[Path] = None,
     ):
 
     def print_with_prefix(*args, **kwargs):
@@ -147,6 +151,11 @@ def update_database(
     database_csv_path = Path(database_csv_path)
     videos_dir = Path(videos_dir)
     thumbnails_dir = None if not thumbnails_dir else Path(thumbnails_dir)
+    artifact_dir = resolve_artifact_output_dir(
+        artifact_archive_root=artifact_archive_root,
+        artifact_output_dir=artifact_output_dir,
+        default_label="update-database",
+    )
     if thumbnails_dir:
         thumbnails_dir.mkdir(exist_ok=True, parents=True)
 
@@ -156,11 +165,15 @@ def update_database(
 
     # Safety measure: ensure all paths are normalized (no unexpected unicode characters)
     invalid_video_paths = []
+    invalid_video_path_messages: t.List[str] = []
     for video_path in video_paths:
         if not unicodedata.is_normalized('NFKC', video_path.as_posix()):
-            print_with_prefix(f'ERROR: Video path {video_path.as_posix()} is not normalized. This may cause problems with the database.')
+            error_msg = f'ERROR: Video path {video_path.as_posix()} is not normalized. This may cause problems with the database.'
+            print_with_prefix(error_msg)
             normalized_version = Path(unicodedata.normalize('NFKC', video_path.as_posix()))
-            print_with_prefix(f'This is the normalized form: {normalized_version.as_posix()}')
+            normalized_msg = f'This is the normalized form: {normalized_version.as_posix()}'
+            print_with_prefix(normalized_msg)
+            invalid_video_path_messages.extend([error_msg, normalized_msg])
             invalid_video_paths.append(video_path)
     if len(invalid_video_paths) > 0:
         raise Exception(f'Found {len(invalid_video_paths)} video paths that are not normalized. See above for details.')    
@@ -249,6 +262,48 @@ def update_database(
 
     write_db(df, database_csv_path)
 
+    if artifact_dir is not None:
+        compact_db_path = artifact_dir / "database.json"
+        compact_db_records = df.reset_index().to_dict(orient="records") if not df.empty else []
+        compact_db_path.write_text(
+            json.dumps(compact_db_records, separators=(",", ":"), ensure_ascii=True),
+            encoding="utf-8",
+        )
+
+        report = build_artifact_report(
+            artifact_dir,
+            title="Update Database Report",
+            intro=(
+                f"Generated database metadata for `{videos_dir}` and wrote `{database_csv_path}`."
+            ),
+        )
+        report.add_heading("Run Summary")
+        report.add_list(
+            [
+                f"Videos directory: `{videos_dir}`",
+                f"Database CSV: `{database_csv_path}`",
+                f"Thumbnails directory: `{thumbnails_dir}`" if thumbnails_dir else "Thumbnails directory: disabled",
+                f"Video count scanned: `{len(video_paths)}`",
+                f"Added entries: `{count_new_entries}`",
+                f"Updated entries: `{len(old_db_by_clipname)}`",
+                f"Discarded entries: `{len(discarded_entries)}`",
+                f"Compact database JSON: `{compact_db_path.name}`",
+            ]
+        )
+        if invalid_video_path_messages:
+            report.add_heading("Warnings")
+            report.add_list(invalid_video_path_messages)
+        report.write()
+
+    return {
+        "video_count_scanned": len(video_paths),
+        "added_entries": count_new_entries,
+        "updated_entries": len(old_db_by_clipname),
+        "discarded_entries": len(discarded_entries),
+        "database_csv_path": database_csv_path,
+        "artifact_dir": artifact_dir,
+    }
+
 if __name__ == "__main__":
 
     import argparse
@@ -256,6 +311,8 @@ if __name__ == "__main__":
     parser.add_argument('--database_csv_path', type=Path, help='Path to the database.csv file')
     parser.add_argument('--videos_dir', type=Path, help='Path to the directory containing the videos')
     parser.add_argument('--thumbnails_dir', type=Path, help='Path to the directory where thumbnails should be saved')
+    parser.add_argument('--artifact_archive_root', type=Path, default=None)
+    parser.add_argument('--artifact_output_dir', type=Path, default=None)
 
     args = parser.parse_args()
 
@@ -263,7 +320,9 @@ if __name__ == "__main__":
     update_database(
         database_csv_path=args.database_csv_path,
         videos_dir = args.videos_dir,
-        thumbnails_dir = args.thumbnails_dir
+        thumbnails_dir = args.thumbnails_dir,
+        artifact_archive_root=args.artifact_archive_root,
+        artifact_output_dir=args.artifact_output_dir,
     )
     # except Exception as e:
     #     import traceback

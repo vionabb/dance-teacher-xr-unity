@@ -14,8 +14,8 @@ Main outputs:
 - `destdir/byfile/**/*.complexity.csv` for per-recording scaled cumulative
   complexity series;
 - `destdir/dvaj_complexity.csv` for cross-file summary rows; and
-- optional intermediate plots and diagnostic CSVs when
-  `diagnostic_output_dir` is provided.
+- optional intermediate plots and diagnostic CSVs when artifact output is
+  enabled.
 """
 
 from collections import defaultdict
@@ -24,6 +24,8 @@ import time
 import pandas as pd
 import numpy as np
 import typing as t
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import enum
 import sys
@@ -37,6 +39,7 @@ except ImportError:
     def trange(*args, **kwargs):
         return range(*args)
 
+from ..artifacts import build_artifact_report, resolve_artifact_output_dir
 from ..mp_utils import PoseLandmark
 from .uist_complexityanalysis import get_pose_landmarks_present_in_dataframe, DVAJ, calc_scalar_dvaj
 
@@ -340,7 +343,8 @@ def calculate_cumulative_complexities(
         destdir: Path,
         measure_weighting: DvajMeasureWeighting,
         landmark_weighting: PoseLandmarkWeighting,
-        diagnostic_output_dir: t.Optional[Path] = None,
+        artifact_archive_root: t.Optional[Path] = None,
+        artifact_output_dir: t.Optional[Path] = None,
         include_base: bool = False,
         weigh_by_visibility: bool = True,
         print_prefix: t.Callable[[], str] = lambda: "",
@@ -353,10 +357,15 @@ def calculate_cumulative_complexities(
     per input file and an aggregate `dvaj_complexity.csv` summary for the whole
     batch. The selected weighting options are encoded into the output column
     name so multiple calculation variants can coexist in the same destination.
-    When `diagnostic_output_dir` is set, intermediate diagnostic CSVs and plots
-    are also written there under a subdirectory for the selected weighting
-    configuration.
+    When artifact output is enabled, intermediate diagnostic CSVs and plots are
+    also written under the artifact directory in a subdirectory for the
+    selected weighting configuration.
     """
+    artifact_dir = resolve_artifact_output_dir(
+        artifact_archive_root=artifact_archive_root,
+        artifact_output_dir=artifact_output_dir,
+        default_label="cumulative-complexity",
+    )
     input_files: t.List[Path] = other_files.copy()
     relative_dirs: t.List[Path] = [f.parent for f in other_files]
 
@@ -376,10 +385,10 @@ def calculate_cumulative_complexities(
     else:
         print('.')
       
-    print(f"{print_prefix()}Output: saving output dance trees to {destdir}.")
+    print(f"{print_prefix()}Output: saving complexity outputs to {destdir}.")
     destdir.mkdir(parents=True, exist_ok=True)
-    if diagnostic_output_dir is not None:
-        print(f"{print_prefix()}Diagnostics: writing plots and debug CSVs to {diagnostic_output_dir}.")
+    if artifact_dir is not None:
+        print(f"{print_prefix()}Artifacts: writing plots and debug CSVs to {artifact_dir}.")
 
     measure_weighting_choice = measure_weighting
     measure_weighting_weights = measure_weighting_choice.get_weighting()
@@ -415,9 +424,9 @@ def calculate_cumulative_complexities(
             return
 
     sup_title = complexity_calculation_parameters_string
-    should_output_diagnostics = diagnostic_output_dir is not None
+    should_output_diagnostics = artifact_dir is not None
 
-    debug_dir = diagnostic_output_dir / sup_title if diagnostic_output_dir is not None else None
+    debug_dir = artifact_dir / sup_title if artifact_dir is not None else None
     if debug_dir is not None:
         debug_dir.mkdir(parents=True, exist_ok=True)
     count_by_subpath = {}
@@ -673,6 +682,37 @@ def calculate_cumulative_complexities(
 
     existing_complexity_summary.to_csv(complexity_summary_csv_filepath, index=True, header=True)
 
+    if artifact_dir is not None:
+        report = build_artifact_report(
+            artifact_dir,
+            title="Cumulative Complexity Report",
+            intro=(
+                f"Calculated cumulative complexity outputs into `{destdir}` using `{complexity_calculation_parameters_string}`."
+            ),
+        )
+        report.add_heading("Run Summary")
+        report.add_list(
+            [
+                f"Source dir: `{srcdir}`" if srcdir else "Source dir: none",
+                f"Explicit file count: `{len(other_files)}`",
+                f"Input file count: `{len(input_files)}`",
+                f"Destination dir: `{destdir}`",
+                f"Measure weighting: `{measure_weighting_choice.name}`",
+                f"Landmark weighting: `{landmark_weighting_choice.name}`",
+                f"Include base: `{include_base}`",
+                f"Weigh by visibility: `{weigh_by_visibility}`",
+                f"Creation method: `{complexity_calculation_parameters_string}`",
+            ]
+        )
+        report.add_heading("Complexity Summary")
+        report.add_dataframe(
+            "complexity_summary",
+            update_data.reset_index(),
+            max_rows_in_markdown=20,
+            preview_rows=10,
+        )
+        report.write()
+
     print_with_time("Finished.")
 
 
@@ -685,7 +725,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--destdir", type=Path, default=Path.cwd())  
     parser.add_argument("--srcdir", type=Path, default=None)
-    parser.add_argument("--diagnostic_output_dir", type=Path, default=None)
+    parser.add_argument("--artifact_archive_root", type=Path, default=None)
+    parser.add_argument("--artifact_output_dir", type=Path, default=None)
     parser.add_argument("--measure_weighting", choices=[e.name for e in DvajMeasureWeighting] + ['all'], default=DvajMeasureWeighting.decreasing_by_quarter.name)
     parser.add_argument("--landmark_weighting", choices=[e.name for e in PoseLandmarkWeighting] + ['all'], default=PoseLandmarkWeighting.balanced.name)
     parser.add_argument("--include_base", choices=['true', 'false', 'both'], default='true')
@@ -726,7 +767,8 @@ if __name__ == "__main__":
             destdir=args.destdir,
             measure_weighting=measure_weighting,
             landmark_weighting=landmark_weighting,
-            diagnostic_output_dir=args.diagnostic_output_dir,
+            artifact_archive_root=args.artifact_archive_root,
+            artifact_output_dir=args.artifact_output_dir,
             weigh_by_visibility=weigh_by_visibility,
             include_base=include_base,
             print_prefix=lambda: f"{i+1}/{len(run_iterations)}\t" if len(run_iterations) > 1 else "",

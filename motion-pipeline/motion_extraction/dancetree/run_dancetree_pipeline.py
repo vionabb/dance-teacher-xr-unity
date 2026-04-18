@@ -1,11 +1,11 @@
 from pathlib import Path
 import typing as t
+from ..artifacts import resolve_artifact_output_dir
 from ..stepone_get_holistic_data import compute_holistic_data
 from ..update_database import update_database
 from ..complexity_analysis import calculate_cumulative_complexity as cmplxty
 from ..complexity_analysis.add_complexity_to_dancetree import add_complexities_to_dancetrees
 from .bundle_data import bundle_dance_data_as_json
-import shutil
 
 
 def _audio_result_subdirectory(
@@ -28,8 +28,15 @@ def run_dancetree_pipeline(
     rewrite_existing_holistic_data: bool = False,
     skip_existing_cumulative_complexity: bool = False,
     skip_existing_audioanalysis: bool = False,
-    output_holistic_debug_frames: bool = False,
-    complexity_diagnostics_dir: t.Optional[Path] = None,
+    holistic_debug_frames_dir: t.Optional[Path] = None,
+    debug_frame_whitelist: t.Optional[t.Sequence[str]] = None,
+    artifact_archive_root: t.Optional[Path] = None,
+    suppress_update_database_artifacts: bool = False,
+    suppress_compute_holistic_data_artifacts: bool = False,
+    suppress_cumulative_complexity_artifacts: bool = False,
+    suppress_audio_analysis_artifacts: bool = False,
+    suppress_add_complexity_artifacts: bool = False,
+    suppress_bundle_data_artifacts: bool = False,
 
 ):
     complexities_temp_dir = temp_dir / 'complexities'
@@ -39,7 +46,7 @@ def run_dancetree_pipeline(
         result_type='dancetrees', 
         input_type='video'
     )
-    holistic_frames_dir = temp_dir / 'holistic_debug_frames' if output_holistic_debug_frames else None
+    holistic_frames_dir = holistic_debug_frames_dir
 
     trees_with_complexity_dir = temp_dir / 'trees_with_complexity'
 
@@ -65,6 +72,29 @@ def run_dancetree_pipeline(
     current_step = 1
     step = lambda: f'Step {current_step}/{STEP_COUNT}:'
 
+    suppressed_steps = {
+        "01-update-database": suppress_update_database_artifacts,
+        "02-compute-holistic-data": suppress_compute_holistic_data_artifacts,
+        "03-cumulative-complexity": suppress_cumulative_complexity_artifacts,
+        "04-audio-analysis": suppress_audio_analysis_artifacts,
+        "05-add-complexity": suppress_add_complexity_artifacts,
+        "06-bundle-data": suppress_bundle_data_artifacts,
+    }
+    run_artifact_dir = None
+    if artifact_archive_root is not None and not all(suppressed_steps.values()):
+        run_artifact_dir = resolve_artifact_output_dir(
+            artifact_archive_root=artifact_archive_root,
+            artifact_output_dir=None,
+            default_label="dancetree-pipeline-run",
+        )
+
+    def get_step_artifact_dir(step_dirname: str, is_suppressed: bool) -> t.Optional[Path]:
+        if run_artifact_dir is None or is_suppressed:
+            return None
+        artifact_dir = run_artifact_dir / step_dirname
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        return artifact_dir
+
     current_step += 1
     update_database(
         database_csv_path=database_csv_path,
@@ -72,6 +102,7 @@ def run_dancetree_pipeline(
         thumbnails_dir=thumbnails_outdir,
         print_prefix=lambda: f'{step()} update database:',
         replace_existing_thumbnails=False,
+        artifact_output_dir=get_step_artifact_dir("01-update-database", suppress_update_database_artifacts),
     )
 
     current_step += 1
@@ -79,9 +110,11 @@ def run_dancetree_pipeline(
         video_folder=video_srcdir,
         output_folder=holistic_data_srcdir,
         pose2d_output_folder=pose2d_data_srcdir,
-        frame_output_folder=holistic_frames_dir if output_holistic_debug_frames else None,
+        frame_output_folder=holistic_frames_dir,
+        debug_frame_whitelist=debug_frame_whitelist,
         rewrite_existing=rewrite_existing_holistic_data,
         print_prefix=lambda: f'{step()} compute holistic data:',
+        artifact_output_dir=get_step_artifact_dir("02-compute-holistic-data", suppress_compute_holistic_data_artifacts),
     )
 
     current_step += 1
@@ -91,7 +124,7 @@ def run_dancetree_pipeline(
         destdir=complexities_temp_dir,
         measure_weighting=COMPLEXITY_MEASURE_WEIGHITNG,
         landmark_weighting=COMPLEXITY_LANDMARK_WEIGHITNG,
-        diagnostic_output_dir=complexity_diagnostics_dir,
+        artifact_output_dir=get_step_artifact_dir("03-cumulative-complexity", suppress_cumulative_complexity_artifacts),
         include_base=True,
         weigh_by_visibility=True,
         print_prefix=lambda: f'{step()} calc. complexity:',
@@ -113,6 +146,7 @@ def run_dancetree_pipeline(
             include_mem_usage=False,
             skip_existing=skip_existing_audioanalysis,
             print_prefix=lambda: f'{step()} audio analysis:',
+            artifact_output_dir=get_step_artifact_dir("04-audio-analysis", suppress_audio_analysis_artifacts),
         )
 
     current_step += 1
@@ -124,6 +158,7 @@ def run_dancetree_pipeline(
         complexity_method=complexity_method,
         trim_zero_complexity=True,
         get_print_prefix=lambda: f'{step()} add complexity:',
+        artifact_output_dir=get_step_artifact_dir("05-add-complexity", suppress_add_complexity_artifacts),
     )
 
     current_step += 1
@@ -134,6 +169,7 @@ def run_dancetree_pipeline(
         bundle_export_path=bundle_export_path,
         exclude_test=True,
         print_prefix=lambda: f'{step()} bundle data:',
+        artifact_output_dir=get_step_artifact_dir("06-bundle-data", suppress_bundle_data_artifacts),
     )
 
 if __name__ == "__main__":
@@ -151,8 +187,15 @@ if __name__ == "__main__":
     parser.add_argument("--rewrite_existing_holistic_data", action='store_true')
     parser.add_argument("--skip_existing_cumulative_complexity", action='store_true')
     parser.add_argument("--skip_existing_audioanalysis", action='store_true')
-    parser.add_argument("--output_holistic_debug_frames", action='store_true')
-    parser.add_argument("--complexity_diagnostics_dir", type=Path, default=None)
+    parser.add_argument("--holistic_debug_frames_dir", type=Path, default=None)
+    parser.add_argument("--debug_frame_whitelist", action='append', default=None)
+    parser.add_argument("--artifact_archive_root", type=Path, default=None)
+    parser.add_argument("--suppress_update_database_artifacts", action='store_true')
+    parser.add_argument("--suppress_compute_holistic_data_artifacts", action='store_true')
+    parser.add_argument("--suppress_cumulative_complexity_artifacts", action='store_true')
+    parser.add_argument("--suppress_audio_analysis_artifacts", action='store_true')
+    parser.add_argument("--suppress_add_complexity_artifacts", action='store_true')
+    parser.add_argument("--suppress_bundle_data_artifacts", action='store_true')
     args = parser.parse_args()
     
     run_dancetree_pipeline(
@@ -168,6 +211,13 @@ if __name__ == "__main__":
         rewrite_existing_holistic_data=args.rewrite_existing_holistic_data,
         skip_existing_cumulative_complexity=args.skip_existing_cumulative_complexity,
         skip_existing_audioanalysis=args.skip_existing_audioanalysis,
-        output_holistic_debug_frames=args.output_holistic_debug_frames,
-        complexity_diagnostics_dir=args.complexity_diagnostics_dir,
+        holistic_debug_frames_dir=args.holistic_debug_frames_dir,
+        debug_frame_whitelist=args.debug_frame_whitelist,
+        artifact_archive_root=args.artifact_archive_root,
+        suppress_update_database_artifacts=args.suppress_update_database_artifacts,
+        suppress_compute_holistic_data_artifacts=args.suppress_compute_holistic_data_artifacts,
+        suppress_cumulative_complexity_artifacts=args.suppress_cumulative_complexity_artifacts,
+        suppress_audio_analysis_artifacts=args.suppress_audio_analysis_artifacts,
+        suppress_add_complexity_artifacts=args.suppress_add_complexity_artifacts,
+        suppress_bundle_data_artifacts=args.suppress_bundle_data_artifacts,
     )

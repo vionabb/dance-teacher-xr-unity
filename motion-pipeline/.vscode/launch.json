@@ -24,7 +24,9 @@
             //     // "--rewrite_existing_holistic_data",
             //     "--skip_existing_cumulative_complexity",
             //     "--skip_existing_audioanalysis",
-            //     "--output_holistic_debug_frames"
+            //     "--holistic_debug_frames_dir=${workspaceFolder}/temp/holistic_debug_frames",
+            //     "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
+            //     "--suppress_bundle_data_artifacts"
             // ],
             // "osx": {
                 "args": [
@@ -40,9 +42,11 @@
 
                     // Feel free to comment out any of the following
                     // "--rewrite_existing_holistic_data",
-                    "--skip_existing_cumulative_complexity",
-                    "--skip_existing_audioanalysis",
-                    // "--output_holistic_debug_frames"
+                    // "--skip_existing_cumulative_complexity",
+                    // "--skip_existing_audioanalysis",
+                    // "--holistic_debug_frames_dir=${workspaceFolder}/data/tempCloud/holistic_debug_frames",
+                    "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
+                    // "--suppress_bundle_data_artifacts"
                 ]
             // }
         },
@@ -67,6 +71,8 @@
                 "--log_level=INFO",
                 "--model-complexity=2",
                 "--frame_output_folder=${workspaceFolder}/temp/frames",
+                "--debug_frame_whitelist=*",
+                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 // "--rewrite_existing",
             ],
         },
@@ -205,7 +211,7 @@
             "args": [
                 "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/",
                 "--destdir=${workspaceFolder}/data/complexities/",
-                // "--plot_figs",
+                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 // "--measure_weighting=decreasing_by_half",
                 // "--measure_weighting=decreasing_by_quarter",
                 "--measure_weighting=all",
@@ -227,7 +233,7 @@
             "args": [
                 "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tests",
                 "--destdir=${workspaceFolder}/data/test_complexities/",
-                // "--plot_figs",
+                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 // "--measure_weighting=decreasing_by_half",
                 "--measure_weighting=decreasing_by_quarter",
                 // "--measure_weighting=all",
@@ -252,6 +258,7 @@
                 "--destdir=${workspaceFolder}/data/audio_analysis",
                 "--analysis_summary_out=${workspaceFolder}/data/summary/audio_analysis.csv",
                 "--audiocachedir=${workspaceFolder}/data/audio_cache",
+                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 "--skip_existing",
             ]
         },
@@ -264,6 +271,7 @@
                 "--videos_dir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos",
                 "--thumbnails_dir=${workspaceFolder}/data/thumbnails",
                 "--database_csv_path=${workspaceFolder}/data/db.csv",
+                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
             ]
         },
         {
@@ -276,7 +284,8 @@
                 "--complexity_srcdir=${workspaceFolder}/data/complexities/byfile/",
                 "--database_path=${workspaceFolder}/data/db.csv",
                 "--output_dir=${workspaceFolder}/data/dancetrees_with_complexity/",
-                "--complexity_method=mw-decreasing_by_quarter_lmw-balanced_byvisibility_includebase"
+                "--complexity_method=mw-decreasing_by_quarter_lmw-balanced_byvisibility_includebase",
+                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive"
             ]
         },
         {
@@ -289,6 +298,7 @@
                 "--db_csv_path=${workspaceFolder}/data/db.csv",
                 "--audio_results_dir=${workspaceFolder}/data/audio_analysis",
                 "--bundle_export_path=${workspaceFolder}/../svelte-web-frontend/src/lib/data/bundle",
+                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 "--exclude_test"
             ]
         },

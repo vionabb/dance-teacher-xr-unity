@@ -5,6 +5,10 @@
             "path": "."
         },
         {
+            "name": "artifact-archive",
+            "path": "artifact-archive"
+        },
+        {
             "name": "motion-pipeline",
             "path": "motion-pipeline"
         },

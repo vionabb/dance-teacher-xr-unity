@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 from ..dancetree.DanceTree import DanceTree, DanceTreeNode
+from ..artifacts import build_artifact_report, resolve_artifact_output_dir
 from ..update_database import load_db
 import typing as t
 
@@ -123,15 +124,26 @@ def add_complexities_to_dancetrees(
         complexity_method: str = 'mw-decreasing_by_quarter_lmw-balanced_byvisibility_includebase',
         trim_zero_complexity: bool = True,
         get_print_prefix: t.Callable[[], str] = lambda: '',
+        artifact_archive_root: t.Optional[Path] = None,
+        artifact_output_dir: t.Optional[Path] = None,
     ):
     import json
 
     def print_with_prefix(*args, **kwargs):
         print(get_print_prefix(), *args, **kwargs)
 
+    artifact_dir = resolve_artifact_output_dir(
+        artifact_archive_root=artifact_archive_root,
+        artifact_output_dir=artifact_output_dir,
+        default_label="add-complexity-to-dancetree",
+    )
+
     db = load_db(database_path)
 
     dance_tree_files = list(tree_srcdir.rglob('*.dancetree.json'))
+    missing_complexity_count = 0
+    missing_db_count = 0
+    processed_count = 0
 
     for i, dance_tree_file in enumerate(dance_tree_files):
         relative_filepath = dance_tree_file.relative_to(tree_srcdir)
@@ -142,6 +154,7 @@ def add_complexities_to_dancetrees(
 
         complexity = find_complexity_df(clip_relative_stem, complexity_srcdir, complexity_method)
         if complexity is None:
+            missing_complexity_count += 1
             print(' - no complexity found!')
             continue
         
@@ -149,6 +162,7 @@ def add_complexities_to_dancetrees(
         if clip_relative_stem.as_posix() in db.index:
             matching_db_entry =  db.loc[clip_relative_stem.as_posix()].to_dict()
         if matching_db_entry is None:
+            missing_db_count += 1
             print(' - no database entry found!')
             continue
 
@@ -167,9 +181,42 @@ def add_complexities_to_dancetrees(
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with output_path.open('w') as f2:
             json.dump(tree.to_dict(), f2, indent=2)
+        processed_count += 1
 
         print(' - done!')
     print_with_prefix(f'Done! Saved {len(dance_tree_files)} trees to {output_dir.as_posix()}')
+
+    if artifact_dir is not None:
+        report = build_artifact_report(
+            artifact_dir,
+            title="Add Complexity To DanceTree Report",
+            intro=(
+                f"Added complexity values from `{complexity_srcdir}` to dance trees in `{tree_srcdir}`."
+            ),
+        )
+        report.add_heading("Run Summary")
+        report.add_list(
+            [
+                f"Tree source dir: `{tree_srcdir}`",
+                f"Complexity source dir: `{complexity_srcdir}`",
+                f"Database path: `{database_path}`",
+                f"Output dir: `{output_dir}`",
+                f"Complexity method: `{complexity_method}`",
+                f"Trim zero complexity: `{trim_zero_complexity}`",
+                f"Input tree count: `{len(dance_tree_files)}`",
+                f"Processed tree count: `{processed_count}`",
+                f"Missing complexity count: `{missing_complexity_count}`",
+                f"Missing database count: `{missing_db_count}`",
+            ]
+        )
+        report.write()
+
+    return {
+        "input_tree_count": len(dance_tree_files),
+        "processed_tree_count": processed_count,
+        "missing_complexity_count": missing_complexity_count,
+        "missing_database_count": missing_db_count,
+    }
 
 if __name__ == '__main__':
     import argparse
@@ -180,6 +227,8 @@ if __name__ == '__main__':
     parser.add_argument('--output_dir', type=Path, required=True)
     parser.add_argument('--complexity_method', type=str, default='mw-decreasing_by_quarter_lmw-balanced_byvisibility_includebase')
     parser.add_argument('--skip_trim_zero_complexity', action='store_true')
+    parser.add_argument('--artifact_archive_root', type=Path, default=None)
+    parser.add_argument('--artifact_output_dir', type=Path, default=None)
     args = parser.parse_args()
 
     add_complexities_to_dancetrees(
@@ -187,6 +236,8 @@ if __name__ == '__main__':
         complexity_srcdir=args.complexity_srcdir,
         database_path=args.database_path,
         output_dir=args.output_dir,
-        trim_zero_complexity=not args.trim_zero_complexity,
+        trim_zero_complexity=not args.skip_trim_zero_complexity,
         complexity_method=args.complexity_method,
+        artifact_archive_root=args.artifact_archive_root,
+        artifact_output_dir=args.artifact_output_dir,
     )

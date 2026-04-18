@@ -1,6 +1,8 @@
 from pathlib import Path
 import typing as t
 import cv2
+import matplotlib
+matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 import mediapipe as mp
 from mediapipe.python.solutions import holistic as mp_holistic
@@ -8,7 +10,9 @@ import numpy as np
 import pandas as pd
 from functools import reduce
 import csv
+import fnmatch
 
+from .artifacts import build_artifact_report, resolve_artifact_output_dir
 from .utils import throttle
 from .mp_utils import (
     HAND_CONNECTIONS,
@@ -28,6 +32,14 @@ _PRESENCE_THRESHOLD = 0.5
 _VISIBILITY_THRESHOLD = 0.5
 _BGR_CHANNELS = 3
 from typing import Iterable
+
+_QUALITY_JOINT_COLUMNS: t.Final[t.Dict[str, str]] = {
+    "left_wrist": f"{PoseLandmark.LEFT_WRIST.name}_vis",
+    "right_wrist": f"{PoseLandmark.RIGHT_WRIST.name}_vis",
+    "nose": f"{PoseLandmark.NOSE.name}_vis",
+    "left_foot": f"{PoseLandmark.LEFT_FOOT_INDEX.name}_vis",
+    "right_foot": f"{PoseLandmark.RIGHT_FOOT_INDEX.name}_vis",
+}
 
 
 def _normalized_to_pixel_coordinates(normalized_x, normalized_y, image_width, image_height):
@@ -268,6 +280,90 @@ def _perform_by_frame(video_path: Path):
         if cap is not None:
             cap.release()
 
+
+def _match_debug_frame_whitelist(relative_path: Path, whitelist: t.Sequence[str]) -> bool:
+    patterns = list(whitelist) if len(whitelist) > 0 else ["*"]
+    candidate_paths = [
+        relative_path.as_posix(),
+        relative_path.name,
+        relative_path.stem,
+        relative_path.with_suffix("").as_posix(),
+    ]
+    return any(
+        fnmatch.fnmatchcase(candidate, pattern)
+        for pattern in patterns
+        for candidate in candidate_paths
+    )
+
+
+def _read_video_metadata(video_path: Path) -> t.Dict[str, float]:
+    cap = cv2.VideoCapture(str(video_path))
+    try:
+        fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
+        fps = fps if fps > 0 else 30.0
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        return {
+            "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0),
+            "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0),
+            "frame_count": frame_count,
+            "fps": fps,
+            "duration_seconds": frame_count / fps if fps > 0 else 0.0,
+        }
+    finally:
+        cap.release()
+
+
+def summarize_holistic_data_quality(
+    *,
+    dataframe: t.Optional[pd.DataFrame] = None,
+    csv_path: t.Optional[Path] = None,
+) -> pd.Series:
+    if dataframe is None:
+        if csv_path is None:
+            raise ValueError("Either dataframe or csv_path must be provided.")
+        dataframe = pd.read_csv(csv_path)
+
+    summary: t.Dict[str, t.Union[int, float]] = {}
+
+    pose_vis_columns = [column for column in dataframe.columns if column.endswith("_vis") and not column.startswith(("LEFTHAND_", "RIGHTHAND_"))]
+    pose_detected_mask = dataframe[pose_vis_columns].notna().any(axis=1) if pose_vis_columns else pd.Series(False, index=dataframe.index)
+    valid_pose_frame_count = int(pose_detected_mask.sum())
+    invalid_pose_frame_count = int(len(dataframe.index) - valid_pose_frame_count)
+
+    summary["valid_pose_frame_count"] = valid_pose_frame_count
+    summary["invalid_pose_frame_count"] = invalid_pose_frame_count
+    summary["max_people_detected_in_frame"] = 1 if valid_pose_frame_count > 0 else 0
+
+    quantile_map = {
+        "p10": 0.10,
+        "q1": 0.25,
+        "median": 0.50,
+        "q3": 0.75,
+        "p90": 0.90,
+    }
+
+    for joint_label, visibility_column in _QUALITY_JOINT_COLUMNS.items():
+        if visibility_column in dataframe.columns:
+            vis_series = dataframe[visibility_column].fillna(0.0)
+        else:
+            vis_series = pd.Series(0.0, index=dataframe.index)
+        for quantile_name, quantile in quantile_map.items():
+            summary[f"{joint_label}_{quantile_name}_visibility"] = float(vis_series.quantile(quantile))
+
+    return pd.Series(summary)
+
+
+def _zero_quality_summary(frame_count: int) -> pd.Series:
+    summary: t.Dict[str, t.Union[int, float]] = {
+        "valid_pose_frame_count": 0,
+        "invalid_pose_frame_count": frame_count,
+        "max_people_detected_in_frame": 0,
+    }
+    for joint_label in _QUALITY_JOINT_COLUMNS.keys():
+        for quantile_name in ("p10", "q1", "median", "q3", "p90"):
+            summary[f"{joint_label}_{quantile_name}_visibility"] = 0.0
+    return pd.Series(summary)
+
 def process_video(
     input_video_path: Path, 
     model_complexity: int,
@@ -400,11 +496,21 @@ def compute_holistic_data(
     pose2d_output_folder: t.Optional[Path] = None,
     model_complexity: int = 2,
     frame_output_folder: t.Optional[Path] = None,
+    debug_frame_whitelist: t.Optional[t.Sequence[str]] = None,
     rewrite_existing: bool = False,
     print_prefix: t.Callable[[], str]=lambda: '',
+    artifact_archive_root: t.Optional[Path] = None,
+    artifact_output_dir: t.Optional[Path] = None,
 ):
     if not output_folder.exists():
         output_folder.mkdir(parents=True)
+
+    artifact_dir = resolve_artifact_output_dir(
+        artifact_archive_root=artifact_archive_root,
+        artifact_output_dir=artifact_output_dir,
+        default_label="compute-holistic-data",
+    )
+    debug_frame_whitelist = list(debug_frame_whitelist) if debug_frame_whitelist is not None else ["*"]
 
     video_folder = Path(video_folder)
     video_paths = []
@@ -417,9 +523,22 @@ def compute_holistic_data(
         video_paths = parent_folder.glob(video_folder.name)
         
     video_paths = list(video_paths)
+    video_relative_stems = {video_path.relative_to(parent_folder).with_suffix("").as_posix() for video_path in video_paths}
+    orphan_holistic_warnings: t.List[str] = []
+    if output_folder.exists():
+        for holistic_csv_path in output_folder.rglob("*.holisticdata.csv"):
+            holistic_relative_stem = holistic_csv_path.relative_to(output_folder).with_suffix("").with_suffix("").as_posix()
+            if holistic_relative_stem not in video_relative_stems:
+                warning = (
+                    f"WARNING: Found holistic CSV without a matching video file: "
+                    f"{holistic_csv_path.relative_to(output_folder).as_posix()}"
+                )
+                print(f"{print_prefix()} {warning}")
+                orphan_holistic_warnings.append(warning)
 
-    skipped_count = 0
-    processed_count = 0
+    cached_count = 0
+    computed_count = 0
+    summary_rows: t.List[pd.Series] = []
     for i, video_path in enumerate(video_paths):
         video_file_relative = video_path.relative_to(parent_folder)
         video_file_relative_stem = video_file_relative.with_suffix('')
@@ -434,22 +553,90 @@ def compute_holistic_data(
             or (pose_2d_data_filepath.exists() and pose_2d_data_filepath.stat().st_size > 0)
         )
 
-        if not rewrite_existing and holistic_is_valid and pose2d_is_valid:
-            skipped_count += 1
-            continue
-        else:
-           processed_count += 1
+        status = "cached"
+        if rewrite_existing or not holistic_is_valid or not pose2d_is_valid:
+            status = "computed"
+            computed_count += 1
+            current_frame_output_dir = None
+            if frame_output_folder is not None and _match_debug_frame_whitelist(video_file_relative, debug_frame_whitelist):
+                current_frame_output_dir = frame_output_folder / video_file_relative.parent
 
-        process_video(
-            input_video_path=video_path,
-            model_complexity=model_complexity,
-            holistic_data_output_filepath=holistic_data_filepath,
-            pose_2d_data_output_filepath=pose_2d_data_filepath,
-            frame_output_folder=frame_output_folder,
-            print_progress_context=lambda: f"{print_prefix()} Video {i+1}/{len(video_paths)} {video_file_relative_stem}",
+            process_video(
+                input_video_path=video_path,
+                model_complexity=model_complexity,
+                holistic_data_output_filepath=holistic_data_filepath,
+                pose_2d_data_output_filepath=pose_2d_data_filepath,
+                frame_output_folder=current_frame_output_dir,
+                print_progress_context=lambda: f"{print_prefix()} Video {i+1}/{len(video_paths)} {video_file_relative_stem}",
+            )
+        else:
+            cached_count += 1
+
+        video_metadata = _read_video_metadata(video_path)
+        if not holistic_data_filepath.exists() or holistic_data_filepath.stat().st_size == 0:
+            warning = (
+                f"WARNING: Holistic CSV is empty after processing and will be summarized as zero-quality: "
+                f"{holistic_data_filepath.relative_to(output_folder).as_posix()}"
+            )
+            print(f"{print_prefix()} {warning}")
+            orphan_holistic_warnings.append(warning)
+            quality_summary = _zero_quality_summary(int(video_metadata["frame_count"]))
+        else:
+            quality_summary = summarize_holistic_data_quality(csv_path=holistic_data_filepath)
+        summary_rows.append(
+            pd.Series(
+                {
+                    "file": video_file_relative.as_posix(),
+                    "status": status,
+                    "width": video_metadata["width"],
+                    "height": video_metadata["height"],
+                    "duration_seconds": video_metadata["duration_seconds"],
+                    "frame_count": video_metadata["frame_count"],
+                    **quality_summary.to_dict(),
+                }
+            )
         )
 
-    print(f"{print_prefix()} Processed {processed_count} videos, skipped {skipped_count} videos")
+    summary_df = pd.DataFrame(summary_rows)
+    if not summary_df.empty:
+        summary_df.sort_values(by="file", inplace=True)
+
+    print(f"{print_prefix()} Computed {computed_count} videos, used cached holistic data for {cached_count} videos")
+
+    if artifact_dir is not None:
+        report = build_artifact_report(
+            artifact_dir,
+            title="Compute Holistic Data Report",
+            intro=(
+                f"Generated holistic pose CSV outputs for `{video_folder}` into `{output_folder}`."
+            ),
+        )
+        report.add_heading("Run Summary")
+        report.add_list(
+            [
+                f"Video source: `{video_folder}`",
+                f"Holistic output: `{output_folder}`",
+                f"Pose2D output: `{pose2d_output_folder}`" if pose2d_output_folder else "Pose2D output: disabled",
+                f"Rewrite existing: `{rewrite_existing}`",
+                f"Videos computed: `{computed_count}`",
+                f"Videos cached: `{cached_count}`",
+                "Maximum people detected per frame is currently a `0/1` metric because this holistic pipeline is single-person.",
+            ]
+        )
+        if orphan_holistic_warnings:
+            report.add_heading("Warnings")
+            report.add_list(orphan_holistic_warnings)
+        if not summary_df.empty:
+            report.add_heading("Per-File Summary")
+            report.add_dataframe(
+                "holistic_summary",
+                summary_df,
+                max_rows_in_markdown=10,
+                preview_rows=10,
+            )
+        report.write()
+
+    return summary_df
 
 if __name__ == "__main__":
     import argparse
@@ -460,7 +647,10 @@ if __name__ == "__main__":
     parser.add_argument('--log_level', type=str, default='INFO')
     parser.add_argument('--model-complexity', type=int, default=2)
     parser.add_argument('--frame_output_folder', type=Path, default=None)
+    parser.add_argument('--debug_frame_whitelist', action='append', default=None)
     parser.add_argument('--rewrite_existing', action='store_true', default=False)
+    parser.add_argument('--artifact_archive_root', type=Path, default=None)
+    parser.add_argument('--artifact_output_dir', type=Path, default=None)
     args = parser.parse_args()
     
     compute_holistic_data(
@@ -468,5 +658,8 @@ if __name__ == "__main__":
         output_folder=args.output_folder,
         model_complexity=args.model_complexity,
         frame_output_folder=args.frame_output_folder,
+        debug_frame_whitelist=args.debug_frame_whitelist,
         rewrite_existing=args.rewrite_existing,
+        artifact_archive_root=args.artifact_archive_root,
+        artifact_output_dir=args.artifact_output_dir,
     )

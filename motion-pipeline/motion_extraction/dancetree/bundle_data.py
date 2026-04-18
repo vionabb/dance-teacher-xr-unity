@@ -3,6 +3,7 @@ import typing as t
 from pathlib import Path
 import json
 import shutil
+from ..artifacts import build_artifact_report, resolve_artifact_output_dir
 from ..update_database import load_db
 from .DanceTree import DanceTree, DanceTreeNode
 
@@ -15,9 +16,17 @@ def bundle_dance_data_as_json(
     bundle_export_path: Path,
     exclude_test: bool = True,
     print_prefix: t.Callable[[], str] = lambda: '',
+    artifact_archive_root: t.Optional[Path] = None,
+    artifact_output_dir: t.Optional[Path] = None,
 ):
     def print_with_prefix(*args, **kwargs):
         print(print_prefix(), *args, **kwargs)
+
+    artifact_dir = resolve_artifact_output_dir(
+        artifact_archive_root=artifact_archive_root,
+        artifact_output_dir=artifact_output_dir,
+        default_label="bundle-data",
+    )
 
     print_with_prefix('Loading database...')
     db = load_db(db_csv_path)
@@ -71,13 +80,44 @@ def bundle_dance_data_as_json(
     dancetrees_export_path.write_text(json.dumps(dancetree_dict, indent=2), encoding='utf-8')
     print_with_prefix(f'Exported bundle with {len(dancetrees)} dancetrees to {bundle_export_path.resolve().as_posix()}')
 
+    if artifact_dir is not None:
+        report = build_artifact_report(
+            artifact_dir,
+            title="Bundle Data Report",
+            intro=(
+                f"Bundled dance tree data from `{dancetree_srcdir}` into `{bundle_export_path}`."
+            ),
+        )
+        report.add_heading("Run Summary")
+        report.add_list(
+            [
+                f"DanceTree source dir: `{dancetree_srcdir}`",
+                f"Database CSV: `{db_csv_path}`",
+                f"Audio results dir: `{audio_results_dir}`",
+                f"Bundle export path: `{bundle_export_path}`",
+                f"Exclude test clips: `{exclude_test}`",
+                f"Dance count exported: `{len(dances)}`",
+                f"DanceTree count loaded: `{len(dancetrees)}`",
+            ]
+        )
+        report.write()
+
+    return {
+        "dance_count": len(dances),
+        "dancetree_count": len(dancetrees),
+        "bundle_export_path": bundle_export_path,
+    }
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--dancetree_srcdir', type=Path, required=True)
     parser.add_argument('--db_csv_path', type=Path, required=True)
+    parser.add_argument('--audio_results_dir', type=Path, required=True)
     parser.add_argument('--bundle_export_path', type=Path, required=True)
     parser.add_argument('--exclude_test', action='store_true', default=False)
+    parser.add_argument('--artifact_archive_root', type=Path, default=None)
+    parser.add_argument('--artifact_output_dir', type=Path, default=None)
 
     args = parser.parse_args()
 
@@ -87,6 +127,8 @@ if __name__ == "__main__":
         audio_results_dir=args.audio_results_dir,
         bundle_export_path=args.bundle_export_path,
         exclude_test=args.exclude_test,
+        artifact_archive_root=args.artifact_archive_root,
+        artifact_output_dir=args.artifact_output_dir,
     )
 
     print(f'Done! Saved bundle to {args.bundle_export_path.resolve().as_posix()}')
