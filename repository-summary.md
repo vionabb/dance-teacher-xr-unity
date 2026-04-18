@@ -66,6 +66,7 @@ Important areas:
 Notable characteristics:
 
 - Python environment is expected to be local to `motion-pipeline/.env`.
+- Root-level VS Code usage should go through `dance-teacher-xr-unity.code-workspace`, which opens `motion-pipeline` as its own workspace folder so the local interpreter and `motion_extraction` import root resolve correctly.
 - README positions `.vscode/launch.json` as the primary entrypoint for runnable tasks.
 - The main orchestration script is `motion_extraction.dancetree.run_dancetree_pipeline`.
 
@@ -108,6 +109,11 @@ If metric column names or output paths change, this script will likely need upda
 ## Launch Configs Worth Knowing
 
 The repo relies heavily on VS Code launch configs for canonical arguments.
+
+For repo-root editing in VS Code:
+
+- Open `dance-teacher-xr-unity.code-workspace` rather than the raw repo folder when you want both Python and Svelte/TypeScript tooling active at once.
+- The workspace includes the repo root plus separate `motion-pipeline` and `svelte-web-frontend` folders so each project keeps its own `.vscode/settings.json` and `.vscode/launch.json` behavior.
 
 ### `svelte-web-frontend/.vscode/launch.json`
 

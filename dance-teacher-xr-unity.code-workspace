@@ -1,0 +1,34 @@
+{
+    "folders": [
+        {
+            "name": "repo-root",
+            "path": "."
+        },
+        {
+            "name": "motion-pipeline",
+            "path": "motion-pipeline"
+        },
+        {
+            "name": "svelte-web-frontend",
+            "path": "svelte-web-frontend"
+        }
+    ],
+    "settings": {
+        "python.terminal.activateEnvironment": true,
+        "eslint.workingDirectories": [
+            {
+                "directory": "svelte-web-frontend",
+                "changeProcessCWD": true
+            }
+        ]
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.vscode-pylance",
+            "svelte.svelte-vscode",
+            "dbaeumer.vscode-eslint",
+            "esbenp.prettier-vscode"
+        ]
+    }
+}

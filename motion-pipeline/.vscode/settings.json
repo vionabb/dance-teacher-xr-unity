@@ -1,6 +1,10 @@
 {
     "workbench.colorTheme": "Dark Modern",
+    "python.defaultInterpreterPath": "${workspaceFolder}/.env/bin/python",
     "python.terminal.activateEnvironment": true,
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}"
+    ],
 
 
     "liveServer.settings.port": 4500,
