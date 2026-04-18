@@ -3,3 +3,8 @@
 
 .mpl-cache
 .xdg-cache
+
+/analysis-src
+!/analysis-src/README.md
+
+/artifact-archive

@@ -1,30 +1,22 @@
-# 
-# 
-# Prompt: Suppose I have a bunch of users’ dance performances which i’m comparing to a 
-# reference dance, and that I have a bunch of human ratings of these dance performances 
-# to use as a ground truth. I also have a collection of automatically calculated comparison 
-# metrics, which output error at difference scales (some as accuracy percentile, some as 
-# an error quantity with undetermined scale). 
-# I want to determine which of these metrics is the best approximation of the human ratings. 
-# I assume I should calculate the correlation of each one, and perhaps choose the one with 
-# the best correlation?
-# 
-import pandas as pd
-import numpy as np
-from scipy.stats import spearmanr, pearsonr
-from sklearn.linear_model import LinearRegression, ElasticNet
-from sklearn.model_selection import cross_val_score, KFold
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import Ridge
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.pipeline import make_pipeline
-
 import argparse
-import pathlib
-from sklearn.preprocessing import RobustScaler
-from sklearn.metrics import r2_score
+from datetime import datetime
+from pathlib import Path
+import sys
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy.stats import pearsonr, spearmanr
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import ElasticNet, LinearRegression, Ridge
+from sklearn.metrics import r2_score
+from sklearn.model_selection import KFold, cross_val_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures, RobustScaler
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from motion_extraction.reporting import AnalysisMarkdownReport
 
 
 CSV_COL_NAMES = [
@@ -38,14 +30,14 @@ CSV_COL_NAMES = [
 DEAULT_CSV_PATH = "../svelte-web-frontend/artifacts/motion_metrics.csv"
 DEFAULT_TARGET_COL = "humanRating"
 parser = argparse.ArgumentParser(description="Fit a linear model to predict human ratings from metrics.")
-parser.add_argument("--data_path", type=pathlib.Path, default=pathlib.Path(DEAULT_CSV_PATH), help="Path to the CSV data file.")
+parser.add_argument("--data_path", type=Path, default=Path(DEAULT_CSV_PATH), help="Path to the CSV data file.")
 parser.add_argument("--target_col", type=str, default=DEFAULT_TARGET_COL, help="Column name for human ratings.")
-parser.add_argument("--output_dir", type=pathlib.Path, default=None, help="Directory to save scatterplot images. Defaults to model_fitting/metric_scatterplots next to data.")
+parser.add_argument("--output_dir", type=Path, default=None, help="Directory to save report, tables, and plots. Defaults to model_fitting next to data.")
 
 args = parser.parse_args()
 
 # Load data
-data_path: pathlib.Path = args.data_path
+data_path: Path = args.data_path
 df = pd.read_csv(args.data_path)
 
 
@@ -71,6 +63,16 @@ def resolve_metric_columns(
 output_dir = args.output_dir
 if output_dir is None:
     output_dir = data_path.parent / "model_fitting"
+output_dir.mkdir(parents=True, exist_ok=True)
+
+report = AnalysisMarkdownReport(
+    output_dir=output_dir,
+    title="Metric Fitting Report",
+    intro=(
+        f"Generated `{datetime.now().isoformat(timespec='seconds')}` from `{data_path}`. "
+        f"Target column: `{args.target_col}`."
+    ),
+)
 
 # Accuracy metrics: those that are already in [0, 1] range, with 1 being a "good" score,
 # corresponding to a low error and hopefully a 1 human rating.
@@ -137,6 +139,32 @@ for metric_col in all_metrics:
     print(f"{resolved_metric_labels[metric_col]} -> {metric_col}")
 print()
 
+report.add_heading("Input Summary")
+report.add_list(
+    [
+        f"Source CSV: `{data_path}`",
+        f"Output directory: `{output_dir}`",
+        f"Target column: `{args.target_col}`",
+        f"Resolved metric count: `{len(all_metrics)}`",
+    ]
+)
+
+report.add_heading("Resolved Metric Columns")
+resolved_metrics_df = pd.DataFrame(
+    [
+        {
+            "metric_label": resolved_metric_labels[metric_col],
+            "source_column": metric_col,
+        }
+        for metric_col in all_metrics
+    ]
+)
+report.add_dataframe("resolved_metric_columns", resolved_metrics_df)
+
+if missing_metrics:
+    report.add_heading("Missing Metrics")
+    report.add_list([f"`{metric}`" for metric in missing_metrics])
+
 target_col = args.target_col
 
 # Normalize metrics (invert error metrics to turn them into "accuracy-like" metrics)
@@ -148,8 +176,6 @@ for col in error_metrics:
 
 scaler = RobustScaler()
 normalized_df[all_metrics] = scaler.fit_transform(normalized_df[all_metrics])
-
-
 
 # Remove outliers from the normalized DataFrame
 # Using the IQR method to remove outliers
@@ -191,17 +217,13 @@ for method in ["normalized", "unnormalized"]:
     plt.suptitle('Distribution of Metrics' + (" (normalized)" if method == 'normalized' else ""), fontsize=16)
     # Save the histogram figure
     histogram_path = output_dir / f"metric_histograms.{method}.pdf"
-    histogram_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure output directory exists
     plt.savefig(str(histogram_path), dpi=300, bbox_inches='tight')
     plt.close()
     print(f"Saved {method} metric histograms to {histogram_path.relative_to(output_dir)}")
 
-
-
-
 # Check for NaN values and create a mask for valid rows
-
-valid_rows = ~normalized_df[all_metrics].isna().any(axis=1) & ~df[target_col].isna()
+valid_rows = ~normalized_df[all_metrics].isna().any(axis=1)
+valid_rows &= ~df.loc[normalized_df.index, target_col].isna()
 
 # Check for metrics with excessive missing values
 missing_warnings = []
@@ -219,9 +241,16 @@ else:
     print("=== Missing Data Check ===")
     print("✅ No metrics have excessive missing values (<= 10%).\n")
 
-# Remove rows with NaN values in the target column
-df = df[valid_rows]
-normalized_df = normalized_df[valid_rows]
+report.add_heading("Missing Data Check")
+if missing_warnings:
+    report.add_list(missing_warnings)
+else:
+    report.add_paragraph("No metrics have excessive missing values (<= 10%).")
+
+# Remove rows with NaN values in the target column and align indexes
+filtered_index = normalized_df.index[valid_rows]
+df = df.loc[filtered_index].copy()
+normalized_df = normalized_df.loc[filtered_index].copy()
 
 # Compute correlations
 correlations = []
@@ -240,6 +269,8 @@ for col in all_metrics:
 correlations_df = pd.DataFrame(correlations).sort_values(by="spearman", ascending=False)
 print("=== Correlation with Human Ratings ===")
 print(correlations_df)
+report.add_heading("Metric Correlations")
+report.add_dataframe("correlations_with_human_ratings", correlations_df)
 
 # Check for collinearity between features
 print("\n=== Spearman Correlation Matrix Between Metrics ===")
@@ -291,6 +322,8 @@ corr_matrix_path = output_dir / "metric_correlation_matrix.png"
 plt.savefig(str(corr_matrix_path), dpi=300, bbox_inches='tight')
 plt.close()
 print(f"Saved correlation matrix to {corr_matrix_path.relative_to(output_dir)}")
+report.add_heading("Correlation Matrix Plot")
+report.add_figure("Metric correlation matrix", corr_matrix_path)
 
 
  # Create output directory for plots
@@ -321,6 +354,21 @@ for col in all_metrics:
     plt.close()
     rel_path = save_path.relative_to(output_dir)
     print(f"Created scatterplot {rel_path}")
+
+report.add_heading("Histogram Plots")
+for method in ["normalized", "unnormalized"]:
+    report.add_figure(
+        f"{method.title()} metric histograms",
+        output_dir / f"metric_histograms.{method}.pdf",
+    )
+
+report.add_heading("Scatterplots")
+for col in all_metrics:
+    metric_label = resolved_metric_labels[col]
+    report.add_figure(
+        f"{metric_label} vs {target_col}",
+        scatterplot_output_dir / f"{metric_label}_vs_{target_col}.png",
+    )
 
 # Optional: Predict human ratings using all metrics (linear regression)
 models = [
@@ -362,6 +410,7 @@ models = [
 max_r2 = {}
 model_variant_names = {}
 model_retained_features = {}
+model_summary_rows = []
 
 for model_constructor in models:
     model = model_constructor()
@@ -375,6 +424,13 @@ for model_constructor in models:
 
     # print(f"\n=== Regression Prediction [full_model_name] ===")
     print(f"Mean R²: {np.mean(scores):.3f} ± {np.std(scores):.3f}")
+    model_summary_rows.append(
+        {
+            "model": full_model_name,
+            "mean_r2": float(np.mean(scores)),
+            "std_r2": float(np.std(scores)),
+        }
+    )
 
 
     model.fit(X, y)
@@ -395,6 +451,11 @@ for model_constructor in models:
         # Sort by absolute coefficient value to see most impactful features
         coef_df['AbsCoefficient'] = coef_df['Coefficient'].abs()
         coef_df = coef_df.sort_values('AbsCoefficient', ascending=False)
+        report.add_heading(f"{full_model_name} Coefficients", level=3)
+        report.add_dataframe(
+            f"{full_model_name} coefficients",
+            coef_df[['Metric', 'SourceColumn', 'Coefficient', 'AbsCoefficient']],
+        )
 
         # print(f"\n=== Feature Importance (Regression Weights)[model={full_model_name}] ===")
         # print(coef_df[['Metric', 'Coefficient']])
@@ -445,6 +506,11 @@ for model_constructor in models:
         elimination_df = pd.DataFrame(elimination_results)
         print(f"\n=== Incremental Feature Elimination Results ({full_model_name})===")
         print(elimination_df[['num_features', 'mean_R²', 'std_R²', 'features']])
+        report.add_heading(f"{full_model_name} Feature Elimination", level=3)
+        report.add_dataframe(
+            f"{full_model_name} feature elimination",
+            elimination_df[['num_features', 'mean_R²', 'std_R²', 'features']],
+        )
 
 # Print max R² for each model
 print("\n=== Maximum R² for Each Model ===")
@@ -453,7 +519,24 @@ model_variant_df.index.name = 'Model'
 model_variant_df = model_variant_df.reset_index()
 model_variant_df = model_variant_df.sort_values(by='Max R²', ascending=False)
 print(model_variant_df)
+report.add_heading("Model Comparison")
+report.add_dataframe("cross_validated_model_summary", pd.DataFrame(model_summary_rows).sort_values(by="mean_r2", ascending=False))
+report.add_dataframe("best_model_variants", model_variant_df)
 
 print("\n=== Best Model Features ===")
+best_feature_rows = []
 for model_name, features in model_retained_features.items():
     print(f"{model_variant_names[model_name]}:\n\t{', '.join(features)}")
+    best_feature_rows.append(
+        {
+            "model_variant": model_variant_names[model_name],
+            "features": ", ".join(features),
+        }
+    )
+
+if best_feature_rows:
+    report.add_heading("Best Model Features")
+    report.add_dataframe("best_model_features", pd.DataFrame(best_feature_rows))
+
+report_path = report.write()
+print(f"\nWrote markdown report to {report_path}")

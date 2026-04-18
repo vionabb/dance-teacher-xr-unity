@@ -76,6 +76,7 @@ export function computeSkeleton3DVectorAngleSimilarity(
 	const scores = Object.values(results).map((res) => res.score);
 	const weights = Object.keys(results).map((key) => comparisonWeights[key as AngleComparisonKey]);
 
+	// use the harmonic mean to calculate the overall score, which punishes low scores more than the arithmetic mean
 	const meanScore = GetHarmonicMean(Object.values(scores), weights);
 
 	return {

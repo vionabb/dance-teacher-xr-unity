@@ -28,7 +28,8 @@ def run_dancetree_pipeline(
     rewrite_existing_holistic_data: bool = False,
     skip_existing_cumulative_complexity: bool = False,
     skip_existing_audioanalysis: bool = False,
-    output_holistic_debug_frames: bool = False
+    output_holistic_debug_frames: bool = False,
+    complexity_diagnostics_dir: t.Optional[Path] = None,
 
 ):
     complexities_temp_dir = temp_dir / 'complexities'
@@ -90,7 +91,7 @@ def run_dancetree_pipeline(
         destdir=complexities_temp_dir,
         measure_weighting=COMPLEXITY_MEASURE_WEIGHITNG,
         landmark_weighting=COMPLEXITY_LANDMARK_WEIGHITNG,
-        plot_figs=False,
+        diagnostic_output_dir=complexity_diagnostics_dir,
         include_base=True,
         weigh_by_visibility=True,
         print_prefix=lambda: f'{step()} calc. complexity:',
@@ -151,6 +152,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip_existing_cumulative_complexity", action='store_true')
     parser.add_argument("--skip_existing_audioanalysis", action='store_true')
     parser.add_argument("--output_holistic_debug_frames", action='store_true')
+    parser.add_argument("--complexity_diagnostics_dir", type=Path, default=None)
     args = parser.parse_args()
     
     run_dancetree_pipeline(
@@ -166,5 +168,6 @@ if __name__ == "__main__":
         rewrite_existing_holistic_data=args.rewrite_existing_holistic_data,
         skip_existing_cumulative_complexity=args.skip_existing_cumulative_complexity,
         skip_existing_audioanalysis=args.skip_existing_audioanalysis,
-        output_holistic_debug_frames=args.output_holistic_debug_frames
+        output_holistic_debug_frames=args.output_holistic_debug_frames,
+        complexity_diagnostics_dir=args.complexity_diagnostics_dir,
     )

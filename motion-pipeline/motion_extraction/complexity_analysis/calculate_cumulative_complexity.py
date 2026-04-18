@@ -1,3 +1,23 @@
+"""Compute and persist cumulative motion complexity from holistic pose CSVs.
+
+This module is the batch entry point for the DVAJ-based complexity pipeline in
+`motion_extraction/complexity_analysis`. It reads `*.holisticdata.csv` pose
+exports, optionally re-centers landmarks around a synthetic hip-base landmark,
+derives per-frame scalar DVAJ values, accumulates them over time, and writes
+scaled complexity series plus dataset-level summaries to `destdir`.
+
+Primary use:
+- import `calculate_cumulative_complexities(...)` from other pipeline code; or
+- run this file as a script to process a source tree or an explicit file list.
+
+Main outputs:
+- `destdir/byfile/**/*.complexity.csv` for per-recording scaled cumulative
+  complexity series;
+- `destdir/dvaj_complexity.csv` for cross-file summary rows; and
+- optional intermediate plots and diagnostic CSVs when
+  `diagnostic_output_dir` is provided.
+"""
+
 from collections import defaultdict
 from pathlib import Path
 import time
@@ -320,12 +340,23 @@ def calculate_cumulative_complexities(
         destdir: Path,
         measure_weighting: DvajMeasureWeighting,
         landmark_weighting: PoseLandmarkWeighting,
-        plot_figs: bool = False,
+        diagnostic_output_dir: t.Optional[Path] = None,
         include_base: bool = False,
         weigh_by_visibility: bool = True,
         print_prefix: t.Callable[[], str] = lambda: "",
         skip_existing: bool = False,
 ):
+    """Generate cumulative complexity outputs for one batch of pose CSV inputs.
+
+    Inputs are collected from `other_files` plus any `*.holisticdata.csv` files
+    under `srcdir`. Results are written under `destdir`, with one complexity CSV
+    per input file and an aggregate `dvaj_complexity.csv` summary for the whole
+    batch. The selected weighting options are encoded into the output column
+    name so multiple calculation variants can coexist in the same destination.
+    When `diagnostic_output_dir` is set, intermediate diagnostic CSVs and plots
+    are also written there under a subdirectory for the selected weighting
+    configuration.
+    """
     input_files: t.List[Path] = other_files.copy()
     relative_dirs: t.List[Path] = [f.parent for f in other_files]
 
@@ -347,6 +378,8 @@ def calculate_cumulative_complexities(
       
     print(f"{print_prefix()}Output: saving output dance trees to {destdir}.")
     destdir.mkdir(parents=True, exist_ok=True)
+    if diagnostic_output_dir is not None:
+        print(f"{print_prefix()}Diagnostics: writing plots and debug CSVs to {diagnostic_output_dir}.")
 
     measure_weighting_choice = measure_weighting
     measure_weighting_weights = measure_weighting_choice.get_weighting()
@@ -382,12 +415,16 @@ def calculate_cumulative_complexities(
             return
 
     sup_title = complexity_calculation_parameters_string
+    should_output_diagnostics = diagnostic_output_dir is not None
 
-    debug_dir = destdir / "debug" / sup_title
-    debug_dir.mkdir(parents=True, exist_ok=True)
+    debug_dir = diagnostic_output_dir / sup_title if diagnostic_output_dir is not None else None
+    if debug_dir is not None:
+        debug_dir.mkdir(parents=True, exist_ok=True)
     count_by_subpath = {}
     debug_file_count = 0
     def make_debug_path(name: str, subpath: str = "") -> Path:
+        if debug_dir is None:
+            raise RuntimeError("Diagnostic output requested without a configured diagnostic directory.")
         nonlocal debug_file_count
         debug_file_count += 1
         count_by_subpath[subpath] = count_by_subpath.get(subpath, 0) + 1
@@ -458,7 +495,7 @@ def calculate_cumulative_complexities(
     print_with_time("Step 1: Calculating DVAJs...")
     dvaj_dfs, visibility_dfs = zip(*tqdm(generate_dvajs_with_visibility(input_files, landmark_names, include_base=include_base), total=len(input_files)))
     
-    if plot_figs:
+    if should_output_diagnostics:
         print_with_time("\tPlotting raw DVAJs...")
         for i in trange(len(filename_stems)):
             save_debug_fig("generated_dvaj.png", lambda ax: dvaj_dfs[i].plot(title=f"Raw DVAJ ({filename_stems[i]})", ax=ax), subpath=relative_filename_stems[i])
@@ -468,7 +505,7 @@ def calculate_cumulative_complexities(
         print_with_time("Step 2: Weighting by visibility...")
         dvaj_dfs = [weigh_by_visiblity(dvaj, visibility, landmark_names, dvaj_suffixes) for dvaj, visibility in tqdm(zip(dvaj_dfs, visibility_dfs), total=len(dvaj_dfs))]
 
-        if plot_figs:
+        if should_output_diagnostics:
             print_with_time("\tPlotting visibility-weighted DVAJs...")
             for i in trange(len(filename_stems)):
                 save_debug_fig("visweighted_dvaj.png", lambda ax: dvaj_dfs[i].plot(title=f"Visibility-Weighted DVAJ ({filename_stems[i]})", ax=ax), subpath=relative_filename_stems[i])
@@ -479,7 +516,7 @@ def calculate_cumulative_complexities(
     dvaj_cumsum_dfs = [dvaj.cumsum() for dvaj in dvaj_dfs]
     # For any NaNs, fill with the last valid value (NaNs will appear when skeleton isn't tracked)
     dvaj_cumsum_dfs = [dvaj_cumsum.fillna(method="ffill") for dvaj_cumsum in dvaj_cumsum_dfs]
-    if plot_figs:
+    if should_output_diagnostics:
         print_with_time("\tPlotting cumulative DVAJs...")
         for i in trange(len(filename_stems)):
             save_debug_fig("cumsum_dvaj.png", lambda ax: dvaj_cumsum_dfs[i].plot(title=f"Cumulative DVAJ ({filename_stems[i]})", ax=ax), subpath=relative_filename_stems[i])
@@ -495,7 +532,7 @@ def calculate_cumulative_complexities(
         # "tossed_frames": tossed_frames,
         # }, index=filename_stems).to_csv(make_debug_path("tossed_frames.csv"))
     
-    if plot_figs:
+    if should_output_diagnostics:
         for measure in DVAJ:
             print_with_time(f"\tPlotting trimmed {measure.name}...")
             for i in trange(len(filename_stems)):
@@ -520,8 +557,9 @@ def calculate_cumulative_complexities(
     #   max_vals.loc[f"{landmark_name}_{measure.name}"].
     max_vals = maxes_per_frame.max()
     max_vals_and_src = pd.concat([max_vals, maxes_per_frame.idxmax()], keys=["max", "src"], axis=1)
-    maxes_per_frame.to_csv(make_debug_path("movement_per_frame.csv"))
-    max_vals_and_src.to_csv(make_debug_path("max_vals.csv"))
+    if should_output_diagnostics:
+        maxes_per_frame.to_csv(make_debug_path("movement_per_frame.csv"))
+        max_vals_and_src.to_csv(make_debug_path("max_vals.csv"))
 
     # Step 6 & 7.
     # 6. Normalize each metric by its max among the dataset, adjusted
@@ -545,7 +583,7 @@ def calculate_cumulative_complexities(
         overall_complexities[i].ffill(inplace=True)
 
     del dvaj_cumsum_dfs
-    if plot_figs:
+    if should_output_diagnostics:
         print_with_time("\tPlotting complexity measures...")
         for i in trange(len(filename_stems)):
             save_debug_fig(f"complexity_measures.png", lambda ax: complexity_measures[i].plot(title=f"Complexity Measures ({filename_stems[i]})", ax=ax), subpath=relative_filename_stems[i])
@@ -573,9 +611,9 @@ def calculate_cumulative_complexities(
     # hundred_percent_scale_cumulative_complexity = np.linspace(0, max_frames * max_complexity_per_second, max_frames, endpoint=False)
     debug_overall_complexities_df["max"] = max_linear_cumulative_complexity
     debug_overall_complexities_df["min"] = min_linear_cumulative_complexity
-    
-    save_debug_fig(f"overall_complexities.png", lambda ax: debug_overall_complexities_df.plot(title=f"Overall Complexity", ax=ax))
-    overall_complexities_df.to_csv(make_debug_path("overall_complexities.csv"))
+    if should_output_diagnostics:
+        save_debug_fig(f"overall_complexities.png", lambda ax: debug_overall_complexities_df.plot(title=f"Overall Complexity", ax=ax))
+        overall_complexities_df.to_csv(make_debug_path("overall_complexities.csv"))
 
     scaled_complexities = [
         (overall_complexities[i] - min_linear_cumulative_complexity[:nontossed_frame_counts[i]]) / max_complexity_per_second
@@ -583,7 +621,8 @@ def calculate_cumulative_complexities(
     ]
 
     scaled_complexities_df = pd.concat(scaled_complexities, axis=1, names=relative_filename_stems)
-    save_debug_fig(f"scaled_complexities.png", lambda ax: scaled_complexities_df.plot(title=f"Scaled Complexity", ax=ax))
+    if should_output_diagnostics:
+        save_debug_fig(f"scaled_complexities.png", lambda ax: scaled_complexities_df.plot(title=f"Scaled Complexity", ax=ax))
 
     # Save complexity by file
     for i, (complexity_csv_output_path) in enumerate(tqdm(complexity_csv_output_paths)): # type: ignore
@@ -615,7 +654,8 @@ def calculate_cumulative_complexities(
         ]
     )    
     update_data.index.names = ["path", "creation_method"]
-    update_data.to_csv(make_debug_path("complexity_summary.csv"))
+    if should_output_diagnostics:
+        update_data.to_csv(make_debug_path("complexity_summary.csv"))
 
     existing_complexity_summary = None
     complexity_summary_csv_filepath = destdir / "dvaj_complexity.csv"
@@ -645,7 +685,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--destdir", type=Path, default=Path.cwd())  
     parser.add_argument("--srcdir", type=Path, default=None)
-    parser.add_argument("--plot_figs", action="store_true", default=False)
+    parser.add_argument("--diagnostic_output_dir", type=Path, default=None)
     parser.add_argument("--measure_weighting", choices=[e.name for e in DvajMeasureWeighting] + ['all'], default=DvajMeasureWeighting.decreasing_by_quarter.name)
     parser.add_argument("--landmark_weighting", choices=[e.name for e in PoseLandmarkWeighting] + ['all'], default=PoseLandmarkWeighting.balanced.name)
     parser.add_argument("--include_base", choices=['true', 'false', 'both'], default='true')
@@ -686,7 +726,7 @@ if __name__ == "__main__":
             destdir=args.destdir,
             measure_weighting=measure_weighting,
             landmark_weighting=landmark_weighting,
-            plot_figs=args.plot_figs,
+            diagnostic_output_dir=args.diagnostic_output_dir,
             weigh_by_visibility=weigh_by_visibility,
             include_base=include_base,
             print_prefix=lambda: f"{i+1}/{len(run_iterations)}\t" if len(run_iterations) > 1 else "",
