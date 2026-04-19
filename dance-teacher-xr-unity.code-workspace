@@ -24,7 +24,10 @@
                 "directory": "svelte-web-frontend",
                 "changeProcessCWD": true
             }
-        ]
+        ],
+        "chat.tools.terminal.autoApprove": {
+            "./script_invocations/run_dancetree_pipeline_test.sh": true
+        }
     },
     "extensions": {
         "recommendations": [

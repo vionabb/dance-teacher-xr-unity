@@ -21,7 +21,7 @@ Those exist, but the main engineering surface area is in `svelte-web-frontend` a
 The broad workflow is:
 
 1. Raw/source dance videos are tracked in `motion-pipeline` database metadata and media folders.
-2. `motion-pipeline` runs MediaPipe-based pose extraction to generate `holistic_data` and `pose2d_data`.
+2. `motion-pipeline` runs MediaPipe-based pose extraction to generate raw `holistic_data` and `pose2d_data` exports, now named with `.raw.csv` suffixes when written by `extract_holistic_data.py`.
 3. The pipeline computes cumulative complexity and audio analysis, then merges complexity into audio-derived dance trees.
 4. The pipeline exports bundle JSON and media references consumed by the web app.
 5. `svelte-web-frontend` serves the learning interface, practice/evaluation flows, and AI teaching logic.
@@ -38,6 +38,8 @@ Important areas:
 - `src/lib/ai`: AI teaching logic and motion evaluation code.
 - `src/lib/ai/motionmetrics`: motion quantification metrics plus tests/specs.
 - `scripts`: asset and bundle sync scripts, especially for Supabase/local storage.
+- `src/lib/data/dances-store.ts`: frontend pose-data loader helpers now try raw bundle filenames first and fall back to legacy names during the migration.
+- `scripts/syncBundleData.js`: bundle sync writes raw landmark paths into Supabase storage metadata.
 - `supabase`: local schema/seed state.
 - `static/bundle`: media assets expected by the app and pipeline.
 - `artifacts`: generated research/debug artifacts, including the metrics database and CSV.
@@ -56,6 +58,8 @@ Important areas:
 
 - `motion_extraction`: main Python package.
 - `motion_extraction/dancetree`: pipeline orchestration and bundle export.
+- `motion_extraction/extract_holistic_data.py`: raw holistic and pose2d extraction entry point.
+- `motion_extraction/convert_to_jointspace.py`: holistic-to-jointspace conversion entry point.
 - `motion_extraction/audio_analysis`: beat/BPM/similarity/tree generation.
 - `motion_extraction/complexity_analysis`: cumulative complexity computation and dancetree enrichment.
 - `motion_extraction/teleoperation`: realtime MediaPipe-driven NAO teleoperation.

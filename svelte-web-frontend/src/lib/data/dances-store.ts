@@ -9,6 +9,11 @@ import {
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
 
+const POSE2D_LEGACY_SUFFIX = '.pose2d.csv';
+const POSE2D_RAW_SUFFIX = '.pose2d.raw.csv';
+const HOLISTIC_LEGACY_SUFFIX = '.holisticdata.csv';
+const HOLISTIC_RAW_SUFFIX = '.holisticdata.raw.csv';
+
 export type ValueOf<T> = T[keyof T];
 
 export type MotionSegmentationNode = {
@@ -104,6 +109,36 @@ export function getMotionVideoSrc(
 	const { data } = supabase.storage.from('sourcevideos').getPublicUrl(motionClipPath);
 
 	return data.publicUrl;
+}
+
+export function getRawCsvPathCandidates(csvPath: string | undefined): string[] {
+	if (!csvPath) {
+		return [];
+	}
+
+	if (csvPath.endsWith(POSE2D_RAW_SUFFIX) || csvPath.endsWith(HOLISTIC_RAW_SUFFIX)) {
+		return [csvPath];
+	}
+
+	if (csvPath.endsWith(POSE2D_LEGACY_SUFFIX)) {
+		return [csvPath.replace(POSE2D_LEGACY_SUFFIX, POSE2D_RAW_SUFFIX), csvPath];
+	}
+
+	if (csvPath.endsWith(HOLISTIC_LEGACY_SUFFIX)) {
+		return [csvPath.replace(HOLISTIC_LEGACY_SUFFIX, HOLISTIC_RAW_SUFFIX), csvPath];
+	}
+
+	return [csvPath];
+}
+
+function getStoragePublicUrlCandidates(
+	supabase: SupabaseClient,
+	bucket: string,
+	storagePath: string | undefined
+): string[] {
+	return getRawCsvPathCandidates(storagePath).map((candidatePath) =>
+		supabase.storage.from(bucket).getPublicUrl(candidatePath).data.publicUrl
+	);
 }
 
 export function getHolisticDataSrc(
@@ -215,19 +250,40 @@ export class PoseReferenceData<T extends Pose2DPixelLandmarks | Pose3DLandmarkFr
 }
 
 export async function loadPoseInformation<T extends Pose2DPixelLandmarks | Pose3DLandmarkFrame>(
-	csvpath: string,
+	csvpath: string | string[],
 	fps: number,
 	useFetch: boolean,
 	rowToPose: (row: Record<string, number>) => T | null
 ) {
-	let text: string = '';
+	const csvPathCandidates = Array.isArray(csvpath) ? csvpath : [csvpath];
+	let text = '';
+	let lastError: unknown = null;
 	if (!useFetch) {
 		// use nodefs/promises in tests
 		const { readFile } = await import('node:fs/promises');
-		text = await readFile(csvpath, 'utf-8');
+		for (const candidatePath of csvPathCandidates) {
+			try {
+				text = await readFile(candidatePath, 'utf-8');
+				lastError = null;
+				break;
+			} catch (error) {
+				lastError = error;
+			}
+		}
 	} else {
-		const response = await fetch(csvpath);
-		text = await response.text();
+		for (const candidatePath of csvPathCandidates) {
+			const response = await fetch(candidatePath);
+			if (response.ok) {
+				text = await response.text();
+				lastError = null;
+				break;
+			}
+			lastError = new Error(`Failed to fetch ${candidatePath}: ${response.status} ${response.statusText}`);
+		}
+	}
+
+	if (!text) {
+		throw lastError ?? new Error('No pose CSV path candidates were available to load.');
 	}
 
 	const data: ParseResult<Record<string, never>> = await new Promise((res, rej) => {
@@ -260,13 +316,17 @@ export async function load2DPoseInformation(
 	supabase: SupabaseClient,
 	motionVideo: MotionVideo
 ): Promise<PoseReferenceData<Pose2DPixelLandmarks>> {
-	const pose2dCsvPath = get2DPoseDataSrc(supabase, motionVideo);
-	if (!pose2dCsvPath) {
+	const pose2dCsvPathCandidates = getStoragePublicUrlCandidates(
+		supabase,
+		'pose2ddata',
+		motionVideo?.landmarks_pose_2d_src
+	);
+	if (pose2dCsvPathCandidates.length === 0) {
 		throw new Error('No 2D pose data source available for motionVideo id ' + motionVideo.id);
 	}
 	const useFetch = true; // use fetch, as we're in the browser
 	const poseInfo = await loadPoseInformation(
-		pose2dCsvPath,
+		pose2dCsvPathCandidates,
 		motionVideo.fps,
 		useFetch,
 		GetPixelLandmarksFromPose2DRow
@@ -286,13 +346,17 @@ export async function load3DPoseInformation(
 	supabase: SupabaseClient,
 	motionVideo: MotionVideo
 ): Promise<PoseReferenceData<Pose3DLandmarkFrame>> {
-	const pose3dCsvPath = getHolisticDataSrc(supabase, motionVideo);
-	if (!pose3dCsvPath) {
+	const pose3dCsvPathCandidates = getStoragePublicUrlCandidates(
+		supabase,
+		'holisticdata',
+		motionVideo?.landmarks_holistic_3d_src
+	);
+	if (pose3dCsvPathCandidates.length === 0) {
 		throw new Error('No 3D pose data source available for motionVideo id ' + motionVideo.id);
 	}
 	const useFetch = true; // use fetch, as we're in the browser
 	return (await loadPoseInformation(
-		pose3dCsvPath,
+		pose3dCsvPathCandidates,
 		motionVideo.fps,
 		useFetch,
 		GetPixelLandmarksFromPose3DRow

@@ -6,7 +6,8 @@ import type { ValueOf } from '$lib/data/dances-store';
 import {
 	loadPoseInformation,
 	GetPixelLandmarksFromPose2DRow,
-	GetPixelLandmarksFromPose3DRow
+	GetPixelLandmarksFromPose3DRow,
+	getRawCsvPathCandidates
 } from '$lib/data/dances-store';
 
 import danceData from '$lib/data/bundle/dances.json';
@@ -572,8 +573,12 @@ export async function loadTiktokWholePoses() {
 		.filter((dance) => cononicalizeClipName(dance.clipName))
 		.map((dance) => {
 			const danceName = cononicalizeClipName(dance.clipName) as DanceName;
-			const poses2Durl = `${TIKTOK_WHOLE_POSES_FOLDER_2D}${dance.clipRelativeStem}.pose2d.csv`;
-			const poses3Durl = `${TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC}${dance.clipRelativeStem}.holisticdata.csv`;
+			const poses2Durl = getRawCsvPathCandidates(
+				`${TIKTOK_WHOLE_POSES_FOLDER_2D}${dance.clipRelativeStem}.pose2d.csv`
+			);
+			const poses3Durl = getRawCsvPathCandidates(
+				`${TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC}${dance.clipRelativeStem}.holisticdata.csv`
+			);
 			const useFetch = false; // have loadPoseInformation use the node fs.
 
 			return {

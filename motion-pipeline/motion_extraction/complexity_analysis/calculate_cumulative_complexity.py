@@ -1,8 +1,8 @@
 """Compute and persist cumulative motion complexity from holistic pose CSVs.
 
 This module is the batch entry point for the DVAJ-based complexity pipeline in
-`motion_extraction/complexity_analysis`. It reads `*.holisticdata.csv` pose
-exports, optionally re-centers landmarks around a synthetic hip-base landmark,
+`motion_extraction/complexity_analysis`. It reads `*.holisticdata.csv` and
+`*.holisticdata.raw.csv` pose exports, optionally re-centers landmarks around a synthetic hip-base landmark,
 derives per-frame scalar DVAJ values, accumulates them over time, and writes
 scaled complexity series plus dataset-level summaries to `destdir`.
 
@@ -52,6 +52,28 @@ from ..artifacts import (
 from ..update_database import load_db
 from ..mp_utils import PoseLandmark
 from .uist_complexityanalysis import get_pose_landmarks_present_in_dataframe, DVAJ, calc_scalar_dvaj
+
+_HOLISTIC_DATA_LEGACY_SUFFIX = ".holisticdata.csv"
+_HOLISTIC_DATA_RAW_SUFFIX = ".holisticdata.raw.csv"
+
+
+def _clip_stem_from_holistic_csv_path(file_path: Path) -> str:
+    name = file_path.name
+    for suffix in (_HOLISTIC_DATA_RAW_SUFFIX, _HOLISTIC_DATA_LEGACY_SUFFIX):
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+    return file_path.stem
+
+
+def _collect_holistic_data_files(root_folder: Path) -> list[Path]:
+    files_by_relative_stem: dict[str, Path] = {}
+    for holistic_data_file in root_folder.rglob(f"*{_HOLISTIC_DATA_LEGACY_SUFFIX}"):
+        relative_stem = holistic_data_file.relative_to(root_folder).as_posix()[: -len(_HOLISTIC_DATA_LEGACY_SUFFIX)]
+        files_by_relative_stem[relative_stem] = holistic_data_file
+    for holistic_data_file in root_folder.rglob(f"*{_HOLISTIC_DATA_RAW_SUFFIX}"):
+        relative_stem = holistic_data_file.relative_to(root_folder).as_posix()[: -len(_HOLISTIC_DATA_RAW_SUFFIX)]
+        files_by_relative_stem[relative_stem] = holistic_data_file
+    return list(files_by_relative_stem.values())
 
 BASE_COL_NAME = "base"
 BEATS_PER_BAR: t.Final[int] = 4
@@ -857,9 +879,12 @@ def generate_dvajs_with_visibility(
     include_base: bool = True,
 ):
     for holistic_csv_file in filepaths:
-        # warn if the file is not a holisticdata.csv file
-        if not holistic_csv_file.name.endswith(".holisticdata.csv"):
-            print(f"WARNING: {holistic_csv_file} is not a .holisticdata.csv file.", file=sys.stderr)
+        # warn if the file does not use a recognized holistic data suffix
+        if not holistic_csv_file.name.endswith((_HOLISTIC_DATA_LEGACY_SUFFIX, _HOLISTIC_DATA_RAW_SUFFIX)):
+            print(
+                f"WARNING: {holistic_csv_file} is not a recognized holistic data CSV.",
+                file=sys.stderr,
+            )
             continue
         data = pd.read_csv(holistic_csv_file, index_col='frame')
         relative_position = get_position_relative_to_base(data)
@@ -892,8 +917,8 @@ def calculate_cumulative_complexities(
 ):
     """Generate cumulative complexity outputs for one batch of pose CSV inputs.
 
-    Inputs are collected from `other_files` plus any `*.holisticdata.csv` files
-    under `srcdir`. Results are written under `destdir`, with one complexity CSV
+    Inputs are collected from `other_files` plus any `*.holisticdata.csv` and
+    `*.holisticdata.raw.csv` files under `srcdir`. Results are written under `destdir`, with one complexity CSV
     per input file and an aggregate `dvaj_complexity.csv` summary for the whole
     batch. The selected weighting options are encoded into the output column
     name so multiple calculation variants can coexist in the same destination.
@@ -911,10 +936,10 @@ def calculate_cumulative_complexities(
     input_files: t.List[Path] = other_files.copy()
     relative_dirs: t.List[Path] = [f.parent for f in other_files]
 
-    # if srcdir is specified, add all files of the form "*.holisticdata.csv" in that directory to the list of files.
+    # if srcdir is specified, add all files of the form "*.holisticdata{,.raw}.csv" in that directory to the list of files.
     files_from_srcdir = []
     if srcdir is not None:
-        files_from_srcdir = list(srcdir.rglob("*.holisticdata.csv"))
+        files_from_srcdir = _collect_holistic_data_files(srcdir)
         input_files.extend(files_from_srcdir)
         relative_dirs.extend([srcdir for _ in files_from_srcdir])
     elif len(input_files) == 0:
@@ -943,9 +968,9 @@ def calculate_cumulative_complexities(
         include_base,
     )
 
-    filename_stems = [file.stem.replace('.holisticdata', '') for file in input_files]
+    filename_stems = [_clip_stem_from_holistic_csv_path(file) for file in input_files]
     relative_filename_stems = [
-        str(file.relative_to(relative_dir).parent / file.stem.replace('.holisticdata', ''))
+        str(file.relative_to(relative_dir).parent / _clip_stem_from_holistic_csv_path(file))
         for file, relative_dir 
         in zip(input_files, relative_dirs)
     ]

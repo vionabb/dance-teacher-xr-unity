@@ -13,3 +13,4 @@ vite.config.ts.timestamp-*
 testResults
 supabase/.temp
 supabase/.branches
+static/bundle/**/*

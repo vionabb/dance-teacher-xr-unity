@@ -1,7 +1,7 @@
 from pathlib import Path
 import typing as t
 from ..artifacts import resolve_artifact_output_dir
-from ..stepone_get_holistic_data import compute_holistic_data
+from ..extract_holistic_data import compute_holistic_data
 from ..update_database import update_database
 from ..complexity_analysis import calculate_cumulative_complexity as cmplxty
 from ..complexity_analysis.add_complexity_to_dancetree import add_complexities_to_dancetrees

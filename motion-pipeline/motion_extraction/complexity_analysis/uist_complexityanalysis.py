@@ -20,6 +20,28 @@ from pathlib import Path
 from ..mp_utils import PoseLandmark as PoseLandmarks
 from ..update_database import load_db
 
+_HOLISTIC_DATA_LEGACY_SUFFIX = ".holisticdata.csv"
+_HOLISTIC_DATA_RAW_SUFFIX = ".holisticdata.raw.csv"
+
+
+def _clip_stem_from_holistic_csv_path(file_path: Path) -> str:
+    name = file_path.name
+    for suffix in (_HOLISTIC_DATA_RAW_SUFFIX, _HOLISTIC_DATA_LEGACY_SUFFIX):
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+    return file_path.stem
+
+
+def _collect_holistic_data_files(root_folder: Path) -> list[Path]:
+    files_by_relative_stem: dict[str, Path] = {}
+    for holistic_data_file in root_folder.rglob(_HOLISTIC_DATA_LEGACY_SUFFIX):
+        relative_stem = holistic_data_file.relative_to(root_folder).as_posix()[: -len(_HOLISTIC_DATA_LEGACY_SUFFIX)]
+        files_by_relative_stem[relative_stem] = holistic_data_file
+    for holistic_data_file in root_folder.rglob(_HOLISTIC_DATA_RAW_SUFFIX):
+        relative_stem = holistic_data_file.relative_to(root_folder).as_posix()[: -len(_HOLISTIC_DATA_RAW_SUFFIX)]
+        files_by_relative_stem[relative_stem] = holistic_data_file
+    return list(files_by_relative_stem.values())
+
 
 class DVAJ(Enum):
     distance = auto()
@@ -175,7 +197,7 @@ def analyze_complexities(
     output = pd.DataFrame(
         columns=cols, 
         data=[row], 
-        index=[files[0].stem.replace('.holisticdata', '')]
+        index=[_clip_stem_from_holistic_csv_path(files[0])]
     )
 
     for i, file in enumerate(files[1:]):
@@ -200,7 +222,7 @@ def analyze_complexities(
         new_row = pd.DataFrame(
             columns=cols, 
             data=[row], 
-            index=[file.stem.replace('.holisticdata', '')]
+            index=[_clip_stem_from_holistic_csv_path(file)]
         )
 
         output = pd.concat([output, new_row])
@@ -239,9 +261,9 @@ if __name__ == "__main__":
     parser.add_argument("files", nargs="*", type=Path)
     args = parser.parse_args()
 
-    # if srcdir is specified, add all files of the form "*.holisticdata.csv" in that directory to the list of files.
+    # if srcdir is specified, add all files of the form "*.holisticdata{,.raw}.csv" in that directory to the list of files.
     if args.srcdir is not None:
-        args.files.extend(file for file in args.srcdir.rglob("*.holisticdata.csv"))
+        args.files.extend(_collect_holistic_data_files(args.srcdir))
     elif len(args.files) == 0:
         print("No files specified. Use --srcdir or specify files as arguments.")
         sys.exit(1)
@@ -263,7 +285,7 @@ if __name__ == "__main__":
     fpses = []
 
     for file in args.files:
-        file_clipname = file.stem.replace('.holisticdata', '')
+        file_clipname = _clip_stem_from_holistic_csv_path(file)
         matches_file = lambda db_entry: db_entry.get('clipName') == file_clipname
         db_entry = next((x for x in db if matches_file(x)), None)
 

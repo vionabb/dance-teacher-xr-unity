@@ -302,8 +302,8 @@ async function syncBundleData(args) {
 				detected_bpm: dance.bpm || null,
 				detected_bpm_offset: dance.beat_offset || null,
 				manual_bpm: dance.manualBPM || null,
-				landmarks_pose_2d_src: `${dance.clipRelativeStem}.pose2d.csv`,
-				landmarks_holistic_3d_src: `${dance.clipRelativeStem}.holisticdata.csv`
+				landmarks_pose_2d_src: `${dance.clipRelativeStem}.pose2d.raw.csv`,
+				landmarks_holistic_3d_src: `${dance.clipRelativeStem}.holisticdata.raw.csv`
 			})
 			.select('id')
 			.single();

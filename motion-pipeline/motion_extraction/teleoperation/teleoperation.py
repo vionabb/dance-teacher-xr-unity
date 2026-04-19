@@ -18,7 +18,7 @@ from ..mp_utils import (
     landmark_list,
     rgb_image_to_mp_image,
 )
-from ..stepone_get_holistic_data import (
+from ..extract_holistic_data import (
     draw_normalized_landmarks,
     plot_3d_pose,
     transform_to_holistic_csvrow,

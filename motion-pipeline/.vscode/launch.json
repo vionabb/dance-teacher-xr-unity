@@ -86,10 +86,10 @@
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "VideoPipeline (1): Get MP Holistic Data",
+            "name": "VideoPipeline: Get MP Holistic Data",
             "type": "debugpy",
             "request": "launch",
-            "module": "motion_extraction.stepone_get_holistic_data",
+            "module": "motion_extraction.extract_holistic_data",
             "justMyCode": true,
             "args": [
                 "--video_folder=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos/",
@@ -104,10 +104,10 @@
             ],
         },
         {
-            "name": "VideoPipeline (2): Convert to Joint Space",
+            "name": "VideoPipeline: Convert to Joint Space",
             "type": "debugpy",
             "request": "launch",
-            "module": "motion_extraction.steptwo_convert_to_jointspace",
+            "module": "motion_extraction.convert_to_jointspace",
             "justMyCode": true,
             "args": [
                 "--naocsv_output_folder=${workspaceFolder}/data/nao",
@@ -115,11 +115,11 @@
                 "--csv_output_folder=${workspaceFolder}/data/bvhcsv",
                 "--log_level=INFO",
                 "--frame_limit=-1",
-                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/debbieallenchallenge.holisticdata.csv"
-                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose2.holisticdata.csv"
-                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/ArmShuffle.holisticdata.csv"
-                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/last-christmas-tutorial.holisticdata.csv"
-                "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/mad-at-disney.holisticdata.csv"
+                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/debbieallenchallenge.holisticdata.raw.csv"
+                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose2.holisticdata.raw.csv"
+                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/ArmShuffle.holisticdata.raw.csv"
+                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/last-christmas-tutorial.holisticdata.raw.csv"
+                "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/mad-at-disney.holisticdata.raw.csv"
                 // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/"
             ],
         },
@@ -127,12 +127,12 @@
             "name": "VideoPipeline (2.x): Convert to Joint Space",
             "type": "debugpy",
             "request": "launch",
-            "module": "motion_extraction.steptwo_convert_to_jointspace",
+            "module": "motion_extraction.convert_to_jointspace",
             "justMyCode": true,
             "args": [
                 "--output_folder=${workspaceFolder}/data/jointspace_data",
                 "--log_level=INFO",
-                "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose.holisticdata.csv"
+                "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose.holisticdata.raw.csv"
             ],
         },
         {
@@ -142,8 +142,8 @@
             "module": "motion_extraction.pose_visualization",
             "justMyCode": true,
             "args": [
-                "--pose_file=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/supalonely.holisticdata.csv",
-                "--hand_file=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/supalonely.holisticdata.csv",
+                "--pose_file=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/supalonely.holisticdata.raw.csv",
+                "--hand_file=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/supalonely.holisticdata.raw.csv",
             ],
         },
         {
@@ -153,7 +153,7 @@
             "module": "motion_extraction.MecanimHumanoid",
             "justMyCode": true,
             "args": [
-                "--skeleton_file=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose2.holisticdata.csv",
+                "--skeleton_file=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose2.holisticdata.raw.csv",
             ],
         },
         {
