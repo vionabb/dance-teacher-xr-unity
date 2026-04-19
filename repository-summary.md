@@ -145,6 +145,9 @@ This is a major source of truth for sample invocations. Important entries:
 Practical note:
 
 - Complexity plotting can now be filtered independently from complexity calculation. `run_dancetree_pipeline` accepts repeated `--complexity_plot_whitelist` values, and `calculate_cumulative_complexity` accepts repeated `--plot_whitelist` values. These wildcard patterns match relative stems such as `study2/*` and affect only generated plots/artifacts, not normalization or CSV outputs.
+- `calculate_cumulative_complexity` also has diagnostic-only legacy investigation plot knobs: `--target_complexity_per_segment` and repeatable `--bodyparts_for_artifact_plotting`. `run_dancetree_pipeline` forwards the same options. These only change artifact plots/CSV diagnostics and do not change the exported complexity series used downstream.
+- Complexity calculation now uses a single `--visibility_mode` switch for visibility handling. Supported modes are `none`, `weight`, and `interpolate`; `all` is also available on the standalone complexity script for batch comparisons. `run_dancetree_pipeline` forwards the same mode. `--visibility_repair_cutoff` and `--visibility_plot_alpha_floor` remain as supporting knobs for interpolation and visibility-styled diagnostics.
+- Legacy artifact plotting now uses repeatable `--bodyparts_for_artifact_plotting` arguments instead of a single example body part. It defaults to `left_wrist` and emits one focused grouped-metric plot set per requested body part.
 
 Important caveat:
 

@@ -31,6 +31,11 @@ def run_dancetree_pipeline(
     holistic_debug_frames_dir: t.Optional[Path] = None,
     debug_frame_whitelist: t.Optional[t.Sequence[str]] = None,
     complexity_plot_whitelist: t.Optional[t.Sequence[str]] = None,
+    visibility_mode: str = "weight",
+    visibility_repair_cutoff: float = 0.5,
+    visibility_plot_alpha_floor: float = 0.35,
+    target_complexity_per_segment: float = 10.0,
+    bodyparts_for_artifact_plotting: t.Optional[t.Sequence[str]] = None,
     artifact_archive_root: t.Optional[Path] = None,
     suppress_update_database_artifacts: bool = False,
     suppress_compute_holistic_data_artifacts: bool = False,
@@ -60,12 +65,12 @@ def run_dancetree_pipeline(
     COMPLEXITY_MEASURE_WEIGHITNG = cmplxty.DvajMeasureWeighting.decreasing_by_quarter
     COMPLEXITY_LANDMARK_WEIGHITNG = cmplxty.PoseLandmarkWeighting.balanced
     COMPLEXITY_INCLUDE_BASE = True
-    COMPLEXITY_BY_VISIBILITY = True
+    COMPLEXITY_VISIBILITY_MODE = cmplxty.VisibilityMode[visibility_mode]
 
     complexity_method = cmplxty.get_complexity_creationmethod_name(
         measure_weighting_choice=COMPLEXITY_MEASURE_WEIGHITNG,
         landmark_weighting_choice=COMPLEXITY_LANDMARK_WEIGHITNG,
-        weigh_by_visibility=COMPLEXITY_BY_VISIBILITY,
+        visibility_mode=COMPLEXITY_VISIBILITY_MODE,
         include_base=COMPLEXITY_INCLUDE_BASE,
     )
     
@@ -129,7 +134,11 @@ def run_dancetree_pipeline(
         artifact_output_dir=get_step_artifact_dir("03-cumulative-complexity", suppress_cumulative_complexity_artifacts),
         plot_whitelist=complexity_plot_whitelist,
         include_base=True,
-        weigh_by_visibility=True,
+        visibility_mode=COMPLEXITY_VISIBILITY_MODE,
+        visibility_repair_cutoff=visibility_repair_cutoff,
+        visibility_plot_alpha_floor=visibility_plot_alpha_floor,
+        target_complexity_per_segment=target_complexity_per_segment,
+        bodyparts_for_artifact_plotting=bodyparts_for_artifact_plotting or cmplxty.DEFAULT_BODYPARTS_FOR_ARTIFACT_PLOTTING,
         print_prefix=lambda: f'{step()} calc. complexity:',
         skip_existing=skip_existing_cumulative_complexity,
     )
@@ -194,6 +203,11 @@ if __name__ == "__main__":
     parser.add_argument("--holistic_debug_frames_dir", type=Path, default=None)
     parser.add_argument("--debug_frame_whitelist", action='append', default=None)
     parser.add_argument("--complexity_plot_whitelist", action='append', default=None)
+    parser.add_argument("--visibility_mode", choices=[e.name for e in cmplxty.VisibilityMode], default=cmplxty.VisibilityMode.weight.name)
+    parser.add_argument("--visibility_repair_cutoff", type=float, default=0.5)
+    parser.add_argument("--visibility_plot_alpha_floor", type=float, default=0.35)
+    parser.add_argument("--target_complexity_per_segment", type=float, default=10.0)
+    parser.add_argument("--bodyparts_for_artifact_plotting", action='append', default=None)
     parser.add_argument("--artifact_archive_root", type=Path, default=None)
     parser.add_argument("--suppress_update_database_artifacts", action='store_true')
     parser.add_argument("--suppress_compute_holistic_data_artifacts", action='store_true')
@@ -219,6 +233,11 @@ if __name__ == "__main__":
         holistic_debug_frames_dir=args.holistic_debug_frames_dir,
         debug_frame_whitelist=args.debug_frame_whitelist,
         complexity_plot_whitelist=args.complexity_plot_whitelist,
+        visibility_mode=args.visibility_mode,
+        visibility_repair_cutoff=args.visibility_repair_cutoff,
+        visibility_plot_alpha_floor=args.visibility_plot_alpha_floor,
+        target_complexity_per_segment=args.target_complexity_per_segment,
+        bodyparts_for_artifact_plotting=args.bodyparts_for_artifact_plotting,
         artifact_archive_root=args.artifact_archive_root,
         suppress_update_database_artifacts=args.suppress_update_database_artifacts,
         suppress_compute_holistic_data_artifacts=args.suppress_compute_holistic_data_artifacts,
