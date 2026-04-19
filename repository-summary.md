@@ -142,6 +142,10 @@ This is a major source of truth for sample invocations. Important entries:
 - `Nao Teleoperation`
 - `Nao Teleoperation (Simulation)`
 
+Practical note:
+
+- Complexity plotting can now be filtered independently from complexity calculation. `run_dancetree_pipeline` accepts repeated `--complexity_plot_whitelist` values, and `calculate_cumulative_complexity` accepts repeated `--plot_whitelist` values. These wildcard patterns match relative stems such as `study2/*` and affect only generated plots/artifacts, not normalization or CSV outputs.
+
 Important caveat:
 
 - The current `Run DanceTree Pipeline` config on macOS points at Google Drive paths under `2026-Cognitive-Stage-Feedback/...`, not repo-local paths. Agents should treat those as user-machine-specific examples, not portable defaults.

@@ -72,6 +72,7 @@
                 // "--skip_existing_audioanalysis",
                 "--holistic_debug_frames_dir=${workspaceFolder}/temp/pipeline_test_run/holistic_debug_frames/",
                 "--debug_frame_whitelist=last-christmas-tutorial*",
+                "--complexity_plot_whitelist=study2/*",
                 "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 // "--suppress_bundle_data_artifacts"
             ],
@@ -271,6 +272,7 @@
                 "--weigh_by_visibility=true",
                 // "--include_base=both",
                 "--include_base=true",
+                "--plot_whitelist=study2/*",
             ],
         },
         {

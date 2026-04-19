@@ -30,6 +30,7 @@ def run_dancetree_pipeline(
     skip_existing_audioanalysis: bool = False,
     holistic_debug_frames_dir: t.Optional[Path] = None,
     debug_frame_whitelist: t.Optional[t.Sequence[str]] = None,
+    complexity_plot_whitelist: t.Optional[t.Sequence[str]] = None,
     artifact_archive_root: t.Optional[Path] = None,
     suppress_update_database_artifacts: bool = False,
     suppress_compute_holistic_data_artifacts: bool = False,
@@ -126,6 +127,7 @@ def run_dancetree_pipeline(
         landmark_weighting=COMPLEXITY_LANDMARK_WEIGHITNG,
         database_csv_path=database_csv_path,
         artifact_output_dir=get_step_artifact_dir("03-cumulative-complexity", suppress_cumulative_complexity_artifacts),
+        plot_whitelist=complexity_plot_whitelist,
         include_base=True,
         weigh_by_visibility=True,
         print_prefix=lambda: f'{step()} calc. complexity:',
@@ -191,6 +193,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip_existing_audioanalysis", action='store_true')
     parser.add_argument("--holistic_debug_frames_dir", type=Path, default=None)
     parser.add_argument("--debug_frame_whitelist", action='append', default=None)
+    parser.add_argument("--complexity_plot_whitelist", action='append', default=None)
     parser.add_argument("--artifact_archive_root", type=Path, default=None)
     parser.add_argument("--suppress_update_database_artifacts", action='store_true')
     parser.add_argument("--suppress_compute_holistic_data_artifacts", action='store_true')
@@ -215,6 +218,7 @@ if __name__ == "__main__":
         skip_existing_audioanalysis=args.skip_existing_audioanalysis,
         holistic_debug_frames_dir=args.holistic_debug_frames_dir,
         debug_frame_whitelist=args.debug_frame_whitelist,
+        complexity_plot_whitelist=args.complexity_plot_whitelist,
         artifact_archive_root=args.artifact_archive_root,
         suppress_update_database_artifacts=args.suppress_update_database_artifacts,
         suppress_compute_holistic_data_artifacts=args.suppress_compute_holistic_data_artifacts,

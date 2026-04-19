@@ -33,6 +33,7 @@ There are numerous tasks that can be run within this module, and they're all def
 * The single most important task is `Run DanceTree Pipeline`. This consolidates several processing steps into a single script, making it easy to run the entire pipeline, and bundles the output for use for the frontend. Data is cached along the way, meaning that the pipeline will run faster the 2nd and subsequent times it's run (you can force a full re-run by altering the `launch.json` arguments for this task, or by deleting the temp folders).
 * Pipeline artifact capture is optional. Set `--artifact_archive_root` on the main pipeline to create one timestamped run folder under `artifact-archive/`; by default, each step writes artifacts unless its corresponding `--suppress_*_artifacts` flag is set.
 * Holistic debug frames are no longer controlled by a boolean. Use `--holistic_debug_frames_dir` to enable them, and optionally repeat `--debug_frame_whitelist` to limit which input files emit frames. If no whitelist is provided, all files match.
+* Complexity plotting can be filtered independently from complexity calculation. Use repeated `--complexity_plot_whitelist` on the main pipeline or `--plot_whitelist` on `calculate_cumulative_complexity` to match relative stems such as `study2/*`; unmatched files still contribute to normalization and CSV outputs, but are omitted from generated plots.
 
 ## Video -> BVH Process
 

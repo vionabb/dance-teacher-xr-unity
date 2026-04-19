@@ -19,6 +19,7 @@ Main outputs:
 """
 
 from collections import defaultdict
+from fnmatch import fnmatchcase
 from pathlib import Path
 import time
 import pandas as pd
@@ -248,6 +249,11 @@ def trim_df_to_convergence(df: pd.DataFrame):
     tossed_frame_count = df.shape[0] - last_changing_frame - 1
     return df.iloc[:last_changing_frame + 1], tossed_frame_count
 
+
+def stem_matches_any_pattern(relative_stem: str, patterns: t.Sequence[str]) -> bool:
+    """Return whether a relative file stem matches any configured wildcard pattern."""
+    return any(fnmatchcase(relative_stem, pattern) for pattern in patterns)
+
 def normalize_accumulated_dvaj(
     dvaj_cumsum: pd.DataFrame,
     metric_normalization_maxes: t.Dict[PoseLandmark, t.Dict[DVAJ, float]],
@@ -350,6 +356,7 @@ def calculate_cumulative_complexities(
         database_csv_path: t.Optional[Path] = None,
         artifact_archive_root: t.Optional[Path] = None,
         artifact_output_dir: t.Optional[Path] = None,
+        plot_whitelist: t.Optional[t.Sequence[str]] = None,
         include_base: bool = False,
         weigh_by_visibility: bool = True,
         print_prefix: t.Callable[[], str] = lambda: "",
@@ -364,7 +371,9 @@ def calculate_cumulative_complexities(
     name so multiple calculation variants can coexist in the same destination.
     When artifact output is enabled, intermediate diagnostic CSVs and plots are
     also written under the artifact directory in a subdirectory for the
-    selected weighting configuration.
+    selected weighting configuration. `plot_whitelist`, when provided, filters
+    plots by relative input stem while leaving the underlying complexity
+    calculation and CSV outputs unchanged.
     """
     artifact_dir = resolve_artifact_output_dir(
         artifact_archive_root=artifact_archive_root,
@@ -420,6 +429,18 @@ def calculate_cumulative_complexities(
         )
         for relative_filename_stem, filename_stem in zip(relative_filename_stems, filename_stems)
     ]
+    plot_whitelist_patterns = list(plot_whitelist or [])
+    plot_file_indices = [
+        i for i, relative_filename_stem in enumerate(relative_filename_stems)
+        if not plot_whitelist_patterns or stem_matches_any_pattern(relative_filename_stem, plot_whitelist_patterns)
+    ]
+    if artifact_dir is not None and plot_whitelist_patterns:
+        print(
+            f"{print_prefix()}Artifacts: plotting {len(plot_file_indices)}/{len(input_files)} files "
+            f"matching plot whitelist {plot_whitelist_patterns}."
+        )
+        if len(plot_file_indices) == 0:
+            print(f"{print_prefix()}Artifacts: no files matched the plot whitelist; plot generation will be skipped.")
     complexity_csv_output_paths = [
         (destdir / 'byfile' / relative_filename_stem).with_suffix(".complexity.csv")
         for relative_filename_stem in relative_filename_stems
@@ -519,7 +540,7 @@ def calculate_cumulative_complexities(
     
     if should_output_diagnostics:
         print_with_time("\tPlotting raw DVAJs...")
-        for i in trange(len(filename_stems)):
+        for i in tqdm(plot_file_indices):
             save_debug_fig("generated_dvaj.png", lambda ax, i=i: dvaj_dfs[i].plot(title=figure_display_titles[i], ax=ax), subpath=relative_filename_stems[i])
 
     if weigh_by_visibility:
@@ -529,7 +550,7 @@ def calculate_cumulative_complexities(
 
         if should_output_diagnostics:
             print_with_time("\tPlotting visibility-weighted DVAJs...")
-            for i in trange(len(filename_stems)):
+            for i in tqdm(plot_file_indices):
                 save_debug_fig("visweighted_dvaj.png", lambda ax, i=i: dvaj_dfs[i].plot(title=figure_display_titles[i], ax=ax), subpath=relative_filename_stems[i])
     else:
         print_with_time("Step 2: Skipped (not weighting by visibility) ...")
@@ -540,7 +561,7 @@ def calculate_cumulative_complexities(
     dvaj_cumsum_dfs = [dvaj_cumsum.fillna(method="ffill") for dvaj_cumsum in dvaj_cumsum_dfs]
     if should_output_diagnostics:
         print_with_time("\tPlotting cumulative DVAJs...")
-        for i in trange(len(filename_stems)):
+        for i in tqdm(plot_file_indices):
             save_debug_fig("cumsum_dvaj.png", lambda ax, i=i: dvaj_cumsum_dfs[i].plot(title=figure_display_titles[i], ax=ax), subpath=relative_filename_stems[i])
     del dvaj_dfs
     
@@ -557,7 +578,7 @@ def calculate_cumulative_complexities(
     if should_output_diagnostics:
         for measure in DVAJ:
             print_with_time(f"\tPlotting trimmed {measure.name}...")
-            for i in trange(len(filename_stems)):
+            for i in tqdm(plot_file_indices):
                 df = dvaj_cumsum_dfs[i]
                 measure_cols = [col for col in df.columns if measure.name in col]
                 save_debug_fig(
@@ -611,7 +632,7 @@ def calculate_cumulative_complexities(
     del dvaj_cumsum_dfs
     if should_output_diagnostics:
         print_with_time("\tPlotting complexity measures...")
-        for i in trange(len(filename_stems)):
+        for i in tqdm(plot_file_indices):
             save_debug_fig(
                 f"complexity_measures.png",
                 lambda ax, i=i: complexity_measures[i].plot(title=figure_display_titles[i], ax=ax),
@@ -646,7 +667,10 @@ def calculate_cumulative_complexities(
     debug_overall_complexities_df["max"] = max_linear_cumulative_complexity
     debug_overall_complexities_df["min"] = min_linear_cumulative_complexity
     if should_output_diagnostics:
-        save_debug_fig(f"overall_complexities.png", lambda ax: debug_overall_complexities_df.plot(title=f"Overall Complexity", ax=ax))
+        plot_overall_complexities_df = debug_overall_complexities_df[
+            [relative_filename_stems[i] for i in plot_file_indices] + ["max", "min"]
+        ]
+        save_debug_fig(f"overall_complexities.png", lambda ax: plot_overall_complexities_df.plot(title=f"Overall Complexity", ax=ax))
         overall_complexities_df.to_csv(make_debug_path("overall_complexities.csv"))
 
     scaled_complexities = [
@@ -655,8 +679,9 @@ def calculate_cumulative_complexities(
     ]
 
     scaled_complexities_df = pd.concat(scaled_complexities, axis=1, names=relative_filename_stems)
-    if should_output_diagnostics:
-        save_debug_fig(f"scaled_complexities.png", lambda ax: scaled_complexities_df.plot(title=f"Scaled Complexity", ax=ax))
+    if should_output_diagnostics and len(plot_file_indices) > 0:
+        plot_scaled_complexities_df = scaled_complexities_df.iloc[:, plot_file_indices]
+        save_debug_fig(f"scaled_complexities.png", lambda ax: plot_scaled_complexities_df.plot(title=f"Scaled Complexity", ax=ax))
 
     # Save complexity by file
     for i, (complexity_csv_output_path) in enumerate(tqdm(complexity_csv_output_paths)): # type: ignore
@@ -726,6 +751,8 @@ def calculate_cumulative_complexities(
                 f"Landmark weighting: `{landmark_weighting_choice.name}`",
                 f"Include base: `{include_base}`",
                 f"Weigh by visibility: `{weigh_by_visibility}`",
+                f"Plot whitelist: `{plot_whitelist_patterns}`" if plot_whitelist_patterns else "Plot whitelist: all files",
+                f"Plotted file count: `{len(plot_file_indices)}`",
                 f"Creation method: `{complexity_calculation_parameters_string}`",
             ]
         )
@@ -753,6 +780,12 @@ if __name__ == "__main__":
     parser.add_argument("--database_csv_path", type=Path, default=None)
     parser.add_argument("--artifact_archive_root", type=Path, default=None)
     parser.add_argument("--artifact_output_dir", type=Path, default=None)
+    parser.add_argument(
+        "--plot_whitelist",
+        action="append",
+        default=None,
+        help="Optional wildcard whitelist for diagnostic plotting, matched against relative file stems.",
+    )
     parser.add_argument("--measure_weighting", choices=[e.name for e in DvajMeasureWeighting] + ['all'], default=DvajMeasureWeighting.decreasing_by_quarter.name)
     parser.add_argument("--landmark_weighting", choices=[e.name for e in PoseLandmarkWeighting] + ['all'], default=PoseLandmarkWeighting.balanced.name)
     parser.add_argument("--include_base", choices=['true', 'false', 'both'], default='true')
@@ -796,6 +829,7 @@ if __name__ == "__main__":
             database_csv_path=args.database_csv_path,
             artifact_archive_root=args.artifact_archive_root,
             artifact_output_dir=args.artifact_output_dir,
+            plot_whitelist=args.plot_whitelist,
             weigh_by_visibility=weigh_by_visibility,
             include_base=include_base,
             print_prefix=lambda: f"{i+1}/{len(run_iterations)}\t" if len(run_iterations) > 1 else "",
