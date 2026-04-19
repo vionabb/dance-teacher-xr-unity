@@ -13,7 +13,11 @@ try:
 except ImportError:
     psutil = None
 
-from ..artifacts import build_artifact_report, resolve_artifact_output_dir
+from ..artifacts import (
+    build_artifact_report,
+    resolve_artifact_clip_title,
+    resolve_artifact_output_dir,
+)
 from .audio_analysis import AudioAnalysisResult, analyze_audio_file
 from .audio_dance_tree import  create_dance_tree_from_audioanalysis
 from .audio_tools import save_audio_from_video
@@ -63,6 +67,7 @@ def perform_audio_analysis(
         audio_analysis_destdir: Path,
         audiocachedir: Path,
         analysis_summary_out: Path,
+        database_csv_path: t.Optional[Path] = None,
         include_mem_usage: bool = False,
         skip_existing: bool = False,
         print_prefix: t.Callable[[], str] = lambda: '',
@@ -137,6 +142,12 @@ def perform_audio_analysis(
     for i, (filepath, audio_filepath, input_type, src_dir) in enumerate(zip(all_input_filepaths, all_input_audiopaths, input_types, src_dirs)):
 
         relative_filepath = filepath.relative_to(src_dir)
+        clip_relative_stem = relative_filepath.with_suffix("").as_posix()
+        figure_display_title = resolve_artifact_clip_title(
+            clip_relative_stem,
+            database_csv_path=database_csv_path,
+            fallback_title=filepath.stem,
+        )
 
         # Save the analysis information (with same relative path as input file)
         analysis_destdir = get_audio_result_subdirectory(
@@ -166,7 +177,11 @@ def perform_audio_analysis(
             is_reanalyzing = analysis_output_filepath.exists()
             print_verb = "Re-Analyzing" if is_reanalyzing else "Analyzing   "
             print_with_time(f"    {i+1}/{len(all_input_filepaths)} [{input_type} src] {print_verb}: {relative_filepath}")
-            analysis_result = analyze_audio_file(audio_filepath, output_plot_folder=plots_folder)
+            analysis_result = analyze_audio_file(
+                audio_filepath,
+                output_plot_folder=plots_folder,
+                display_title=figure_display_title,
+            )
             analysis_output_filepath.parent.mkdir(parents=True, exist_ok=True)
             with open(analysis_output_filepath, 'w') as f:
                 json.dump(analysis_result.to_dict(), f, indent=4)
@@ -187,7 +202,7 @@ def perform_audio_analysis(
         cross_similarity_figpath = similarity_dir / relative_filepath.with_suffix('.pdf')
         if force_redo_analysis or not cross_similarity_figpath.exists():
             fig, ax = plot_cross_similarity(analysis_result.cross_similarity)
-            ax.set_title(f"{filepath.stem} Cross Similarity")
+            ax.set_title(figure_display_title)
             cross_similarity_figpath.parent.mkdir(parents=True, exist_ok=True)
             fig.savefig(cross_similarity_figpath)
             plt.close(fig)
@@ -203,7 +218,7 @@ def perform_audio_analysis(
             result_type='dancetrees'
         )
 
-        clip_relativepath = relative_filepath.with_suffix('').as_posix()
+        clip_relativepath = clip_relative_stem
         dance_tree_filepath: Path = dance_tree_dir / relative_filepath.with_suffix('.dancetree.json')
         if force_redo_analysis or not dance_tree_filepath.exists():
             dance_tree = create_dance_tree_from_audioanalysis(

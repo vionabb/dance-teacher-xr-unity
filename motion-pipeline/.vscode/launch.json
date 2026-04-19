@@ -51,6 +51,32 @@
             // }
         },
         {
+            "name": "Run DanceTree Pipeline (test run)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "motion_extraction.dancetree.run_dancetree_pipeline",
+            "args": [
+                "--database_csv_path=${workspaceFolder}/data/db.csv",
+                "--video_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos",
+                "--holistic_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data",
+                "--pose2d_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/pose2d_data",
+                "--temp_dir=${workspaceFolder}/data/temp/pipeline_test_run/temp_dir/",
+                "--bundle_export_path=${workspaceFolder}/temp/pipeline_test_run/bundle/nonmedia/",
+                "--bundle_media_export_path=${workspaceFolder}/temp/pipeline_test_run/bundle/media/",
+                "--include_thumbnail_in_bundle",
+                "--include_audio_in_bundle",
+
+                // Feel free to comment out any of the following
+                // "--rewrite_existing_holistic_data",
+                // "--skip_existing_cumulative_complexity",
+                // "--skip_existing_audioanalysis",
+                "--holistic_debug_frames_dir=${workspaceFolder}/temp/pipeline_test_run/holistic_debug_frames/",
+                "--debug_frame_whitelist=last-christmas-tutorial*",
+                "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
+                // "--suppress_bundle_data_artifacts"
+            ],
+        },
+        {
             "name": "Python: Current File",
             "type": "debugpy",
             "request": "launch",

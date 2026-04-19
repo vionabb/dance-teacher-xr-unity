@@ -39,7 +39,11 @@ except ImportError:
     def trange(*args, **kwargs):
         return range(*args)
 
-from ..artifacts import build_artifact_report, resolve_artifact_output_dir
+from ..artifacts import (
+    build_artifact_report,
+    resolve_artifact_clip_title,
+    resolve_artifact_output_dir,
+)
 from ..mp_utils import PoseLandmark
 from .uist_complexityanalysis import get_pose_landmarks_present_in_dataframe, DVAJ, calc_scalar_dvaj
 
@@ -141,7 +145,7 @@ LANDMARK_WEIGHTING_DEMPSTER_WITH_BASE: t.Final[t.Dict[str, float]] = normalize_w
     }
 }) # type: ignore
 """A balanced weighting for the human body. (adhoc construction)"""
-LANDMARK_WEIGHTING_BALANCED: t.Final[t.Dict[PoseLandmark, float]] = normalize_weighting(
+LANDMARK_WEIGHTING_BALANCED: t.Final[t.Dict[PoseLandmark, float]] = normalize_weighting( # type: ignore
     {
         # 1-weight for hips
         PoseLandmark.LEFT_HIP: 1,
@@ -343,6 +347,7 @@ def calculate_cumulative_complexities(
         destdir: Path,
         measure_weighting: DvajMeasureWeighting,
         landmark_weighting: PoseLandmarkWeighting,
+        database_csv_path: t.Optional[Path] = None,
         artifact_archive_root: t.Optional[Path] = None,
         artifact_output_dir: t.Optional[Path] = None,
         include_base: bool = False,
@@ -406,6 +411,14 @@ def calculate_cumulative_complexities(
         str(file.relative_to(relative_dir).parent / file.stem.replace('.holisticdata', ''))
         for file, relative_dir 
         in zip(input_files, relative_dirs)
+    ]
+    figure_display_titles = [
+        resolve_artifact_clip_title(
+            relative_filename_stem,
+            database_csv_path=database_csv_path,
+            fallback_title=filename_stem,
+        )
+        for relative_filename_stem, filename_stem in zip(relative_filename_stems, filename_stems)
     ]
     complexity_csv_output_paths = [
         (destdir / 'byfile' / relative_filename_stem).with_suffix(".complexity.csv")
@@ -507,7 +520,7 @@ def calculate_cumulative_complexities(
     if should_output_diagnostics:
         print_with_time("\tPlotting raw DVAJs...")
         for i in trange(len(filename_stems)):
-            save_debug_fig("generated_dvaj.png", lambda ax: dvaj_dfs[i].plot(title=f"Raw DVAJ ({filename_stems[i]})", ax=ax), subpath=relative_filename_stems[i])
+            save_debug_fig("generated_dvaj.png", lambda ax, i=i: dvaj_dfs[i].plot(title=figure_display_titles[i], ax=ax), subpath=relative_filename_stems[i])
 
     if weigh_by_visibility:
         dvaj_suffixes = [measure.name for measure in DVAJ]
@@ -517,7 +530,7 @@ def calculate_cumulative_complexities(
         if should_output_diagnostics:
             print_with_time("\tPlotting visibility-weighted DVAJs...")
             for i in trange(len(filename_stems)):
-                save_debug_fig("visweighted_dvaj.png", lambda ax: dvaj_dfs[i].plot(title=f"Visibility-Weighted DVAJ ({filename_stems[i]})", ax=ax), subpath=relative_filename_stems[i])
+                save_debug_fig("visweighted_dvaj.png", lambda ax, i=i: dvaj_dfs[i].plot(title=figure_display_titles[i], ax=ax), subpath=relative_filename_stems[i])
     else:
         print_with_time("Step 2: Skipped (not weighting by visibility) ...")
 
@@ -528,7 +541,7 @@ def calculate_cumulative_complexities(
     if should_output_diagnostics:
         print_with_time("\tPlotting cumulative DVAJs...")
         for i in trange(len(filename_stems)):
-            save_debug_fig("cumsum_dvaj.png", lambda ax: dvaj_cumsum_dfs[i].plot(title=f"Cumulative DVAJ ({filename_stems[i]})", ax=ax), subpath=relative_filename_stems[i])
+            save_debug_fig("cumsum_dvaj.png", lambda ax, i=i: dvaj_cumsum_dfs[i].plot(title=figure_display_titles[i], ax=ax), subpath=relative_filename_stems[i])
     del dvaj_dfs
     
     print_with_time("Step 4: Trimming trailing frames...")
@@ -547,7 +560,11 @@ def calculate_cumulative_complexities(
             for i in trange(len(filename_stems)):
                 df = dvaj_cumsum_dfs[i]
                 measure_cols = [col for col in df.columns if measure.name in col]
-                save_debug_fig(f"trimmed_dvaj_{measure.name}.png", lambda ax: df[measure_cols].plot(title=f"Trimmed {measure.name} ({filename_stems[0]})", ax=ax), subpath=relative_filename_stems[i])
+                save_debug_fig(
+                    f"trimmed_dvaj_{measure.name}.png",
+                    lambda ax, i=i, measure_cols=measure_cols: dvaj_cumsum_dfs[i][measure_cols].plot(title=figure_display_titles[i], ax=ax),
+                    subpath=relative_filename_stems[i],
+                )
 
     # Step 5.
     # Computes the normalization denominators for each metric, on a per-frame basis.
@@ -595,8 +612,16 @@ def calculate_cumulative_complexities(
     if should_output_diagnostics:
         print_with_time("\tPlotting complexity measures...")
         for i in trange(len(filename_stems)):
-            save_debug_fig(f"complexity_measures.png", lambda ax: complexity_measures[i].plot(title=f"Complexity Measures ({filename_stems[i]})", ax=ax), subpath=relative_filename_stems[i])
-            save_debug_fig(f"overall_complexity.png", lambda ax: overall_complexities[i].plot(title=f"Overall Complexity ({filename_stems[i]})", ax=ax), subpath=relative_filename_stems[i])
+            save_debug_fig(
+                f"complexity_measures.png",
+                lambda ax, i=i: complexity_measures[i].plot(title=figure_display_titles[i], ax=ax),
+                subpath=relative_filename_stems[i],
+            )
+            save_debug_fig(
+                f"overall_complexity.png",
+                lambda ax, i=i: overall_complexities[i].plot(title=figure_display_titles[i], ax=ax),
+                subpath=relative_filename_stems[i],
+            )
 
     # Step 8.
     # Save results
@@ -725,6 +750,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--destdir", type=Path, default=Path.cwd())  
     parser.add_argument("--srcdir", type=Path, default=None)
+    parser.add_argument("--database_csv_path", type=Path, default=None)
     parser.add_argument("--artifact_archive_root", type=Path, default=None)
     parser.add_argument("--artifact_output_dir", type=Path, default=None)
     parser.add_argument("--measure_weighting", choices=[e.name for e in DvajMeasureWeighting] + ['all'], default=DvajMeasureWeighting.decreasing_by_quarter.name)
@@ -767,6 +793,7 @@ if __name__ == "__main__":
             destdir=args.destdir,
             measure_weighting=measure_weighting,
             landmark_weighting=landmark_weighting,
+            database_csv_path=args.database_csv_path,
             artifact_archive_root=args.artifact_archive_root,
             artifact_output_dir=args.artifact_output_dir,
             weigh_by_visibility=weigh_by_visibility,
