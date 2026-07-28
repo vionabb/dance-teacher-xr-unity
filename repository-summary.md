@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository supports the final case study of the thesis in [thesis-draft.pdf](/Users/viona/dev/dance-teacher-xr-unity/thesis-draft.pdf). The draft frames the overall thesis as a progression toward automatic coaching for expressive movement; this repo is most directly aligned with the adaptive-coaching case study for AI-assisted dance learning.
+This repository supports the final case study of the thesis in [thesis-draft.pdf](thesis-draft.pdf). The draft frames the overall thesis as a progression toward automatic coaching for expressive movement; this repo is most directly aligned with the adaptive-coaching case study for AI-assisted dance learning.
 
 The two primary active projects are:
 
@@ -16,17 +16,44 @@ There are also side projects at the repo root:
 
 Those exist, but the main engineering surface area is in `svelte-web-frontend` and `motion-pipeline`.
 
+## Experimental purpose and chapter framing
+
+- Chapter 4 versus chapter 5: Chapter 4 corresponds to an existing, published research paper on the earlier CHI user-study work. That paper evaluated how learners interacted with the system and how their performance was scored and compared to human judgments. Chapter 5 is a new research thrust focused on automatic coaching: the goal is to move beyond the earlier evaluation setup toward automated coaching decisions, lesson-plan generation, and potentially meaningful feedback that closes the loop between motion analysis and instructional action.
+
+- Project purpose in this repository: This repository is not the implementation home for the published chapter-4 paper itself. Instead, it contains the technical scaffolding and evaluation resources used to support the new chapter-5 research direction. In particular, it holds or references the study assets needed to develop and validate coaching logic: user performance videos, reference TikTok videos, human ratings of performance, pose exports, and analysis artifacts for technical evaluation.
+
+- Why these artifacts matter: The chapter-4 study provides a grounded evaluation substrate for the new coaching work. Once the motion metrics are technically validated, the AI coaching decision logic and UI updates are in place, and the system is ready for broader evaluation, a new user study can be run to evaluate the chapter-5 automatic-coaching system itself.
+
+- Experimental direction for chapter 5: The focus is on building an automated coaching loop that can make instructional decisions, suggest or adapt lesson plans, and provide feedback that is meaningful to the learner. The repository supports this by providing pose data, metric pipelines, web-app interfaces, and analysis tools that can be used to prototype and evaluate those coaching behaviors. Note: the way lesson plans are constructed for the chapter-5 work differs from the chapter-4 approach — it remains an automated construction process, but follows the chapter-5 adaptive lesson-generation pipeline and decision logic implemented in the code (see `svelte-web-frontend/src/lib/ai/TeachingAgent` for relevant implementation).
+
+## Data context and resources available for analysis
+
+- Pose exports for CHI user-study videos: a curated set of pose outputs (used as study fixtures and for metric research) is available under the repository at [svelte-web-frontend/src/lib/ai/motionmetrics/testResults](/Users/viona/dev/dance-teacher-xr-unity/svelte-web-frontend/src/lib/ai/motionmetrics/testResults). This folder contains per-video pose CSV/JSON exports and derived pose artifacts produced from the CHI recordings; these are the canonical inputs used by the frontend motion-metrics tests and by the Python fitting scripts.
+
+- Generated metric artifacts: The frontend test harness and CI-style specs also write metric DB/CSV artifacts to `svelte-web-frontend/artifacts` (e.g., `motion_metrics.csv`, `motion_metrics.db`) — those are the recommended artifacts for feeding into `motion-pipeline` model-fitting scripts such as `motion_extraction/scripts/fit_metric_linear_model.py`.
+
+- Raw user videos (machine-local; not checked in): the original recorded videos for the CHI study are stored on the principal researcher's Google Drive at the following path on the development machine (machine-specific):
+
+  /Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/
+
+  Note: the `motion-pipeline/.vscode/launch.json` contains additional example Google Drive / local paths and is the canonical place to look for other developer-specific media locations. Treat these raw videos as local, access-controlled assets — they are not part of the git repo.
+
+- Sensitive data & provenance: Because the raw videos are stored on a private Google Drive location, any agent or collaborator that needs to reproduce analyses must obtain access to that Drive or regenerate the pose exports from the raw video copies. The pose exports in `testResults` are sufficient for most metric-research workflows if access to raw videos is restricted.
+
+- Citation of study in artifacts: When reusing or sharing analysis outputs, reference the CHI 2025 study (thesis chapter 4) and note that chapter 5 (experimental system) is implemented in this repository; add provenance notes to any published CSV/figures indicating whether pose data are preprocessed exports or re-extracted from the raw videos.
+
 ## High-Level Architecture
 
 The broad workflow is:
 
 1. Raw/source dance videos are tracked in `motion-pipeline` database metadata and media folders.
 2. `motion-pipeline` runs MediaPipe-based pose extraction to generate raw `holistic_data` and `pose2d_data` exports, now named with `.raw.csv` suffixes when written by `extract_holistic_data.py`.
-3. The pipeline computes cumulative complexity and audio analysis, then merges complexity into audio-derived dance trees.
-4. The pipeline exports bundle JSON and media references consumed by the web app.
-5. `svelte-web-frontend` serves the learning interface, practice/evaluation flows, and AI teaching logic.
-6. The frontend motion-metric test suite can export aggregate metric results to CSV/SQLite.
-7. `motion-pipeline/motion_extraction/scripts/fit_metric_linear_model.py` consumes that CSV to compare automatic metrics against human ratings.
+3. `motion-pipeline` runs an explicit preprocessing step that writes sibling `.clean.csv` pose exports; current preprocessing covers root recentering and torso-length normalization.
+4. The pipeline computes cumulative complexity and audio analysis, then merges complexity into audio-derived dance trees.
+5. The pipeline exports bundle JSON and media references consumed by the web app.
+6. `svelte-web-frontend` serves the learning interface, practice/evaluation flows, and AI teaching logic.
+7. The frontend motion-metric test suite can export aggregate metric results to CSV/SQLite.
+8. `motion-pipeline/motion_extraction/scripts/fit_metric_linear_model.py` consumes that CSV to compare automatic metrics against human ratings.
 
 ## Key Projects
 
@@ -167,11 +194,12 @@ Primary orchestration file:
 That pipeline currently performs, in order:
 
 1. database update
-2. holistic + pose2d extraction
-3. cumulative complexity calculation
-4. audio analysis
-5. complexity injection into dance trees
-6. frontend bundle export
+2. holistic + pose2d raw extraction
+3. pose-data preprocessing to sibling `.clean.csv` files
+4. cumulative complexity calculation
+5. audio analysis
+6. complexity injection into dance trees
+7. frontend bundle export
 
 Bundle export file:
 

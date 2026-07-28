@@ -1,9 +1,10 @@
-"""Compute and persist cumulative motion complexity from holistic pose CSVs.
+"""Compute and persist cumulative motion complexity from pose CSVs.
 
 This module is the batch entry point for the DVAJ-based complexity pipeline in
-`motion_extraction/complexity_analysis`. It reads `*.holisticdata.csv` and
-`*.holisticdata.raw.csv` pose exports, optionally re-centers landmarks around a synthetic hip-base landmark,
-derives per-frame scalar DVAJ values, accumulates them over time, and writes
+`motion_extraction/complexity_analysis`. It reads pose exports for either
+cleaned `pose2d` or cleaned `holisticdata` inputs, or falls back to raw files
+and applies equivalent preprocessing in-memory for analysis. It then derives
+per-frame scalar DVAJ values, accumulates them over time, and writes
 scaled complexity series plus dataset-level summaries to `destdir`.
 
 Primary use:
@@ -49,31 +50,17 @@ from ..artifacts import (
     resolve_artifact_clip_title,
     resolve_artifact_output_dir,
 )
+from ..preprocess_pose_data import (
+    PoseDataType,
+    clip_stem_from_pose_csv_path,
+    collect_pose_data_files,
+    get_pose_data_schema,
+    is_clean_pose_data_file,
+    preprocess_pose_dataframe,
+)
 from ..update_database import load_db
 from ..mp_utils import PoseLandmark
 from .uist_complexityanalysis import get_pose_landmarks_present_in_dataframe, DVAJ, calc_scalar_dvaj
-
-_HOLISTIC_DATA_LEGACY_SUFFIX = ".holisticdata.csv"
-_HOLISTIC_DATA_RAW_SUFFIX = ".holisticdata.raw.csv"
-
-
-def _clip_stem_from_holistic_csv_path(file_path: Path) -> str:
-    name = file_path.name
-    for suffix in (_HOLISTIC_DATA_RAW_SUFFIX, _HOLISTIC_DATA_LEGACY_SUFFIX):
-        if name.endswith(suffix):
-            return name[: -len(suffix)]
-    return file_path.stem
-
-
-def _collect_holistic_data_files(root_folder: Path) -> list[Path]:
-    files_by_relative_stem: dict[str, Path] = {}
-    for holistic_data_file in root_folder.rglob(f"*{_HOLISTIC_DATA_LEGACY_SUFFIX}"):
-        relative_stem = holistic_data_file.relative_to(root_folder).as_posix()[: -len(_HOLISTIC_DATA_LEGACY_SUFFIX)]
-        files_by_relative_stem[relative_stem] = holistic_data_file
-    for holistic_data_file in root_folder.rglob(f"*{_HOLISTIC_DATA_RAW_SUFFIX}"):
-        relative_stem = holistic_data_file.relative_to(root_folder).as_posix()[: -len(_HOLISTIC_DATA_RAW_SUFFIX)]
-        files_by_relative_stem[relative_stem] = holistic_data_file
-    return list(files_by_relative_stem.values())
 
 BASE_COL_NAME = "base"
 BEATS_PER_BAR: t.Final[int] = 4
@@ -876,24 +863,38 @@ def weigh_by_visiblity(data: pd.DataFrame, data_vis: pd.DataFrame, col_roots: t.
 def generate_dvajs_with_visibility(
     filepaths: t.Iterable[Path],
     landmark_names: t.List[str],
-    include_base: bool = True,
+    pose_data_type: PoseDataType,
 ):
-    for holistic_csv_file in filepaths:
-        # warn if the file does not use a recognized holistic data suffix
-        if not holistic_csv_file.name.endswith((_HOLISTIC_DATA_LEGACY_SUFFIX, _HOLISTIC_DATA_RAW_SUFFIX)):
+    pose_data_schema = get_pose_data_schema(pose_data_type)
+    coordinate_fields = pose_data_schema.coordinate_fields
+
+    for pose_csv_file in filepaths:
+        if not pose_csv_file.name.endswith(
+            (
+                pose_data_schema.legacy_suffix,
+                pose_data_schema.raw_suffix,
+                pose_data_schema.clean_suffix,
+            )
+        ):
             print(
-                f"WARNING: {holistic_csv_file} is not a recognized holistic data CSV.",
+                f"WARNING: {pose_csv_file} is not a recognized {pose_data_type.value} CSV.",
                 file=sys.stderr,
             )
             continue
-        data = pd.read_csv(holistic_csv_file, index_col='frame')
-        relative_position = get_position_relative_to_base(data)
-        
-        dvaj = calc_scalar_dvaj(relative_position, landmark_names)
-        # distance_cols = [col for col in dvaj.columns if "distance" in col]
-        # dvaj[distance_cols].plot(title=f"{holistic_csv_file.name} Distance")
 
-        visibility = get_visibility(relative_position, landmark_names)
+        data = pd.read_csv(pose_csv_file, index_col='frame')
+        analysis_pose_df = (
+            data
+            if is_clean_pose_data_file(pose_csv_file, pose_data_type)
+            else preprocess_pose_dataframe(data, pose_data_type)
+        )
+
+        dvaj = calc_scalar_dvaj(
+            analysis_pose_df,
+            landmark_names,
+            coordinate_fields=coordinate_fields,
+        )
+        visibility = get_visibility(analysis_pose_df, landmark_names)
         yield dvaj, visibility
 
 def calculate_cumulative_complexities(
@@ -907,6 +908,7 @@ def calculate_cumulative_complexities(
         artifact_output_dir: t.Optional[Path] = None,
         plot_whitelist: t.Optional[t.Sequence[str]] = None,
         include_base: bool = False,
+        pose_data_type: PoseDataType = PoseDataType.holistic_3d,
         visibility_mode: VisibilityMode = VisibilityMode.weight,
         visibility_repair_cutoff: float = VISIBILITY_REPAIR_CUTOFF,
         visibility_plot_alpha_floor: float = VISIBILITY_PLOT_ALPHA_FLOOR,
@@ -917,8 +919,10 @@ def calculate_cumulative_complexities(
 ):
     """Generate cumulative complexity outputs for one batch of pose CSV inputs.
 
-    Inputs are collected from `other_files` plus any `*.holisticdata.csv` and
-    `*.holisticdata.raw.csv` files under `srcdir`. Results are written under `destdir`, with one complexity CSV
+    Inputs are collected from `other_files` plus pose CSVs under `srcdir` that
+    match `pose_data_type`. Clean files are preferred when present, otherwise
+    raw/legacy files are preprocessed in-memory before metric computation.
+    Results are written under `destdir`, with one complexity CSV
     per input file and an aggregate `dvaj_complexity.csv` summary for the whole
     batch. The selected weighting options are encoded into the output column
     name so multiple calculation variants can coexist in the same destination.
@@ -936,10 +940,10 @@ def calculate_cumulative_complexities(
     input_files: t.List[Path] = other_files.copy()
     relative_dirs: t.List[Path] = [f.parent for f in other_files]
 
-    # if srcdir is specified, add all files of the form "*.holisticdata{,.raw}.csv" in that directory to the list of files.
+    # If srcdir is specified, collect pose-data files for the requested modality.
     files_from_srcdir = []
     if srcdir is not None:
-        files_from_srcdir = _collect_holistic_data_files(srcdir)
+        files_from_srcdir = collect_pose_data_files(srcdir, pose_data_type)
         input_files.extend(files_from_srcdir)
         relative_dirs.extend([srcdir for _ in files_from_srcdir])
     elif len(input_files) == 0:
@@ -968,9 +972,9 @@ def calculate_cumulative_complexities(
         include_base,
     )
 
-    filename_stems = [_clip_stem_from_holistic_csv_path(file) for file in input_files]
+    filename_stems = [clip_stem_from_pose_csv_path(file, pose_data_type) for file in input_files]
     relative_filename_stems = [
-        str(file.relative_to(relative_dir).parent / _clip_stem_from_holistic_csv_path(file))
+        str(file.relative_to(relative_dir).parent / clip_stem_from_pose_csv_path(file, pose_data_type))
         for file, relative_dir 
         in zip(input_files, relative_dirs)
     ]
@@ -1082,6 +1086,7 @@ def calculate_cumulative_complexities(
     print(f"{print_prefix()}Using measure weighting: {measure_weighting_choice.name}")
     print(f"{print_prefix()}Using landmark weighting: {landmark_weighting_choice.name}")
     print(f"{print_prefix()}Including base landmark: {'yes' if include_base else 'no'}")
+    print(f"{print_prefix()}Pose data type: {pose_data_type.value}")
     print(f"{print_prefix()}Visibility mode: {visibility_mode.name}")
     print(f"{print_prefix()}Visibility repair cutoff: {visibility_repair_cutoff}")
     print(f"{print_prefix()}Visibility plot alpha floor: {visibility_plot_alpha_floor}")
@@ -1106,7 +1111,16 @@ def calculate_cumulative_complexities(
     # 4. Trim trailing frames beyond which cumulative sum doesn't change.
     # 5. Calculate normalization denominators for each metric, on a per-frame basis.
     print_with_time("Step 1: Calculating DVAJs...")
-    dvaj_dfs, visibility_dfs = zip(*tqdm(generate_dvajs_with_visibility(input_files, landmark_names, include_base=include_base), total=len(input_files)))
+    dvaj_dfs, visibility_dfs = zip(
+        *tqdm(
+            generate_dvajs_with_visibility(
+                input_files,
+                landmark_names,
+                pose_data_type=pose_data_type,
+            ),
+            total=len(input_files),
+        )
+    )
     dvaj_dfs = list(dvaj_dfs)
     visibility_dfs = [visibility_df.fillna(0.0) for visibility_df in visibility_dfs]
     metric_visibility_dfs = [
@@ -1759,6 +1773,7 @@ def calculate_cumulative_complexities(
                 f"Explicit file count: `{len(other_files)}`",
                 f"Input file count: `{len(input_files)}`",
                 f"Destination dir: `{destdir}`",
+                f"Pose data type: `{pose_data_type.value}`",
                 f"Measure weighting: `{measure_weighting_choice.name}`",
                 f"Landmark weighting: `{landmark_weighting_choice.name}`",
                 f"Include base: `{include_base}`",
@@ -1813,6 +1828,11 @@ if __name__ == "__main__":
     parser.add_argument("--measure_weighting", choices=[e.name for e in DvajMeasureWeighting] + ['all'], default=DvajMeasureWeighting.decreasing_by_quarter.name)
     parser.add_argument("--landmark_weighting", choices=[e.name for e in PoseLandmarkWeighting] + ['all'], default=PoseLandmarkWeighting.balanced.name)
     parser.add_argument("--include_base", choices=['true', 'false', 'both'], default='true')
+    parser.add_argument(
+        "--pose_data_type",
+        choices=[pose_data_type.name for pose_data_type in PoseDataType],
+        default=PoseDataType.holistic_3d.name,
+    )
     parser.add_argument("--visibility_mode", choices=[e.name for e in VisibilityMode] + ['all'], default=VisibilityMode.weight.name)
     parser.add_argument('--skip_existing', action='store_true', default=False, help='Skip files that already have a complexity summary')
     parser.add_argument("files", nargs="*", type=Path)
@@ -1853,6 +1873,7 @@ if __name__ == "__main__":
             artifact_archive_root=args.artifact_archive_root,
             artifact_output_dir=args.artifact_output_dir,
             plot_whitelist=args.plot_whitelist,
+            pose_data_type=PoseDataType[args.pose_data_type],
             visibility_mode=visibility_mode,
             include_base=include_base,
             visibility_repair_cutoff=args.visibility_repair_cutoff,
