@@ -30,6 +30,7 @@ While working on the motion-pipeline,your working directory should be in this fo
 ## Running the pipeline
 
 There are numerous tasks that can be run within this module, and they're all defined in the VSCode launch file (`.vscode/launch.json`). To run a script, select it from the dropdown in the top left of the VSCode window, and click the green play button.
+
 * The single most important task is `Run DanceTree Pipeline`. This consolidates several processing steps into a single script, making it easy to run the entire pipeline, and bundles the output for use for the frontend. Data is cached along the way, meaning that the pipeline will run faster the 2nd and subsequent times it's run (you can force a full re-run by altering the `launch.json` arguments for this task, or by deleting the temp folders).
 * Extracted pose artifacts now use explicit raw/clean naming:
   * extraction writes `*.pose2d.raw.csv` and `*.holisticdata.raw.csv`;

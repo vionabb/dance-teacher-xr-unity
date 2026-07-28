@@ -18,13 +18,13 @@ The repository now serves two related purposes:
 
 ### Metric development & technical evaluation
 - Status: In progress
-- Current state: The repository already supports pose extraction, metric analysis, and evaluation pipelines. The next technical milestones are to assess MediaPipe’s spatial and temporal accuracy in 2D and 3D, improve preprocessing for occlusion and missing data, and identify/select computational motion descriptors that capture stylistic differences.
-- Next steps: Implement the selected descriptors in Python, systematically evaluate them, define acceptance criteria for each metric, and document the validation process for the thesis/paper.
+- Current state: The repository already supports pose extraction, metric analysis, and evaluation pipelines. An explicit preprocessing architecture is now in place: raw extraction artifacts are preserved as `*.pose2d.raw.csv` and `*.holisticdata.raw.csv`, and a sibling clean-data stage writes `*.pose2d.clean.csv` and `*.holisticdata.clean.csv`. Phase 1 of preprocessing currently covers root recentering, torso-length normalization, and frame usability metadata. The remaining technical milestones are to assess MediaPipe’s spatial and temporal accuracy in 2D and 3D, extend preprocessing for occlusion and discontinuities, and identify/select computational motion descriptors that capture stylistic differences.
+- Next steps: Extend preprocessing with visibility-aware masking/interpolation, outlier handling, and smoothing; systematically evaluate the resulting 2D and 3D descriptor stability; define acceptance criteria for each metric; and document the validation process for the thesis/paper.
 
 ### System development
 - Status: In progress
-- Current state: The Svelte frontend and Python motion pipeline are already in place and support lesson playback, pose processing, and analysis workflows. The next system milestones are to port validated metrics to JavaScript, add post-activity self-report screens, and wire up automated coaching decisions with user feedback capture.
-- Next steps: Reproduce Python metric outputs in JavaScript, add self-report UI screens, implement coaching-decision logic, and iterate on acceptance criteria for decision quality.
+- Current state: The Svelte frontend and Python motion pipeline are already in place and support lesson playback, pose processing, and analysis workflows. The motion pipeline now distinguishes between raw pose data kept for image-space consumers such as skeleton overlays and clean pose data intended for most analytical consumers. Complexity analysis has been refactored toward explicit 2D-versus-3D and raw-versus-clean input assumptions, but the broader consumer migration is still in progress. The next system milestones are to port validated metrics to JavaScript, add post-activity self-report screens, and wire up automated coaching decisions with user feedback capture.
+- Next steps: Continue migrating analytical consumers to explicit clean-data interfaces where appropriate, preserve raw `pose2d` for overlay and visual-reference use cases, reproduce Python metric outputs in JavaScript, add self-report UI screens, implement coaching-decision logic, and iterate on acceptance criteria for decision quality.
 
 ### User study & learning efficacy evaluation
 - Status: Planned / not yet started
@@ -36,14 +36,16 @@ The repository now serves two related purposes:
 - A working research codebase for pose extraction, analysis, and motion-metric evaluation.
 - A Svelte-based frontend that can host lesson playback and coaching-related interfaces.
 - A Python pipeline that can process videos into pose and analysis outputs.
+- An explicit raw/clean pose-data contract for the offline pipeline, with phase-1 preprocessing already implemented.
 - Study artifacts and references for technical evaluation, including pose exports and study media references.
 
 ## What remains to be completed
 
 - Read and integrate the motion-anchor concept from the relevant literature.
 - Assess MediaPipe’s accuracy and robustness for the planned use case.
-- Develop preprocessing steps that handle missing or occluded data automatically.
+- Extend preprocessing beyond phase 1 so it can handle low-visibility spans, short-gap interpolation, outlier masking, and smoothing.
 - Implement and validate computational motion descriptors in Python.
+- Finish migrating analytical consumers to explicit clean-data inputs where that improves reliability, while preserving raw pose data for visual and image-space uses.
 - Port validated metrics to JavaScript and ensure parity with Python output.
 - Add self-report screens and automated coaching-decision feedback loops.
 - Finalize the chapter-5 study design and prepare for human-subjects work.

@@ -26,8 +26,8 @@ The project is organized into two major subsystems.
 The Python package in [motion-pipeline](motion-pipeline) handles heavy offline computation. Its responsibilities are to:
 
 - ingest source videos and metadata,
-- extract pose information with MediaPipe,
-- preprocess pose data into clean coordinate representations,
+- extract pose information with MediaPipe into explicit raw pose artifacts,
+- preprocess pose data into clean coordinate representations for analysis,
 - extract audio-derived timing and beat structure,
 - compute motion complexity descriptors,
 - generate dance-tree/segmentation outputs,
@@ -52,7 +52,7 @@ A typical run of the system looks like this:
 
 1. Raw video assets and study metadata are ingested by the motion pipeline.
 2. The pipeline extracts pose data and stores raw pose exports.
-3. A preprocessing step normalizes the pose data and marks usable frames.
+3. A preprocessing step writes sibling clean pose exports, normalizes the pose data, and marks usable frames.
 4. Audio, segmentation, and complexity analyses are computed.
 5. The pipeline exports bundle data consumed by the frontend.
 6. The frontend loads the reference motion and lesson structure.
@@ -73,11 +73,28 @@ The offline pipeline uses MediaPipe as the upstream pose-estimation component. T
 
 The preprocessing stage currently performs:
 
+- explicit raw/clean artifact separation, with raw files retained as `*.pose2d.raw.csv` and `*.holisticdata.raw.csv`,
+- sibling clean artifact generation as `*.pose2d.clean.csv` and `*.holisticdata.clean.csv`,
 - root recentering around the hip midpoint,
 - torso-length normalization,
 - frame usability flags for invalid or insufficient pose information.
 
+The broader preprocessing plan is intentionally phased.
+
+- Phase 1, already implemented: root recentering, torso-length normalization, and explicit usability metadata.
+- Phase 2, planned: joint-wise visibility thresholding plus short-gap interpolation.
+- Phase 3, planned: joint-wise outlier flagging for discontinuous jumps plus short-gap interpolation.
+- Phase 4, planned: smoothing, currently expected to use Savitzky-Golay filtering.
+
 These steps matter because downstream metrics depend on a stable geometric pose representation rather than raw detector output alone.
+
+The raw artifacts are still important and are not just intermediate leftovers. Raw `pose2d` remains the correct representation for image-space consumers such as browser-side skeleton overlays, because those overlays must line up with the original pixel coordinates of the source frames. Clean pose data is instead intended for most analytical consumers.
+
+In practice, this means the preprocessing layer is both a data transformation stage and an interface boundary. Code that consumes pose data should communicate whether it expects:
+
+- `pose2d` or `holisticdata`,
+- raw or clean coordinates,
+- image-space coordinates or normalized analysis-space coordinates.
 
 ### 4.2 Audio and structural analysis
 
@@ -89,6 +106,13 @@ The pipeline also derives structure from the dance itself. It computes:
 - metadata helpful for instructional sequencing.
 
 These analyses help the lesson system decide where the choreography can be broken into meaningful segments and practice steps.
+
+Complexity analysis is being refactored so that it can operate explicitly on either 2D or 3D pose inputs. The current design direction is:
+
+- keep raw-vs-clean assumptions explicit in code and naming,
+- prefer clean pose data for most analytical pathways,
+- allow both cleaned `pose2d` and cleaned `holisticdata` to serve as valid inputs to complexity computation,
+- avoid silently mixing image-space and normalized coordinate assumptions inside the same analysis function.
 
 ### 4.3 Bundle export
 
@@ -109,6 +133,8 @@ The main practice experience is implemented around the practice page and lesson 
 - skeleton overlays,
 - recording and review UI,
 - feedback presentation.
+
+The overlay requirement is one reason the system keeps raw and clean pose data side by side. Browser overlays should use raw `pose2d` because they must preserve the original image-space geometry, while scoring and offline analysis should generally move toward clean pose inputs.
 
 ### 5.2 Webcam pose estimation
 
