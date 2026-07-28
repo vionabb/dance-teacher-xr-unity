@@ -18,29 +18,12 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from ..mp_utils import PoseLandmark as PoseLandmarks
+from ..preprocess_pose_data import (
+    PoseDataType,
+    clip_stem_from_pose_csv_path,
+    collect_pose_data_files,
+)
 from ..update_database import load_db
-
-_HOLISTIC_DATA_LEGACY_SUFFIX = ".holisticdata.csv"
-_HOLISTIC_DATA_RAW_SUFFIX = ".holisticdata.raw.csv"
-
-
-def _clip_stem_from_holistic_csv_path(file_path: Path) -> str:
-    name = file_path.name
-    for suffix in (_HOLISTIC_DATA_RAW_SUFFIX, _HOLISTIC_DATA_LEGACY_SUFFIX):
-        if name.endswith(suffix):
-            return name[: -len(suffix)]
-    return file_path.stem
-
-
-def _collect_holistic_data_files(root_folder: Path) -> list[Path]:
-    files_by_relative_stem: dict[str, Path] = {}
-    for holistic_data_file in root_folder.rglob(_HOLISTIC_DATA_LEGACY_SUFFIX):
-        relative_stem = holistic_data_file.relative_to(root_folder).as_posix()[: -len(_HOLISTIC_DATA_LEGACY_SUFFIX)]
-        files_by_relative_stem[relative_stem] = holistic_data_file
-    for holistic_data_file in root_folder.rglob(_HOLISTIC_DATA_RAW_SUFFIX):
-        relative_stem = holistic_data_file.relative_to(root_folder).as_posix()[: -len(_HOLISTIC_DATA_RAW_SUFFIX)]
-        files_by_relative_stem[relative_stem] = holistic_data_file
-    return list(files_by_relative_stem.values())
 
 
 class DVAJ(Enum):
@@ -55,11 +38,16 @@ class Stat(Enum):
     # MAX = "max"
     # MIN = "min"
 
-def calc_scalar_dvaj(motion: pd.DataFrame, landmark_names: t.Collection[str]) -> pd.DataFrame:
+def calc_scalar_dvaj(
+    motion: pd.DataFrame,
+    landmark_names: t.Collection[str],
+    coordinate_fields: t.Sequence[str] = ("x", "y", "z"),
+) -> pd.DataFrame:
     """
         Returns a dictionary of metrics for the given motion and joints.
 
-        todo: normalize coordinates by torso length.
+        `motion` is expected to already be expressed in the coordinate space
+        intended for analysis.
 
         The metrics are:
             - Distance
@@ -77,7 +65,13 @@ def calc_scalar_dvaj(motion: pd.DataFrame, landmark_names: t.Collection[str]) ->
         acceleration_col = f"{landmark}_{DVAJ.acceleration.name}"
         jerk_col = f"{landmark}_{DVAJ.jerk.name}"
 
-        dist_data = motion[[f"{landmark}_x", f"{landmark}_y", f"{landmark}_z"]].diff().pow(2).sum(1).pow(0.5)
+        dist_data = (
+            motion[[f"{landmark}_{coordinate_field}" for coordinate_field in coordinate_fields]]
+            .diff()
+            .pow(2)
+            .sum(1)
+            .pow(0.5)
+        )
         velocity_data = dist_data.diff().abs()
         acceleration_data = velocity_data.diff().abs()
         jerk_data = acceleration_data.diff().abs()
@@ -263,7 +257,13 @@ if __name__ == "__main__":
 
     # if srcdir is specified, add all files of the form "*.holisticdata{,.raw}.csv" in that directory to the list of files.
     if args.srcdir is not None:
-        args.files.extend(_collect_holistic_data_files(args.srcdir))
+        args.files.extend(
+            collect_pose_data_files(
+                args.srcdir,
+                PoseDataType.holistic_3d,
+                preferred_versions=("raw", "legacy"),
+            )
+        )
     elif len(args.files) == 0:
         print("No files specified. Use --srcdir or specify files as arguments.")
         sys.exit(1)
@@ -285,7 +285,7 @@ if __name__ == "__main__":
     fpses = []
 
     for file in args.files:
-        file_clipname = _clip_stem_from_holistic_csv_path(file)
+        file_clipname = clip_stem_from_pose_csv_path(file, PoseDataType.holistic_3d)
         matches_file = lambda db_entry: db_entry.get('clipName') == file_clipname
         db_entry = next((x for x in db if matches_file(x)), None)
 

@@ -516,7 +516,7 @@ def process_video(
 	if (pose_2d_file):
 		pose_2d_file.close()
             
-def compute_holistic_data(
+def extract_holistic_data(
 	video_folder: Path,
 	output_folder: Path,
 	pose2d_output_folder: t.Optional[Path] = None,
@@ -540,7 +540,7 @@ def compute_holistic_data(
 	artifact_dir = resolve_artifact_output_dir(
 		artifact_archive_root=artifact_archive_root,
 		artifact_output_dir=artifact_output_dir,
-		default_label="compute-holistic-data",
+		default_label="extract-holistic-data",
 	)
 	debug_frame_whitelist = list(debug_frame_whitelist) if debug_frame_whitelist is not None else ["*"]
 
@@ -638,7 +638,7 @@ def compute_holistic_data(
 	if artifact_dir is not None:
 		report = build_artifact_report(
 			artifact_dir,
-			title="Compute Holistic Data Report",
+			title="Extract Holistic Data Report",
 			intro=(
 				f"Generated holistic pose CSV outputs for `{video_folder}` into `{output_folder}`."
 			),
@@ -670,6 +670,9 @@ def compute_holistic_data(
 
 	return summary_df
 
+
+compute_holistic_data = extract_holistic_data
+
 if __name__ == "__main__":
 	import argparse
 
@@ -685,7 +688,7 @@ if __name__ == "__main__":
 	parser.add_argument('--artifact_output_dir', type=Path, default=None)
 	args = parser.parse_args()
     
-	compute_holistic_data(
+	extract_holistic_data(
 		video_folder=args.video_folder,
 		output_folder=args.output_folder,
 		model_complexity=args.model_complexity,

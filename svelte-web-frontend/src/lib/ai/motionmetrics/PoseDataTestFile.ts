@@ -574,10 +574,10 @@ export async function loadTiktokWholePoses() {
 		.map((dance) => {
 			const danceName = cononicalizeClipName(dance.clipName) as DanceName;
 			const poses2Durl = getRawCsvPathCandidates(
-				`${TIKTOK_WHOLE_POSES_FOLDER_2D}${dance.clipRelativeStem}.pose2d.csv`
+				`${TIKTOK_WHOLE_POSES_FOLDER_2D}${dance.clipRelativeStem}.pose2d.raw.csv`
 			);
 			const poses3Durl = getRawCsvPathCandidates(
-				`${TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC}${dance.clipRelativeStem}.holisticdata.csv`
+				`${TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC}${dance.clipRelativeStem}.holisticdata.raw.csv`
 			);
 			const useFetch = false; // have loadPoseInformation use the node fs.
 

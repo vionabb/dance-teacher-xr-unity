@@ -26,7 +26,8 @@
             }
         ],
         "chat.tools.terminal.autoApprove": {
-            "./script_invocations/run_dancetree_pipeline_test.sh": true
+            "./script_invocations/run_dancetree_pipeline_test.sh": true,
+            "./script_invocations/run_dancetree_pipeline_test_small.sh": true
         }
     },
     "extensions": {
