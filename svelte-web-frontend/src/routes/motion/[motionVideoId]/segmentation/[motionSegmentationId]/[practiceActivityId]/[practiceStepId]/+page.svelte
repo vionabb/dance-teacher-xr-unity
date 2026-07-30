@@ -10,8 +10,8 @@
 	import type { Readable } from 'svelte/store';
 
 	import { GetTeachingAgent } from '$lib/ai/TeachingAgent/TeachingAgent.js';
-	import type { AttemptSettings, VideoRecording } from '$lib/ai/IPracticePage.js';
-	import type { FrontendPerformanceSummary } from '$lib/ai/FrontendDanceEvaluator.js';
+	import type { AttemptSettings, VideoRecording } from '$lib/model/IPracticePage';
+	import type { FrontendPerformanceSummary } from '$lib/ai/evaluation/FrontendDanceEvaluator';
 
 	let { data } = $props();
 

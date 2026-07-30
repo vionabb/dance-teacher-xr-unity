@@ -3,7 +3,7 @@
 	//
 	// A component for offering feedback after a user has completed a
 	// practice attempt of a dance.
-	import type { FrontendPerformanceSummary } from '$lib/ai/FrontendDanceEvaluator.ts';
+	import type { FrontendPerformanceSummary } from '$lib/ai/evaluation/FrontendDanceEvaluator';
 	import type { TerminalFeedback } from '$lib/model/TerminalFeedback';
 	import type { BodyPartHighlight } from '$lib/elements/StaticSkeletonVisual.svelte';
 	import StaticSkeletonVisual from '$lib/elements/StaticSkeletonVisual.svelte';

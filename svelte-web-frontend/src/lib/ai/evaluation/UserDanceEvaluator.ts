@@ -5,7 +5,7 @@ import type {
 	EvaluationTrackHistory,
 	LiveEvaluationMetric,
 	SummaryEvaluationMetric
-} from './motionmetrics/MotionMetric';
+} from '../motionmetrics/MotionMetric';
 import type { PerformanceHistoryStore } from './performanceHistory';
 import { UserEvaluationTrackRecorder } from './UserEvaluationTrackRecorder';
 

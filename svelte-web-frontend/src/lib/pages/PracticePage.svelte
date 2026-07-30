@@ -35,7 +35,7 @@
 		type MotionSegmentationNode
 	} from '$lib/data/dances-store';
 
-	import { Draw2dSkeleton } from '$lib/ai/SkeletonFeedbackVisualization';
+	import { Draw2dSkeleton } from '$lib/ai/evaluation/SkeletonFeedbackVisualization';
 	import VirtualMirror from '$lib/elements/VirtualMirror.svelte';
 	import poseEstimationService, {
 		type PoseEstimationResultDetail
@@ -51,7 +51,7 @@
 		type FrontendDanceEvaluator,
 		type FrontendPerformanceSummary,
 		type FrontendLiveEvaluationResult
-	} from '$lib/ai/FrontendDanceEvaluator';
+	} from '$lib/ai/evaluation/FrontendDanceEvaluator';
 	import Dialog from '$lib/elements/Dialog.svelte';
 	import { waitSecs } from '$lib/utils/async';
 	import {
@@ -70,7 +70,7 @@
 	import type TeachingAgent from '$lib/ai/TeachingAgent/TeachingAgent';
 	import type { Readable } from 'svelte/store';
 	import type { IDataBackend, MotionVideo, UserLearningModel } from '$lib/ai/backend/IDataBackend';
-	import type { AttemptSettings, VideoRecording } from '$lib/ai/IPracticePage';
+	import type { AttemptSettings, VideoRecording } from '$lib/model/IPracticePage';
 
 	const supabase = getContext('supabase') as SupabaseClient;
 	getContext('teachingAgent') as Readable<TeachingAgent>;
