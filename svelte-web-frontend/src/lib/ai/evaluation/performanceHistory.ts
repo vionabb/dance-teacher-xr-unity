@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { BaseMetric } from './motionmetrics/MotionMetric';
+import type { BaseMetric } from '../motionmetrics/MotionMetric';
 
 import { writable, derived } from 'svelte/store';
 

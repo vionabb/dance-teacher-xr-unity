@@ -2,8 +2,8 @@ import type { MotionSegmentation, MotionSegmentationNode } from '$lib/data/dance
 import type { DanceSegmentation, PracticePlan } from '$lib/model/PracticePlan';
 import type PracticeStep from '$lib/model/PracticeStep';
 import { GetArithmeticMean } from './EvaluationCommonUtils';
-import type { FrontendPerformanceSummary } from './FrontendDanceEvaluator';
-import type { FrontendDancePeformanceHistory } from './frontendPerformanceHistory';
+import type { FrontendPerformanceSummary } from './evaluation/FrontendDanceEvaluator';
+import type { FrontendDancePeformanceHistory } from './evaluation/frontendPerformanceHistory';
 import type { Angle3DMetricSummaryOutput } from './motionmetrics/Skeleton3DVectorAngleEvaluationMetric';
 
 function GetInaccurateJoints(
