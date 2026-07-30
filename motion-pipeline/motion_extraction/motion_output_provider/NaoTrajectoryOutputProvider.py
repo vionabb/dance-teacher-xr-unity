@@ -12,7 +12,7 @@ import pytransform3d.rotations as pr
 from motion_extraction.MecanimHumanoid import MecanimBone
 from .MotionOutputProvider import MotionOutputProvider, HumanoidPositionSkeleton, TransformManager, Path
 
-from ..view_urdf import display_urdf
+from ..teleoperation.view_urdf import display_urdf
 
 class NaoMotor(Enum):
     HeadYaw = auto()

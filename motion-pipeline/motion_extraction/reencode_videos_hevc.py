@@ -8,7 +8,7 @@ from datetime import datetime
 from contextlib import suppress
 from time import sleep
 
-def reencode_videos_hvec(source_glob: str, target_folder: str, overwrite: bool = False):
+def reencode_videos_hevc(source_glob: str, target_folder: str, overwrite: bool = False):
     
     input = Path(source_glob)
     input = list(input.parent.glob(input.name))
@@ -48,4 +48,4 @@ if __name__ == "__main__":
     argument_parser.add_argument('--overwrite', action='store_true')
     args = argument_parser.parse_args()
 
-    reencode_videos_hvec(args.source_glob, args.target_folder, args.overwrite)
+    reencode_videos_hevc(args.source_glob, args.target_folder, args.overwrite)

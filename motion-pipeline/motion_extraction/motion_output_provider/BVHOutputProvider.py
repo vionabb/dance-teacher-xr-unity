@@ -4,7 +4,7 @@ import numpy as np
 from enum import Enum
 from .MotionOutputProvider import MotionOutputProvider, TransformManager, Path
 from ..MecanimHumanoid import HumanoidPositionSkeleton, MecanimBone, MecanimMeasurement
-from motion_extraction.bvh_writer import BVHWriteNode, write_bvh
+from motion_extraction.bvh.writer import BVHWriteNode, write_bvh
 
 METERS_TO_CM = 100.
 

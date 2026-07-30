@@ -5,10 +5,8 @@ from numpy import isnan
 import pandas as pd
 from .mp_utils import HAND_CONNECTIONS, POSE_CONNECTIONS, HandLandmark, PoseLandmark
 
-POSE_CONNETIONS = POSE_CONNECTIONS
-
 lm_pose_connections = [
-    (PoseLandmark(i), PoseLandmark(j)) for i, j in POSE_CONNETIONS
+    (PoseLandmark(i), PoseLandmark(j)) for i, j in POSE_CONNECTIONS
 ]
 lm_hand_connections = [
     (HandLandmark(i), HandLandmark(j)) for i, j in HAND_CONNECTIONS
