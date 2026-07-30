@@ -1,5 +1,5 @@
-import type { IPracticePage } from '../IPracticePage';
-import type { FrontendDanceEvaluator } from '../FrontendDanceEvaluator';
+import type { IPracticePage } from '$lib/model/IPracticePage';
+import type { FrontendDanceEvaluator } from '../evaluation/FrontendDanceEvaluator';
 
 export interface PostActivityUIContentItem {
 	text?: string;

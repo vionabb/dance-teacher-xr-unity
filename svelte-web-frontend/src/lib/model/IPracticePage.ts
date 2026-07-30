@@ -1,6 +1,6 @@
 import type PracticeStep from '$lib/model/PracticeStep';
 import type { TerminalFeedback } from '$lib/model/TerminalFeedback';
-import type { FrontendPerformanceSummary } from './FrontendDanceEvaluator';
+import type { FrontendPerformanceSummary } from '$lib/ai/evaluation/FrontendDanceEvaluator';
 
 export type VideoRecording = {
 	blob: Blob;

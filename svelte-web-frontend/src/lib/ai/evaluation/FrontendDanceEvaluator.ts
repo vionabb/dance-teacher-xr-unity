@@ -2,13 +2,13 @@ import type { PoseReferenceData } from '$lib/data/dances-store';
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 import UserDanceEvaluator from './UserDanceEvaluator';
 import type { PerformanceEvaluationTrack } from './UserEvaluationTrackRecorder';
-import Qijia2DPoseEvaluationMetric from './motionmetrics/Qijia2DPoseEvaluationMetric';
-import Skeleton3DVectorAngleEvaluationMetric from './motionmetrics/Skeleton3DVectorAngleEvaluationMetric';
-import BasicInfoSummaryMetric from './motionmetrics/BasicInfoSummaryMetric';
-import KinematicErrorEvaluationMetric from './motionmetrics/KinematicErrorEvaluationMetric';
+import Qijia2DPoseEvaluationMetric from '../motionmetrics/Qijia2DPoseEvaluationMetric';
+import Skeleton3DVectorAngleEvaluationMetric from '../motionmetrics/Skeleton3DVectorAngleEvaluationMetric';
+import BasicInfoSummaryMetric from '../motionmetrics/BasicInfoSummaryMetric';
+import KinematicErrorEvaluationMetric from '../motionmetrics/KinematicErrorEvaluationMetric';
 
 import frontendPerformanceHistory from './frontendPerformanceHistory';
-import TemporalAlignmentEvaluationMetric from './motionmetrics/TemporalAlignmentEvaluationMetric';
+import TemporalAlignmentEvaluationMetric from '../motionmetrics/TemporalAlignmentEvaluationMetric';
 
 export const FrontendLiveMetrics = Object.freeze({
 	qijia2DPoseEvaluation: new Qijia2DPoseEvaluationMetric(),

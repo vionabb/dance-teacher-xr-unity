@@ -67,7 +67,17 @@ Important areas:
 
 - `src/routes`: SvelteKit routes/pages.
 - `src/lib/ai`: AI teaching logic and motion evaluation code.
-- `src/lib/ai/motionmetrics`: motion quantification metrics plus tests/specs.
+  - `src/lib/ai/evaluation`: performance evaluation infrastructure (FrontendDanceEvaluator, UserDanceEvaluator, UserEvaluationTrackRecorder, performanceHistory, detectAchievements, SkeletonFeedbackVisualization).
+  - `src/lib/ai/motionmetrics`: motion quantification metrics plus tests/specs.
+  - `src/lib/ai/TeachingAgent`: AI lesson-plan orchestration.
+  - `src/lib/ai/backend`: Supabase data backend and LLM client wrappers.
+  - `src/lib/ai/EvaluationCommonUtils.ts`: shared math and pose-vector utilities used by both motionmetrics and evaluation code.
+  - `src/lib/ai/feedback.ts`, `textual-distillation.ts`, `precomputed-feedback-msgs.ts`: feedback generation.
+- `src/lib/model`: domain model types (PracticePlan, PracticeStep, TerminalFeedback, IPracticePage, settings).
+- `src/lib/elements`: reusable Svelte UI components.
+- `src/lib/pages`: full-page Svelte components used by routes (MainMenuPage, PracticePage, PerformanceReviewPage, SettingsPage).
+- `src/lib/services`: service singletons (PoseEstimationService).
+- `src/lib/webcam`: MediaPipe pose estimation utilities and streams.
 - `scripts`: asset and bundle sync scripts, especially for Supabase/local storage.
 - `src/lib/data/dances-store.ts`: frontend pose-data loader helpers now try raw bundle filenames first and fall back to legacy names during the migration.
 - `scripts/syncBundleData.js`: bundle sync writes raw landmark paths into Supabase storage metadata.

@@ -14,14 +14,14 @@ import {
 	ComparisonVectorToTerminalFeedbackBodyPartMap,
 	QijiaMethodComparisionVectorNamesToIndexMap
 } from './EvaluationCommonUtils';
-import type { FrontendPerformanceSummary } from './FrontendDanceEvaluator';
+import type { FrontendPerformanceSummary } from './evaluation/FrontendDanceEvaluator';
 import {
 	distillMotionSegmentationStructureToTextualRepresentation,
 	distillFrontendPerformanceSummaryToTextualRepresentation,
 	distillPerformanceHistoryToTextualRepresentation
 } from './textual-distillation';
-import type { FrontendDancePeformanceHistory } from './frontendPerformanceHistory';
-import detectAchievements from './detectAchievements';
+import type { FrontendDancePeformanceHistory } from './evaluation/frontendPerformanceHistory';
+import detectAchievements from './evaluation/detectAchievements';
 
 // Variable to store the value of the evaluation threshold, initialized to 1.0
 let evaluation_GoodBadTrialThresholdValue = 1.0;
