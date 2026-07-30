@@ -1,5 +1,5 @@
 <script lang="ts">
-	import frontendPerformanceHistory from '$lib/ai/frontendPerformanceHistory';
+	import frontendPerformanceHistory from '$lib/ai/evaluation/frontendPerformanceHistory';
 	import {
 		debugMode,
 		debugMode__viewBeatsOnDanceTreepage,

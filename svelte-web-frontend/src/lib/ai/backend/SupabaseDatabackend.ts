@@ -14,7 +14,7 @@ import type { PracticePlanProgress } from '$lib/data/activity-progress';
 import type { Database, Json } from '$lib/ai/backend/SupabaseTypes';
 import type { PracticePlan } from '$lib/model/PracticePlan';
 import type { MotionSegmentation } from '$lib/data/dances-store';
-import type { VideoRecording } from '../IPracticePage';
+import type { VideoRecording } from '$lib/model/IPracticePage';
 
 function toUserPerformanceAttempt(data: UserPerformanceAttemptDb): UserPerformanceAttempt {
 	return {
