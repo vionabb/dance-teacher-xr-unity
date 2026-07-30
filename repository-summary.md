@@ -16,6 +16,10 @@ There are also side projects at the repo root:
 
 Those exist, but the main engineering surface area is in `svelte-web-frontend` and `motion-pipeline`.
 
+## Lab Log
+
+The `lab-log/` directory at the repo root is the running research narrative. It contains dated markdown entries documenting decisions, findings, and direction as development unfolds. Entries are written by agents (and the researcher) and are intended to give future agents and the researcher context for how the project evolved. Read `lab-log/README.md` for entry conventions and the artifact-copying rule. The entries are also the primary source for drafting the thesis chapters.
+
 ## Experimental purpose and chapter framing
 
 - Chapter 4 versus chapter 5: Chapter 4 corresponds to an existing, published research paper on the earlier CHI user-study work. That paper evaluated how learners interacted with the system and how their performance was scored and compared to human judgments. Chapter 5 is a new research thrust focused on automatic coaching: the goal is to move beyond the earlier evaluation setup toward automated coaching decisions, lesson-plan generation, and potentially meaningful feedback that closes the loop between motion analysis and instructional action.
