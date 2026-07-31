@@ -8,3 +8,6 @@
 !/analysis-src/README.md
 
 /artifact-archive
+
+secrets/*
+!secrets/example-*
