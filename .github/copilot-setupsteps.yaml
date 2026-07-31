@@ -1,0 +1,9 @@
+version: "1.0"
+steps:
+  - name: Install rclone
+    run: |
+      sudo curl https://rclone.org | sudo bash
+  - name: Configure rclone
+    run: |
+      mkdir -p ~/.config/rclone
+      printf '%s' "$RESEARCH_DATASET_RCLONE_CONF" > ~/.config/rclone/rclone.conf
