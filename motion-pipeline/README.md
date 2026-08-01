@@ -40,6 +40,8 @@ There are numerous tasks that can be run within this module, and they're all def
 * Holistic debug frames are no longer controlled by a boolean. Use `--holistic_debug_frames_dir` to enable them, and optionally repeat `--debug_frame_whitelist` to limit which input files emit frames. If no whitelist is provided, all files match.
 * Complexity plotting can be filtered independently from complexity calculation. Use repeated `--complexity_plot_whitelist` on the main pipeline or `--plot_whitelist` on `calculate_cumulative_complexity` to match relative stems such as `study2/*`; unmatched files still contribute to normalization and CSV outputs, but are omitted from generated plots.
 
+For cloud-agent runs, stage inputs with `python -m motion_extraction.rclone_transfer pull`, run the existing pipeline against local directories, and publish only verified results with `publish-artifacts` or `publish-processed-bundle`. The latter explicitly replaces the latest processed-media cache; ordinary pipeline runs do not publish to Drive.
+
 ## Video -> BVH Process
 
 To get a usable 3d motion animation from video, we process mediapipe output with existing knowledge of human skeleton and joints to generate a bvh file.
