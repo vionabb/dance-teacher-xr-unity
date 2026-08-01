@@ -1,36 +1,36 @@
-# Agent Instructions
+# Motion Pipeline Agent Instructions
 
-The canonical agent instructions for this repository live at:
+Follow [../AGENTS.md](../AGENTS.md) first.
 
-- [/Users/viona/dev/dance-teacher-xr-unity/AGENTS.md](/Users/viona/dev/dance-teacher-xr-unity/AGENTS.md)
+## Warm start
 
-Agents working from `motion-pipeline/` as an independent workspace root should follow the parent repo instructions first.
+1. Read [README.md](README.md) for the environment and runnable workflows.
+2. Treat [.vscode/launch.json](.vscode/launch.json) and [script_invocations/](script_invocations/) as canonical examples of current arguments.
+3. Read [../documentation/technical-architecture.md](../documentation/technical-architecture.md) before changing raw/clean pose contracts or bundle interfaces.
+4. Read [../documentation/dataset.md](../documentation/dataset.md) before accessing or publishing research data.
 
-This file adds `motion-pipeline`-specific guidance on top of the repo-wide instructions.
+Run Python modules with `motion-pipeline/` as the working directory and use the project-local `.env` interpreter expected by the launch settings and test scripts. Do not assume a root or shell-selected Python interpreter matches the editor.
 
-## Workflow Context
+## Important workflows and contracts
 
-Check `README.md` and `.vscode/launch.json` when workflow details, canonical sample arguments, or expected artifact locations matter.
+- Main reference-video workflow: `motion_extraction.dancetree.run_dancetree_pipeline`
+- CHI study pose preparation: `motion_extraction/scripts/getposes.py` and related scripts
+- Frontend metric model fitting: `motion_extraction/scripts/fit_metric_linear_model.py`
+- Cloud data staging/publication: `motion_extraction.rclone_transfer`; never use an rclone mount
+- Frontend boundary: bundle JSON/media and `svelte-web-frontend/artifacts/motion_metrics.csv`
 
-Pay attention to cross-project couplings that affect `motion-pipeline`, especially:
+If a change affects bundle schemas, raw/clean filename conventions, metric columns, or shared artifact paths, inspect the corresponding frontend consumers and update the canonical documentation when needed.
 
-- frontend motion-metric exports consumed by `motion_extraction/scripts/fit_metric_linear_model.py`;
-- bundle and media outputs exchanged with `svelte-web-frontend`;
-- metric export and model-fitting interfaces.
+## Validation
 
-If you change those interfaces or data flows, update `repository-summary.md` in the repo root when a future agent would otherwise be misled.
+Prefer the smallest applicable existing command:
 
-## Python Functions
+- Focused Python tests: `.env/bin/python -m pytest <test-file-or-node>`
+- Small pipeline smoke run: `./script_invocations/run_dancetree_pipeline_test_small.sh`
+- Broader local pipeline run: `./script_invocations/run_dancetree_pipeline_test.sh`
 
-When creating a new Python function, add a docstring.
+The smoke scripts need their referenced media inputs. Do not treat missing private media as a code failure.
 
-When changing a Python function's parameters, return value, side effects, or intended usage, update its docstring in the same change so it stays accurate.
+## Python documentation
 
-Keep function docstrings practical and concise. Prefer documenting:
-
-- the function's purpose;
-- key parameters when their meaning is not obvious from the signature;
-- return values when they are non-trivial;
-- important side effects, file outputs, or behavior that callers need to know.
-
-If the intended contract of a function is unclear enough that a correct docstring cannot be written confidently, ask the user instead of guessing.
+Add a concise docstring to new functions. Update a function's docstring whenever its parameters, return value, side effects, file outputs, or intended usage change. If the contract cannot be determined from callers and tests, surface the uncertainty rather than inventing it.

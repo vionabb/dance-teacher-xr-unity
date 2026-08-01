@@ -1,60 +1,46 @@
 # Agent Instructions
 
-Start with [repository-summary.md](/Users/viona/dev/dance-teacher-xr-unity/repository-summary.md) for fast repo context.
+## Warm start
 
-Use it as a map, not as the sole source of truth:
+1. Read [documentation/repository-summary.md](documentation/repository-summary.md).
+2. Use [documentation/README.md](documentation/README.md) to choose only the additional context relevant to the task.
+3. Read the nearest scoped `AGENTS.md`, README, manifests, and configuration before editing a subproject.
+4. Verify claims against current code. Thesis and paper documents explain research intent, but they are not implementation specifications.
 
-- verify any area you plan to modify by reading the current code and config files;
-- check the relevant local README files and configuration before relying on remembered workflows.
+Open [dance-teacher-xr-unity.code-workspace](dance-teacher-xr-unity.code-workspace) when working across the Python and Svelte projects. It preserves each subproject's language-server working directory and recommended extensions.
 
-Keep `repository-summary.md` up to date when you make changes that alter:
+## Route work to the right subsystem
 
-- repository structure,
-- key workflows or launch configurations,
-- generated artifact paths,
-- or the practical importance of major subprojects.
+- Frontend, coaching flow, live evaluation, or motion metrics: [svelte-web-frontend/AGENTS.md](svelte-web-frontend/AGENTS.md)
+- Offline pose/audio/complexity processing, bundle generation, or model fitting: [motion-pipeline/AGENTS.md](motion-pipeline/AGENTS.md)
+- Research purpose and current maturity: [documentation/experimental-status.md](documentation/experimental-status.md)
+- Architecture and cross-project interfaces: [documentation/technical-architecture.md](documentation/technical-architecture.md)
+- Study data, generated artifacts, and cloud/local access: [documentation/dataset.md](documentation/dataset.md)
+- Research history and rationale: [lab-log/README.md](lab-log/README.md), then the relevant dated entries
+- Thesis and prior-study source material: [documentation/papers/thesis/index.md](documentation/papers/thesis/index.md) and [documentation/papers/chi2025/chi2025.md](documentation/papers/chi2025/chi2025.md)
 
-Do not rewrite the summary for trivial local edits. Update it when a future agent would otherwise be misled.
+Do not load the full thesis or CHI paper unless the task requires primary-source research context. Start with the repository summary and follow its targeted links.
 
-## Artifact Archive
+## Repository-wide working rules
 
-When the user asks to archive an artifact, place it under `artifact-archive/`.
+- Preserve the distinction between generated outputs, checked-in fixtures, and source data. Do not hand-edit generated artifacts unless the task explicitly targets them.
+- Treat machine-local Google Drive paths and user-study videos as access-controlled data, not portable defaults.
+- Keep raw and clean pose contracts explicit. Raw `pose2d` is required for image-space overlays; analytical consumers should normally use the appropriate clean representation.
+- Check both sides of cross-project contracts when changing bundle schemas, metric exports, filenames, or artifact paths.
+- Use the smallest existing validation command that covers a change. Subproject `AGENTS.md` files list the canonical commands.
+- Update [documentation/repository-summary.md](documentation/repository-summary.md) only when repository structure, key workflows, artifact paths, or the practical importance of a subsystem changes.
+- Update the owning canonical document rather than copying the same explanation into several files.
 
-Naming convention:
+## Artifact archive
 
-- use `TIMESTAMP-label` names;
-- if the artifact is a single file, save it directly as a file at `artifact-archive/TIMESTAMP-label.ext`;
-- if the artifact is a plot or plot set, create a folder at `artifact-archive/TIMESTAMP-label/`.
+When the user asks to archive an artifact, place it under `artifact-archive/` using a `TIMESTAMP-label` name.
 
-For archived plots:
+- A single artifact may be stored directly as `artifact-archive/TIMESTAMP-label.ext`.
+- A plot or plot set belongs in `artifact-archive/TIMESTAMP-label/`.
+- For plots, include a PDF, the data required to recreate it, and any relevant script, query, or command output.
+- Prefer thesis-facing figures no larger than `6in` wide and `8in` high unless requested otherwise.
+- If the user supplies commentary, store it as `commentary.md` beside the artifact; use a folder when needed.
 
-- save the rendered plot as PDF;
-- save the underlying data needed to recreate the plot;
-- if relevant, also save any script, query, or command output needed to replot for a different paper template or target.
-- for thesis-facing artifacts, prefer figures no larger than `6in` wide and `8in` high unless the user explicitly asks for a different format.
+## Lab log
 
-Optional commentary:
-
-- you may ask the user whether they want to provide commentary for the archive entry;
-- if provided, save it as `commentary.md` inside the artifact folder;
-- if the archived artifact is otherwise a single file and commentary is provided, use a folder so `commentary.md` can live alongside the artifact.
-
-## Lab Log
-
-The lab log lives at `lab-log/`. Read `lab-log/README.md` for the full conventions. Key rules:
-
-**When to write:** append to or create a lab log entry for any substantive user-driven session — one where a decision is made, an analysis is run, a finding is reached, or a direction changes. Skip trivial mechanical tasks (e.g. renaming a variable, fixing a typo).
-
-**Entry files:** `lab-log/YYYY-MM-DD-short-slug.md`. Daily granularity is the default; create a new slug on the same day when threads are clearly distinct. Each file starts with YAML frontmatter (`date`, `tags`, `artifacts`).
-
-**What to write:**
-1. The researcher's prompting language — verbatim or very close. This is the most important thing. Do not sanitize into neutral technical prose.
-2. Decisions made, one bullet each, with brief rationale.
-3. Findings, results, or interpretations — especially surprises.
-4. References to any committed artifact files.
-
-**Artifacts:** if an entry references a figure, CSV, or other file, copy it to `lab-log/assets/YYYY-MM-DD-slug/` first, then link it from the entry. Never reference paths outside the repo or inside `.gitignore`d directories. The `artifacts` frontmatter field should list every committed asset the entry uses.
-
-**Relationship to `artifact-archive/`:** `artifact-archive/` is a user-triggered timestamped snapshot; `lab-log/assets/` is the narrative copy that supports a specific entry. An important artifact may appear in both — that is fine.
-
-**Why this matters:** entries give future agents the "why" behind the current state of the code and data. They also make it easier to locate key figures and reconstruct the research narrative when drafting the thesis (Chapters 4 and 5).
+Follow [lab-log/README.md](lab-log/README.md). Add or update a dated entry for substantive user-driven research work: decisions, analyses, findings, or changes in direction. Preserve the researcher's wording closely, record decisions and rationale, and copy referenced artifacts into `lab-log/assets/` before linking them.
