@@ -30,4 +30,4 @@ This is a solo research project (no collaborators). The log serves three purpose
 2. Decision audit trail — when choices get revisited, there's a record of what was tried and what was concluded.
 3. Paper writing aid — entries, tags, and committed figures make it straightforward to reconstruct the research narrative when drafting the thesis.
 
-The relationship to the thesis: this project directly supports Chapter 5 (automatic coaching), and Chapter 4 (CHI study) provides the evaluation substrate. Decisions about metrics, model fitting, lesson plan structure, and coaching logic are the most thesis-relevant things to log.
+The relationship to the thesis: this project directly supports Chapter 7 (automatic coaching), and Chapter 6 (the CHI dance-learning study) provides the evaluation substrate. Decisions about metrics, model fitting, lesson plan structure, and coaching logic are the most thesis-relevant things to log.

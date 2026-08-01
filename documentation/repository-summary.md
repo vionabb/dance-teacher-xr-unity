@@ -13,7 +13,7 @@ Two related generations of work matter:
 
 The long-term goal is a closed coaching loop: estimate learner performance, interpret it meaningfully, choose feedback, and decide what the learner should practice next. The repository contains a working structured learning experience and several evaluation/feedback components, but the fully integrated learner-state-aware adaptive loop remains incomplete. See [experimental status](experimental-status.md).
 
-Earlier notes call these projects thesis chapters 4 and 5. The current thesis export places them in chapters 6 and 7; use titles rather than chapter numbers in durable references.
+The thesis presents these projects in chapter 6 and chapter 7, respectively; use linked titles rather than chapter numbers when a durable reference needs to remain clear as the thesis evolves.
 
 ## Active subsystems
 
