@@ -1,0 +1,29 @@
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+      - .github/setup-rclone.sh
+      - .github/rclone-template.conf
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+      - .github/setup-rclone.sh
+      - .github/rclone-template.conf
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Install rclone
+        run: |
+          sudo -v
+          curl https://rclone.org/install.sh | sudo bash
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Configure and verify rclone
+        run: bash .github/setup-rclone.sh
