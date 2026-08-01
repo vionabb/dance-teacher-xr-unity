@@ -1,35 +1,95 @@
-# Dataset
+# Dataset and Artifact Guide
 
-## Overview
+This document owns data provenance, sensitivity, storage, and transfer rules. Google Drive is the source of truth for large research datasets; git contains code, metadata, small fixtures, and selected research artifacts.
 
-The dataset for this research project is stored in google drive.
+## Data classes
 
-The google drive is intended as the **source of truth** for dataset. Much of it is read-only.
+| Data | Location | Durability and access |
+| --- | --- | --- |
+| Reference videos | Drive `referencevideos/` | Read-only source data for dances/motions to teach |
+| Prior user-study data | Drive `userstudydata/` | Read-only, access-controlled research data |
+| Drive archive | Drive `archive/` | Read-only historical material not needed for current work |
+| Agent research outputs | Drive `agent-output/` | Writable publication area for selected, validated results |
+| Processed frontend media | Drive `processed-media-bundle/` | Writable cache; replace only after frontend validation |
+| Generated local analysis | `artifact-archive/`, subproject artifact/temp folders | Local working outputs; often ignored by git |
+| Research narrative assets | `lab-log/assets/` | Committed copies used by lab-log entries |
+| Checked-in metric fixtures | `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/` | Small durable fixtures and human-rating metadata |
+| Generated metric/study outputs | `svelte-web-frontend/testResults/` | Local/generated results, browser profiles, and study pose folders |
 
-The dataset is organized as such:
+Never infer consent, redistribution permission, or de-identification from the existence of a local file. Treat raw participant videos as sensitive and access-controlled.
 
-- root
-  - `/archive`: read-only to agents. Where the user puts artifacts and files that are not relevant to the current state of the project.
-  - `/agent-output`: full permissions to agent. A place for agent to store artifacts (such as charts, analysis-results) that should be persisted. Local runs will output to `artifact-archive` in the project -- be selective about what to copy into this folder, only persist results & artifacts that could make it into the paper, such as (but not limited to) fully-debugged analysis results. This folder should be organized by task -- give yourself (the agent) a name based on the initial prompt and create a date-stamped folder for your artifacts, then persist artifacts into a relevant subfolder. Example: `/agent-output/2026-04-13_motionpipeline-occlusion-analysis/` can then contain artifacts such as `2026-04-13T19-24-26-metric-fitting-output` and `2026-04-14T16-08-17-dancetree-pipeline-run`.
-  - `processed-media-bundle`: read/write to agents. A location for the media bundle for consumption from the frontend. This is cached because it's resource intensive to recompute. Agents which are working on the web-frontend need to download this bundle to be able to serve the web resources. Agents which are developing motion preprocessing techniques can regenerate this bundle using the dancetree pipeline. The drive-persisted dataset version of the bundle should contain the latest *validated* media -- only overwrite this after testing it the frontend.
-  - `referencevideos`: read-only to agents. The source videos of dances and other motions that we want to teach to the user.
-  - `userstudydata`: read-only to agents. Data from previous user studies, such as the two conducted as part of the previous CHI 2025 paper. This data is available for use for technical validation of metrics & algorithms developed in this paper.  
+## CHI study resources
 
-## Accessing
+The earlier CHI studies provide participant performances, reference videos, human ratings, and derived poses used for technical validation.
 
-The repository uses two access modes, but never an rclone mount:
+- Generated/local study pose directories: `svelte-web-frontend/testResults/study*-pixelposes-*`
+- Checked-in pose fixtures: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/study-poses/`
+- Human ratings and fixture definitions: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
+- Aggregate metric outputs: `svelte-web-frontend/artifacts/motion_metrics.csv` and `.db`
 
-- On a workstation, use the Google Drive desktop application's synchronized paths when `.github/localenvironment.json` is present. If that machine-specific file is absent, use the repository's standard local/rsync workflow where one exists.
-- In cloud agents, use individual rclone operations with the `dataset`, `agentoutput`, and `processedmediabundle` remotes configured by `.github/setup-rclone.sh`.
+Historical raw-video path on the primary workstation:
 
-Cloud-agent processing should always stage inputs and outputs in local working directories. Use `rclone copy dataset:<path> <local-dir>` for source data, run the pipeline against the local paths, and publish only completed work. Persist research artifacts with `rclone copy <local-dir> agentoutput:<task-path>`. Update the processed media bundle only after validation with an explicit `rclone sync <local-bundle> processedmediabundle:`; this is the one intentional operation that removes stale files from that cache.
+```text
+/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/
+```
 
-The three remotes intentionally have different scopes and Drive roots:
+Additional historical/testbench paths are documented as launch arguments in `motion-pipeline/.vscode/launch.json`. They are workstation hints, not repository defaults.
 
-- `dataset`: read-only access to the complete dataset root;
-- `agentoutput`: read/write access to the nested `agent-output` folder;
-- `processedmediabundle`: read/write access to the nested processed bundle folder.
+## Workstation access
 
-The service-account JSON and folder IDs are supplied to cloud-agent setup as Agents secrets. They are materialized only into the runtime rclone configuration and must not be committed.
+When `.github/localenvironment.json` exists, it maps the local synchronized Drive dataset and agent-output roots. The file is machine-specific and gitignored; use `.github/example-localenvironment.json` as the schema.
 
-GitHub does not expose a documented environment marker that distinguishes a Copilot setup run from an ordinary Actions run. To make missing cloud credentials fail loudly, configure the non-secret repository Agents variable `RCLONE_REQUIRE_AUTH=1`. The setup script remains permissive when that variable is absent so normal push and pull-request validation cannot require unavailable Agents secrets.
+Prefer project helpers or explicit local paths over copying absolute paths into source code. Do not commit credentials, service-account JSON, Drive folder IDs, or local environment files.
+
+## Cloud-agent access
+
+[setup-rclone.sh](../.github/setup-rclone.sh) configures three remotes from agent secrets:
+
+- `dataset`: read-only complete dataset root;
+- `agentoutput`: read/write `agent-output/`;
+- `processedmediabundle`: read/write processed bundle cache.
+
+Cloud agents must use explicit copy/sync operations, never an rclone mount:
+
+```bash
+# Stage source data locally.
+rclone copy dataset:<remote-path> <local-dir>
+
+# Publish selected research artifacts.
+rclone copy <local-dir> agentoutput:<dated-task-path>
+
+# Replace the validated frontend media cache; this deletes stale remote files.
+rclone sync <local-bundle> processedmediabundle:
+```
+
+The Python wrapper `python -m motion_extraction.rclone_transfer` provides corresponding pull and publication commands. Run processing against local staged directories.
+
+`rclone sync` is intentionally reserved for publishing a validated processed-media bundle. Use `copy` for ordinary inputs and research artifacts.
+
+## Publishing rules
+
+- Publish only outputs that are complete enough to survive beyond the current run.
+- Organize `agent-output/` by dated task, for example `2026-08-01_metric-validation/`.
+- Include the script/command, parameters, and source-data provenance required to reproduce research-facing results.
+- Validate regenerated media in the frontend before replacing `processed-media-bundle/`.
+- Do not publish raw participant videos or sensitive intermediate data into broader-access output areas.
+
+## Local archive versus lab log
+
+- `artifact-archive/` is a user-triggered timestamped snapshot and may remain local/ignored.
+- `lab-log/assets/` contains committed copies of figures/data referenced by a dated research entry.
+- Drive `agent-output/` preserves selected outputs beyond a local checkout.
+
+An important artifact may appear in all three locations for different purposes. The lab-log copy must never link outside the repository.
+
+## Provenance checklist
+
+Before using or sharing an analysis result, record:
+
+1. source dataset and study;
+2. raw versus derived/pose data;
+3. extraction/preprocessing version and options;
+4. metric version and directionality;
+5. inclusion/exclusion criteria;
+6. whether the output is exploratory or validated;
+7. any access or redistribution restrictions.

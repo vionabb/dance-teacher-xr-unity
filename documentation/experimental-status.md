@@ -1,56 +1,98 @@
 # Experimental Status
 
-This document summarizes the current status of the thesis-related research work in this repository, with a focus on the transition from the published chapter-4 study toward the new chapter-5 automatic-coaching research direction.
+This document owns the current research maturity and known limitations. It should distinguish implemented behavior from exploratory code and future design.
 
-## Overview
+## Research position
 
-The repository now serves two related purposes:
+The repository connects two generations of dance-learning work:
 
-1. It preserves and references the evaluation assets from the earlier CHI user-study work (chapter 4), including user performance videos, reference TikTok videos, human ratings, and pose-derived artifacts.
-2. It provides the technical scaffolding for the new chapter-5 work on automatic coaching, especially automated coaching decisions, lesson-plan generation, and feedback that closes the loop between motion analysis and instructional action.
+- The [CHI 2025 study](papers/chi2025/chi2025.md) evaluated automatically generated practice plans and interface features in two user studies. Its videos, ratings, and pose exports now provide grounding data for metric evaluation.
+- The [adaptive-coaching case study](papers/thesis/chapters/07-toward-an-adaptive-virtual-dance-coach.md) redesigned lesson structure around a guided learning journey and investigated feedback, motion quantification, audio grouping, complexity, and learner-state-aware sequencing.
 
-## Current status by workstream
+The current system should be described as an operational research prototype, not a validated adaptive tutor.
 
-### Literature
-- Status: In progress
-- Current state: The thesis framing is moving toward a new chapter-5 angle around automatic coaching. The paper "Make it Simple, Make it Dance" and its concept of motion anchors are identified as relevant prior work and should be integrated into the related-work and framing sections.
-- Next steps: Read and synthesize the paper, then incorporate the motion-anchor concept into the thesis narrative and related work.
+## Implemented
 
-### Metric development & technical evaluation
-- Status: In progress
-- Current state: The repository already supports pose extraction, metric analysis, and evaluation pipelines. An explicit preprocessing architecture is now in place: raw extraction artifacts are preserved as `*.pose2d.raw.csv` and `*.holisticdata.raw.csv`, and a sibling clean-data stage writes `*.pose2d.clean.csv` and `*.holisticdata.clean.csv`. Phase 1 of preprocessing currently covers root recentering, torso-length normalization, and frame usability metadata. The remaining technical milestones are to assess MediaPipe’s spatial and temporal accuracy in 2D and 3D, extend preprocessing for occlusion and discontinuities, and identify/select computational motion descriptors that capture stylistic differences.
-- Next steps: Extend preprocessing with visibility-aware masking/interpolation, outlier handling, and smoothing; systematically evaluate the resulting 2D and 3D descriptor stability; define acceptance criteria for each metric; and document the validation process for the thesis/paper.
+- Offline reference-video processing and frontend bundle generation.
+- Explicit raw and clean pose artifacts.
+- Phase-1 preprocessing: root recentering, torso-length normalization, and frame-usability metadata.
+- Browser lesson playback and webcam pose estimation.
+- Automated checkpointed practice-plan construction from phrase segmentation.
+- `mark -> drill -> full out` activities with fading guidance.
+- Live visual and terminal feedback pathways.
+- Multiple frontend motion metrics and study-fixture tests.
+- CSV/SQLite metric export and Python comparison against human ratings.
+- Cloud-agent data staging and publication helpers using non-mounted rclone remotes.
 
-### System development
-- Status: In progress
-- Current state: The Svelte frontend and Python motion pipeline are already in place and support lesson playback, pose processing, and analysis workflows. The motion pipeline now distinguishes between raw pose data kept for image-space consumers such as skeleton overlays and clean pose data intended for most analytical consumers. Complexity analysis has been refactored toward explicit 2D-versus-3D and raw-versus-clean input assumptions, but the broader consumer migration is still in progress. The next system milestones are to port validated metrics to JavaScript, add post-activity self-report screens, and wire up automated coaching decisions with user feedback capture.
-- Next steps: Continue migrating analytical consumers to explicit clean-data interfaces where appropriate, preserve raw `pose2d` for overlay and visual-reference use cases, reproduce Python metric outputs in JavaScript, add self-report UI screens, implement coaching-decision logic, and iterate on acceptance criteria for decision quality.
+## Implemented but not fully validated
 
-### User study & learning efficacy evaluation
-- Status: Planned / not yet started
-- Current state: The earlier chapter-4 study artifacts provide a valuable technical evaluation substrate, but a new user study for the chapter-5 system has not yet been run.
-- Next steps: Finalize the study design, prepare human-subjects materials, recruit and schedule participants, run the protocol, analyze quantitative and qualitative data, and write the discussion section.
+- Whether current motion metrics reliably capture learner-perceived or expert-perceived performance quality.
+- Whether audio-derived groupings are pedagogically meaningful lesson units.
+- Whether complexity heuristics correspond to learner difficulty.
+- Whether generated natural-language feedback is specific, trustworthy, and instructionally useful.
+- Robustness of 2D/3D MediaPipe-derived descriptors under occlusion, camera variation, low frame rates, and discontinuities.
+- Consistency between raw/clean and 2D/3D assumptions across all analytical consumers.
 
-## What is already in place
+## Partially scaffolded or exploratory
 
-- A working research codebase for pose extraction, analysis, and motion-metric evaluation.
-- A Svelte-based frontend that can host lesson playback and coaching-related interfaces.
-- A Python pipeline that can process videos into pose and analysis outputs.
-- An explicit raw/clean pose-data contract for the offline pipeline, with phase-1 preprocessing already implemented.
-- Study artifacts and references for technical evaluation, including pose exports and study media references.
+- Post-activity learner self-report and richer learner-state inputs.
+- Coaching decisions that combine performance history with perceived difficulty, confidence, or affect.
+- Adaptive sequencing beyond progressing to the next incomplete activity.
+- Feedback policies that fade, reintroduce, or personalize support based on learner history.
+- Complexity-aware progression and difficulty modeling.
+- Visibility repair, outlier masking, interpolation, and smoothing beyond the current preprocessing phase.
 
-## What remains to be completed
+## Historical findings that constrain current work
 
-- Read and integrate the motion-anchor concept from the relevant literature.
-- Assess MediaPipe’s accuracy and robustness for the planned use case.
-- Extend preprocessing beyond phase 1 so it can handle low-visibility spans, short-gap interpolation, outlier masking, and smoothing.
-- Implement and validate computational motion descriptors in Python.
-- Finish migrating analytical consumers to explicit clean-data inputs where that improves reliability, while preserving raw pose data for visual and image-space uses.
-- Port validated metrics to JavaScript and ensure parity with Python output.
-- Add self-report screens and automated coaching-decision feedback loops.
-- Finalize the chapter-5 study design and prepare for human-subjects work.
-- Recruit participants and run the new user study once the system is mature enough.
+Two formative pilots are described in the adaptive-coaching thesis chapter:
 
-## Practical note for future agents
+1. The tree-based interface exposed many controls but did not make an effective practice strategy legible.
+2. The checkpointed learning journey and `mark -> drill -> full out` sequence were clearer and better received.
+3. Once lesson structure improved, evaluation quality became the central bottleneck.
+4. Scalar scores and general LLM language did not provide sufficiently specific or trustworthy coaching.
 
-When continuing this work, treat the repository as a technical platform for chapter-5 development rather than as the implementation home for the published chapter-4 paper itself. The chapter-4 study materials are valuable mainly as grounding data for evaluation and iteration.
+Do not represent polished language generation as evidence that the underlying evaluation is pedagogically valid.
+
+## Current workstreams
+
+### Metric and pose-data validation
+
+Status: **in progress**
+
+- Extend preprocessing for visibility, short gaps, discontinuities, outliers, and smoothing.
+- Evaluate detector and descriptor stability in 2D and 3D.
+- Define metric semantics and acceptance criteria.
+- Compare automatic metrics with human ratings without conflating correlation with coaching validity.
+
+### System integration
+
+Status: **in progress**
+
+- Complete migration of analytical consumers to explicit pose contracts.
+- Keep raw `pose2d` for source-aligned overlays.
+- Maintain parity between tested metric behavior and live frontend use.
+- Integrate self-report, performance history, and coaching decisions without hiding uncertainty.
+
+### Adaptive coaching
+
+Status: **partially scaffolded**
+
+- Define a learner-state model appropriate to cognitive-stage choreography learning.
+- Decide how feedback timing, specificity, and guidance should change with progress.
+- Connect validated evaluation signals to sequencing decisions.
+
+### New user study
+
+Status: **not yet run**
+
+A new study is needed to evaluate the current coaching system. Before recruitment, the system needs a stable protocol, human-subjects materials, validated instrumentation, and explicit success criteria that separate immediate performance, learning, trust, and perceived usefulness.
+
+## Near-term priorities
+
+1. Make pose/metric assumptions explicit and reproducible.
+2. Establish technical validity and failure modes for candidate metrics.
+3. Decide which signals are safe to use for learner-facing feedback.
+4. Integrate self-report and performance history into a testable decision policy.
+5. Define the study protocol and analysis plan before collecting new data.
+
+Use the [lab log](../lab-log/README.md) for dated decisions and findings; keep this document at the level of current status.

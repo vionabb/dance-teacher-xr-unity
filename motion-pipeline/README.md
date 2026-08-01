@@ -1,77 +1,111 @@
 # Motion Pipeline
 
-This is a python module for performing a host of processing tasks on dance videos. This package performs tasks such as:
+Offline Python processing and research analysis for the dance-coaching project. For repository context and cross-project contracts, read [the repository summary](../documentation/repository-summary.md) and [technical architecture](../documentation/technical-architecture.md).
 
-* Keeping track of a database of dance videos and their metadata (in `data/db.csv`).
-* Running offline pose-estimation on videos using mediapipe, and storing the results in CSV for further analysis.
-* Analyzing the audio of videos to extract signals (beats, bpm, cross-similarities, etc.) that may be useful for structuring teaching.
-* Calculating metrics for dance complexity (e.g. plots of the accumulated complexity over time, typically base on kinematic features).
-* Preparing data bundles for the web frontend (incorporates several components already mentioned)
-  * Running pose-estimation
-  * Running audio analysis, generating recurisve tree-like decompositions of dances
-  * Calculating complexity metrics for the dance /
-  * Incorporating complexity into the dance trees.
-  * Creating symbolic links from the web frontend to the static media files (pose, holistic data, videos).
-  * Packaging dance and dancetree information into JSON files for the web frontend.
-* Inferring joint angles from 3D landmark data (mediapipe) and storing the results in BVH format for use in animation software.
-* Retargeting motions present in dance videos for performance by the Nao robot
+## Responsibilities
 
-## Getting Started
+- Track reference-video metadata.
+- Extract MediaPipe 2D and holistic landmarks.
+- Preprocess raw pose data into analysis-space clean artifacts.
+- Analyze audio timing and repeated structure.
+- Compute and visualize motion complexity.
+- Generate dance trees and frontend JSON/media bundles.
+- Prepare prior user-study videos for metric analysis.
+- Fit and compare automatic metrics against human ratings.
 
-While working on the motion-pipeline,your working directory should be in this folder (`motion-pipeline`).
+BVH, Mecanim, retargeting, and NAO teleoperation code records earlier investigations and is not the main active workflow.
 
-1. Install python >= 3.8
-1. Install ffmpeg (for video transcoding, audio extraction, etc.). Ensure it's available in commmand line (added to PATH).
-1. Create a virtual environment: `python -m venv .env`
-1. Activate the virtual environment: `source .env/bin/activate` (or similar, depending on your shell).active
-1. Install dependencies: `pip install -r requirements.txt`
-1. If you're on windows, ensure that Developer Mode is enabled (so that symlinks can be created).
+## Environment
 
-## Running the pipeline
+Run commands with this directory as the working directory. The VS Code settings and script wrappers expect a project-local `.env`.
 
-There are numerous tasks that can be run within this module, and they're all defined in the VSCode launch file (`.vscode/launch.json`). To run a script, select it from the dropdown in the top left of the VSCode window, and click the green play button.
+Prerequisites:
 
-* The single most important task is `Run DanceTree Pipeline`. This consolidates several processing steps into a single script, making it easy to run the entire pipeline, and bundles the output for use for the frontend. Data is cached along the way, meaning that the pipeline will run faster the 2nd and subsequent times it's run (you can force a full re-run by altering the `launch.json` arguments for this task, or by deleting the temp folders).
-* Extracted pose artifacts now use explicit raw/clean naming:
-  * extraction writes `*.pose2d.raw.csv` and `*.holisticdata.raw.csv`;
-  * preprocessing writes `*.pose2d.clean.csv` and `*.holisticdata.clean.csv`.
-* Some downstream consumers intentionally stay on raw data, especially image-space overlay use cases for `pose2d`. Analytical consumers should prefer clean data unless they have a specific reason not to.
-* Pipeline artifact capture is optional. Set `--artifact_archive_root` on the main pipeline to create one timestamped run folder under `artifact-archive/`; by default, each step writes artifacts unless its corresponding `--suppress_*_artifacts` flag is set.
-* Holistic debug frames are no longer controlled by a boolean. Use `--holistic_debug_frames_dir` to enable them, and optionally repeat `--debug_frame_whitelist` to limit which input files emit frames. If no whitelist is provided, all files match.
-* Complexity plotting can be filtered independently from complexity calculation. Use repeated `--complexity_plot_whitelist` on the main pipeline or `--plot_whitelist` on `calculate_cumulative_complexity` to match relative stems such as `study2/*`; unmatched files still contribute to normalization and CSV outputs, but are omitted from generated plots.
+- Python 3.9 or another version compatible with the pinned MediaPipe release;
+- `ffmpeg` on `PATH`;
+- access to source media only when the selected workflow needs it.
 
-For cloud-agent runs, stage inputs with `python -m motion_extraction.rclone_transfer pull`, run the existing pipeline against local directories, and publish only verified results with `publish-artifacts` or `publish-processed-bundle`. The latter explicitly replaces the latest processed-media cache; ordinary pipeline runs do not publish to Drive.
-
-## Video -> BVH Process
-
-To get a usable 3d motion animation from video, we process mediapipe output with existing knowledge of human skeleton and joints to generate a bvh file.
-
-The process is as follows:
-1. Using mediapipe, get world-frame 3d pose coordinates and normalized 3d hand coordinates from the video.
-1. Recenter and re-orient the pose so that it's centered at the origin.
-    * Alternative: use joint rotations directly at this point (would lose some 3d positional accuracy).
-1. Using knowledge of human hand anatomy, merge the hand coordinates with the 3d pose coordinates to get fully defined joint positions for the entire skeleton. 
-1. Using knowledge of joint DOF, infer joint angles from the joint positions.
-1. Generate a bvh file
-
-## BVH Writer
-
-Documentation for the BVH format: <https://research.cs.wisc.edu/graphics/Courses/cs-838-1999/Jeff/BVH.html>
-
-In BVH, the following relationship holds between child $j$ and parent $P(j)$ - the position of joint $j$ is then given by:
-
-$$pos_j = R_{P(j)}offset_j + pos_{P(j)}$$
-
-Therefore, the orientation of a joint affects the position of it's children.
-
-## NAO Teleoperation
-
-1. Start listener from the nao6-experiments repo.
-1. Select Nao Teleoperation debug config and run it.
-    * On windows, you can see available webcams in settings > cameras. The indexes should line up with what's visible there. Change the webcam index in the launch file.
-
-## USEFUL SH COMMANDS
-
-```sh
-for file in ./*; do ffmpeg -i $file -vcodec copy -acodec copy -tag:v hvc1 ./redone/$file -y; done
+```bash
+python3 -m venv .env
+source .env/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
+
+In VS Code, open [the repository multi-root workspace](../dance-teacher-xr-unity.code-workspace) and select `motion-pipeline/.env/bin/python` if the editor chose another interpreter. Interpreter drift is a common cause of imports working in one context but not another.
+
+## Two distinct processing workflows
+
+### Reference videos to frontend bundle
+
+The primary orchestrator is:
+
+```bash
+python -m motion_extraction.dancetree.run_dancetree_pipeline --help
+```
+
+It performs metadata update, raw pose extraction, clean preprocessing, complexity analysis, audio/structural analysis, dance-tree enrichment, and bundle export.
+
+Use these as canonical runnable examples:
+
+- [.vscode/launch.json](.vscode/launch.json): current full and component-level launch arguments;
+- [script_invocations/run_dancetree_pipeline_test_small.sh](script_invocations/run_dancetree_pipeline_test_small.sh): focused smoke run;
+- [script_invocations/run_dancetree_pipeline_test.sh](script_invocations/run_dancetree_pipeline_test.sh): broader local run.
+
+Absolute Google Drive paths in launch configurations are workstation examples, not portable defaults.
+
+Pose artifacts use explicit naming:
+
+- extraction: `*.pose2d.raw.csv`, `*.holisticdata.raw.csv`;
+- preprocessing: `*.pose2d.clean.csv`, `*.holisticdata.clean.csv`.
+
+Keep raw `pose2d` for source-aligned overlays. Prefer the appropriate clean artifact for analytical consumers.
+
+### Prior user-study analysis
+
+This is a separate, more ad hoc workflow:
+
+- `motion_extraction/scripts/getposes.py`: extract poses from participant/reference videos;
+- frontend motion-metric tests: evaluate study fixtures and export aggregate metrics;
+- `motion_extraction/scripts/fit_metric_linear_model.py`: compare metrics with human ratings.
+
+Study data locations and access rules are documented in [the dataset guide](../documentation/dataset.md).
+
+## Validation
+
+Run the narrowest existing test that covers the change:
+
+```bash
+.env/bin/python -m pytest motion_extraction/complexity_analysis/tests/test_pose_preprocessing.py
+.env/bin/python -m pytest motion_extraction/complexity_analysis/tests/
+```
+
+For end-to-end changes, run the small pipeline script. It requires the referenced local media input:
+
+```bash
+./script_invocations/run_dancetree_pipeline_test_small.sh
+```
+
+Pipeline artifact capture is optional. Pass `--artifact_archive_root` to create a timestamped run folder; use step-specific `--suppress_*_artifacts` flags to reduce output.
+
+## Data transfer for cloud agents
+
+Never mount Google Drive. Stage inputs locally and publish only verified outputs:
+
+```bash
+python -m motion_extraction.rclone_transfer pull <remote-path> <local-dir>
+python -m motion_extraction.rclone_transfer publish-artifacts <local-dir> <remote-path>
+python -m motion_extraction.rclone_transfer publish-processed-bundle <local-bundle>
+```
+
+The processed-bundle publication command replaces the cache and should run only after frontend validation. See [the dataset guide](../documentation/dataset.md).
+
+## Useful entry points
+
+- Main orchestrator: `motion_extraction/dancetree/run_dancetree_pipeline.py`
+- Raw extraction: `motion_extraction/extract_holistic_data.py`
+- Preprocessing: `motion_extraction/preprocess_pose_data.py`
+- Bundle export: `motion_extraction/dancetree/bundle_data.py`
+- Audio analysis: `motion_extraction/audio_analysis/`
+- Complexity analysis: `motion_extraction/complexity_analysis/`
+- Metric fitting: `motion_extraction/scripts/fit_metric_linear_model.py`

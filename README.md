@@ -1,33 +1,26 @@
 # Dance Teacher XR
 
-## About
+Research code for automatically structuring short dance lessons from video and investigating the transition from a guided learning interface toward an adaptive virtual dance coach.
 
-This repo houses work for the 2nd iteration of a system for teaching short dance choreographies from video.
+The active system has two primary subprojects:
 
-The first iteration of the system is presented and described in this demo paper: [Automatic Generation and Teaching of Dance Lessons from Video (HotMobile '23)](https://dl.acm.org/doi/abs/10.1145/3572864.3581592). The extended jounrnal version of this paper is currently in progress.
+- [motion-pipeline/](motion-pipeline/): offline Python processing for pose extraction, preprocessing, audio/complexity analysis, dance-tree generation, bundle export, and research analysis.
+- [svelte-web-frontend/](svelte-web-frontend/): SvelteKit application for lesson delivery, webcam pose estimation, motion evaluation, feedback, and teaching-agent logic.
 
-There are two main components to this system:  
-* An offline motion-processing module, under the folder `motion-pipeline`. This python module performs computationally intensive processing tasks offline, such as pose estimation, music analysis, and compexity calculation, and bundles the final output files for the consumption of the web frontend. It also performs retargeting of motions for robot demonstration. 
-* A javascript webapp for teaching dance lessons, written using the [Svelte](https://svelte.dev/) framework, under the folder `svelte-web-frontend`. This we
+Unity, A-Frame, BVH, and NAO/retargeting code represent earlier or secondary investigations. They remain useful historical context but are not the main chapter-focused development path.
 
-## Development Process
+## Start here
 
-The main branch is protected. To work on this site, we follow a pull request workflow. To make changes, create a new branch from the main branch, make changes, and then open a pull request to merge your branch into the main branch.
+- Coding agents: [AGENTS.md](AGENTS.md)
+- Repository map: [documentation/repository-summary.md](documentation/repository-summary.md)
+- Documentation index: [documentation/README.md](documentation/README.md)
+- Current research maturity: [documentation/experimental-status.md](documentation/experimental-status.md)
+- Data and artifact access: [documentation/dataset.md](documentation/dataset.md)
 
-Example:
-* `git checkout -b j55blanchet/update-homepage-ui` # create a new branch
-* (make changes)
-* `git add .` # add your changes
-* `git commit -m "refined homepage typography"` # commit your changes
-* `git push origin j55blanchet/update-homepage-ui` # push your changes to the remote branch
-* Open a pull request on github to merge your branch into the main branch
-  * Or, use the vscode pull requests extension to open a pull request
+For cross-project work, open [dance-teacher-xr-unity.code-workspace](dance-teacher-xr-unity.code-workspace). For setup and commands, follow the README in the subproject you are changing.
 
-## Getting Started
+## Research framing
 
-1. Install git, and install [git large file storage](https://git-lfs.com/) with `git lfs install`
-2. Follow the README.md for the [Motion Processing Pipeline](motion-pipeline/README.md) module to setup the python environment, install dependencies, and run the pipeline. This will generate a data bundle for the web frontend.
-3. Follow the README.md for the [Svelte Web Frontend](svelte-web-frontend/README.md) to setup the svelte environment and run the webapp. You can then access the webapp on localhost (see the README.md for details).
+The earlier CHI 2025 work evaluated automatically generated practice plans for learning TikTok dance challenges. The current repository reuses those study assets to evaluate motion metrics and develops a different, still-automated lesson structure: a checkpointed learning journey in which segments progress through `mark -> drill -> full out`. The longer-term goal is a closed feedback loop that connects movement evaluation, learner state, feedback, and sequencing. That adaptive loop is still incomplete; see [documentation/experimental-status.md](documentation/experimental-status.md).
 
-## Updating the Published Webapp
-The webapp is published on github pages. The published webapp is hosted from the `docs` folder. Running a svelte build job in the web frontend folder will update the published verison in the docs folder. When pushed to the main branch, the published webapp will be updated. The webapp is available at <https://dancetutor.julien.studio>.
+The current thesis source places these projects in [chapter 6](documentation/papers/thesis/chapters/06-enhancing-the-educational-potential-of-tiktok-dance-videos.md) and [chapter 7](documentation/papers/thesis/chapters/07-toward-an-adaptive-virtual-dance-coach.md), although earlier notes use chapter-4/chapter-5 working numbers.

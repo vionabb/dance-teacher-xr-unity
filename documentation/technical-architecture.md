@@ -1,197 +1,158 @@
 # Technical Architecture
 
-This document describes the technical architecture of the dance-teaching system in this repository and how it supports the chapter-5 research direction.
+This document owns the current implementation structure and cross-project contracts. For purpose and task routing, start with the [repository summary](repository-summary.md). For research maturity, see [experimental status](experimental-status.md).
 
-## 1. Overall purpose
+## System layers
 
-The repository implements a hybrid system for dance learning:
+The system has three coupled layers:
 
-- an offline motion-processing pipeline that turns raw dance videos into structured pose, audio, segmentation, and bundle artifacts; and
-- a web-based coaching frontend that presents lessons, captures live webcam motion, evaluates the learner against a reference performance, and drives coaching decisions.
+1. **Offline data and structure**: Python extraction, preprocessing, audio/complexity analysis, segmentation, and bundle export.
+2. **Evaluation**: browser-side pose estimation, motion metrics, performance histories, and offline metric validation.
+3. **Instruction**: lesson delivery, progress tracking, feedback, and teaching-agent decisions.
 
-The system is designed around a closed loop:
+The intended loop is:
 
-1. a reference dance is analyzed offline,
-2. the learner practices through a web interface,
-3. the live webcam pose is estimated,
-4. motion metrics compare the learner to the reference,
-5. the coaching logic decides what to show or suggest next.
+```text
+reference video
+  -> offline pose/audio/structure
+  -> frontend lesson bundle
+  -> learner webcam pose
+  -> motion evaluation
+  -> feedback and next-practice decision
+```
 
-## 2. High-level structure
+The loop is only partially closed today: lesson structure and feedback paths work, but reliable learner-state-aware adaptive sequencing remains research in progress.
 
-The project is organized into two major subsystems.
+## Offline pipeline
 
-### 2.1 Offline analysis pipeline
+### Reference-video workflow
 
-The Python package in [motion-pipeline](motion-pipeline) handles heavy offline computation. Its responsibilities are to:
+The main orchestrator is [run_dancetree_pipeline.py](../motion-pipeline/motion_extraction/dancetree/run_dancetree_pipeline.py). It coordinates:
 
-- ingest source videos and metadata,
-- extract pose information with MediaPipe into explicit raw pose artifacts,
-- preprocess pose data into clean coordinate representations for analysis,
-- extract audio-derived timing and beat structure,
-- compute motion complexity descriptors,
-- generate dance-tree/segmentation outputs,
-- export frontend bundle data.
+1. database update;
+2. raw holistic and 2D pose extraction;
+3. clean pose preprocessing;
+4. cumulative complexity calculation;
+5. audio analysis and structural grouping;
+6. complexity injection into dance trees;
+7. frontend bundle export.
 
-This layer is intentionally computationally heavy and is not expected to run in the browser.
+[The pipeline launch file](../motion-pipeline/.vscode/launch.json) contains current example arguments. Its absolute paths are workstation-specific; use the test configuration or script wrappers for portable smoke runs.
 
-### 2.2 Live coaching frontend
+### Pose data contract
 
-The Svelte application in [svelte-web-frontend](svelte-web-frontend) provides the interactive experience. It is responsible for:
+[extract_holistic_data.py](../motion-pipeline/motion_extraction/extract_holistic_data.py) writes raw artifacts:
 
-- lesson playback and practice-step UI,
-- webcam pose estimation,
-- real-time motion evaluation,
-- progress tracking,
-- post-attempt feedback and self-report flows,
-- automated coaching decisions.
+- `*.pose2d.raw.csv`
+- `*.holisticdata.raw.csv`
 
-## 3. End-to-end data flow
+[preprocess_pose_data.py](../motion-pipeline/motion_extraction/preprocess_pose_data.py) writes sibling clean artifacts:
 
-A typical run of the system looks like this:
+- `*.pose2d.clean.csv`
+- `*.holisticdata.clean.csv`
 
-1. Raw video assets and study metadata are ingested by the motion pipeline.
-2. The pipeline extracts pose data and stores raw pose exports.
-3. A preprocessing step writes sibling clean pose exports, normalizes the pose data, and marks usable frames.
-4. Audio, segmentation, and complexity analyses are computed.
-5. The pipeline exports bundle data consumed by the frontend.
-6. The frontend loads the reference motion and lesson structure.
-7. During practice, the browser estimates the learner's live pose from webcam input.
-8. Live metrics compare the learner's pose to the reference pose.
-9. The teaching agent uses the metrics, progress state, and lesson structure to decide what the learner should do next.
+Current preprocessing includes root recentering, torso-length normalization, and frame-usability metadata. Visibility repair, outlier handling, and smoothing are active/incomplete research areas; check [experimental status](experimental-status.md) before assuming they are production-complete.
 
-This separation means the offline pipeline provides the analysis substrate, while the frontend turns that substrate into an interactive coaching experience.
+Every consumer should make these assumptions explicit:
 
-## 4. Offline pipeline architecture
+- 2D or 3D/holistic landmarks;
+- raw or clean data;
+- image-space or analysis-space coordinates;
+- handling of unusable or low-visibility frames.
 
-### 4.1 Pose extraction and preprocessing
+Raw `pose2d` is the correct input for overlays aligned to source video pixels. Clean data is generally preferred for analytical comparisons. Never silently substitute one representation for the other.
 
-The offline pipeline uses MediaPipe as the upstream pose-estimation component. The main modules are:
+### Audio, segmentation, and complexity
 
-- [motion-pipeline/motion_extraction/extract_holistic_data.py](motion-pipeline/motion_extraction/extract_holistic_data.py)
-- [motion-pipeline/motion_extraction/preprocess_pose_data.py](motion-pipeline/motion_extraction/preprocess_pose_data.py)
+[audio_analysis/](../motion-pipeline/motion_extraction/audio_analysis/) derives tempo, beat, similarity, and grouping information. [complexity_analysis/](../motion-pipeline/motion_extraction/complexity_analysis/) computes motion/tempo-based complexity signals and diagnostics.
 
-The preprocessing stage currently performs:
+These outputs contribute structure to dance trees, but they are not validated learner-state or pedagogical-optimality measures. Complexity and audio grouping should not be described as adaptive coaching by themselves.
 
-- explicit raw/clean artifact separation, with raw files retained as `*.pose2d.raw.csv` and `*.holisticdata.raw.csv`,
-- sibling clean artifact generation as `*.pose2d.clean.csv` and `*.holisticdata.clean.csv`,
-- root recentering around the hip midpoint,
-- torso-length normalization,
-- frame usability flags for invalid or insufficient pose information.
+### Bundle boundary
 
-The broader preprocessing plan is intentionally phased.
+[bundle_data.py](../motion-pipeline/motion_extraction/dancetree/bundle_data.py) exports the nonmedia bundle, including `dances.json` and `dancetrees.json`, plus media references consumed by:
 
-- Phase 1, already implemented: root recentering, torso-length normalization, and explicit usability metadata.
-- Phase 2, planned: joint-wise visibility thresholding plus short-gap interpolation.
-- Phase 3, planned: joint-wise outlier flagging for discontinuous jumps plus short-gap interpolation.
-- Phase 4, planned: smoothing, currently expected to use Savitzky-Golay filtering.
+- `svelte-web-frontend/src/lib/data/bundle/`
+- `svelte-web-frontend/static/bundle/`
 
-These steps matter because downstream metrics depend on a stable geometric pose representation rather than raw detector output alone.
+When changing bundle fields or filenames, inspect the frontend loader, sync scripts, Supabase metadata, and tests.
 
-The raw artifacts are still important and are not just intermediate leftovers. Raw `pose2d` remains the correct representation for image-space consumers such as browser-side skeleton overlays, because those overlays must line up with the original pixel coordinates of the source frames. Clean pose data is instead intended for most analytical consumers.
+### Study-analysis workflow
 
-In practice, this means the preprocessing layer is both a data transformation stage and an interface boundary. Code that consumes pose data should communicate whether it expects:
+The CHI study analysis path is distinct from the reference-video bundle pipeline:
 
-- `pose2d` or `holisticdata`,
-- raw or clean coordinates,
-- image-space coordinates or normalized analysis-space coordinates.
+- [getposes.py](../motion-pipeline/motion_extraction/scripts/getposes.py) prepares poses from study videos;
+- frontend metric fixtures and tests evaluate participant performances against references;
+- [fit_metric_linear_model.py](../motion-pipeline/motion_extraction/scripts/fit_metric_linear_model.py) consumes the exported metric CSV.
 
-### 4.2 Audio and structural analysis
+Do not force this ad hoc research workflow through the bundle pipeline unless the data contract is intentionally redesigned.
 
-The pipeline also derives structure from the dance itself. It computes:
+## Frontend
 
-- beat and tempo information,
-- dance-tree segmentation,
-- complexity signals over time,
-- metadata helpful for instructional sequencing.
+### Lesson construction
 
-These analyses help the lesson system decide where the choreography can be broken into meaningful segments and practice steps.
+[TeachingAgent.ts](../svelte-web-frontend/src/lib/ai/TeachingAgent/TeachingAgent.ts) constructs the current automated `PracticePlan` from phrase nodes in a motion segmentation:
 
-Complexity analysis is being refactored so that it can operate explicitly on either 2D or 3D pose inputs. The current design direction is:
+- phrase segments become learning activities;
+- up to three segment activities are grouped before a checkpoint;
+- checkpoints combine the current group;
+- a finale covers the full choreography;
+- activities use `mark`, `drill`, and `full out` steps.
 
-- keep raw-vs-clean assumptions explicit in code and naming,
-- prefer clean pose data for most analytical pathways,
-- allow both cleaned `pose2d` and cleaned `holisticdata` to serve as valid inputs to complexity computation,
-- avoid silently mixing image-space and normalized coordinate assumptions inside the same analysis function.
+This differs from the earlier CHI study's automatically compiled practice plans. Both are automated, but the current system uses a checkpointed learning journey tied to current segmentation and progress logic.
 
-### 4.3 Bundle export
+### Practice-step policy
 
-The pipeline exports the data needed by the frontend, especially the dance bundle JSON and related media references. The main export logic is in:
+The step sequence implements fading guidance:
 
-- [motion-pipeline/motion_extraction/dancetree/bundle_data.py](motion-pipeline/motion_extraction/dancetree/bundle_data.py)
+| Step | Typical role |
+| --- | --- |
+| Mark | Slow, reference-led rehearsal using reduced/representative motion |
+| Drill | Reference plus webcam, with concurrent and terminal feedback |
+| Full out | Full-speed, more performance-like attempt with reduced concurrent guidance |
 
-In practice, this is the bridge between offline analysis and the browser-based coaching experience.
+Step creation is split across `src/lib/ai/TeachingAgent/marking-step.ts`, `drill-step.ts`, and `fullout-step.ts`.
 
-## 5. Frontend architecture
+### Live pose estimation
 
-### 5.1 Practice and lesson experience
+[PoseEstimationService.ts](../svelte-web-frontend/src/lib/services/PoseEstimationService.ts) coordinates browser pose estimation, with worker code under `src/lib/webcam/`. The worker boundary keeps inference from blocking UI work.
 
-The main practice experience is implemented around the practice page and lesson route structure in [svelte-web-frontend/src/routes](svelte-web-frontend/src/routes). The page coordinates:
+### Evaluation
 
-- reference video playback,
-- webcam display,
-- skeleton overlays,
-- recording and review UI,
-- feedback presentation.
+The current evaluation stack lives under:
 
-The overlay requirement is one reason the system keeps raw and clean pose data side by side. Browser overlays should use raw `pose2d` because they must preserve the original image-space geometry, while scoring and offline analysis should generally move toward clean pose inputs.
+- [evaluation/](../svelte-web-frontend/src/lib/ai/evaluation/)
+- [motionmetrics/](../svelte-web-frontend/src/lib/ai/motionmetrics/)
 
-### 5.2 Webcam pose estimation
+It supports live per-frame signals, attempt summaries, histories, visualization, and offline metric experiments. Metric outputs are not automatically equivalent to learner state or pedagogical quality; downstream coaching must preserve that distinction.
 
-Live pose estimation runs in a worker so that the UI remains responsive while pose inference is happening. The relevant implementation is in:
+## Metric validation boundary
 
-- [svelte-web-frontend/src/lib/services/PoseEstimationService.ts](svelte-web-frontend/src/lib/services/PoseEstimationService.ts)
-- [svelte-web-frontend/src/lib/webcam/pose-estimation.worker.ts](svelte-web-frontend/src/lib/webcam/pose-estimation.worker.ts)
+[allmetrics.spec.ts](../svelte-web-frontend/src/lib/ai/motionmetrics/allmetrics.spec.ts) evaluates study fixtures and writes:
 
-The service receives camera frames, forwards them to the MediaPipe worker, and emits estimated 2D and 3D landmarks back into the practice page state.
+- `svelte-web-frontend/artifacts/motion_metrics.db`
+- `svelte-web-frontend/artifacts/motion_metrics.csv`
 
-### 5.3 Motion evaluation layer
+[metricdb.ts](../svelte-web-frontend/src/lib/ai/motionmetrics/testdata/metricdb.ts) owns the export schema. The Python fitting script depends on that path and column contract.
 
-Once a live pose is available, the frontend compares it against the reference pose for the current segment. The evaluation stack is centered around:
+When adding or changing a metric:
 
-- [svelte-web-frontend/src/lib/ai/FrontendDanceEvaluator.ts](svelte-web-frontend/src/lib/ai/FrontendDanceEvaluator.ts)
-- [svelte-web-frontend/src/lib/ai/UserDanceEvaluator.ts](svelte-web-frontend/src/lib/ai/UserDanceEvaluator.ts)
-- [svelte-web-frontend/src/lib/ai/motionmetrics](svelte-web-frontend/src/lib/ai/motionmetrics)
+1. define its semantics, range, and directionality;
+2. update focused frontend tests;
+3. check export schema effects;
+4. check Python normalization/model-fitting assumptions;
+5. distinguish technical correlation from validated coaching usefulness.
 
-This layer computes:
+## Data locations
 
-- live per-frame metrics during practice,
-- summary metrics after a segment or attempt,
-- time-series histories used for diagnostics and feedback.
+- Generated/local metric output and study pose folders: `svelte-web-frontend/testResults/`
+- Checked-in study fixtures: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
+- Cross-language metric artifacts: `svelte-web-frontend/artifacts/`
+- Frontend bundle JSON: `svelte-web-frontend/src/lib/data/bundle/`
+- Frontend bundle media: `svelte-web-frontend/static/bundle/`
+- Pipeline temporary/generated data: `motion-pipeline/data/` and `motion-pipeline/temp/`
+- Research data source of truth: Google Drive, described in [dataset.md](dataset.md)
 
-The metric interface is modular, so new metrics can be added without changing the surrounding control flow.
+## Legacy boundaries
 
-## 6. Coaching and lesson-plan logic
-
-The teaching agent is the main coordinator between evaluation and instructional action. Its implementation is in:
-
-- [svelte-web-frontend/src/lib/ai/TeachingAgent/TeachingAgent.ts](svelte-web-frontend/src/lib/ai/TeachingAgent/TeachingAgent.ts)
-
-Its role is to:
-
-- organize the practice plan,
-- track progress through activities and steps,
-- decide what the learner should do next after a practice attempt,
-- surface feedback and navigation options.
-
-A key distinction for this work is that lesson-plan construction in chapter 5 is different from chapter 4, even though it is still automated. Chapter 4 used a more static lesson-plan generation setup tied to the earlier study workflow. Chapter 5 uses a different automated structure that is more directly shaped by segmentation, progress state, and coaching logic in the current system.
-
-## 7. Why MediaPipe is a foundational dependency
-
-MediaPipe is not merely one component among many; it is an upstream dependency for the whole coaching loop. The quality of the pose estimates directly affects:
-
-- the reliability of the live evaluation metrics,
-- the usefulness of the coaching feedback,
-- the validity of any downstream decision-making.
-
-For this reason, MediaPipe quality should be evaluated both as a detector problem and as a system-level constraint. The relevant questions are not only whether the detector is accurate in isolation, but whether its errors are small and stable enough that downstream metrics and coaching decisions remain meaningful under real-world webcam conditions.
-
-## 8. Practical interpretation
-
-The system is best understood as three layers:
-
-- a data layer for pose extraction, preprocessing, and bundle export,
-- an evaluation layer for metric computation and summary analysis,
-- an interaction layer for lesson delivery, feedback, and coaching decisions.
-
-The system becomes useful when these layers are aligned. If the detector is weak, the evaluation layer becomes noisy. If the evaluation layer is weak, coaching actions become brittle. If the interaction layer is poor, the system cannot convert analysis into meaningful learner support.
+BVH, Mecanim, Unity, retargeting, and NAO teleoperation code records earlier spatial/robot investigations. It is not part of the main browser-coaching loop. Changes there should not expand the primary warm-start path unless that work becomes active again.
