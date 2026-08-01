@@ -100,6 +100,7 @@ Important areas:
 - `motion_extraction/complexity_analysis`: cumulative complexity computation and dancetree enrichment.
 - `motion_extraction/teleoperation`: realtime MediaPipe-driven NAO teleoperation.
 - `motion_extraction/scripts`: ad hoc analysis utilities, including metric-model fitting.
+- `motion_extraction/rclone_transfer.py`: explicit cloud-agent pull and publication commands; these stage data locally and never mount Drive.
 - `data`: CSV db, generated analysis outputs, URDF/BVH/NAO artifacts, summaries.
 - `docs/reports`: design notes and module reports.
 
@@ -108,6 +109,7 @@ Notable characteristics:
 - Python environment is expected to be local to `motion-pipeline/.env`.
 - Root-level VS Code usage should go through `dance-teacher-xr-unity.code-workspace`, which opens `motion-pipeline` as its own workspace folder so the local interpreter and `motion_extraction` import root resolve correctly.
 - README positions `.vscode/launch.json` as the primary entrypoint for runnable tasks.
+- Cloud-agent setup is defined in `.github/workflows/copilot-setup-steps.yml`; `.github/setup-rclone.sh` creates read-only `dataset` plus writable `agentoutput` and `processedmediabundle` remotes from Agents secrets.
 - The main orchestration script is `motion_extraction.dancetree.run_dancetree_pipeline`.
 
 ## Critical Data Flow: Frontend Metrics -> Python Model Fitting

@@ -17,6 +17,7 @@ artifacts: []
 - The repository contains an ignored local Google Drive service-account credential and a committed example credential filename; credential contents were not inspected or recorded.
 - GitHub Copilot cloud agent exposes **Agents** secrets to its environment. Ordinary GitHub Actions, Codespaces, and Dependabot secrets are not made available to it. MCP-only secret delivery is a separate, explicitly configured option.
 - The researcher has an existing read-only Drive dataset root with `reference-videos` and `user-performances-chi2025` subfolders, plus a distinct read/write agent-output root. The existing rclone configuration uses the same ignored service-account credential for both connections. Drive folder identifiers are intentionally not recorded in the repository.
+- The chosen cloud workflow is rclone operations only: stage into local working directories, run the existing path-based pipeline, persist selected artifacts with `rclone copy`, and explicitly replace the latest processed-media cache only after validation.
 
 ## Proposed direction
 
@@ -26,3 +27,4 @@ artifacts: []
 ## Next step
 
 - Agree the Drive folder contract and credential injection contract before implementing the adapter.
+- The three-remotes setup and explicit transfer CLI are now in place; the remaining integration work is to add pipeline-specific staging/publish invocation examples and validate the Copilot setup workflow in GitHub.
