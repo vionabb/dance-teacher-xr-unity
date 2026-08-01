@@ -1,6 +1,8 @@
 name: Copilot Setup Steps
 
 on:
+  # Check that this workflow works when changes
+  # are made to relevant files.
   workflow_dispatch:
   push:
     paths:
@@ -24,6 +26,6 @@ jobs:
           sudo -v
           curl https://rclone.org/install.sh | sudo bash
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Configure and verify rclone
         run: bash .github/setup-rclone.sh

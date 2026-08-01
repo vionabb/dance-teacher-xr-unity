@@ -31,3 +31,5 @@ The three remotes intentionally have different scopes and Drive roots:
 - `processedmediabundle`: read/write access to the nested processed bundle folder.
 
 The service-account JSON and folder IDs are supplied to cloud-agent setup as Agents secrets. They are materialized only into the runtime rclone configuration and must not be committed.
+
+GitHub does not expose a documented environment marker that distinguishes a Copilot setup run from an ordinary Actions run. To make missing cloud credentials fail loudly, configure the non-secret repository Agents variable `RCLONE_REQUIRE_AUTH=1`. The setup script remains permissive when that variable is absent so normal push and pull-request validation cannot require unavailable Agents secrets.
