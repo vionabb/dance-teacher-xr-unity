@@ -6,15 +6,10 @@ This repository supports the final case study of the thesis in [thesis-draft.pdf
 
 The two primary active projects are:
 
-1. `svelte-web-frontend`: a SvelteKit full-stack app for AI dance coaching, lesson delivery, practice workflows, motion metrics, and local/prod Supabase integration.
+1. `svelte-web-frontend`: a SvelteKit full-stack app for AI dance coaching, lesson delivery, practice workflows, motion metrics, and local/prod Supabase integration. It also contains a test suite of motion metrics, which use poses of user performances collected from the CHI 2025 paper and compares them to reference tiktok videos that the users were trying to learn. The benefit there is that we have human-rated similarity scores and we can thus see how correlated the metric outputs are to human ratings of the participants' performances.
 2. `motion-pipeline`: a Python preprocessing and analysis pipeline that turns raw dance videos into pose data, complexity outputs, audio-derived dance trees, frontend bundle JSON, and NAO teleoperation / retargeting artifacts.
-
-There are also side projects at the repo root:
-
-- `dance-teacher-xr-unity/`: Unity project content.
-- `aframe-xr-simple/`: smaller A-Frame/XR prototype.
-
-Those exist, but the main engineering surface area is in `svelte-web-frontend` and `motion-pipeline`.
+  - The NAO teleoperation and retargeting code is from an earlier stage of investigation and is not actively used. This includes BVH and Mecanim humanoid code and a teleoperation module.
+  - There are two distinct types of motion processing workflows. One of them, centralized in `run_dancetree_pipeline.py`, takes at a bunch of reference videos, performs pose estimation and various processing & analysis steps, and produces json files and a media bundle for consumption by the frontend. The other is more adhoc, involving `getposes.py` and `measure_pose_quantities.py` and is used to prepare userstudy videos for analysis. That analysis is mostly done with the metric test suite in the frontend subproject, which outputs a csv consumed by `fit_metric_linear_model.py`.
 
 ## Lab Log
 
