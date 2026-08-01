@@ -1,6 +1,6 @@
 ---
 date: 2026-08-01
-tags: [documentation, agent-context, warm-start, chapter-5]
+tags: [documentation, agent-context, warm-start, chapter-7]
 artifacts: []
 ---
 
@@ -19,7 +19,7 @@ The researcher also previously clarified that lesson-plan construction in the cu
 - Assigned one owner to each kind of information: architecture, experimental status, data access, environment setup, agent operations, and dated research rationale.
 - Replaced duplicated setup instructions with links to the owning subproject README and verified commands against current manifests and configuration.
 - Documented the distinction between generated `svelte-web-frontend/testResults/` data and checked-in motion-metric fixtures under `src/lib/ai/motionmetrics/testdata/`.
-- Documented the chapter-numbering drift: earlier discussions use chapters 4 and 5, while the current thesis export places the dance-learning and adaptive-coaching work in chapters 6 and 7.
+- Standardized references to the dance-learning and adaptive-coaching work as chapters 6 and 7.
 - Made the current lesson-plan distinction concrete: phrase segments, groups of up to three, checkpoints, finale, and the `mark -> drill -> full out` progression.
 - Marked BVH, Mecanim, Unity, retargeting, and NAO work as secondary/historical so agents do not mistake it for the main active workflow.
 

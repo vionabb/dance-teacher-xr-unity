@@ -29,6 +29,6 @@ This directory is the canonical documentation hub for coding and research agents
 
 When information changes, update the owning document and link to it elsewhere rather than duplicating the full explanation.
 
-## Chapter-numbering note
+## Thesis chapters
 
-Earlier project discussions refer to the published dance-learning work and the adaptive-coaching work as thesis chapters 4 and 5. In the current thesis export, they appear as [chapter 6](papers/thesis/chapters/06-enhancing-the-educational-potential-of-tiktok-dance-videos.md) and [chapter 7](papers/thesis/chapters/07-toward-an-adaptive-virtual-dance-coach.md). Prefer titles over chapter numbers when writing durable documentation.
+The published dance-learning work is [chapter 6](papers/thesis/chapters/06-enhancing-the-educational-potential-of-tiktok-dance-videos.md), and the adaptive-coaching work is [chapter 7](papers/thesis/chapters/07-toward-an-adaptive-virtual-dance-coach.md). Prefer linked chapter titles when a durable reference benefits from more context than the number alone.
