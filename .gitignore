@@ -11,3 +11,6 @@
 
 secrets/*
 !secrets/example-*
+
+# Google Drive Paths (for local development)
+.github/localenvironment.json 

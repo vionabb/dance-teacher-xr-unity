@@ -44,7 +44,7 @@ The `lab-log/` directory at the repo root is the running research narrative. It 
 
 - Sensitive data & provenance: Because the raw videos are stored on a private Google Drive location, any agent or collaborator that needs to reproduce analyses must obtain access to that Drive or regenerate the pose exports from the raw video copies. The pose exports in `testResults` are sufficient for most metric-research workflows if access to raw videos is restricted.
 
-- Citation of study in artifacts: When reusing or sharing analysis outputs, reference the CHI 2025 study (thesis chapter 4) and note that chapter 5 (experimental system) is implemented in this repository; add provenance notes to any published CSV/figures indicating whether pose data are preprocessed exports or re-extracted from the raw videos.
+- Citation of study in artifacts: When reusing or sharing analysis outputs, reference the CHI 2025 study (thesis chapter 4, described in docs/papers/chi2025.md) and note that chapter 5 (experimental system) is implemented in this repository; add provenance notes to any published CSV/figures indicating whether pose data are preprocessed exports or re-extracted from the raw videos.
 
 ## High-Level Architecture
 
