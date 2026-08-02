@@ -2,7 +2,7 @@ import type { PracticePlanProgress } from '$lib/data/activity-progress';
 import type { PracticePlan } from '$lib/model/PracticePlan';
 import type { Database } from '$lib/ai/backend/SupabaseTypes';
 import type { MotionSegmentation } from '$lib/data/dances-store';
-import type { VideoRecording } from '../IPracticePage';
+import type { VideoRecording } from '$lib/model/IPracticePage';
 import type PracticeStep from '$lib/model/PracticeStep';
 /**
  * UserProgressModel represents a record of user progress for a specific video.

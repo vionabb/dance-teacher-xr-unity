@@ -1,142 +1,137 @@
 # Svelte Web Frontend
 
-This is a web app for teaching short dance choreographies, built using the svelte framework.
+SvelteKit application for lesson delivery, webcam pose estimation, motion evaluation, feedback, progress tracking, and teaching-agent logic. For repository context and cross-project contracts, read [the repository summary](../documentation/repository-summary.md) and [technical architecture](../documentation/technical-architecture.md).
 
-## Developing
+## Environment
 
-For all development on the frontend, we assume you're in this directory. `cd` into it if you're not.
+Run commands from this directory.
 
-I recommend using Visual Studio Code as your editor, with the [svelte extension](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) installed.
+Required:
 
-1. Install [Node.js](https://nodejs.org)
-2. (recommended) install [pnpm](https://pnpm.js.org/en/installation)
+- Node `>=24 <25`;
+- pnpm `9.12.2` (the `packageManager` version in `package.json`).
 
-    ```bash
-    npm install -g pnpm
-    ```
+Optional for full local data/auth flows:
 
-3. Ensure that the motion processing pipeline has been run, so that the `static/bundle` directory and `src/lib/data/bundle` folders are populated with the necessary files. See the [motion pipeline README](../motion-pipeline/README.md) for more information.
-
-4. Install the dependencies:
-
-    ```bash
-    pnpm install
-    ```
-
-5. Configure supabase
-
-    ```bash
-    pnpm supabase init
-    pnpm supabase login # you'll need to provide an access token, which you can get from the supabase dashboard
-    pnpm supabase start
-    ```
-
-6. Load your local supabase with media files (see later in README for more information)
-
-7. Run the app:
-
-    ```bash
-    pnpm run dev
-    ```
-
-8. Navigate to [localhost:5173](http://localhost:5173)
-
-## Building
-
-To create a production version of the app:
+- Docker;
+- Supabase CLI, installed with project dependencies;
+- a populated frontend media bundle.
 
 ```bash
-npm run build
+corepack enable
+corepack prepare pnpm@9.12.2 --activate
+pnpm install --frozen-lockfile
 ```
 
-This will leave a production-ready version of the app in the `../docs` folder, which github pages will pick up when you merged into the `main` branch.
-
-You can preview the production build with:
+Environment variables are loaded from `src/env/`. Copy the checked-in example and provide only the values needed by the workflow:
 
 ```bash
-npm run preview
+cp src/env/.env.example src/env/.env
 ```
 
-## Testing
+The app expects `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. LLM-backed code paths additionally need the corresponding private API key, such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. Never commit populated environment files.
 
-We use `vitest` for testing. This will be installed as a dev dependency as part of `pnpm install`.
+## Fast validation without full services
 
-I recommend using Visual Studio Code as your editor, with the [vitest extension](https://marketplace.visualstudio.com/items?itemName=ZixuanChen.vitest-explorer) installed.
+Most code work can start without Supabase or the media bundle:
 
-* Then, you can use the testing tab in vscode to run tests, or hover over tests and click to run or debug an individual test.
-
-You can also run tests from the command line:
-
-* To run tests, you can simply do `pnpm run test`. This will put tests in watch mode, and will rerun whenever code changes.
-* You can also execute `pnpm run test --run` to run the tests only once (not in watch mode).
-* You can also execute `pnpm run test --coverage` to run the tests and generate a coverage report.
-
-Many motion metric tests include a test that runs the metric against multiple pre-recorded dance performance and outputs the formatted summaries of the results in the `testResults` directory. These CSV files are very useful for getting an overview of a given metric's output for many different performances. You can record a new performance by loading up the site, enabling debug mode, and practicing a segment. Then, click "Export Recorded Track", enter a description for the track, and the files will be saved.
-
-## Development Tips
-
-### Using Icons
-
-We use the [unplugin-icons](https://github.com/unplugin/unplugin-icons) package. For consistency, we prefer to use icons form the `IconPark Outline` library, searchable [here](https://icon-sets.iconify.design/icon-park-outline/).
-
-To put an icon in your code, first import it like so:
-
-```js
-import ClockIcon from 'virtual:icons/icon-park-outline/alarm-clock';
+```bash
+pnpm check
+pnpm test --run <test-file>
+pnpm lint
 ```
 
-Then use it like so:
+Use `pnpm test --run`, not bare `pnpm test`, for one-shot automation; the default command starts watch mode.
 
-```html
-<ClockIcon />
+## Run the app
+
+For UI work that does not need real backend/media behavior:
+
+```bash
+pnpm dev
 ```
 
-### Updating Mediapipe
+Open <http://localhost:5173>.
 
-You can update the mediapipe version with pip (be sure to update requirements.txt).
+For the complete experience, first populate:
 
-Be sure to download the improved model and put it in the static/mediapipe folder. See <https://developers.google.com/mediapipe/solutions/vision/pose_landmarker/index#models> for more information.
+- `src/lib/data/bundle/` with bundle JSON;
+- `static/bundle/` with source videos, pose data, and thumbnails.
 
+These assets are produced by the Python pipeline or obtained from the validated processed-media bundle described in [the dataset guide](../documentation/dataset.md).
 
-### Supabase
+## Local Supabase
 
-We use [supabase](https://supabase.io/) for our database. For local development, we use the [supabase CLI](https://supabase.io/docs/reference/cli/installation) to interact with the database. This will be installed with `pnpm install`.
+Start Docker, then:
 
-1. Ensure you have docker installed and running.
-1. Run `pnpm supabase login` to login to supabase. You'll need to provide an access token, which you can get from the supabase dashboard.
-1. Run `pnpm supabase link --project-ref ngjnwvcgmfxwbwbidtcy` to link the CLI to the supabase project. This will allow you to run commands like `pnpm supabase init` to initialize the database.
-1. To get started with a local supabase instance, you can run `pnpm supabase start`. This will start a local supabase instance, and will also start a local postgres instance. You can then use the supabase CLI to interact with the local instance. For example, you can run `pnpm supabase init` to initialize the local instance with the necessary tables and data.
+```bash
+pnpm supabase start
+pnpm supabase status
+```
 
-To get the app running locally, you'll need to upload the necessary data to supabase.
-1. Go to the supabase local dashboard at <http://localhost:54323>, the go to the storage tab.
-1. Create buckets for `holisticdata`, `pose2ddata`, `sourcevideos`, and `thumbnails` (ensure they're all public buckets).
-1. Upload the files in the folders of `static/bundle` to their corresponding buckets.
+The local configuration lives in `supabase/config.toml`. Studio is normally available at <http://localhost:54323>.
 
-Other commands:
+Storage-backed media flows expect public buckets named:
 
-* `pnpm supabase db pull` to pull the latest database schema from supabase. Will create a SQL migration script in `migrations/` that you can run with `pnpm supabase db push`.
-* `pnpm supabase db reset` to reset the local db to default state, applying migrations in `migrations/` and then running `pnpm supabase init`.
-* Connect to local db with `psql -h localhost -p 54322 -U postgres -d postgres` (default pw: `postgres`).
-  * To run a file, add `-f <filename>` to the command.
-* `pnpm supabase status` to get the status of running services, including the local postgres instance (and their URLs).
-* `pnpm supabase projects api-keys` to get the api keys for the local supabase instanc (or `pnpx supabase status`)
-* `pnpm supabase migration new <migration_name>` to create a new migration file in `migrations/`.
-* `pnpm supabase gen types typescript --local > src/lib/ai/backend/SupabaseTypes.ts` to update type definitions based on the local db schema.
-* `pnpm supabase db dump --local -f supabase/seed.sql --data-only` to dump the local db data to a sql file (for seeding purposes).
+- `holisticdata`
+- `pose2ddata`
+- `sourcevideos`
+- `thumbnails`
 
-Other useful links:
+After the local instance and bundle are available, use the dry-run launch/task before syncing:
 
-* Local supabase dashboard: <http://localhost:54323>
-* Testing mock email server <http://localhost:54324> (view emails that would have been sent.)
+- `Sync Storage Assets (dry run)`
+- `Sync Storage Assets`
+- `Sync Bundle Data (dry run)`
+- `Sync Bundle Data`
 
-### Updating the database schema
+The canonical configurations are in [.vscode/launch.json](.vscode/launch.json). Absolute portable-sync paths in that file are workstation examples.
 
-1. Update the database using the web editor locally: <http://localhost:54323>
-2. Run `pnpm supabase db diff --local -f <migration_name>` to create a new migration file in `migrations/`.
-3. Run `pnpm supabase gen types typescript --local > src/lib/ai/backend/SupabaseTypes.ts` to update the type definitions based on the new schema.
+## Key areas
 
-#### Supabase Issues
+- `src/lib/ai/TeachingAgent/`: automated practice-plan construction and coaching coordination.
+- `src/lib/ai/evaluation/`: live/terminal evaluation and performance history.
+- `src/lib/ai/motionmetrics/`: metric implementations, quantifiers, and tests.
+- `src/lib/ai/motionmetrics/testdata/`: human ratings and checked-in fixtures.
+- `src/lib/pages/` and `src/lib/elements/`: application UI.
+- `src/lib/webcam/` and `src/lib/services/PoseEstimationService.ts`: browser pose estimation.
+- `src/lib/data/bundle/`: generated lesson metadata.
+- `static/bundle/`: generated/downloaded media.
+- `artifacts/`: generated cross-language metric outputs.
+- `testResults/`: generated/local metric summaries, study poses, and browser profiles.
 
-* If you get a network error / CORS error when trying to login, ensure the supabase services are running with `pnpm supabase start`.
-* If you get an error when starting supabase like `Local hosting manifest for public.ecr.aws/supabase/postgrest:v11.2.1 not found`, [try changing the rest-version file in /supabase/.temp/rest-version](https://github.com/supabase/supabase/issues/18207)
+## Motion-metric research workflow
 
+The CHI study assets are used to compare automatic metrics with human ratings:
+
+```bash
+pnpm test --run src/lib/ai/motionmetrics/allmetrics.spec.ts
+```
+
+The aggregate test writes:
+
+- `artifacts/motion_metrics.db`
+- `artifacts/motion_metrics.csv`
+
+The CSV is consumed by `../motion-pipeline/motion_extraction/scripts/fit_metric_linear_model.py`. Coordinate changes to metric names, scales, directionality, or columns across both projects.
+
+## Build
+
+```bash
+pnpm build
+pnpm preview
+```
+
+The project uses the Vercel adapter. The old GitHub Pages `../docs` output workflow is no longer current.
+
+## Database schema changes
+
+For intentional local schema work:
+
+```bash
+pnpm supabase db diff --local -f <migration_name>
+pnpm supabase gen types typescript --local > src/lib/ai/backend/SupabaseTypes.ts
+pnpm supabase db reset
+```
+
+Review generated migrations and types before committing. Do not link to or modify a production project unless the task explicitly requires it.

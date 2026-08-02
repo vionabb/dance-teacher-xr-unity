@@ -2,7 +2,7 @@ import type { MotionVideo } from '$lib/ai/backend/IDataBackend';
 import type {
 	FrontendEvaluationTrack,
 	FrontendPerformanceSummary
-} from '$lib/ai/FrontendDanceEvaluator';
+} from '$lib/ai/evaluation/FrontendDanceEvaluator';
 import type { MotionSegmentation, MotionSegmentationNode } from '$lib/data/dances-store';
 import type { PracticePlan } from './PracticePlan';
 import type { TerminalFeedback } from './TerminalFeedback';
