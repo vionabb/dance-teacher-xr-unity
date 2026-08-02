@@ -1,6 +1,6 @@
 # Motion Pipeline
 
-Offline Python processing and research analysis for the dance-coaching project. For repository context and cross-project contracts, read [the repository summary](../documentation/repository-summary.md) and [technical architecture](../documentation/technical-architecture.md).
+Offline Python processing and research analysis for the dance-coaching project. For repository context and cross-project contracts, read [the repository README](../README.md) and [technical architecture](../documentation/technical-architecture.md).
 
 ## Responsibilities
 
@@ -17,22 +17,24 @@ BVH, Mecanim, retargeting, and NAO teleoperation code records earlier investigat
 
 ## Environment
 
-Run commands with this directory as the working directory. The VS Code settings and script wrappers expect a project-local `.env`.
+Run commands with this directory as the working directory. The canonical environment is a project-local `.venv` created from `pyproject.toml` and the committed `uv.lock`; `.env` is a retired, machine-local convention and must not be used for new setup.
 
 Prerequisites:
 
-- Python 3.9 or another version compatible with the pinned MediaPipe release;
+- [uv](https://docs.astral.sh/uv/);
+- Python 3.10 (the project pin is in `.python-version`);
 - `ffmpeg` on `PATH`;
 - access to source media only when the selected workflow needs it.
 
 ```bash
-python3 -m venv .env
-source .env/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+uv sync --locked --group dev
 ```
 
-In VS Code, open [the repository multi-root workspace](../dance-teacher-xr-unity.code-workspace) and select `motion-pipeline/.env/bin/python` if the editor chose another interpreter. Interpreter drift is a common cause of imports working in one context but not another.
+This creates `motion-pipeline/.venv`. In VS Code, open [the repository multi-root workspace](../dance-teacher-xr-unity.code-workspace) and select that interpreter if the editor chose another one. Interpreter drift is a common cause of imports working in one context but not another.
+
+The support target is Python 3.10 on macOS (Apple Silicon) and Linux (x86_64); this baseline has been clean-install validated on macOS, with Linux validation delegated to the follow-on CI step. Windows and the legacy robotics stack remain unverified; install the latter explicitly with `uv sync --group legacy-robotics` when working on it. `ffmpeg` is required for the active video/audio workflow, while `rclone` is needed only for cloud-transfer commands.
+
+`mediapipe==0.10.21` is deliberate: the active pipeline imports both its Tasks API and its legacy Solutions API. Do not upgrade it independently; a future upgrade must first migrate or validate those two API usages.
 
 ## Two distinct processing workflows
 
@@ -41,7 +43,7 @@ In VS Code, open [the repository multi-root workspace](../dance-teacher-xr-unity
 The primary orchestrator is:
 
 ```bash
-python -m motion_extraction.dancetree.run_dancetree_pipeline --help
+uv run --locked python -m motion_extraction.dancetree.run_dancetree_pipeline --help
 ```
 
 It performs metadata update, raw pose extraction, clean preprocessing, complexity analysis, audio/structural analysis, dance-tree enrichment, and bundle export.
@@ -76,8 +78,8 @@ Study data locations and access rules are documented in [the dataset guide](../d
 Run the narrowest existing test that covers the change:
 
 ```bash
-.env/bin/python -m pytest motion_extraction/complexity_analysis/tests/test_pose_preprocessing.py
-.env/bin/python -m pytest motion_extraction/complexity_analysis/tests/
+uv run --locked pytest motion_extraction/complexity_analysis/tests/test_pose_preprocessing.py
+uv run --locked pytest motion_extraction/complexity_analysis/tests/
 ```
 
 For end-to-end changes, run the small pipeline script. It requires the referenced local media input:
@@ -93,9 +95,9 @@ Pipeline artifact capture is optional. Pass `--artifact_archive_root` to create 
 Never mount Google Drive. Stage inputs locally and publish only verified outputs:
 
 ```bash
-python -m motion_extraction.rclone_transfer pull <remote-path> <local-dir>
-python -m motion_extraction.rclone_transfer publish-artifacts <local-dir> <remote-path>
-python -m motion_extraction.rclone_transfer publish-processed-bundle <local-bundle>
+uv run --locked python -m motion_extraction.rclone_transfer pull <remote-path> <local-dir>
+uv run --locked python -m motion_extraction.rclone_transfer publish-artifacts <local-dir> <remote-path>
+uv run --locked python -m motion_extraction.rclone_transfer publish-processed-bundle <local-bundle>
 ```
 
 The processed-bundle publication command replaces the cache and should run only after frontend validation. See [the dataset guide](../documentation/dataset.md).

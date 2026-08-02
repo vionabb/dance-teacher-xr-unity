@@ -21,7 +21,7 @@ from motion_extraction.reporting import AnalysisMarkdownReport
 
 CSV_COL_NAMES = [
     "userId", "danceId", "studyName", "workflowId", "clipNumber", "collectionId", "danceName", 
-    "condition", "performanceSpeed", "frameCount", "qijia2d", "jules2d", "vectorAngle3D", 
+    "condition", "performanceSpeed", "frameCount", "qijia2d", "viona2d", "vectorAngle3D",
     "temporalAlignmentSecs", "invalidFrameCount", "angle3D", "invalidPercent", "angle3D_warping_factor", 
     "angle3D_dtw_distance", "angle3D_dtw_dist_avg", "velocity_3d_MAE", "accel_3d_MAE", "jerk_2d_MAE", 
     "jerk_3d_MAE", "accel_2d_MAE", "velocity_2d_MAE", "humanRating", "rating1", "rating2", "rating3"
@@ -78,7 +78,7 @@ report = AnalysisMarkdownReport(
 # corresponding to a low error and hopefully a 1 human rating.
 accuracy_metric_aliases = {
     "qijia2d": ["qijia2d", "qijia2DPoseEvaluation"],
-    "jules2d": ["jules2d", "jules2DPoseEvaluation"],
+    "viona2d": ["viona2d", "viona2DPoseEvaluation"],
     "vectorAngle3D": ["vectorAngle3D", "skeleton3DVectorAngleEvaluation"],
 }
 

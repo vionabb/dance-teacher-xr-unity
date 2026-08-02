@@ -25,8 +25,8 @@ Check the Python producer or consumer when changing shared bundle schemas, metri
 
 Run from `svelte-web-frontend/` and prefer the smallest applicable command:
 
-- One-shot focused test: `pnpm test --run <test-file>`
-- All tests once: `pnpm test --run`
+- One-shot focused test: `pnpm test -- --run <test-file>`
+- All tests once: `pnpm test -- --run`
 - Type and Svelte checks: `pnpm check`
 - Formatting and lint checks: `pnpm lint`
 - Production build: `pnpm build`

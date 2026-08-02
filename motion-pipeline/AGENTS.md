@@ -9,7 +9,7 @@ Follow [../AGENTS.md](../AGENTS.md) first.
 3. Read [../documentation/technical-architecture.md](../documentation/technical-architecture.md) before changing raw/clean pose contracts or bundle interfaces.
 4. Read [../documentation/dataset.md](../documentation/dataset.md) before accessing or publishing research data.
 
-Run Python modules with `motion-pipeline/` as the working directory and use the project-local `.env` interpreter expected by the launch settings and test scripts. Do not assume a root or shell-selected Python interpreter matches the editor.
+Run Python modules with `motion-pipeline/` as the working directory and use the project-local `.venv` created by `uv sync --locked`. Do not assume a root or shell-selected Python interpreter matches the editor.
 
 ## Important workflows and contracts
 
@@ -25,7 +25,7 @@ If a change affects bundle schemas, raw/clean filename conventions, metric colum
 
 Prefer the smallest applicable existing command:
 
-- Focused Python tests: `.env/bin/python -m pytest <test-file-or-node>`
+- Focused Python tests: `uv run --locked pytest <test-file-or-node>`
 - Small pipeline smoke run: `./script_invocations/run_dancetree_pipeline_test_small.sh`
 - Broader local pipeline run: `./script_invocations/run_dancetree_pipeline_test.sh`
 

@@ -88,12 +88,11 @@ if __name__ == "__main__":
     # pressed.
     while True:
         try:
-            get_dance_feedback("Julien", { "spatialAccuracy": 0.95, "rhythmAccuracy": 0.89, "performanceTrend": "increasing" })
+            get_dance_feedback("Viona", { "spatialAccuracy": 0.95, "rhythmAccuracy": 0.89, "performanceTrend": "increasing" })
 
         except KeyboardInterrupt:
             print("Bye!")
             break
-
 
 
 

@@ -15,7 +15,7 @@ import {
 	loadStudyMetricFixturesContext
 } from './testdata/studyMetricFixtures';
 import Qijia2DPoseEvaluationMetric from './Qijia2DPoseEvaluationMetric';
-import Jules2DPoseEvaluationMetric from './Jules2DPoseEvaluationMetric';
+import Viona2DPoseEvaluationMetric from './Viona2DPoseEvaluationMetric';
 import Skeleton3DVectorAngleEvaluationMetric from './Skeleton3DVectorAngleEvaluationMetric';
 import { LandmarkWeighting_MotionEnergy } from '../EvaluationCommonUtils';
 import TemporalAlignmentEvaluationMetric from './TemporalAlignmentEvaluationMetric';
@@ -136,20 +136,20 @@ describe('AllMetricsComparison', {}, async () => {
 		await updateDbWithMetric('qijia2DPoseEvaluation', metricRunner);
 	});
 
-	it('jules2DPoseEvaluation', { timeout: testTimeout }, async () => {
-		const metric = new Jules2DPoseEvaluationMetric();
+	it('viona2DPoseEvaluation', { timeout: testTimeout }, async () => {
+		const metric = new Viona2DPoseEvaluationMetric();
 		const metricRunner: MetricRunner = (track: TestTrack) => {
 			const summary = runLiveEvaluationMetricOnTestTrack(metric, track);
 			return {
-				metricName: 'jules2DPoseEvaluation',
+				metricName: 'viona2DPoseEvaluation',
 				result: {
 					// We want the output to be an accuracy score, with 1 being the best and 0 being the worst.
-					// Jules2D returns a dissimilarity score, so we reverse it to get an accuracy score.
-					jules2DPoseEvaluation: 1 - summary.summary.avgDissimilarity
+					// Viona2D returns a dissimilarity score, so we reverse it to get an accuracy score.
+					viona2DPoseEvaluation: 1 - summary.summary.avgDissimilarity
 				}
 			};
 		};
-		await updateDbWithMetric('jules2DPoseEvaluation', metricRunner);
+		await updateDbWithMetric('viona2DPoseEvaluation', metricRunner);
 	});
 
 	it('skeleton3DVectorAngleEvaluation', { timeout: testTimeout }, async () => {

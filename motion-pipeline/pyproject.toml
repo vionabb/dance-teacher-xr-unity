@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dance-teacher-motion-pipeline"
+version = "0.1.0"
+description = "Offline pose, audio, complexity, and lesson-bundle processing for Dance Teacher XR."
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "dataclasses-json==0.6.7",
+    "librosa==0.11.0",
+    "matplotlib==3.8.0",
+    # The pipeline currently needs both `mediapipe.tasks` and the legacy
+    # `mediapipe.solutions` API.  Newer permitted releases removed the latter.
+    "mediapipe==0.10.21",
+    "numpy==1.25.2",
+    "opencv-contrib-python==4.8.1.78",
+    "pandas==2.2.3",
+    "protobuf>=4.25.3,<5",
+    "psutil==7.0.0",
+    "pydub==0.25.1",
+    "tqdm==4.67.1",
+]
+
+[dependency-groups]
+dev = [
+    "debugpy==1.8.0",
+    "pytest>=8,<9",
+]
+# Historical BVH, Mecanim, and NAO work is intentionally not installed by
+# default.  It remains runnable by opting into this group.
+legacy-robotics = [
+    "pytransform3d==3.14.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["motion_extraction*"]
+
+[tool.pytest.ini_options]
+testpaths = ["motion_extraction/complexity_analysis/tests"]

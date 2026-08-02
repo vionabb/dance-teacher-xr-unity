@@ -7,7 +7,7 @@ import type {
 	SummaryEvaluationMetric
 } from './MotionMetric';
 import Qijia2DPoseEvaluationMetric from './Qijia2DPoseEvaluationMetric';
-import Jules2DPoseEvaluationMetric from './Jules2DPoseEvaluationMetric';
+import Viona2DPoseEvaluationMetric from './Viona2DPoseEvaluationMetric';
 import Skeleton3DVectorAngleEvaluationMetric from './Skeleton3DVectorAngleEvaluationMetric';
 import TemporalAlignmentEvaluationMetric from './TemporalAlignmentEvaluationMetric';
 import KinematicErrorEvaluationMetric from './KinematicErrorEvaluationMetric';
@@ -115,7 +115,7 @@ describe('AllMetricsTimeSeriesInvestigations', {}, async () => {
 			);
 			const metrics = [
 				{ metricName: 'qijia2DPoseEvaluation', metric: new Qijia2DPoseEvaluationMetric() },
-				{ metricName: 'jules2DPoseEvaluation', metric: new Jules2DPoseEvaluationMetric() },
+				{ metricName: 'viona2DPoseEvaluation', metric: new Viona2DPoseEvaluationMetric() },
 				{
 					metricName: 'skeleton3DVectorAngleEvaluation',
 					metric: new Skeleton3DVectorAngleEvaluationMetric()
