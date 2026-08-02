@@ -5,14 +5,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${WORKSPACE_DIR}/.." && pwd)"
-PYTHON_BIN="${WORKSPACE_DIR}/.env/bin/python3"
+UV_BIN="${UV_BIN:-uv}"
 
-if [[ ! -x "${PYTHON_BIN}" ]]; then
-    echo "Expected Python interpreter not found at ${PYTHON_BIN}" >&2
+if ! command -v "${UV_BIN}" >/dev/null 2>&1; then
+    echo "Expected uv on PATH; install it and run 'uv sync --locked' in ${WORKSPACE_DIR}." >&2
     exit 1
 fi
 
-exec "${PYTHON_BIN}" -m motion_extraction.dancetree.run_dancetree_pipeline \
+cd "${WORKSPACE_DIR}"
+
+exec "${UV_BIN}" run --locked python -m motion_extraction.dancetree.run_dancetree_pipeline \
     --database_csv_path="${WORKSPACE_DIR}/data/db.csv" \
     --video_srcdir="${REPO_ROOT}/svelte-web-frontend/static/bundle/source_videos" \
     --holistic_data_srcdir="${REPO_ROOT}/svelte-web-frontend/static/bundle/holistic_data" \

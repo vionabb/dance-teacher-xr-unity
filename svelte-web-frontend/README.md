@@ -1,6 +1,6 @@
 # Svelte Web Frontend
 
-SvelteKit application for lesson delivery, webcam pose estimation, motion evaluation, feedback, progress tracking, and teaching-agent logic. For repository context and cross-project contracts, read [the repository summary](../documentation/repository-summary.md) and [technical architecture](../documentation/technical-architecture.md).
+SvelteKit application for lesson delivery, webcam pose estimation, motion evaluation, feedback, progress tracking, and teaching-agent logic. For repository context and cross-project contracts, read [the repository README](../README.md) and [technical architecture](../documentation/technical-architecture.md).
 
 ## Environment
 
@@ -29,7 +29,7 @@ Environment variables are loaded from `src/env/`. Copy the checked-in example an
 cp src/env/.env.example src/env/.env
 ```
 
-The app expects `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. LLM-backed code paths additionally need the corresponding private API key, such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. Never commit populated environment files.
+The app expects `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. LLM-backed code paths additionally need the corresponding private API key, such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. `NEXT_PUBLIC_` variables are available to browser code; all other variables are server-only. Never commit populated environment files. Deployment variables are configured in Vercel.
 
 ## Fast validation without full services
 
@@ -37,11 +37,11 @@ Most code work can start without Supabase or the media bundle:
 
 ```bash
 pnpm check
-pnpm test --run <test-file>
+pnpm test -- --run <test-file>
 pnpm lint
 ```
 
-Use `pnpm test --run`, not bare `pnpm test`, for one-shot automation; the default command starts watch mode.
+Use `pnpm test -- --run`, not bare `pnpm test`, for one-shot automation; the default command starts watch mode.
 
 ## Run the app
 
@@ -105,7 +105,7 @@ The canonical configurations are in [.vscode/launch.json](.vscode/launch.json). 
 The CHI study assets are used to compare automatic metrics with human ratings:
 
 ```bash
-pnpm test --run src/lib/ai/motionmetrics/allmetrics.spec.ts
+pnpm test -- --run src/lib/ai/motionmetrics/allmetrics.spec.ts
 ```
 
 The aggregate test writes:

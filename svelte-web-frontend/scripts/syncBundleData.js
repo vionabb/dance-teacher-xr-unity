@@ -1,7 +1,7 @@
 /**
  * syncBundleData.js
  *
- * @author Jules Blanchet
+ * @author Viona Blanchet
  *
  * Synchronizes json files outputted from the motion processing pipeline
  * to the frontend database. This includes:

@@ -22,13 +22,13 @@ const MinVectorMagnitudeForReliableAngleDetermination = 50;
 const TargetVectorMagnitudeForReliableAngleDetermination = 100;
 
 /**
- * Compute the dissimilarity between two poses using the Jules method.
+ * Compute the dissimilarity between two poses using the Viona method.
  * This method calculates the dissimilarity based on angle and magnitude of comparison vectors.
  * @param refLandmarks - Reference landmarks (expert)
  * @param userLandmarks - User landmarks (learner)
  * @returns Object containing the dissimilarity score and information by vector
  */
-function computeSkeleton2DDissimilarityJulesMethod(
+function computeSkeleton2DDissimilarityVionaMethod(
 	refLandmarks: Readonly<Pose2DPixelLandmarks>,
 	userLandmarks: Readonly<Pose2DPixelLandmarks>
 ) {
@@ -110,19 +110,19 @@ function computeSkeleton2DDissimilarityJulesMethod(
 	};
 }
 
-type JulesMetricSingleFrameOutput = ReturnType<typeof computeSkeleton2DDissimilarityJulesMethod>;
+type VionaMetricSingleFrameOutput = ReturnType<typeof computeSkeleton2DDissimilarityVionaMethod>;
 
-type JulesMetricSummaryOutput = {
+type VionaMetricSummaryOutput = {
 	minPossibleScore: number;
 	maxPossibleScore: number;
 	avgDissimilarity: number;
 	vectorByVectorScore: Record<string, number>;
 };
 
-type JulesMetricFormattedSummaryOutput = ReturnType<Jules2DPoseEvaluationMetric['formatSummary']>;
+type VionaMetricFormattedSummaryOutput = ReturnType<Viona2DPoseEvaluationMetric['formatSummary']>;
 
 /**
- * Metric that computes the similarity between two poses using the Jules method.
+ * Metric that computes the similarity between two poses using the Viona method.
  * This method calculates the dissimilarity based on angle and magnitude of comparison vectors, and
  * weighs which one to used based on whether the 2D vector is sufficiently long to be reliably
  * compared by angle.
@@ -130,28 +130,28 @@ type JulesMetricFormattedSummaryOutput = ReturnType<Jules2DPoseEvaluationMetric[
  * @param userLandmarks - User landmarks (learner)
  * @returns Object containing the dissimilarity score and information by vector
  */
-export default class Jules2DPoseEvaluationMetric implements LiveEvaluationMetric<
-	JulesMetricSingleFrameOutput,
-	JulesMetricSummaryOutput,
-	JulesMetricFormattedSummaryOutput
+export default class Viona2DPoseEvaluationMetric implements LiveEvaluationMetric<
+	VionaMetricSingleFrameOutput,
+	VionaMetricSummaryOutput,
+	VionaMetricFormattedSummaryOutput
 > {
 	computeMetric(
 		_history: Readonly<EvaluationTrackHistory>,
-		_metricHistory: Readonly<JulesMetricSingleFrameOutput[]>,
+		_metricHistory: Readonly<VionaMetricSingleFrameOutput[]>,
 		_videoFrameTimeInSecs: Readonly<number>,
 		_actualTimesInMs: number,
 		user2dPose: Readonly<Pose2DPixelLandmarks>,
 		_user3dPose: Readonly<Pose3DLandmarkFrame>,
 		ref2dPose: Readonly<Pose2DPixelLandmarks>,
 		_ref3dPose: Readonly<Pose3DLandmarkFrame>
-	): JulesMetricSingleFrameOutput {
-		return computeSkeleton2DDissimilarityJulesMethod(ref2dPose, user2dPose);
+	): VionaMetricSingleFrameOutput {
+		return computeSkeleton2DDissimilarityVionaMethod(ref2dPose, user2dPose);
 	}
 
 	summarizeMetric(
 		_history: Readonly<EvaluationTrackHistory>,
-		metricHistory: Readonly<JulesMetricSingleFrameOutput[]>
-	): JulesMetricSummaryOutput {
+		metricHistory: Readonly<VionaMetricSingleFrameOutput[]>
+	): VionaMetricSummaryOutput {
 		const avgDissimilarity = GetArithmeticMean(
 			metricHistory.map((m) => m.overallDissimilarity).filter((n) => !isNaN(n))
 		);
@@ -175,7 +175,7 @@ export default class Jules2DPoseEvaluationMetric implements LiveEvaluationMetric
 		};
 	}
 
-	formatSummary(summary: Readonly<JulesMetricSummaryOutput>) {
+	formatSummary(summary: Readonly<VionaMetricSummaryOutput>) {
 		return {
 			avgDissimilarity: summary.avgDissimilarity,
 			...summary.vectorByVectorScore
@@ -184,7 +184,7 @@ export default class Jules2DPoseEvaluationMetric implements LiveEvaluationMetric
 
 	evaluateSegmented(
 		_history: Readonly<EvaluationTrackHistory>,
-		metricHistory: Readonly<JulesMetricSingleFrameOutput[]>,
+		metricHistory: Readonly<VionaMetricSingleFrameOutput[]>,
 		segmentBoundaries: readonly number[]
 	) {
 		return aggregateSegmentedValues(
@@ -196,8 +196,8 @@ export default class Jules2DPoseEvaluationMetric implements LiveEvaluationMetric
 
 	getTimeSeries(
 		context: EvaluationMetricTimeSeriesContext<
-			JulesMetricSummaryOutput,
-			JulesMetricSingleFrameOutput
+			VionaMetricSummaryOutput,
+			VionaMetricSingleFrameOutput
 		>
 	): MotionMetricTimeSeries[] {
 		const metricHistory = context.metricHistory ?? [];
@@ -220,7 +220,7 @@ export default class Jules2DPoseEvaluationMetric implements LiveEvaluationMetric
 		return [
 			{
 				seriesId: 'frame_dissimilarity',
-				title: 'Jules 2D frame dissimilarity',
+				title: 'Viona 2D frame dissimilarity',
 				xKey: 'videoTimeSecs',
 				yKeys: ['overallDissimilarity', ...QijiaMethodComparisionVectorNames],
 				xLabel: 'Video time (s)',

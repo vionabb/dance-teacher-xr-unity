@@ -1,15 +1,14 @@
-# Experimental Status
+# Project State
 
-This document owns the current research maturity and known limitations. It should distinguish implemented behavior from exploratory code and future design.
+This document owns the current research maturity and known limitations. It distinguishes implemented behavior from exploratory code and future design.
 
 ## Research position
 
-The repository connects two generations of dance-learning work:
+The earlier CHI 2025 study evaluated automatically generated practice plans and interface features in two user studies. Participant performance videos and human similarity-to-reference ratings provide grounding data for metric evaluation; see [the dataset guide](dataset.md).
 
-- The [CHI 2025 study](papers/chi2025/chi2025.md) evaluated automatically generated practice plans and interface features in two user studies. Its videos, ratings, and pose exports now provide grounding data for metric evaluation.
-- The [adaptive-coaching case study](papers/thesis/chapters/07-toward-an-adaptive-virtual-dance-coach.md) redesigned lesson structure around a guided learning journey and investigated feedback, motion quantification, audio grouping, complexity, and learner-state-aware sequencing.
+The current adaptive-coaching case study redesigned lesson structure around a guided learning journey and investigated feedback, motion quantification, audio grouping, complexity, and learner-state-aware sequencing.
 
-The current system should be described as an operational research prototype, not a validated adaptive tutor.
+The current system should be described as an operational research prototype, not a validated adaptive tutor. For the durable research lineage and claim boundaries, see [research context](research-context.md).
 
 ## Implemented
 
@@ -44,7 +43,7 @@ The current system should be described as an operational research prototype, not
 
 ## Historical findings that constrain current work
 
-Two formative pilots are described in the adaptive-coaching thesis chapter:
+Two formative pilots shaped the current direction:
 
 1. The tree-based interface exposed many controls but did not make an effective practice strategy legible.
 2. The checkpointed learning journey and `mark -> drill -> full out` sequence were clearer and better received.

@@ -1,6 +1,6 @@
 # Technical Architecture
 
-This document owns the current implementation structure and cross-project contracts. For purpose and task routing, start with the [repository summary](repository-summary.md). For research maturity, see [experimental status](experimental-status.md).
+This document owns the current implementation structure and cross-project contracts. For purpose and task routing, start with the [repository README](../README.md). For research maturity, see [project state](project-state.md).
 
 ## System layers
 
@@ -51,7 +51,7 @@ The main orchestrator is [run_dancetree_pipeline.py](../motion-pipeline/motion_e
 - `*.pose2d.clean.csv`
 - `*.holisticdata.clean.csv`
 
-Current preprocessing includes root recentering, torso-length normalization, and frame-usability metadata. Visibility repair, outlier handling, and smoothing are active/incomplete research areas; check [experimental status](experimental-status.md) before assuming they are production-complete.
+Current preprocessing includes root recentering, torso-length normalization, and frame-usability metadata. Visibility repair, outlier handling, and smoothing are active/incomplete research areas; check [project state](project-state.md) before assuming they are production-complete.
 
 Every consumer should make these assumptions explicit:
 
