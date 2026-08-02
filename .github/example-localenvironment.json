@@ -1,0 +1,4 @@
+{
+    "LOCAL_GOOGLEDRIVE_DATASET_PATH": "path/to/motiontutor-research-dataset",
+    "LOCAL_GOOGLEDRIVE_AGENTOUTPUT_PATH": "path/to/motiontutor-research-dataset/agent-output"
+}

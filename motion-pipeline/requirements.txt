@@ -2,7 +2,7 @@
 # `@mediapipe/tasks-vision` is the JavaScript package, not a pip dependency.
 mediapipe >= 0.10.33, < 0.11
 pandas == 2.2.3
-#protobuf ~= 3.20
+protobuf >= 4.25.3, < 5
 pytransform3d ~=3.14
 # open3d ~=0.17
 librosa ~=0.11.0

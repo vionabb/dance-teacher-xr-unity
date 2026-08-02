@@ -34,7 +34,7 @@ artifacts: []
 ```
 
 - `date`: ISO date of the entry
-- `tags`: free-form topic labels (e.g. `metrics`, `chapter-5`, `lesson-plan`, `artifact`)
+- `tags`: free-form topic labels (e.g. `metrics`, `chapter-7`, `lesson-plan`, `artifact`)
 - `artifacts`: list of committed asset paths relative to this directory — e.g. `assets/2026-08-03-metric-correlation-baseline/fig1.pdf`. Leave empty `[]` if no assets.
 
 ---
@@ -72,6 +72,6 @@ Tone: faithful to the researcher's voice. Do not rewrite into neutral technical 
 ## Navigating entries for paper writing
 
 - Scan filenames by date to reconstruct the timeline
-- Use tags in frontmatter to find entries related to a specific topic (e.g. `grep -r "chapter-5" lab-log/`)
+- Use tags in frontmatter to find entries related to a specific topic (e.g. `grep -r "chapter-7" lab-log/`)
 - Entries referencing key figures will list them in the `artifacts` frontmatter field
 - The `assets/` directory holds committed copies of all referenced figures and data
