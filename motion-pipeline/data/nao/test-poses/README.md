@@ -1,0 +1,1 @@
+This folder contains pictures of poses designed to test the human -> nao robot retargeting algorithm. It focuses mainly on arm positions and orientations.
