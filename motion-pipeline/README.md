@@ -36,6 +36,13 @@ The support target is Python 3.10 on macOS (Apple Silicon) and Linux (x86_64); t
 
 `mediapipe==0.10.21` is deliberate: the active pipeline imports both its Tasks API and its legacy Solutions API. Do not upgrade it independently; a future upgrade must first migrate or validate those two API usages.
 
+The legacy Holistic API needs one model asset that is not bundled in the Python
+wheel. Prepare it explicitly before running pose extraction or the smoke suite:
+
+```bash
+uv run --locked python -m motion_extraction.prepare_mediapipe_models --download
+```
+
 ## Two distinct processing workflows
 
 ### Reference videos to frontend bundle

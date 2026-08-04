@@ -22,9 +22,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          version: "0.6.14"
           enable-cache: true
           cache-dependency-glob: motion-pipeline/uv.lock
 
@@ -37,6 +36,10 @@ jobs:
       - name: Install locked project environment
         working-directory: motion-pipeline
         run: uv sync --locked --group dev
+
+      - name: Prepare MediaPipe model assets
+        working-directory: motion-pipeline
+        run: uv run --locked python -m motion_extraction.prepare_mediapipe_models --download
 
       - name: Run required smoke suite
         working-directory: motion-pipeline

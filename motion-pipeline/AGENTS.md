@@ -26,6 +26,7 @@ If a change affects bundle schemas, raw/clean filename conventions, metric colum
 Prefer the smallest applicable existing command:
 
 - Focused Python tests: `uv run --locked pytest <test-file-or-node>`
+- MediaPipe model setup: `uv run --locked python -m motion_extraction.prepare_mediapipe_models --download`
 - Motion-pipeline acceptance gate: `./script_invocations/run_smoke_tests.sh`
 - Equivalent marker invocation: `uv run --locked pytest -m smoke`
 - Small pipeline smoke run: `./script_invocations/run_dancetree_pipeline_test_small.sh`
