@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "description": "Stage-first smoke-test inputs. Generated outputs belong in temp/.",
+  "cases": {
+    "attention_zoom_out": {
+      "purpose": ["pipeline-smoke", "metric-iteration"],
+      "video": "motionvideo/attention_zoom_out.mp4",
+      "stages": {
+        "database": "database/attention_zoom_out.csv",
+        "pose_raw": [
+          "pose_raw/attention_zoom_out.pose2d.raw.csv",
+          "pose_raw/attention_zoom_out.holisticdata.raw.csv"
+        ],
+        "audio_analysis": "audio_analysis/analysis/video/attention_zoom_out.json",
+        "complexity": "complexity/byfile/attention_zoom_out.complexity.csv",
+        "dancetrees": "dancetrees/attention_zoom_out.dancetree.json",
+        "dancetrees_with_complexity": "dancetrees_with_complexity/attention_zoom_out.dancetree.json"
+      },
+      "notes": "Raw pose, audio, complexity, and DanceTree files were promoted from a validated local pipeline run. A clean-pose fixture can be added when the preprocessing contract next changes."
+    }
+  }
+}
