@@ -26,10 +26,14 @@ If a change affects bundle schemas, raw/clean filename conventions, metric colum
 Prefer the smallest applicable existing command:
 
 - Focused Python tests: `uv run --locked pytest <test-file-or-node>`
+- Motion-pipeline acceptance gate: `./script_invocations/run_smoke_tests.sh`
+- Equivalent marker invocation: `uv run --locked pytest -m smoke`
 - Small pipeline smoke run: `./script_invocations/run_dancetree_pipeline_test_small.sh`
 - Broader local pipeline run: `./script_invocations/run_dancetree_pipeline_test.sh`
 
-The smoke scripts need their referenced media inputs. Do not treat missing private media as a code failure.
+Any agent change to motion-pipeline code or configuration must pass the acceptance gate before handoff. The gate uses the committed stage-first corpus under `data/smoketest/` and writes only to temporary output directories. Do not treat missing private or full-dataset media as a smoke-test failure when the committed corpus is available.
+
+Smoke-test inputs are immutable contract fixtures. Do not point a normal pipeline output at `data/smoketest/`. If a contract change requires new inputs, generate outputs under `temp/`, validate them, promote selected files with `script_invocations/promote_smoke_fixture.py`, update `data/smoketest/manifest.json`, and review the resulting fixture diff.
 
 ## Python documentation
 

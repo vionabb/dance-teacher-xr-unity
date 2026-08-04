@@ -56,25 +56,22 @@
             "request": "launch",
             "module": "motion_extraction.dancetree.run_dancetree_pipeline",
             "args": [
-                "--database_csv_path=${workspaceFolder}/data/db.csv",
-                "--video_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos",
-                "--holistic_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data",
-                "--pose2d_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/pose2d_data",
-                "--temp_dir=${workspaceFolder}/data/temp/pipeline_test_run/temp_dir/",
-                "--bundle_export_path=${workspaceFolder}/temp/pipeline_test_run/bundle/nonmedia/",
-                "--bundle_media_export_path=${workspaceFolder}/temp/pipeline_test_run/bundle/media/",
-                "--include_thumbnail_in_bundle",
+                "--database_csv_path=${workspaceFolder}/temp/vscode_smoketest/db.csv",
+                "--video_srcdir=${workspaceFolder}/data/smoketest/motionvideo",
+                "--holistic_data_srcdir=${workspaceFolder}/temp/vscode_smoketest/holistic_data",
+                "--pose2d_data_srcdir=${workspaceFolder}/temp/vscode_smoketest/pose2d_data",
+                "--temp_dir=${workspaceFolder}/temp/vscode_smoketest/pipeline",
+                "--bundle_export_path=${workspaceFolder}/temp/vscode_smoketest/bundle/nonmedia",
+                "--bundle_media_export_path=${workspaceFolder}/temp/vscode_smoketest/bundle/media",
                 "--include_audio_in_bundle",
-
-                // Feel free to comment out any of the following
-                // "--rewrite_existing_holistic_data",
-                // "--skip_existing_cumulative_complexity",
-                // "--skip_existing_audioanalysis",
-                "--holistic_debug_frames_dir=${workspaceFolder}/temp/pipeline_test_run/holistic_debug_frames/",
-                "--debug_frame_whitelist=last-christmas-tutorial*",
-                "--complexity_plot_whitelist=study2/*",
-                "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
-                // "--suppress_bundle_data_artifacts"
+                "--visibility_mode=interpolate",
+                "--suppress_update_database_artifacts",
+                "--suppress_compute_holistic_data_artifacts",
+                "--suppress_preprocess_pose_data_artifacts",
+                "--suppress_cumulative_complexity_artifacts",
+                "--suppress_audio_analysis_artifacts",
+                "--suppress_add_complexity_artifacts",
+                "--suppress_bundle_data_artifacts"
             ],
         },
         {
@@ -92,12 +89,11 @@
             "module": "motion_extraction.extract_holistic_data",
             "justMyCode": true,
             "args": [
-                "--video_folder=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos/",
-                // "--video_folder=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos/tpose2.mp4",
-                "--output_folder=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data",
+                "--video_folder=${workspaceFolder}/data/smoketest/motionvideo/",
+                "--output_folder=${workspaceFolder}/temp/vscode_smoketest/holistic_data",
                 "--log_level=INFO",
                 "--model-complexity=2",
-                "--frame_output_folder=${workspaceFolder}/temp/frames",
+                "--frame_output_folder=${workspaceFolder}/temp/vscode_smoketest/frames",
                 "--debug_frame_whitelist=*",
                 // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 // "--rewrite_existing",
@@ -110,7 +106,7 @@
             "module": "motion_extraction.preprocess_pose_data",
             "justMyCode": true,
             "args": [
-                "--pose_data_root=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data",
+                "--pose_data_root=${workspaceFolder}/temp/vscode_smoketest/holistic_data",
                 "--pose_data_type=holistic_3d"
                 // "--rewrite_existing",
             ],
@@ -122,7 +118,7 @@
             "module": "motion_extraction.preprocess_pose_data",
             "justMyCode": true,
             "args": [
-                "--pose_data_root=${workspaceFolder}/../svelte-web-frontend/static/bundle/pose2d_data",
+                "--pose_data_root=${workspaceFolder}/temp/vscode_smoketest/pose2d_data",
                 "--pose_data_type=pose2d"
                 // "--rewrite_existing",
             ],
@@ -306,11 +302,10 @@
             "request": "launch",
             "module": "motion_extraction.audio_analysis",
             "args": [
-                "--videosrcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos",
-                "--audiosrcdir=${workspaceFolder}/data/source_audio",
-                "--destdir=${workspaceFolder}/data/audio_analysis",
-                "--analysis_summary_out=${workspaceFolder}/data/summary/audio_analysis.csv",
-                "--audiocachedir=${workspaceFolder}/data/audio_cache",
+                "--videosrcdir=${workspaceFolder}/data/smoketest/motionvideo",
+                "--destdir=${workspaceFolder}/temp/vscode_smoketest/audio_analysis",
+                "--analysis_summary_out=${workspaceFolder}/temp/vscode_smoketest/audio_analysis/audio_analysis_summary.csv",
+                "--audiocachedir=${workspaceFolder}/temp/vscode_smoketest/audio_cache",
                 // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 "--skip_existing",
             ]
@@ -321,9 +316,9 @@
             "request": "launch",
             "module": "motion_extraction.update_database",
             "args": [
-                "--videos_dir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos",
-                "--thumbnails_dir=${workspaceFolder}/data/thumbnails",
-                "--database_csv_path=${workspaceFolder}/data/db.csv",
+                "--videos_dir=${workspaceFolder}/data/smoketest/motionvideo",
+                "--thumbnails_dir=${workspaceFolder}/temp/vscode_smoketest/thumbnails",
+                "--database_csv_path=${workspaceFolder}/temp/vscode_smoketest/db.csv",
                 // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
             ]
         },
@@ -333,11 +328,11 @@
             "request": "launch",
             "module": "motion_extraction.complexity_analysis.add_complexity_to_dancetree",
             "args": [
-                "--tree_srcdir=${workspaceFolder}/data/audio_analysis/dancetrees/video/",
-                "--complexity_srcdir=${workspaceFolder}/data/complexities/byfile/",
-                "--database_path=${workspaceFolder}/data/db.csv",
-                "--output_dir=${workspaceFolder}/data/dancetrees_with_complexity/",
-                "--complexity_method=mw-decreasing_by_quarter_lmw-balanced_byvisibility_includebase",
+                "--tree_srcdir=${workspaceFolder}/temp/vscode_smoketest/audio_analysis/dancetrees/video/",
+                "--complexity_srcdir=${workspaceFolder}/temp/vscode_smoketest/pipeline/complexities/",
+                "--database_path=${workspaceFolder}/temp/vscode_smoketest/db.csv",
+                "--output_dir=${workspaceFolder}/temp/vscode_smoketest/dancetrees_with_complexity/",
+                "--complexity_method=mw-decreasing_by_quarter_lmw-balanced_interpolatevisibility_includebase",
                 // "--artifact_archive_root=${workspaceFolder}/../artifact-archive"
             ]
         },
@@ -347,10 +342,10 @@
             "request": "launch",
             "module": "motion_extraction.dancetree.bundle_data",
             "args": [
-                "--dancetree_srcdir=${workspaceFolder}/data/dancetrees_with_complexity",
-                "--db_csv_path=${workspaceFolder}/data/db.csv",
-                "--audio_results_dir=${workspaceFolder}/data/audio_analysis",
-                "--bundle_export_path=${workspaceFolder}/../svelte-web-frontend/src/lib/data/bundle",
+                "--dancetree_srcdir=${workspaceFolder}/temp/vscode_smoketest/dancetrees_with_complexity",
+                "--db_csv_path=${workspaceFolder}/temp/vscode_smoketest/db.csv",
+                "--audio_results_dir=${workspaceFolder}/temp/vscode_smoketest/audio_analysis",
+                "--bundle_export_path=${workspaceFolder}/temp/vscode_smoketest/bundle",
                 // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 "--exclude_test"
             ]

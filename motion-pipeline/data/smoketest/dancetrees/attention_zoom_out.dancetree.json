@@ -1,0 +1,183 @@
+{
+    "tree_name": "attention_zoom_out audio tree",
+    "clip_relativepath": "attention_zoom_out",
+    "root": {
+        "id": "wholesong",
+        "start_time": 0,
+        "end_time": 20.522666666666666,
+        "alternate_ids": [],
+        "children": [
+            {
+                "id": "phrasegroup0",
+                "start_time": 0,
+                "end_time": 13.898666666666667,
+                "alternate_ids": [],
+                "children": [
+                    {
+                        "id": "phrase0",
+                        "start_time": 0,
+                        "end_time": 4.682666666666666,
+                        "alternate_ids": [],
+                        "children": [
+                            {
+                                "id": "bar0",
+                                "start_time": 0,
+                                "end_time": 2.3786666666666667,
+                                "alternate_ids": [],
+                                "children": [],
+                                "metrics": {},
+                                "events": {},
+                                "complexity": null
+                            },
+                            {
+                                "id": "bar1",
+                                "start_time": 2.3786666666666667,
+                                "end_time": 4.682666666666666,
+                                "alternate_ids": [],
+                                "children": [],
+                                "metrics": {},
+                                "events": {},
+                                "complexity": null
+                            }
+                        ],
+                        "metrics": {
+                            "similarity-to-phrase0": 1.0,
+                            "similarity-to-phrase1": 0.6038409672174695,
+                            "similarity-to-phrase2": 0.614363120504873,
+                            "similarity-to-phrase3": 0.4197199712628357
+                        },
+                        "events": {},
+                        "complexity": null
+                    },
+                    {
+                        "id": "phrase1",
+                        "start_time": 4.682666666666666,
+                        "end_time": 9.290666666666667,
+                        "alternate_ids": [],
+                        "children": [
+                            {
+                                "id": "bar2",
+                                "start_time": 4.682666666666666,
+                                "end_time": 6.986666666666666,
+                                "alternate_ids": [],
+                                "children": [],
+                                "metrics": {},
+                                "events": {},
+                                "complexity": null
+                            },
+                            {
+                                "id": "bar3",
+                                "start_time": 6.986666666666666,
+                                "end_time": 9.290666666666667,
+                                "alternate_ids": [],
+                                "children": [],
+                                "metrics": {},
+                                "events": {},
+                                "complexity": null
+                            }
+                        ],
+                        "metrics": {
+                            "similarity-to-phrase0": 0.6038409672174695,
+                            "similarity-to-phrase1": 1.0,
+                            "similarity-to-phrase2": 0.8444402772020919,
+                            "similarity-to-phrase3": 0.36569277847570725
+                        },
+                        "events": {},
+                        "complexity": null
+                    },
+                    {
+                        "id": "phrase2",
+                        "start_time": 9.290666666666667,
+                        "end_time": 13.898666666666667,
+                        "alternate_ids": [],
+                        "children": [
+                            {
+                                "id": "bar4",
+                                "start_time": 9.290666666666667,
+                                "end_time": 11.594666666666667,
+                                "alternate_ids": [],
+                                "children": [],
+                                "metrics": {},
+                                "events": {},
+                                "complexity": null
+                            },
+                            {
+                                "id": "bar5",
+                                "start_time": 11.594666666666667,
+                                "end_time": 13.898666666666667,
+                                "alternate_ids": [],
+                                "children": [],
+                                "metrics": {},
+                                "events": {},
+                                "complexity": null
+                            }
+                        ],
+                        "metrics": {
+                            "similarity-to-phrase0": 0.614363120504873,
+                            "similarity-to-phrase1": 0.8444402772020919,
+                            "similarity-to-phrase2": 1.0,
+                            "similarity-to-phrase3": 0.37007917903307175
+                        },
+                        "events": {},
+                        "complexity": null
+                    }
+                ],
+                "metrics": {},
+                "events": {},
+                "complexity": null
+            },
+            {
+                "id": "phrase3",
+                "start_time": 13.898666666666667,
+                "end_time": 20.522666666666666,
+                "alternate_ids": [
+                    "phrasegroup1"
+                ],
+                "children": [
+                    {
+                        "id": "bar6",
+                        "start_time": 13.898666666666667,
+                        "end_time": 16.277333333333335,
+                        "alternate_ids": [],
+                        "children": [],
+                        "metrics": {},
+                        "events": {},
+                        "complexity": null
+                    },
+                    {
+                        "id": "bar7",
+                        "start_time": 16.277333333333335,
+                        "end_time": 18.581333333333333,
+                        "alternate_ids": [],
+                        "children": [],
+                        "metrics": {},
+                        "events": {},
+                        "complexity": null
+                    },
+                    {
+                        "id": "bar8",
+                        "start_time": 18.581333333333333,
+                        "end_time": 20.522666666666666,
+                        "alternate_ids": [],
+                        "children": [],
+                        "metrics": {},
+                        "events": {},
+                        "complexity": null
+                    }
+                ],
+                "metrics": {
+                    "similarity-to-phrase0": 0.4197199712628357,
+                    "similarity-to-phrase1": 0.36569277847570725,
+                    "similarity-to-phrase2": 0.37007917903307175,
+                    "similarity-to-phrase3": 1.0
+                },
+                "events": {},
+                "complexity": null
+            }
+        ],
+        "metrics": {},
+        "events": {},
+        "complexity": null
+    },
+    "generation_data": {}
+}
