@@ -27,5 +27,9 @@ jobs:
           curl https://rclone.org/install.sh | sudo bash
       - name: Checkout repository
         uses: actions/checkout@v7
+      - name: Install uv
+        run: |
+          sudo curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
       - name: Configure and verify rclone
         run: bash .github/setup-rclone.sh
