@@ -12,4 +12,5 @@ if ! command -v "${UV_BIN}" >/dev/null 2>&1; then
 fi
 
 cd "${WORKSPACE_DIR}"
+"${UV_BIN}" run --locked python -m motion_extraction.prepare_mediapipe_models
 exec "${UV_BIN}" run --locked pytest -m smoke "$@"
