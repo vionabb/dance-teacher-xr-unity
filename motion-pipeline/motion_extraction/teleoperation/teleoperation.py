@@ -1,11 +1,11 @@
 
 from typing import Any, Callable, List, Literal, NamedTuple, Union
-import mediapipe as mp
 import cv2
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from pathlib import Path
 import time
+from mediapipe.tasks.python import vision
 
 
 from ..utils import throttle
@@ -56,12 +56,12 @@ def stream_realtime(
         Path(__file__).resolve().parent.parent / "scripts" / "pose_landmarker_heavy.task",
         POSE_LANDMARKER_HEAVY_MODEL_URL,
     )
-    options = mp.tasks.vision.PoseLandmarkerOptions(
+    options = vision.PoseLandmarkerOptions(
         base_options=build_base_options(model_path),
-        running_mode=mp.tasks.vision.RunningMode.VIDEO,
+        running_mode=vision.RunningMode.VIDEO,
     )
 
-    with mp.tasks.vision.PoseLandmarker.create_from_options(options) as pose:
+    with vision.PoseLandmarker.create_from_options(options) as pose:
         while cap.isOpened():
             success, image = cap.read()
             if not success:

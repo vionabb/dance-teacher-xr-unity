@@ -1,7 +1,7 @@
 import argparse
 import os
 from pathlib import Path
-import mediapipe as mp
+from mediapipe import Image, ImageFormat
 from mediapipe.tasks.python import vision
 import cv2
 import csv
@@ -101,7 +101,7 @@ def process_video(pose_landmarker, video_path, csv_output_path, frame_dir: Path 
             # per https://github.com/google-ai-edge/mediapipe/issues/5265,
             # the metal implementaiton only supports image formats with an alpha channel
             frame_rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGBA, data=frame_rgba)            
+            mp_image = Image(image_format=ImageFormat.SRGBA, data=frame_rgba)
             results = pose_landmarker.detect_for_video(mp_image, timestamp_ns)
             if not results.pose_landmarks or not results.pose_world_landmarks:
                 csvwriter.writerow(
@@ -173,9 +173,9 @@ def main():
     num_files_digits = len(str(num_files))
 
     
-    PoseLandmarker = mp.tasks.vision.PoseLandmarker
-    PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
-    VisionRunningMode = mp.tasks.vision.RunningMode
+    PoseLandmarker = vision.PoseLandmarker
+    PoseLandmarkerOptions = vision.PoseLandmarkerOptions
+    VisionRunningMode = vision.RunningMode
     # model is located at same directory as this script
     model_path = ensure_task_model(
         Path(os.path.dirname(__file__)) / 'pose_landmarker_heavy.task',

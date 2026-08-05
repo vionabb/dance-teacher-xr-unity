@@ -34,10 +34,10 @@ This creates `motion-pipeline/.venv`. In VS Code, open [the repository multi-roo
 
 The support target is Python 3.10 on macOS (Apple Silicon) and Linux (x86_64); this baseline has been clean-install validated on macOS, with Linux validation delegated to the follow-on CI step. Windows and the legacy robotics stack remain unverified; install the latter explicitly with `uv sync --group legacy-robotics` when working on it. `ffmpeg` is required for the active video/audio workflow, while `rclone` is needed only for cloud-transfer commands.
 
-`mediapipe==0.10.21` is deliberate: the active pipeline imports both its Tasks API and its legacy Solutions API. Do not upgrade it independently; a future upgrade must first migrate or validate those two API usages.
+`mediapipe==1.0.0` is deliberate: the active pipeline uses MediaPipe Tasks APIs, including `HolisticLandmarker` for holistic extraction and `PoseLandmarker` for pose-only workflows. The legacy `mediapipe.solutions` API is not used.
 
-The legacy Holistic API needs one model asset that is not bundled in the Python
-wheel. Prepare it explicitly before running pose extraction:
+The Holistic Landmarker task needs one model asset that is not bundled in the
+Python wheel. Prepare it explicitly before running pose extraction:
 
 ```bash
 uv run --locked python -m motion_extraction.prepare_mediapipe_models --download

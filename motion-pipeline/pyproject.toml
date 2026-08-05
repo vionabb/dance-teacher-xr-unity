@@ -12,9 +12,9 @@ dependencies = [
     "dataclasses-json==0.6.7",
     "librosa==0.11.0",
     "matplotlib==3.8.0",
-    # The pipeline currently needs both `mediapipe.tasks` and the legacy
-    # `mediapipe.solutions` API.  Newer permitted releases removed the latter.
-    "mediapipe==0.10.21",
+    # MediaPipe 1.0.0 removed the legacy `mediapipe.solutions` API.  The
+    # pipeline uses the supported MediaPipe Tasks APIs throughout.
+    "mediapipe==1.0.0",
     "numpy==1.25.2",
     "opencv-contrib-python==4.8.1.78",
     "pandas==2.3.3",
