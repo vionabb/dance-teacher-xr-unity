@@ -1,6 +1,6 @@
 ---
 date: 2026-08-02
-tags: [motion-pipeline, refactor, engineering-debt]
+tags: [motion-pipeline, refactor, engineering-debt, testing, dataset]
 artifacts: []
 ---
 
@@ -28,3 +28,15 @@ artifacts: []
 - The active reference-video pipeline now has one declarative project definition: `motion-pipeline/pyproject.toml`, `.python-version`, and a committed `uv.lock`. The local virtual environment is standardized as `.venv`; the old `.env` name was a virtual environment, not application configuration, and is retired for new setup.
 - The first locked baseline is Python 3.10 with MediaPipe 0.10.21. This matches the environment that passes the existing 19 preprocessing/complexity tests. A second local environment resolved under the old permissive MediaPipe constraint to 0.10.35 and fails at import because the code still uses `mp.solutions`; MediaPipe upgrades therefore require an explicit compatibility migration or validation.
 - The active pipeline is supported first on macOS Apple Silicon and Linux x86_64. Historical BVH, Mecanim, and NAO dependencies are opt-in rather than part of a default environment. Windows and the historical robotics workflow are unverified, not deleted.
+
+## Smoke-test and dataset paradigm
+
+The repository should contain as little research data as possible while still making the motion pipeline testable without downloading the full dataset. The full/private dataset remains external, with Google Drive as the source of truth for dataset access and agent-produced research artifacts.
+
+- `motion-pipeline/data/` is for deliberately committed inputs and supporting assets, not a general-purpose output directory. The committed smoke corpus is organized by pipeline stage first under [`data/smoketest/`](../motion-pipeline/data/smoketest/), with a shared case filename stem within each stage. The manifest records which files belong to each smoke-test case and also supports future metric-iteration use.
+- Smoke fixtures include the raw video and selected intermediate inputs needed to exercise stages in isolation. They are treated as immutable test inputs. Tests and ordinary pipeline runs write generated files under `motion-pipeline/temp/` or another explicitly supplied external destination; generated outputs must not be written directly under `data/`.
+- When a stage contract changes, a newly generated output can become a committed intermediate input only after it has been validated and intentionally promoted with the smoke-fixture promotion workflow. Promotion also requires updating the manifest; it is not an automatic side effect of running the pipeline.
+- The deterministic local and CI acceptance gate is [`script_invocations/run_smoke_tests.sh`](../motion-pipeline/script_invocations/run_smoke_tests.sh). It uses the locked `uv` environment, prepares the pinned MediaPipe model asset, and runs the smoke-marked tests against the committed corpus. The corresponding GitHub workflow checks out Git LFS content so binary smoke fixtures are real files rather than LFS pointer text.
+- This corpus is intentionally useful for both code-change validation and future inner-loop work on motion metrics. Adding a new smoke input is a data-contract decision: keep it small and representative, place it under the appropriate stage, document it in the manifest, and keep any generated result outside `data/` until it has been reviewed for promotion.
+
+This establishes a clear boundary for the larger refactor: code and small, selected fixtures are versioned; full/private data and generated research outputs are staged or published through the external dataset/artifact workflow.
