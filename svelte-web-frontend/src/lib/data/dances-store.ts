@@ -136,8 +136,8 @@ function getStoragePublicUrlCandidates(
 	bucket: string,
 	storagePath: string | undefined
 ): string[] {
-	return getRawCsvPathCandidates(storagePath).map((candidatePath) =>
-		supabase.storage.from(bucket).getPublicUrl(candidatePath).data.publicUrl
+	return getRawCsvPathCandidates(storagePath).map(
+		(candidatePath) => supabase.storage.from(bucket).getPublicUrl(candidatePath).data.publicUrl
 	);
 }
 
@@ -278,7 +278,9 @@ export async function loadPoseInformation<T extends Pose2DPixelLandmarks | Pose3
 				lastError = null;
 				break;
 			}
-			lastError = new Error(`Failed to fetch ${candidatePath}: ${response.status} ${response.statusText}`);
+			lastError = new Error(
+				`Failed to fetch ${candidatePath}: ${response.status} ${response.statusText}`
+			);
 		}
 	}
 
