@@ -48,7 +48,7 @@
 		"langchain": "^1.2.39",
 		"papaparse": "^5.5.3",
 		"plotly.js-dist-min": "^3.4.0",
-		"postcss": "^8.5.8",
+		"postcss": "^8.5.23",
 		"postcss-load-config": "^6.0.1",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.5.1",
