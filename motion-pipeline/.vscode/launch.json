@@ -10,11 +10,11 @@
             "request": "launch",
             "module": "motion_extraction.dancetree.run_dancetree_pipeline",
             // "args": [
-            //     "--database_csv_path=${workspaceFolder}/data/db.csv",
+            //     "--database_csv_path=${workspaceFolder}/temp/db.csv",
             //     "--video_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos",
             //     "--holistic_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data",
             //     "--pose2d_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/pose2d_data",
-            //     "--temp_dir=${workspaceFolder}/data/temp",
+            //     "--temp_dir=${workspaceFolder}/temp/pipeline",
             //     "--bundle_export_path=${workspaceFolder}/../svelte-web-frontend/src/lib/data/bundle",
             //     "--bundle_media_export_path=${workspaceFolder}/../svelte-web-frontend/static/bundle/",
             //     "--include_thumbnail_in_bundle",
@@ -34,7 +34,7 @@
                     "--video_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/videos",
                     "--holistic_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/holistic_data",
                     "--pose2d_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/pose2d_data",
-                    "--temp_dir=${workspaceFolder}/data/tempCloud/",
+                    "--temp_dir=${workspaceFolder}/temp/tempCloud/",
                     "--bundle_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_data",
                     "--bundle_media_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/",
                     "--include_thumbnail_in_bundle",
@@ -44,7 +44,7 @@
                     // "--rewrite_existing_holistic_data",
                     // "--skip_existing_cumulative_complexity",
                     // "--skip_existing_audioanalysis",
-                    // "--holistic_debug_frames_dir=${workspaceFolder}/data/tempCloud/holistic_debug_frames",
+                    // "--holistic_debug_frames_dir=${workspaceFolder}/temp/tempCloud/holistic_debug_frames",
                     "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                     // "--suppress_bundle_data_artifacts"
                 ]
@@ -130,9 +130,9 @@
             "module": "motion_extraction.convert_to_jointspace",
             "justMyCode": true,
             "args": [
-                "--naocsv_output_folder=${workspaceFolder}/data/nao",
-                "--bvh_output_folder=${workspaceFolder}/data/bvh",
-                "--csv_output_folder=${workspaceFolder}/data/bvhcsv",
+                "--naocsv_output_folder=${workspaceFolder}/temp/jointspace/nao",
+                "--bvh_output_folder=${workspaceFolder}/temp/jointspace/bvh",
+                "--csv_output_folder=${workspaceFolder}/temp/jointspace/bvhcsv",
                 "--log_level=INFO",
                 "--frame_limit=-1",
                 // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/debbieallenchallenge.holisticdata.raw.csv"
@@ -150,7 +150,7 @@
             "module": "motion_extraction.convert_to_jointspace",
             "justMyCode": true,
             "args": [
-                "--output_folder=${workspaceFolder}/data/jointspace_data",
+                "--output_folder=${workspaceFolder}/temp/jointspace_data",
                 "--log_level=INFO",
                 "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose.holisticdata.raw.csv"
             ],
@@ -199,8 +199,8 @@
                 // "-joint_angle_output=${workspaceFolder}/docs/walk_sample_joint_angles.csv",
                 // "${workspaceFolder}/docs/minimal_bvh.bvh",
                 // "-joint_angle_output=${workspaceFolder}/docs/minimal_bvh_joint_angles.csv",
-                "${workspaceFolder}/data/jointspace_data/tpose2.bvh",
-                "-joint_angle_output=${workspaceFolder}/data/jointspace_data/tpose2_bvhjointangles.csv",
+                "${workspaceFolder}/temp/jointspace_data/tpose2.bvh",
+                "-joint_angle_output=${workspaceFolder}/temp/jointspace_data/tpose2_bvhjointangles.csv",
                 "-frame_time=4.5",
                 "-repeat=1"
             ]
@@ -211,7 +211,7 @@
             "request": "launch",
             "module": "motion_extraction.temp.view_urdf",
             "args": [
-                "${workspaceFolder}/data/urdf/naoV50_generated_urdf/nao.urdf",        
+                "${workspaceFolder}/data/nao/naoV50_urdf/nao.urdf",
             ]
         },
         {
@@ -230,7 +230,7 @@
             "request": "launch",
             "module": "motion_extraction.teleoperation",
             "args": [
-                "-i=${workspaceFolder}/data/pose-test-photos/nao-test-%d.jpg",
+                "-i=${workspaceFolder}/data/nao/test-poses/nao-test-%d.jpg",
                 "-sim",
                 "-br", "8",
             ]
@@ -242,8 +242,8 @@
             "module": "motion_extraction.complexity_analysis.uist_complexityanalysis",
             "args": [
                 "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/",
-                "--destination=${workspaceFolder}/data/complexity.csv",
-                "--db=${workspaceFolder}/data/db.csv",
+                "--destination=${workspaceFolder}/temp/complexity.csv",
+                "--db=${workspaceFolder}/temp/db.csv",
                 "-wl", "bartender",
                 "-wl", "last-christmas-tutorial",
                 "-wl", "mad-at-disney-tutorial",
@@ -257,7 +257,7 @@
             "module": "motion_extraction.complexity_analysis.calculate_cumulative_complexity",
             "args": [
                 "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/",
-                "--destdir=${workspaceFolder}/data/complexities/",
+                "--destdir=${workspaceFolder}/temp/complexities/",
                 // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 // "--measure_weighting=decreasing_by_half",
                 // "--measure_weighting=decreasing_by_quarter",
@@ -280,7 +280,7 @@
             "module": "motion_extraction.complexity_analysis.calculate_cumulative_complexity",
             "args": [
                 "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tests",
-                "--destdir=${workspaceFolder}/data/test_complexities/",
+                "--destdir=${workspaceFolder}/temp/test_complexities/",
                 // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
                 // "--measure_weighting=decreasing_by_half",
                 "--measure_weighting=decreasing_by_quarter",
@@ -357,7 +357,7 @@
             "program": "${workspaceFolder}/adhoc_analysis/pyfeat.py",
             "args": [
                 "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos/study2/last-christmas-tutorial.mp4",
-                "--destdir=${workspaceFolder}/data/pyfeat",
+                "--destdir=${workspaceFolder}/temp/pyfeat",
             ]
         },
         {

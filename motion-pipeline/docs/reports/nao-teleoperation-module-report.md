@@ -188,7 +188,7 @@ python -m motion_extraction.teleoperation --input=webcam --listener_ip=localhost
 Simulation mode (visual debug):
 
 ```bash
-python -m motion_extraction.teleoperation -sim -i="data/pose-test-photos/nao-test-%d.jpg" -br 8
+python -m motion_extraction.teleoperation -sim -i="data/nao/test-poses/nao-test-%d.jpg" -br 8
 ```
 
 The repository also includes corresponding VS Code launch configurations named:
@@ -204,7 +204,7 @@ The teleoperation module does not have a separate choreography interpreter. Inst
 The `stream_realtime(...)` function accepts either:
 - `webcam`, which captures live video from a camera.
 - A path to a video file.
-- A path pattern for an image sequence, such as `data/pose-test-photos/nao-test-%d.jpg`.
+- A path pattern for an image sequence, such as `data/nao/test-poses/nao-test-%d.jpg`.
 
 ### What happens for file-based playback
 When `--input` points to a file or image pattern:
@@ -215,7 +215,7 @@ When `--input` points to a file or image pattern:
 1. The generated joint packet is sent to the configured UDP listener.
 
 ### Example: bundled pose test sequence
-The repository includes a numbered image sequence in [data/pose-test-photos](data/pose-test-photos) that can be replayed with the simulation launch config. The pattern uses Python-style frame substitution, so OpenCV can advance through `nao-test-1.jpg`, `nao-test-2.jpg`, and so on.
+The repository includes a numbered image sequence in [data/nao/test-poses](../../data/nao/test-poses) that can be replayed with the simulation launch config. The pattern uses Python-style frame substitution, so OpenCV can advance through `nao-test-1.jpg`, `nao-test-2.jpg`, and so on.
 
 In practice, this means a "dance file" is just the prerecorded frame source that drives the teleoperation loop. The downstream NAO output is still computed live, but from the prerecorded input instead of from a webcam.
 

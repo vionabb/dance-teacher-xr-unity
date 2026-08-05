@@ -6,7 +6,7 @@ import pytransform3d.visualizer as pv
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
-nao_urdf_path = Path(r"""D:\dev\humanmotion\dance-teacher-xr\motion-pipeline\data\urdf\naoV50_generated_urdf\nao.urdf""")
+nao_urdf_path = Path(r"""D:\dev\humanmotion\dance-teacher-xr\motion-pipeline\data\nao\naoV50_urdf\nao.urdf""")
 
 def display_urdf(urdf_path: Path = nao_urdf_path, joint_values: Dict[str, float] = {}, fig_title: Optional[str] = None, block=True):
     tm = load_urdf(urdf_path)
