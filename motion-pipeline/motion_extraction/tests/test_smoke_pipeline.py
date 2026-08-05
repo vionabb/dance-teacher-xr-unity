@@ -34,8 +34,8 @@ from motion_extraction.update_database import update_database
 
 pytestmark = pytest.mark.smoke
 
-PIPELINE_ROOT = Path(__file__).resolve().parents[2]
-SMOKETEST_ROOT = PIPELINE_ROOT / "data" / "smoketest"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+SMOKETEST_ROOT = REPOSITORY_ROOT / "data" / "test-fixtures" / "smoketest"
 MANIFEST_PATH = SMOKETEST_ROOT / "manifest.json"
 CASE_NAMES = tuple(
     json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))["cases"].keys()

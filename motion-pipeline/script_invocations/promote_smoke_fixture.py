@@ -8,8 +8,8 @@ from pathlib import Path
 import shutil
 
 
-PIPELINE_ROOT = Path(__file__).resolve().parents[1]
-SMOKETEST_ROOT = PIPELINE_ROOT / "data" / "smoketest"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+SMOKETEST_ROOT = REPOSITORY_ROOT / "data" / "test-fixtures" / "smoketest"
 VALID_STAGES = {
     "motionvideo",
     "database",
@@ -47,7 +47,7 @@ def main() -> None:
     if not source.is_file():
         parser.error(f"Source is not a file: {source}")
     if source.is_relative_to(SMOKETEST_ROOT.resolve()):
-        parser.error("Source must be a generated output outside data/smoketest")
+        parser.error("Source must be a generated output outside data/test-fixtures/smoketest")
 
     destination_name = args.destination_name or source.name
     destination = (SMOKETEST_ROOT / args.stage / destination_name).resolve()
@@ -60,7 +60,7 @@ def main() -> None:
     shutil.copy2(source, destination)
     print(f"Promoted {source} -> {destination}")
     print(f"sha256={sha256(destination)}")
-    print("Update data/smoketest/manifest.json after reviewing the promoted fixture.")
+    print("Update data/test-fixtures/smoketest/manifest.json after reviewing the promoted fixture.")
 
 
 if __name__ == "__main__":

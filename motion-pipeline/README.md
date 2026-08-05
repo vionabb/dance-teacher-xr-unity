@@ -91,7 +91,7 @@ uv run --locked pytest motion_extraction/complexity_analysis/tests/
 
 ### Smoke-test corpus and acceptance gate
 
-The committed smoke-test inputs live in [`data/smoketest/`](data/smoketest/). Its hierarchy is stage-first: files for the same case share a stem across directories such as `pose_raw/`, `complexity/`, and `dancetrees/`. The available files and their purposes are recorded in [`data/smoketest/manifest.json`](data/smoketest/manifest.json).
+The shared committed smoke-test inputs live in [`../data/test-fixtures/smoketest/`](../data/test-fixtures/smoketest/). Its hierarchy is stage-first: files for the same case share a stem across directories such as `pose_raw/`, `complexity/`, and `dancetrees/`. The available files and their purposes are recorded in [`../data/test-fixtures/smoketest/manifest.json`](../data/test-fixtures/smoketest/manifest.json).
 
 Generated smoke outputs must go under `temp/` and must not overwrite committed inputs. When a stage contract changes, validate the output in a clean temporary run, then explicitly promote the reviewed file with [`script_invocations/promote_smoke_fixture.py`](script_invocations/promote_smoke_fixture.py), update the manifest, and commit the fixture change.
 
@@ -111,7 +111,7 @@ For end-to-end changes, run the small pipeline script. It requires the reference
 ./script_invocations/run_dancetree_pipeline_test_small.sh
 ```
 
-This wrapper now uses `data/smoketest/motionvideo/` by default. Set `SMOKE_VIDEO_DIR` or `SMOKE_OUTPUT_DIR` when debugging a different local input or retaining a named temporary run.
+This wrapper now uses `../data/test-fixtures/smoketest/motionvideo/` by default. Set `SMOKE_VIDEO_DIR` or `SMOKE_OUTPUT_DIR` when debugging a different local input or retaining a named temporary run.
 
 Pipeline artifact capture is optional. Pass `--artifact_archive_root` to create a timestamped run folder; use step-specific `--suppress_*_artifacts` flags to reduce output.
 

@@ -32,9 +32,9 @@ Prefer the smallest applicable existing command:
 - Small pipeline smoke run: `./script_invocations/run_dancetree_pipeline_test_small.sh`
 - Broader local pipeline run: `./script_invocations/run_dancetree_pipeline_test.sh`
 
-Any agent change to motion-pipeline code or configuration must pass the acceptance gate before handoff. The gate uses the committed stage-first corpus under `data/smoketest/` and writes only to temporary output directories. Do not treat missing private or full-dataset media as a smoke-test failure when the committed corpus is available.
+Any agent change to motion-pipeline code or configuration must pass the acceptance gate before handoff. The gate uses the committed stage-first corpus under `../data/test-fixtures/smoketest/` and writes only to temporary output directories. Do not treat missing private or full-dataset media as a smoke-test failure when the committed corpus is available.
 
-Smoke-test inputs are immutable contract fixtures. Do not point a normal pipeline output at `data/smoketest/`. If a contract change requires new inputs, generate outputs under `temp/`, validate them, promote selected files with `script_invocations/promote_smoke_fixture.py`, update `data/smoketest/manifest.json`, and review the resulting fixture diff.
+Smoke-test inputs are immutable contract fixtures. Do not point a normal pipeline output at `../data/test-fixtures/smoketest/`. If a contract change requires new inputs, generate outputs under `temp/`, validate them, promote selected files with `script_invocations/promote_smoke_fixture.py`, update `../data/test-fixtures/smoketest/manifest.json`, and review the resulting fixture diff.
 
 The repository `data/` directory is for committed assets only. Do not configure
 scripts or launch profiles to write generated databases, pose files, BVH/NAO

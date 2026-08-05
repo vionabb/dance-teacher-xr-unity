@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Stage-first smoke-test inputs. Generated outputs belong in temp/.",
+  "description": "Shared stage-first smoke-test inputs. Generated outputs belong in temp/.",
   "cases": {
     "attention_zoom_out": {
       "purpose": ["pipeline-smoke", "metric-iteration"],
