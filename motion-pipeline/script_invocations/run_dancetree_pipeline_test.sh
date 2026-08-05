@@ -4,8 +4,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPOSITORY_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 UV_BIN="${UV_BIN:-uv}"
-VIDEO_DIR="${PIPELINE_VIDEO_DIR:-${WORKSPACE_DIR}/data/smoketest/motionvideo}"
+VIDEO_DIR="${PIPELINE_VIDEO_DIR:-${REPOSITORY_DIR}/data/test-fixtures/smoketest/motionvideo}"
 DEST_DIR="${PIPELINE_OUTPUT_DIR:-${WORKSPACE_DIR}/temp/pipeline_test_run}"
 
 if ! command -v "${UV_BIN}" >/dev/null 2>&1; then

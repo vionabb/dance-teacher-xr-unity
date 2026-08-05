@@ -4,10 +4,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPOSITORY_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 UV_BIN="${UV_BIN:-uv}"
 
 DEST_DIR="${SMOKE_OUTPUT_DIR:-${WORKSPACE_DIR}/temp/pipeline_test_run_small/}"
-VIDEO_DIR="${SMOKE_VIDEO_DIR:-${WORKSPACE_DIR}/data/smoketest/motionvideo/}"
+VIDEO_DIR="${SMOKE_VIDEO_DIR:-${REPOSITORY_DIR}/data/test-fixtures/smoketest/motionvideo/}"
 
 if ! command -v "${UV_BIN}" >/dev/null 2>&1; then
     echo "Expected uv on PATH; install it and run 'uv sync --locked' in ${WORKSPACE_DIR}." >&2

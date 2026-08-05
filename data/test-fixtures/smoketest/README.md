@@ -1,6 +1,9 @@
-# Motion-pipeline smoke-test inputs
+# Shared motion smoke-test inputs
 
-This is a small, committed input corpus for validating the motion pipeline without downloading the full dataset. The hierarchy is organized by pipeline stage. Files belonging to the same smoke-test case share a filename stem, such as `attention_zoom_out`.
+This is a small, committed input corpus for validating the motion-pipeline and
+future web-frontend smoke tests without downloading the full dataset. The
+hierarchy is organized by pipeline stage. Files belonging to the same
+smoke-test case share a filename stem, such as `attention_zoom_out`.
 
 The manifest at [`manifest.json`](manifest.json) records which stage inputs are available for each case. Add future cases by adding files to the relevant stage directories and registering them in the manifest; do not create a directory per case.
 
@@ -22,6 +25,8 @@ Generated outputs must go under an ignored directory such as `temp/smoketest/`; 
 
 When a stage contract changes, run the stage into a clean temporary directory, inspect and validate its output, then explicitly promote the selected file:
 
+From `motion-pipeline/`, run:
+
 ```bash
 uv run --locked python script_invocations/promote_smoke_fixture.py \
   --source temp/smoketest/<run-id>/output.csv \
@@ -29,4 +34,6 @@ uv run --locked python script_invocations/promote_smoke_fixture.py \
   --destination-name attention_zoom_out.pose2d.raw.csv
 ```
 
-Update `manifest.json` and this document when adding or replacing fixtures. Ordinary pipeline commands must not use a smoke-test directory as their output directory.
+Update `manifest.json` and this document when adding or replacing fixtures.
+Ordinary pipeline commands must not use a smoke-test directory as their output
+directory.

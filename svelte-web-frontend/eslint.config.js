@@ -52,6 +52,14 @@ export default [
 	...sveltePlugin.configs['flat/prettier'],
 	eslintConfigPrettier,
 	{
+		// ESLint 10's rule does not understand assignments consumed by Svelte
+		// templates or the bundled worker shim.
+		files: ['**/*.svelte', 'src/lib/webcam/pose-estimation.worker.ts'],
+		rules: {
+			'no-useless-assignment': 'off'
+		}
+	},
+	{
 		files: ['**/*.{js,cjs,mjs,ts}'],
 		languageOptions: {
 			parser: tsParser,

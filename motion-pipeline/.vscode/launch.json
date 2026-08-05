@@ -57,7 +57,7 @@
             "module": "motion_extraction.dancetree.run_dancetree_pipeline",
             "args": [
                 "--database_csv_path=${workspaceFolder}/temp/vscode_smoketest/db.csv",
-                "--video_srcdir=${workspaceFolder}/data/smoketest/motionvideo",
+                "--video_srcdir=${workspaceFolder}/../data/test-fixtures/smoketest/motionvideo",
                 "--holistic_data_srcdir=${workspaceFolder}/temp/vscode_smoketest/holistic_data",
                 "--pose2d_data_srcdir=${workspaceFolder}/temp/vscode_smoketest/pose2d_data",
                 "--temp_dir=${workspaceFolder}/temp/vscode_smoketest/pipeline",
@@ -89,7 +89,7 @@
             "module": "motion_extraction.extract_holistic_data",
             "justMyCode": true,
             "args": [
-                "--video_folder=${workspaceFolder}/data/smoketest/motionvideo/",
+                "--video_folder=${workspaceFolder}/../data/test-fixtures/smoketest/motionvideo/",
                 "--output_folder=${workspaceFolder}/temp/vscode_smoketest/holistic_data",
                 "--log_level=INFO",
                 "--model-complexity=2",
@@ -211,7 +211,7 @@
             "request": "launch",
             "module": "motion_extraction.temp.view_urdf",
             "args": [
-                "${workspaceFolder}/data/nao/naoV50_urdf/nao.urdf",
+                "${workspaceFolder}/../data/nao/urdf/nao.urdf",
             ]
         },
         {
@@ -302,7 +302,7 @@
             "request": "launch",
             "module": "motion_extraction.audio_analysis",
             "args": [
-                "--videosrcdir=${workspaceFolder}/data/smoketest/motionvideo",
+                "--videosrcdir=${workspaceFolder}/../data/test-fixtures/smoketest/motionvideo",
                 "--destdir=${workspaceFolder}/temp/vscode_smoketest/audio_analysis",
                 "--analysis_summary_out=${workspaceFolder}/temp/vscode_smoketest/audio_analysis/audio_analysis_summary.csv",
                 "--audiocachedir=${workspaceFolder}/temp/vscode_smoketest/audio_cache",
@@ -316,7 +316,7 @@
             "request": "launch",
             "module": "motion_extraction.update_database",
             "args": [
-                "--videos_dir=${workspaceFolder}/data/smoketest/motionvideo",
+                "--videos_dir=${workspaceFolder}/../data/test-fixtures/smoketest/motionvideo",
                 "--thumbnails_dir=${workspaceFolder}/temp/vscode_smoketest/thumbnails",
                 "--database_csv_path=${workspaceFolder}/temp/vscode_smoketest/db.csv",
                 // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",

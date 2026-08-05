@@ -24,7 +24,7 @@ Do not load the full thesis or CHI paper unless the task requires primary-source
 ## Repository-wide working rules
 
 - Preserve the distinction between generated outputs, checked-in fixtures, and source data. Do not hand-edit generated artifacts unless the task explicitly targets them.
-- Motion-pipeline smoke fixtures are organized by stage under `motion-pipeline/data/smoketest/`; files for one case share a stem across stage directories. Ordinary pipeline runs write only to temporary output directories. Promote a generated output into the fixture corpus only after validating it and recording its provenance in the smoke-test manifest.
+- Shared smoke fixtures are organized by stage under `data/test-fixtures/smoketest/`; files for one case share a stem across stage directories. Ordinary pipeline runs write only to temporary output directories. Promote a generated output into the fixture corpus only after validating it and recording its provenance in the smoke-test manifest.
 - Treat machine-local Google Drive paths and user-study videos as access-controlled data, not portable defaults.
 - Keep raw and clean pose contracts explicit. Raw `pose2d` is required for image-space overlays; analytical consumers should normally use the appropriate clean representation.
 - Check both sides of cross-project contracts when changing bundle schemas, metric exports, filenames, or artifact paths.
