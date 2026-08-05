@@ -15,6 +15,7 @@ Unity, A-Frame, BVH, and NAO/retargeting code represent earlier or secondary inv
 - [Project state](documentation/project-state.md): implemented, unvalidated, and planned work.
 - [Technical architecture](documentation/technical-architecture.md): system layers and cross-project contracts.
 - [Dataset guide](documentation/dataset.md): data access, provenance, and publishing rules.
+- [Shared test fixtures](data/test-fixtures/): committed data used across project smoke tests.
 - [Research context](documentation/research-context.md): concise, self-contained study background and claim boundaries.
 - [Agent instructions](AGENTS.md): operational guidance for repository work.
 

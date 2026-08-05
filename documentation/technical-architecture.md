@@ -150,6 +150,7 @@ When adding or changing a metric:
 - Cross-language metric artifacts: `svelte-web-frontend/artifacts/`
 - Frontend bundle JSON: `svelte-web-frontend/src/lib/data/bundle/`
 - Frontend bundle media: `svelte-web-frontend/static/bundle/`
+- Shared smoke-test fixtures: `data/test-fixtures/smoketest/`
 - Pipeline temporary/generated data: `motion-pipeline/data/` and `motion-pipeline/temp/`
 - Research data source of truth: Google Drive, described in [dataset.md](dataset.md)
 
