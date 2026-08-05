@@ -52,6 +52,13 @@ export default [
 	...sveltePlugin.configs['flat/prettier'],
 	eslintConfigPrettier,
 	{
+		// ESLint 10's rule does not understand assignments consumed by Svelte
+		// templates or the bundled worker shim.
+		rules: {
+			'no-useless-assignment': 'off'
+		}
+	},
+	{
 		files: ['**/*.{js,cjs,mjs,ts}'],
 		languageOptions: {
 			parser: tsParser,
