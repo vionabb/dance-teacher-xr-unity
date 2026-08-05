@@ -9,7 +9,10 @@ import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python import BaseOptions, vision
 
-PoseLandmark = mp.solutions.pose.PoseLandmark
+# MediaPipe 1.0.0 no longer exposes the legacy `mp.solutions` namespace.
+# Keep this alias so the CSV schema and downstream analysis retain their
+# established landmark names and indices.
+PoseLandmark = vision.PoseLandmark
 
 
 class HandLandmark(enum.IntEnum):
@@ -53,6 +56,12 @@ POSE_LANDMARKER_HEAVY_MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/"
     "pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task"
 )
+
+
+def holistic_landmarker_model_path() -> Path:
+    """Return the ignored, project-local path for the Holistic task model."""
+
+    return Path(__file__).resolve().parents[1] / "temp" / "mediapipe" / "holistic_landmarker.task"
 
 
 def ensure_task_model(model_path: Path, download_url: str) -> Path:
