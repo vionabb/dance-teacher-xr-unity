@@ -5,10 +5,12 @@ on:
   push:
     paths:
       - "motion-pipeline/**"
+      - "data/test-fixtures/smoketest/**"
       - ".github/workflows/motion-pipeline-smoke.yml"
   pull_request:
     paths:
       - "motion-pipeline/**"
+      - "data/test-fixtures/smoketest/**"
       - ".github/workflows/motion-pipeline-smoke.yml"
 
 jobs:
@@ -19,7 +21,7 @@ jobs:
       contents: read
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           lfs: true
 

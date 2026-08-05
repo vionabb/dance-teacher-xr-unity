@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 DEFAULT_NAO_URDF_PATH = (
-    Path(__file__).resolve().parents[1]
+    Path(__file__).resolve().parents[2]
     / "data"
     / "nao"
-    / "naoV50_urdf"
+    / "urdf"
     / "nao.urdf"
 )
 
