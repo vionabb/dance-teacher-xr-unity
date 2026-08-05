@@ -11,7 +11,7 @@ MIN_NODE_DURATION_BEATS_BY_LEVEL = [
 ]
 
 def find_complexity_df(clip_relative_path: Path,
-    complexity_byfile_dir: Path = Path('data/complexities/byfile'),
+    complexity_byfile_dir: Path = Path('temp/complexities/byfile'),
     complexity_method: str = 'mw-decreasing_by_quarter_lmw-balanced_byvisibility_includebase'):
 
     if complexity_byfile_dir.parts[-1] != 'byfile':

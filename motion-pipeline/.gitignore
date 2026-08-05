@@ -6,9 +6,19 @@ __pycache__/
 # C extensions
 *.so
 
-!data/nao
-# Persistent smoke inputs are tracked under data/smoketest/.
-# Generated pipeline outputs belong under temp/ and are ignored below.
+# `data/` contains committed assets only. Private datasets and generated
+# pipeline outputs belong outside this directory; generated pipeline outputs
+# specifically belong under `temp/` and are ignored below.
+data/*
+!data/README.md
+!data/smoketest/
+!data/smoketest/**
+!data/nao/
+data/nao/*
+!data/nao/naoV50_urdf/
+!data/nao/naoV50_urdf/**
+!data/nao/test-poses/
+!data/nao/test-poses/**
 
 # Distribution / packaging
 .Python

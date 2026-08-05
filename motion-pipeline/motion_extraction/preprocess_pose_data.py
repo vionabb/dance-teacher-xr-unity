@@ -244,7 +244,10 @@ def preprocess_pose_dataframe(
         ]
         # Complexity runs that include the base landmark need the original
         # hip midpoint alongside the recentered landmark coordinates.
-        clean_pose_df[f"base_{coordinate_field}"] = hip_midpoint[coordinate_field]
+        clean_pose_df[f"base_{coordinate_field}"] = hip_midpoint[coordinate_field].where(
+            usable_frame_mask,
+            np.nan,
+        )
     if all(
         f"{hip}_{visibility_field}" in clean_pose_df.columns
         for hip in (PoseLandmark.LEFT_HIP.name, PoseLandmark.RIGHT_HIP.name)
@@ -253,7 +256,7 @@ def preprocess_pose_dataframe(
         clean_pose_df["base_vis"] = (
             clean_pose_df[f"{PoseLandmark.LEFT_HIP.name}_vis"]
             + clean_pose_df[f"{PoseLandmark.RIGHT_HIP.name}_vis"]
-        ) / 2.0
+        ).div(2.0).where(usable_frame_mask, np.nan)
     clean_pose_df[PREPROCESS_TORSO_LENGTH_COLUMN] = torso_length
     clean_pose_df[PREPROCESS_USABLE_FRAME_COLUMN] = usable_frame_mask.astype(int)
 

@@ -36,6 +36,12 @@ Any agent change to motion-pipeline code or configuration must pass the acceptan
 
 Smoke-test inputs are immutable contract fixtures. Do not point a normal pipeline output at `data/smoketest/`. If a contract change requires new inputs, generate outputs under `temp/`, validate them, promote selected files with `script_invocations/promote_smoke_fixture.py`, update `data/smoketest/manifest.json`, and review the resulting fixture diff.
 
+The repository `data/` directory is for committed assets only. Do not configure
+scripts or launch profiles to write generated databases, pose files, BVH/NAO
+trajectories, complexity results, bundles, or temporary artifacts there. Use
+`temp/` for local generated outputs, or an explicitly supplied external data
+location for staged/private research data.
+
 ## Python documentation
 
 Add a concise docstring to new functions. Update a function's docstring whenever its parameters, return value, side effects, file outputs, or intended usage change. If the contract cannot be determined from callers and tests, surface the uncertainty rather than inventing it.
