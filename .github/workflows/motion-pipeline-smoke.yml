@@ -1,0 +1,48 @@
+name: Motion Pipeline Smoke Tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "motion-pipeline/**"
+      - ".github/workflows/motion-pipeline-smoke.yml"
+  pull_request:
+    paths:
+      - "motion-pipeline/**"
+      - ".github/workflows/motion-pipeline-smoke.yml"
+
+jobs:
+  motion-pipeline-smoke:
+    name: motion-pipeline-smoke
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: motion-pipeline/uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.10
+
+      - name: Install system media dependency
+        run: sudo apt-get update && sudo apt-get install --yes ffmpeg
+
+      - name: Install locked project environment
+        working-directory: motion-pipeline
+        run: uv sync --locked --group dev
+
+      - name: Prepare MediaPipe model assets
+        working-directory: motion-pipeline
+        run: uv run --locked python -m motion_extraction.prepare_mediapipe_models --download
+
+      - name: Run required smoke suite
+        working-directory: motion-pipeline
+        run: ./script_invocations/run_smoke_tests.sh

@@ -1,0 +1,211 @@
+{
+  "tree_name": "attention_zoom_out audio tree",
+  "clip_relativepath": "attention_zoom_out",
+  "root": {
+    "id": "wholesong",
+    "start_time": 0.0,
+    "end_time": 19.978311644978312,
+    "alternate_ids": [],
+    "children": [
+      {
+        "id": "phrasegroup0",
+        "start_time": 0.0,
+        "end_time": 13.88888888888889,
+        "alternate_ids": [],
+        "children": [
+          {
+            "id": "phrase0",
+            "start_time": 0.0,
+            "end_time": 4.671338004671338,
+            "alternate_ids": [],
+            "children": [
+              {
+                "id": "bar0",
+                "start_time": 0.0,
+                "end_time": 2.3773773773773774,
+                "alternate_ids": [],
+                "children": [],
+                "metrics": {
+                  "time_of_last_complexity_change": 2.3773773773773774
+                },
+                "events": {},
+                "complexity": 0.3853522771458255
+              },
+              {
+                "id": "bar1",
+                "start_time": 2.3786666666666667,
+                "end_time": 4.671338004671338,
+                "alternate_ids": [],
+                "children": [],
+                "metrics": {
+                  "time_of_last_complexity_change": 4.671338004671338
+                },
+                "events": {},
+                "complexity": 1.0227913315575181
+              }
+            ],
+            "metrics": {
+              "similarity-to-phrase0": 1.0,
+              "similarity-to-phrase1": 0.6038409672174695,
+              "similarity-to-phrase2": 0.614363120504873,
+              "similarity-to-phrase3": 0.4197199712628357,
+              "time_of_last_complexity_change": 4.671338004671338
+            },
+            "events": {},
+            "complexity": 1.4081436087033437
+          },
+          {
+            "id": "phrase1",
+            "start_time": 4.682666666666666,
+            "end_time": 9.300967634300967,
+            "alternate_ids": [],
+            "children": [
+              {
+                "id": "bar2",
+                "start_time": 4.682666666666666,
+                "end_time": 7.007007007007007,
+                "alternate_ids": [],
+                "children": [],
+                "metrics": {
+                  "time_of_last_complexity_change": 7.007007007007007
+                },
+                "events": {},
+                "complexity": 1.3616946553182414
+              },
+              {
+                "id": "bar3",
+                "start_time": 6.986666666666666,
+                "end_time": 9.300967634300967,
+                "alternate_ids": [],
+                "children": [],
+                "metrics": {
+                  "time_of_last_complexity_change": 9.300967634300967
+                },
+                "events": {},
+                "complexity": 1.21827271947854
+              }
+            ],
+            "metrics": {
+              "similarity-to-phrase0": 0.6038409672174695,
+              "similarity-to-phrase1": 1.0,
+              "similarity-to-phrase2": 0.8444402772020919,
+              "similarity-to-phrase3": 0.36569277847570725,
+              "time_of_last_complexity_change": 9.300967634300967
+            },
+            "events": {},
+            "complexity": 2.5799673747967815
+          },
+          {
+            "id": "phrase2",
+            "start_time": 9.290666666666667,
+            "end_time": 13.88888888888889,
+            "alternate_ids": [],
+            "children": [
+              {
+                "id": "bar4",
+                "start_time": 9.290666666666667,
+                "end_time": 11.594928261594928,
+                "alternate_ids": [],
+                "children": [],
+                "metrics": {
+                  "time_of_last_complexity_change": 11.594928261594928
+                },
+                "events": {},
+                "complexity": 3.1825229542006164
+              },
+              {
+                "id": "bar5",
+                "start_time": 11.594666666666667,
+                "end_time": 13.88888888888889,
+                "alternate_ids": [],
+                "children": [],
+                "metrics": {
+                  "time_of_last_complexity_change": 13.88888888888889
+                },
+                "events": {},
+                "complexity": 2.526026872363972
+              }
+            ],
+            "metrics": {
+              "similarity-to-phrase0": 0.614363120504873,
+              "similarity-to-phrase1": 0.8444402772020919,
+              "similarity-to-phrase2": 1.0,
+              "similarity-to-phrase3": 0.37007917903307175,
+              "time_of_last_complexity_change": 13.88888888888889
+            },
+            "events": {},
+            "complexity": 5.708549826564589
+          }
+        ],
+        "metrics": {
+          "time_of_last_complexity_change": 13.88888888888889
+        },
+        "events": {},
+        "complexity": 9.696660810064714
+      },
+      {
+        "id": "phrase3",
+        "start_time": 13.898666666666667,
+        "end_time": 19.978311644978312,
+        "alternate_ids": [
+          "phrasegroup1"
+        ],
+        "children": [
+          {
+            "id": "bar6",
+            "start_time": 13.898666666666667,
+            "end_time": 16.266266266266268,
+            "alternate_ids": [],
+            "children": [],
+            "metrics": {
+              "time_of_last_complexity_change": 16.266266266266268
+            },
+            "events": {},
+            "complexity": 2.4661654919376623
+          },
+          {
+            "id": "bar7",
+            "start_time": 16.277333333333335,
+            "end_time": 18.601935268601935,
+            "alternate_ids": [],
+            "children": [],
+            "metrics": {
+              "time_of_last_complexity_change": 18.601935268601935
+            },
+            "events": {},
+            "complexity": 3.102540003132548
+          },
+          {
+            "id": "bar8",
+            "start_time": 18.581333333333333,
+            "end_time": 19.978311644978312,
+            "alternate_ids": [],
+            "children": [],
+            "metrics": {
+              "time_of_last_complexity_change": 19.978311644978312
+            },
+            "events": {},
+            "complexity": 0.7763911855975838
+          }
+        ],
+        "metrics": {
+          "similarity-to-phrase0": 0.4197199712628357,
+          "similarity-to-phrase1": 0.36569277847570725,
+          "similarity-to-phrase2": 0.37007917903307175,
+          "similarity-to-phrase3": 1.0,
+          "time_of_last_complexity_change": 19.978311644978312
+        },
+        "events": {},
+        "complexity": 6.345096680667794
+      }
+    ],
+    "metrics": {
+      "time_of_last_complexity_change": 19.978311644978312
+    },
+    "events": {},
+    "complexity": 16.041757490732508
+  },
+  "generation_data": {
+    "complexity": "mw-decreasing_by_quarter_lmw-balanced_interpolatevisibility_includebase"
+  }
+}

@@ -1,31 +1,46 @@
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Mapping, Optional
 from argparse import ArgumentParser
 from pytransform3d.urdf import UrdfTransformManager
 import pytransform3d.visualizer as pv
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
-nao_urdf_path = Path(r"""D:\dev\humanmotion\dance-teacher-xr\motion-pipeline\data\urdf\naoV50_generated_urdf\nao.urdf""")
+DEFAULT_NAO_URDF_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "nao"
+    / "naoV50_urdf"
+    / "nao.urdf"
+)
 
-def display_urdf(urdf_path: Path = nao_urdf_path, joint_values: Dict[str, float] = {}, fig_title: Optional[str] = None, block=True):
+def display_urdf(
+    urdf_path: Path = DEFAULT_NAO_URDF_PATH,
+    joint_values: Optional[Mapping[str, float]] = None,
+    fig_title: Optional[str] = None,
+    block: bool = True,
+):
     tm = load_urdf(urdf_path)
 
     if fig_title is not None:
         fig = plt.gcf()
         fig.canvas.manager.set_window_title(fig_title)
 
-    plot_urdf(tm, joint_values, block=block)
+    plot_urdf(tm, joint_values or {})
     plt.show(block=block)
 
-def load_urdf(urdf_path = nao_urdf_path):
+def load_urdf(urdf_path: Path = DEFAULT_NAO_URDF_PATH):
     tm = UrdfTransformManager()
-    with nao_urdf_path.open('r') as f:
+    with urdf_path.open('r') as f:
         tm.load_urdf(f.read())
     return tm
 
-def plot_urdf(urdf_tm: UrdfTransformManager, joint_values: Dict[str, float], ax:Axes = None):
-    if ax == None:
+def plot_urdf(
+    urdf_tm: UrdfTransformManager,
+    joint_values: Mapping[str, float],
+    ax: Optional[Axes] = None,
+):
+    if ax is None:
         ax = plt.gca()
     
     for key, value in joint_values.items():

@@ -88,6 +88,10 @@ class PosePreprocessingTests(unittest.TestCase):
         self.assertTrue(np.isnan(clean_pose2d_df["LEFT_WRIST_x"].iloc[0]))
         self.assertTrue(np.isnan(clean_pose2d_df["LEFT_WRIST_y"].iloc[0]))
         self.assertTrue(np.isnan(clean_pose2d_df["LEFT_WRIST_distance"].iloc[0]))
+        self.assertTrue(np.isnan(clean_pose2d_df["base_x"].iloc[0]))
+        self.assertTrue(np.isnan(clean_pose2d_df["base_y"].iloc[0]))
+        self.assertTrue(np.isnan(clean_pose2d_df["base_distance"].iloc[0]))
+        self.assertTrue(np.isnan(clean_pose2d_df["base_vis"].iloc[0]))
 
     def test_generate_dvajs_with_visibility_supports_pose2d_and_holistic(self):
         landmark_names = [

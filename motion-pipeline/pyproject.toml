@@ -39,4 +39,10 @@ legacy-robotics = [
 include = ["motion_extraction*"]
 
 [tool.pytest.ini_options]
-testpaths = ["motion_extraction/complexity_analysis/tests"]
+testpaths = [
+    "motion_extraction/complexity_analysis/tests",
+    "motion_extraction/tests",
+]
+markers = [
+    "smoke: stage-contract and end-to-end motion-pipeline smoke tests",
+]

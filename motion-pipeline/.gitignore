@@ -6,24 +6,6 @@ __pycache__/
 # C extensions
 *.so
 
-data/*
-
-!data/bvh
-!data/bvhcsv
-!data/holistic_data
-!data/pose2d_data
-!data/nao
-!data/pose_test_photos
-!data/source_videos
-!data/source_audio
-!data/urdf
-!data/summary
-!data/db.csv
-!data/study-poses
-data/study-poses/*
-!data/study-poses/tiktok-clip-poses
-# !data/study-poses/user-study-2-segmented-take3-beataligned-spedup-poses
-
 # Distribution / packaging
 .Python
 build/
