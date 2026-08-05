@@ -27,7 +27,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "debugpy==1.8.0",
-    "pytest>=8,<9",
+    "pytest>=9.0.3,<10",
 ]
 # Historical BVH, Mecanim, and NAO work is intentionally not installed by
 # default.  It remains runnable by opting into this group.
