@@ -1,4 +1,5 @@
 from pathlib import Path
+import numpy as np
 import pandas as pd
 from ..dancetree.DanceTree import DanceTree, DanceTreeNode
 from ..artifacts import build_artifact_report, resolve_artifact_output_dir
@@ -48,8 +49,8 @@ def add_complexity_to_dancetree(
         val_end = complexity.loc[frame_end]
         val_start = complexity.loc[frame_start]
 
-        # Avoid RuntimeWarning from subtracting NaN scalars; treat as 0
-        if pd.isna(val_end) or pd.isna(val_start):
+        # Avoid RuntimeWarning from subtracting non-finite scalars; treat as 0
+        if not (np.isfinite(val_end) and np.isfinite(val_start)):
             node.complexity = 0
         else:
             node.complexity = val_end - val_start
