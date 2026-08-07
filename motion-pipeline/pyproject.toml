@@ -46,3 +46,9 @@ testpaths = [
 markers = [
     "smoke: stage-contract and end-to-end motion-pipeline smoke tests",
 ]
+filterwarnings = [
+    # matplotlib uses deprecated pyparsing camelCase API (third-party, not fixable by us)
+    "ignore::pyparsing.exceptions.PyparsingDeprecationWarning",
+    # pydub contains invalid regex escape sequences (third-party, not fixable by us)
+    "ignore:invalid escape sequence:DeprecationWarning:pydub",
+]

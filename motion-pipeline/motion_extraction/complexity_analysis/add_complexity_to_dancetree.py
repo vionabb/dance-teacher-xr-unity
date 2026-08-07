@@ -44,12 +44,15 @@ def add_complexity_to_dancetree(
 
         frame_end = complexity.index.get_indexer([target_frame_end], method='nearest')[0]
         frame_start = complexity.index.get_indexer([target_frame_start], method='nearest')[0]
-        
-        node.complexity = complexity.loc[frame_end] - complexity.loc[frame_start] 
 
-        # replace NaNs with 0
-        if pd.isna(node.complexity):
+        val_end = complexity.loc[frame_end]
+        val_start = complexity.loc[frame_start]
+
+        # Avoid RuntimeWarning from subtracting NaN scalars; treat as 0
+        if pd.isna(val_end) or pd.isna(val_start):
             node.complexity = 0
+        else:
+            node.complexity = val_end - val_start
 
         last_frame_with_complexity_change = frame_start
         
