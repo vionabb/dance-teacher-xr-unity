@@ -29,6 +29,7 @@ from motion_extraction.preprocess_pose_data import (
     PoseDataType,
     preprocess_all_pose_data,
 )
+from motion_extraction.pipeline_validation import PipelineOutputLayout, PipelineOutputValidator
 from motion_extraction.update_database import update_database
 
 
@@ -363,6 +364,17 @@ def test_full_pipeline_smoke(case_name: str, tmp_path: Path) -> None:
     pose2d_root = tmp_path / "pose2d_data"
     bundle_root = tmp_path / "bundle"
     media_root = tmp_path / "bundle_media"
+    validator = PipelineOutputValidator(
+        PipelineOutputLayout(
+            database_csv_path=tmp_path / "db.csv",
+            video_srcdir=input_video_path.parent,
+            holistic_data_srcdir=holistic_root,
+            pose2d_data_srcdir=pose2d_root,
+            temp_dir=temp_root,
+            bundle_export_path=bundle_root,
+            bundle_media_export_path=media_root,
+        )
+    )
 
     run_dancetree_pipeline(
         database_csv_path=tmp_path / "db.csv",
@@ -382,7 +394,18 @@ def test_full_pipeline_smoke(case_name: str, tmp_path: Path) -> None:
         suppress_audio_analysis_artifacts=True,
         suppress_add_complexity_artifacts=True,
         suppress_bundle_data_artifacts=True,
+        stage_validator=validator,
     )
+
+    assert validator.validated_stages == [
+        "update-database",
+        "extract-pose-data",
+        "preprocess-pose-data",
+        "cumulative-complexity",
+        "audio-analysis",
+        "add-complexity",
+        "bundle-data",
+    ]
 
     assert (holistic_root / f"{video_path.stem}.holisticdata.raw.csv").is_file()
     assert (pose2d_root / f"{video_path.stem}.pose2d.raw.csv").is_file()

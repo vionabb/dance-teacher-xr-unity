@@ -14,18 +14,13 @@ from .artifacts import build_artifact_report, resolve_artifact_output_dir
 from .utils import throttle
 from .mp_utils import (
 	HAND_CONNECTIONS,
-	HOLISTIC_LANDMARKER_MODEL_URL,
 	POSE_CONNECTIONS,
 	HandLandmark,
 	PoseLandmark,
-	build_base_options,
-	ensure_task_model,
-	holistic_landmarker_model_path,
 	landmark_at,
 	landmark_list,
-	rgb_image_to_mp_image,
 )
-from mediapipe.tasks.python import vision
+from mediapipe.python.solutions import holistic as mp_holistic
 
 import mpl_toolkits.mplot3d.art3d as art3d
 from mpl_toolkits.mplot3d.axes3d import Axes3D
@@ -427,27 +422,16 @@ def process_video(
 
 	with (
 		holistic_data_output_filepath.open('w', encoding='utf-8', newline='') as holistic_file,
-		vision.HolisticLandmarker.create_from_options(
-			vision.HolisticLandmarkerOptions(
-				base_options=build_base_options(
-					ensure_task_model(
-						holistic_landmarker_model_path(),
-						HOLISTIC_LANDMARKER_MODEL_URL,
-					),
-					# MediaPipe 1.0.0's Holistic graph is not compatible with
-					# the Metal delegate on Apple Silicon; CPU is the portable
-					# and reliable batch-extraction path.
-					use_gpu=False,
-				),
-				running_mode=vision.RunningMode.IMAGE,
-				output_face_blendshapes=False,
-				output_segmentation_mask=False,
-			)
+		mp_holistic.Holistic(
+			static_image_mode=True,
+			model_complexity=model_complexity,
+			refine_face_landmarks=False,
+			enable_segmentation=False,
 		) as holistic_processor,
 	):
 		holistic_csv_writer = csv.writer(holistic_file)
 		for frame_i, (_, frame_count, _timestamp_ms, image) in enumerate(_perform_by_frame(input_video_path)):
-			frame_data: t.Any = holistic_processor.detect(rgb_image_to_mp_image(image))
+			frame_data: t.Any = holistic_processor.process(image)
 
 
 			# cv2.imshow(f'Frame {frame_i}', image)

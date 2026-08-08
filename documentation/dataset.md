@@ -66,6 +66,20 @@ The Python wrapper `python -m motion_extraction.rclone_transfer` provides corres
 
 `rclone sync` is intentionally reserved for publishing a validated processed-media bundle. Use `copy` for ordinary inputs and research artifacts.
 
+The complete reference-video workflow is available from
+`motion-pipeline/script_invocations/run_rclone_pipeline.sh`. It stages a
+selected `dataset:` subtree into a local run directory, invokes the existing
+path-based DanceTree pipeline, and validates the database, raw pose, clean pose,
+complexity, audio, enriched DanceTree, and bundle outputs after each stage. A
+`run-manifest.json` records the remote source, parameters, and validated stages.
+
+Processed media is promoted separately with
+`motion-pipeline/script_invocations/publish_processed_media.sh --confirm
+<local-bundle-media-dir>`. This calls `rclone sync` against
+`processedmediabundle:` and can delete stale remote cache files; it is never
+invoked by the processing runner. Do not publish until the frontend has
+validated the generated bundle.
+
 ## Publishing rules
 
 - Publish only outputs that are complete enough to survive beyond the current run.

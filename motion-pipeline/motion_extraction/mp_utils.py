@@ -9,10 +9,13 @@ import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python import BaseOptions, vision
 
-# MediaPipe 1.0.0 no longer exposes the legacy `mp.solutions` namespace.
-# Keep this alias so the CSV schema and downstream analysis retain their
-# established landmark names and indices.
-PoseLandmark = vision.PoseLandmark
+# MediaPipe 0.10.x exposes the pose enum through the legacy namespace, while
+# MediaPipe 1.x exposes it from Tasks. Keep the alias local so the CSV schema
+# and downstream analysis retain their established landmark names and indices.
+if hasattr(vision, "PoseLandmark"):
+    PoseLandmark = vision.PoseLandmark
+else:
+    PoseLandmark = mp.solutions.pose.PoseLandmark
 
 
 class HandLandmark(enum.IntEnum):
