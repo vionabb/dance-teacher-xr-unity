@@ -34,7 +34,12 @@ This creates `motion-pipeline/.venv`. In VS Code, open [the repository multi-roo
 
 The support target is Python 3.10 on macOS (Apple Silicon) and Linux (x86_64); this baseline has been clean-install validated on macOS, with Linux validation delegated to the follow-on CI step. Windows and the legacy robotics stack remain unverified; install the latter explicitly with `uv sync --group legacy-robotics` when working on it. `ffmpeg` is required for the active video/audio workflow, while `rclone` is needed only for cloud-transfer commands.
 
-`mediapipe==1.0.0` is deliberate: the active pipeline uses MediaPipe Tasks APIs, including `HolisticLandmarker` for holistic extraction and `PoseLandmarker` for pose-only workflows. The legacy `mediapipe.solutions` API is not used.
+`mediapipe==0.10.21` is deliberate: it includes the MediaPipe Tasks APIs and
+the Holistic implementation needed by this project. The 1.0.0 Holistic task
+graph aborts on macOS when its Metal service is unavailable, while the 0.10.21
+batch path completes the smoke suite. The batch extractor therefore uses the
+stable 0.10.21 Holistic API; task-based helpers remain available for pose and
+GPU experiments.
 
 The Holistic Landmarker task needs one model asset that is not bundled in the
 Python wheel. Prepare it explicitly before running pose extraction:
@@ -126,6 +131,39 @@ uv run --locked python -m motion_extraction.rclone_transfer publish-processed-bu
 ```
 
 The processed-bundle publication command replaces the cache and should run only after frontend validation. See [the dataset guide](../documentation/dataset.md).
+
+### Full staged reference-video run
+
+For a full dataset run, stage a Drive subtree locally, process only local paths,
+and validate every pipeline stage before the command succeeds:
+
+```bash
+./script_invocations/run_rclone_pipeline.sh \
+  --remote-path referencevideos \
+  --run-dir /private/tmp/motion-pipeline-reference-run \
+  --include-audio-in-bundle \
+  --include-thumbnail-in-bundle
+```
+
+The command uses `rclone copy dataset:<remote-path> ...`, then writes the
+generated database, pose data, analysis outputs, bundle, and artifact archive
+under `<run-dir>/output/`. It writes `<run-dir>/run-manifest.json` only after
+all seven stages have passed their output contracts. Reusing a run directory is
+supported for pipeline caching; use a new directory when an isolated snapshot
+is required.
+
+After validating the generated media in the frontend, publication is a separate
+explicit operation. It replaces the remote processed-media cache, so the
+guarded script requires `--confirm`:
+
+```bash
+./script_invocations/publish_processed_media.sh \
+  --confirm \
+  /private/tmp/motion-pipeline-reference-run/output/bundle/media
+```
+
+Do not run this publication command until the bundle has been reviewed. The
+pipeline runner never publishes automatically.
 
 ## Useful entry points
 

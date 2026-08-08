@@ -47,8 +47,10 @@ def run_dancetree_pipeline(
     suppress_audio_analysis_artifacts: bool = False,
     suppress_add_complexity_artifacts: bool = False,
     suppress_bundle_data_artifacts: bool = False,
+    stage_validator: t.Optional[t.Callable[[str], None]] = None,
 
 ):
+    """Run the reference-video pipeline and optionally validate each stage."""
     complexities_temp_dir = temp_dir / 'complexities'
     audio_results_temp_dir = temp_dir / 'audio_analysis'
     audio_analysis_tree_dir = _audio_result_subdirectory(
@@ -116,6 +118,8 @@ def run_dancetree_pipeline(
         replace_existing_thumbnails=False,
         artifact_output_dir=get_step_artifact_dir("01-update-database", suppress_update_database_artifacts),
     )
+    if stage_validator is not None:
+        stage_validator("update-database")
 
     current_step += 1
     extract_holistic_data(
@@ -128,6 +132,8 @@ def run_dancetree_pipeline(
         print_prefix=lambda: f'{step()} extract raw pose data:',
         artifact_output_dir=get_step_artifact_dir("02-extract-pose-data", suppress_compute_holistic_data_artifacts),
     )
+    if stage_validator is not None:
+        stage_validator("extract-pose-data")
 
     current_step += 1
     preprocess_all_pose_data(
@@ -137,6 +143,8 @@ def run_dancetree_pipeline(
         print_prefix=lambda: f'{step()} preprocess pose data:',
         artifact_output_dir=get_step_artifact_dir("03-preprocess-pose-data", suppress_preprocess_pose_data_artifacts),
     )
+    if stage_validator is not None:
+        stage_validator("preprocess-pose-data")
 
     current_step += 1
     complexity_pose_data_root = (
@@ -163,6 +171,8 @@ def run_dancetree_pipeline(
         print_prefix=lambda: f'{step()} calc. complexity:',
         skip_existing=skip_existing_cumulative_complexity,
     )
+    if stage_validator is not None:
+        stage_validator("cumulative-complexity")
     
     current_step += 1
     if skip_existing_audioanalysis and audio_analysis_tree_dir.exists() and (audio_results_temp_dir / 'audio_analysis_summary.csv').exists():
@@ -182,6 +192,8 @@ def run_dancetree_pipeline(
             print_prefix=lambda: f'{step()} audio analysis:',
             artifact_output_dir=get_step_artifact_dir("05-audio-analysis", suppress_audio_analysis_artifacts),
         )
+    if stage_validator is not None:
+        stage_validator("audio-analysis")
 
     current_step += 1
     add_complexities_to_dancetrees(
@@ -194,6 +206,8 @@ def run_dancetree_pipeline(
         get_print_prefix=lambda: f'{step()} add complexity:',
         artifact_output_dir=get_step_artifact_dir("06-add-complexity", suppress_add_complexity_artifacts),
     )
+    if stage_validator is not None:
+        stage_validator("add-complexity")
 
     current_step += 1
     bundle_dance_data_as_json(
@@ -205,6 +219,8 @@ def run_dancetree_pipeline(
         print_prefix=lambda: f'{step()} bundle data:',
         artifact_output_dir=get_step_artifact_dir("07-bundle-data", suppress_bundle_data_artifacts),
     )
+    if stage_validator is not None:
+        stage_validator("bundle-data")
 
 if __name__ == "__main__":
     import argparse
