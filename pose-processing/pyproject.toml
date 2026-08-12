@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dance-teacher-pose-processing"
+version = "0.1.0"
+description = "Shared pose extraction, schema, and preprocessing for Dance Teacher XR."
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "mediapipe==0.10.21",
+    "numpy==1.25.2",
+    "opencv-contrib-python==4.8.1.78",
+    "pandas==2.3.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<9",
+]
+
+[tool.setuptools.packages.find]
+include = ["dance_teacher_pose*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+

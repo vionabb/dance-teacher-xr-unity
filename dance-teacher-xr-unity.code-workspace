@@ -13,12 +13,23 @@
             "path": "motion-pipeline"
         },
         {
+            "name": "pose-processing",
+            "path": "pose-processing"
+        },
+        {
             "name": "svelte-web-frontend",
             "path": "svelte-web-frontend"
         }
     ],
     "settings": {
         "python.terminal.activateEnvironment": true,
+        "python.analysis.usePerProjectEnvironments": true,
+        "python.analysis.extraPaths": [
+            "${workspaceFolder:motion-pipeline}",
+            "${workspaceFolder:pose-processing}",
+            "${workspaceFolder:repo-root}/motion-pipeline",
+            "${workspaceFolder:repo-root}/pose-processing"
+        ],
         "eslint.workingDirectories": [
             {
                 "directory": "svelte-web-frontend",

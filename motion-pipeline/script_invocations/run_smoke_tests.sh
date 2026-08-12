@@ -13,4 +13,5 @@ fi
 
 cd "${WORKSPACE_DIR}"
 "${UV_BIN}" run --locked python -m motion_extraction.prepare_mediapipe_models --download
+"${UV_BIN}" run --locked pytest ../pose-processing/tests -q
 exec "${UV_BIN}" run --locked pytest -m smoke "$@"
