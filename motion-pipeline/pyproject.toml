@@ -9,7 +9,8 @@ description = "Offline pose, audio, complexity, and lesson-bundle processing for
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
 dependencies = [
-    "dataclasses-json==0.6.7",
+	"dance-teacher-pose-processing",
+	"dataclasses-json==0.6.7",
     "librosa==0.11.0",
     "matplotlib==3.8.0",
     # MediaPipe 1.0.0's Holistic task graph aborts on macOS when its Metal
@@ -39,8 +40,12 @@ legacy-robotics = [
 [tool.setuptools.packages.find]
 include = ["motion_extraction*"]
 
+[tool.uv.sources]
+dance-teacher-pose-processing = { path = "../pose-processing", editable = true }
+
 [tool.pytest.ini_options]
 testpaths = [
+    "../pose-processing/tests",
     "motion_extraction/complexity_analysis/tests",
     "motion_extraction/tests",
 ]
