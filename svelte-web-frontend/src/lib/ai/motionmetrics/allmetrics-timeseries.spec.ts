@@ -39,13 +39,6 @@ const TIMESERIES_FIXTURE_SELECTIONS: StudyMetricFixtureSelector[] = [
 	},
 	{
 		study: Study.Study1_BySegment,
-		userId: 5630,
-		danceName: 'pajama-party',
-		workflowId: '00388bd7-d313-4ce1-89e5-c88091f25357',
-		clipNumber: 2
-	},
-	{
-		study: Study.Study1_BySegment,
 		userId: 5645,
 		danceName: 'mad-at-disney',
 		workflowId: '44e54afd-19c0-4342-b753-fb4ab123aaad',

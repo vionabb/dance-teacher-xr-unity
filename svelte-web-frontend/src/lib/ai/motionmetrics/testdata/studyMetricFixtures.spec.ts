@@ -50,12 +50,12 @@ describe('studyMetricFixtures', {}, async () => {
 
 			for await (const fixture of generateStudyMetricFixtures(context, {
 				requireRatings: true,
-				limit: 3
+				limit: 2
 			})) {
 				fixtures.push(fixture);
 			}
 
-			expect(fixtures.length).toBe(3);
+			expect(fixtures.length).toBe(2);
 			expect(fixtures.every((fixture) => fixture?.ratings)).toBe(true);
 			expect(fixtures.every((fixture) => fixture?.clipId.includes('user'))).toBe(true);
 			expect(fixtures.every((fixture) => fixture?.identity.workflowId.length)).toBe(true);

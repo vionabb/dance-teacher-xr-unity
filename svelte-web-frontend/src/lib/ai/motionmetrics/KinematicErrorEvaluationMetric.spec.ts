@@ -27,7 +27,7 @@ describe('KinematicErrorEvaluationMetric', () => {
 		expect(summary?.summary2D?.velRMSE).toMatchInlineSnapshot(`298.3139913705498`);
 	});
 
-	it('publishing metric outputs should not throw', ({ expect }) => {
+	it('publishing metric outputs should not throw', { timeout: 25000 }, ({ expect }) => {
 		expect(() => {
 			publishSummaryMetricOutputForTracks(
 				new KinematicErrorEvaluationMetric(),

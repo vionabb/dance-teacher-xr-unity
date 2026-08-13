@@ -33,7 +33,7 @@ const PARTICIPANT_DATA_ROOT = path.resolve(
 );
 export const PARTICIPANT_POSES_ROOT = PARTICIPANT_DATA_ROOT;
 
-function hasStudyPoseFiles(root: string) {
+function hasStudyPoseFiles(root: string): boolean {
 	return [
 		Study.Study1_BySegment,
 		Study.Study1_Whole,
@@ -42,7 +42,7 @@ function hasStudyPoseFiles(root: string) {
 	].some((study) => existsSync(getPoseFolder(study, root)));
 }
 
-export function resolveParticipantPoseRoot(root = PARTICIPANT_POSES_ROOT) {
+export function resolveParticipantPoseRoot(root = PARTICIPANT_POSES_ROOT): string {
 	const candidateRoots = [
 		process.env.MOTION_PIPELINE_USER_STUDY_DATA_DIR,
 		root,
@@ -514,7 +514,7 @@ function convertLegacyCombinedCsvRow(row: Record<string, number>): PoseFrame {
 
 function getPoseFolder(
 	poseSource: Study | OtherPoseSource,
-	participantPoseRoot = PARTICIPANT_POSES_ROOT
+	participantPoseRoot: string = PARTICIPANT_POSES_ROOT
 ) {
 	switch (poseSource) {
 		case Study.Study1_BySegment:
@@ -603,7 +603,7 @@ async function collectCanonicalPosePairs(folder: string): Promise<CanonicalPoseP
 async function* loadCanonicalStudyPoses(
 	poseSource: Study,
 	filter?: (clipInfo: SegmentInfo) => boolean,
-	participantPoseRoot = PARTICIPANT_POSES_ROOT
+	participantPoseRoot: string = resolveParticipantPoseRoot(PARTICIPANT_POSES_ROOT)
 ): AsyncGenerator<StudySegmentData> {
 	const folder = getPoseFolder(poseSource, participantPoseRoot);
 	if (!existsSync(folder)) {

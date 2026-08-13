@@ -22,7 +22,7 @@ The smoke suite discovers every manifest case automatically. A case may omit dow
 Generated outputs must go under an ignored directory such as `temp/smoketest/`; tests must never write into these fixture directories.
 
 The separate [`userstudydata/manifest.json`](userstudydata/manifest.json)
-registers two small participant-study cases. Their videos and canonical raw
+registers three small participant-study cases. Their videos and canonical raw
 pose artifacts are kept in this corpus rather than the frontend project,
 matching production ownership in `data/participant_motions/<study>/`.
 
