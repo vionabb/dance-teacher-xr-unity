@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'path';
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
@@ -17,11 +18,46 @@ export const TIKTOK_CLIPS_POSES_FOLDER = 'testResults/tiktoks-pixelposes-segment
 export const TIKTOK_WHOLE_POSES_FOLDER_2D = 'static/bundle/pose2d_data/';
 export const TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC = 'static/bundle/holistic_data/';
 
+const PROJECT_ROOT = path.resolve(process.cwd(), '..');
+const DEFAULT_PARTICIPANT_DATA_ROOT = path.join(PROJECT_ROOT, 'data', 'participant_motions');
+const SMOKE_USER_STUDY_DATA_ROOT = path.join(
+	PROJECT_ROOT,
+	'data',
+	'test-fixtures',
+	'smoketest',
+	'userstudydata'
+);
+
 const PARTICIPANT_DATA_ROOT = path.resolve(
-	process.env.MOTION_PIPELINE_USER_STUDY_DATA_DIR ??
-		path.join(process.cwd(), '..', 'data', 'participant_motions')
+	process.env.MOTION_PIPELINE_USER_STUDY_DATA_DIR ?? DEFAULT_PARTICIPANT_DATA_ROOT
 );
 export const PARTICIPANT_POSES_ROOT = PARTICIPANT_DATA_ROOT;
+
+function hasStudyPoseFiles(root: string) {
+	return [
+		Study.Study1_BySegment,
+		Study.Study1_Whole,
+		Study.Study2_BySegment,
+		Study.Study2_Whole
+	].some((study) => existsSync(getPoseFolder(study, root)));
+}
+
+export function resolveParticipantPoseRoot(root = PARTICIPANT_POSES_ROOT) {
+	const candidateRoots = [
+		process.env.MOTION_PIPELINE_USER_STUDY_DATA_DIR,
+		root,
+		DEFAULT_PARTICIPANT_DATA_ROOT,
+		SMOKE_USER_STUDY_DATA_ROOT
+	].filter((candidate): candidate is string => !!candidate);
+
+	for (const candidate of candidateRoots) {
+		if (hasStudyPoseFiles(candidate)) {
+			return candidate;
+		}
+	}
+
+	return root;
+}
 
 const POSE2D_RAW_SUFFIX = '.pose2d.raw.csv';
 const HOLISTIC_RAW_SUFFIX = '.holisticdata.raw.csv';
@@ -522,6 +558,10 @@ function getPoseFolder(
 type CanonicalPosePair = { stem: string; pose2dPath: string; holisticPath: string };
 
 async function listFilesRecursively(folder: string): Promise<string[]> {
+	if (!existsSync(folder)) {
+		return [];
+	}
+
 	const entries = await readdir(folder, { withFileTypes: true });
 	const files: string[] = [];
 	for (const entry of entries) {
@@ -536,6 +576,10 @@ async function listFilesRecursively(folder: string): Promise<string[]> {
 }
 
 async function collectCanonicalPosePairs(folder: string): Promise<CanonicalPosePair[]> {
+	if (!existsSync(folder)) {
+		return [];
+	}
+
 	const pairs = new Map<string, Partial<CanonicalPosePair>>();
 	for (const filePath of await listFilesRecursively(folder)) {
 		const fileName = path.basename(filePath);
@@ -562,6 +606,10 @@ async function* loadCanonicalStudyPoses(
 	participantPoseRoot = PARTICIPANT_POSES_ROOT
 ): AsyncGenerator<StudySegmentData> {
 	const folder = getPoseFolder(poseSource, participantPoseRoot);
+	if (!existsSync(folder)) {
+		return;
+	}
+
 	const pairs = await collectCanonicalPosePairs(folder);
 	for (const pair of pairs) {
 		const segmentInfo = getClipInfo(`${pair.stem}${POSE2D_RAW_SUFFIX}`, poseSource);
@@ -595,6 +643,10 @@ async function* loadLegacyCombinedPoses(
 	filter?: (clipInfo: TikTokClipInfo) => boolean
 ): AsyncGenerator<TiktokDanceClipData> {
 	const folder = getPoseFolder(poseSource);
+	if (!existsSync(folder)) {
+		return;
+	}
+
 	for (const file of await readdir(folder)) {
 		const segmentInfo = getClipInfo(file, poseSource);
 		if (segmentInfo === null) continue;
@@ -671,33 +723,40 @@ function cononicalizeClipName(clipName: string): DanceName | undefined {
 }
 
 export async function loadTiktokWholePoses() {
-	// const poseMap = new ();
-
 	const studyDancesRequests = dances
 		.filter((dance) => cononicalizeClipName(dance.clipName))
 		.map((dance) => {
 			const danceName = cononicalizeClipName(dance.clipName) as DanceName;
-			const poses2Durl = `${TIKTOK_WHOLE_POSES_FOLDER_2D}${dance.clipRelativeStem}.pose2d.raw.csv`;
-			const poses3Durl = `${TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC}${dance.clipRelativeStem}.holisticdata.raw.csv`;
-			const useFetch = false; // have loadPoseInformation use the node fs.
+			const poses2DPath = path.join(
+				`${TIKTOK_WHOLE_POSES_FOLDER_2D}${dance.clipRelativeStem}.pose2d.raw.csv`
+			);
+			const poses3DPath = path.join(
+				`${TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC}${dance.clipRelativeStem}.holisticdata.raw.csv`
+			);
+			const useFetch = false;
+
+			if (!existsSync(path.resolve(poses2DPath)) || !existsSync(path.resolve(poses3DPath))) {
+				return null;
+			}
 
 			return {
 				danceName,
 				dance,
 				poses2Dpromise: loadPoseInformation(
-					poses2Durl,
+					poses2DPath,
 					dance.fps,
 					useFetch,
 					GetPixelLandmarksFromPose2DRow
 				),
 				poses3Dpromose: loadPoseInformation(
-					poses3Durl,
+					poses3DPath,
 					dance.fps,
 					useFetch,
 					GetPixelLandmarksFromPose3DRow
 				)
 			};
-		});
+		})
+		.filter((request): request is NonNullable<typeof request> => request !== null);
 
 	const studyDances = await Promise.all(
 		studyDancesRequests.map(async (request) => {
