@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import importlib
 from pathlib import Path
+import typing as t
 
 import pandas as pd
 import pytest
@@ -18,6 +19,9 @@ from motion_extraction.rclone_transfer import pull, publish_processed_bundle
 
 
 staged_pipeline = importlib.import_module("motion_extraction.run_staged_pipeline")
+dancetree_pipeline = importlib.import_module(
+    "motion_extraction.dancetree.run_dancetree_pipeline"
+)
 
 
 def _layout(tmp_path: Path) -> PipelineOutputLayout:
@@ -228,3 +232,84 @@ def test_staged_runner_pulls_runs_and_writes_manifest(
         "add-complexity",
         "bundle-data",
     ]
+
+
+def test_pipeline_runs_only_the_requested_contiguous_stage_range(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Stage bounds prevent both upstream and downstream operations from running."""
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        dancetree_pipeline,
+        "preprocess_all_pose_data",
+        lambda **_kwargs: calls.append("preprocess-pose-data"),
+    )
+    for name in (
+        "update_database",
+        "extract_holistic_data",
+        "add_complexities_to_dancetrees",
+        "bundle_dance_data_as_json",
+    ):
+        monkeypatch.setattr(
+            dancetree_pipeline, name, lambda **_kwargs: calls.append(name)
+        )
+    validated: list[str] = []
+
+    result = dancetree_pipeline.run_dancetree_pipeline(
+        database_csv_path=tmp_path / "db.csv",
+        video_srcdir=tmp_path / "source",
+        holistic_data_srcdir=tmp_path / "holistic",
+        pose2d_data_srcdir=tmp_path / "pose2d",
+        temp_dir=tmp_path / "temp",
+        bundle_export_path=tmp_path / "bundle",
+        bundle_media_export_path=tmp_path / "bundle-media",
+        start_at="preprocess-pose-data",
+        stop_after="preprocess-pose-data",
+        stage_validator=validated.append,
+    )
+
+    assert result == ("preprocess-pose-data",)
+    assert calls == ["preprocess-pose-data"]
+    assert validated == ["preprocess-pose-data"]
+
+
+def test_staged_runner_copies_and_validates_cached_upstream_outputs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A later-stage experiment copies, rather than mutates, its cached run."""
+
+    cached_run = tmp_path / "cache"
+    cached_run.mkdir()
+    cached_layout = _layout(cached_run)
+    _populate_outputs(cached_layout)
+    destination = tmp_path / "experiment"
+
+    def fake_pipeline(**kwargs: object) -> None:
+        assert kwargs["start_at"] == "preprocess-pose-data"
+        assert kwargs["stop_after"] == "preprocess-pose-data"
+        t.cast(t.Callable[[str], None], kwargs["stage_validator"])("preprocess-pose-data")
+
+    monkeypatch.setattr(staged_pipeline, "run_dancetree_pipeline", fake_pipeline)
+    monkeypatch.setattr(
+        staged_pipeline,
+        "pull",
+        lambda *_args: pytest.fail("a reused run must not stage from rclone"),
+    )
+
+    staged_pipeline.run_staged_pipeline(
+        None,
+        destination,
+        start_at="preprocess-pose-data",
+        stop_after="preprocess-pose-data",
+        reuse_from=cached_run,
+    )
+    manifest = json.loads((destination / "run-manifest.json").read_text(encoding="utf-8"))
+
+    assert manifest["status"] == "completed"
+    assert manifest["completed_stages"] == ["preprocess-pose-data"]
+    assert manifest["cached_upstream_validated_stages"] == [
+        "update-database", "extract-pose-data"
+    ]
+    assert manifest["source_provenance"]["kind"] == "copied-cache"
+    assert (destination / "output" / "db.csv").is_file()

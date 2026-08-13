@@ -147,10 +147,32 @@ and validate every pipeline stage before the command succeeds:
 
 The command uses `rclone copy dataset:<remote-path> ...`, then writes the
 generated database, pose data, analysis outputs, bundle, and artifact archive
-under `<run-dir>/output/`. It writes `<run-dir>/run-manifest.json` only after
-all seven stages have passed their output contracts. Reusing a run directory is
-supported for pipeline caching; use a new directory when an isolated snapshot
-is required.
+under `<run-dir>/output/`. Its `<run-dir>/run-manifest.json` records parameters,
+source provenance, stage completion, and validation results.
+
+### Focused cached experiments
+
+The staged runner can execute one inclusive contiguous stage range. To protect
+a verified cache, it copies the cached `source/` and `output/` directories into
+a new, empty experiment directory, validates each upstream stage required by
+the selected range, and then runs only the requested stages.
+
+For example, rerun pose preprocessing against cached raw pose outputs and stop
+before complexity analysis:
+
+```bash
+./script_invocations/run_rclone_pipeline.sh \
+  --run-dir temp/experiments/20260812-preprocess-interpolation \
+  --reuse-from temp/rclone_pipeline_runs/20260811-baseline \
+  --start-at preprocess-pose-data \
+  --stop-after preprocess-pose-data \
+  --rewrite-existing-preprocessed-pose-data
+```
+
+The manifest is updated after every successful selected stage; on a failure it
+records the exception and the stages that completed. A range beginning after
+`update-database` requires `--reuse-from`, because its inputs must be validated
+from a prior staged run.
 
 After validating the generated media in the frontend, publication is a separate
 explicit operation. It replaces the remote processed-media cache, so the
