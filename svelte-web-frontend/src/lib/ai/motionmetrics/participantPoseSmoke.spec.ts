@@ -13,9 +13,7 @@ const participantPoseRoot = path.resolve(
 	'data',
 	'test-fixtures',
 	'smoketest',
-	'userstudydata',
-	'chi2025-poses',
-	'canonical'
+	'userstudydata'
 );
 
 describe('canonical participant pose smoke fixtures', () => {

@@ -79,6 +79,14 @@ def run_staged_pipeline(
     stop_after: str | None = None,
     reuse_from: Path | None = None,
     video_srcdir: Path | None = None,
+    database_csv_path: Path | None = None,
+    holistic_data_srcdir: Path | None = None,
+    pose2d_data_srcdir: Path | None = None,
+    temp_dir: Path | None = None,
+    bundle_export_path: Path | None = None,
+    bundle_media_export_path: Path | None = None,
+    holistic_processed_srcdir: Path | None = None,
+    pose2d_processed_srcdir: Path | None = None,
 ) -> Path:
     """Run selected stages against staged or persistent local video inputs.
 
@@ -129,13 +137,15 @@ def run_staged_pipeline(
         source_provenance = {"kind": "rclone", "remote_path": f"dataset:{remote_path}"}
 
     layout = PipelineOutputLayout(
-        database_csv_path=output_dir / "db.csv",
+        database_csv_path=(database_csv_path or output_dir / "db.csv").resolve(),
         video_srcdir=source_dir,
-        holistic_data_srcdir=output_dir / "holistic_data",
-        pose2d_data_srcdir=output_dir / "pose2d_data",
-        temp_dir=output_dir / "temp",
-        bundle_export_path=output_dir / "bundle" / "nonmedia",
-        bundle_media_export_path=output_dir / "bundle" / "media",
+        holistic_data_srcdir=(holistic_data_srcdir or output_dir / "holistic_data").resolve(),
+        pose2d_data_srcdir=(pose2d_data_srcdir or output_dir / "pose2d_data").resolve(),
+        temp_dir=(temp_dir or output_dir / "temp").resolve(),
+        bundle_export_path=(bundle_export_path or output_dir / "bundle" / "nonmedia").resolve(),
+        bundle_media_export_path=(bundle_media_export_path or output_dir / "bundle" / "media").resolve(),
+        holistic_processed_srcdir=(holistic_processed_srcdir or output_dir / "holistic_data_processed").resolve(),
+        pose2d_processed_srcdir=(pose2d_processed_srcdir or output_dir / "pose2d_processed").resolve(),
     )
     validator = PipelineOutputValidator(layout)
     completed_stages: list[str] = []
@@ -167,6 +177,14 @@ def run_staged_pipeline(
             "stop_after": stop_after,
             "reuse_from": str(reuse_path) if reuse_path else None,
             "video_srcdir": str(local_video_srcdir) if local_video_srcdir else None,
+            "database_csv_path": str(layout.database_csv_path),
+            "holistic_data_srcdir": str(layout.holistic_data_srcdir),
+            "pose2d_data_srcdir": str(layout.pose2d_data_srcdir),
+            "holistic_processed_srcdir": str(layout.holistic_processed_srcdir),
+            "pose2d_processed_srcdir": str(layout.pose2d_processed_srcdir),
+            "temp_dir": str(layout.temp_dir),
+            "bundle_export_path": str(layout.bundle_export_path),
+            "bundle_media_export_path": str(layout.bundle_media_export_path),
         },
     }
     _write_manifest(manifest_path, manifest)
@@ -193,6 +211,8 @@ def run_staged_pipeline(
             video_srcdir=layout.video_srcdir,
             holistic_data_srcdir=layout.holistic_data_srcdir,
             pose2d_data_srcdir=layout.pose2d_data_srcdir,
+            holistic_processed_srcdir=layout.holistic_processed_srcdir,
+            pose2d_processed_srcdir=layout.pose2d_processed_srcdir,
             temp_dir=layout.temp_dir,
             bundle_export_path=layout.bundle_export_path,
             bundle_media_export_path=layout.bundle_media_export_path,
@@ -256,6 +276,14 @@ def main(argv: t.Sequence[str] | None = None) -> None:
         type=Path,
         help="persistent local video cache; this runner reads it without copying or writing it",
     )
+    parser.add_argument("--database-csv-path", type=Path)
+    parser.add_argument("--holistic-data-srcdir", type=Path)
+    parser.add_argument("--pose2d-data-srcdir", type=Path)
+    parser.add_argument("--temp-dir", type=Path)
+    parser.add_argument("--bundle-export-path", type=Path)
+    parser.add_argument("--bundle-media-export-path", type=Path)
+    parser.add_argument("--holistic-processed-srcdir", type=Path)
+    parser.add_argument("--pose2d-processed-srcdir", type=Path)
     args = parser.parse_args(argv)
 
     run_staged_pipeline(
@@ -271,6 +299,14 @@ def main(argv: t.Sequence[str] | None = None) -> None:
         stop_after=args.stop_after,
         reuse_from=args.reuse_from,
         video_srcdir=args.video_srcdir,
+        database_csv_path=args.database_csv_path,
+        holistic_data_srcdir=args.holistic_data_srcdir,
+        pose2d_data_srcdir=args.pose2d_data_srcdir,
+        temp_dir=args.temp_dir,
+        bundle_export_path=args.bundle_export_path,
+        bundle_media_export_path=args.bundle_media_export_path,
+        holistic_processed_srcdir=args.holistic_processed_srcdir,
+        pose2d_processed_srcdir=args.pose2d_processed_srcdir,
     )
 
 

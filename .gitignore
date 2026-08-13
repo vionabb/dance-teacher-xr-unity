@@ -7,10 +7,19 @@
 /analysis-src
 !/analysis-src/README.md
 
+# Durable local research-data cache. Keep only explicitly committed metadata
+# (currently data/reference_motions/db.csv) and the small test-fixture corpus.
+/data/reference_motions/videos/
+/data/reference_motions/pose-raw/
+/data/reference_motions/pose-processed/
+/data/reference_motions/audio-analysis/
+/data/reference_motions/pipeline-run/
+/data/participant_motions/
+
 /artifact-archive
 
 secrets/*
 !secrets/example-*
 
 # Google Drive Paths (for local development)
-.github/localenvironment.json 
+.github/localenvironment.json

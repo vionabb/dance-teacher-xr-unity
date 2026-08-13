@@ -19,13 +19,9 @@ export const TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC = 'static/bundle/holistic_dat
 
 const PARTICIPANT_DATA_ROOT = path.resolve(
 	process.env.MOTION_PIPELINE_USER_STUDY_DATA_DIR ??
-		path.join(process.cwd(), '..', 'motion-pipeline', 'temp', 'cached', 'userstudydata')
+		path.join(process.cwd(), '..', 'data', 'participant_motions')
 );
-export const PARTICIPANT_POSES_ROOT = path.join(
-	PARTICIPANT_DATA_ROOT,
-	'chi2025-poses',
-	'canonical'
-);
+export const PARTICIPANT_POSES_ROOT = PARTICIPANT_DATA_ROOT;
 
 const POSE2D_RAW_SUFFIX = '.pose2d.raw.csv';
 const HOLISTIC_RAW_SUFFIX = '.holisticdata.raw.csv';
@@ -486,13 +482,37 @@ function getPoseFolder(
 ) {
 	switch (poseSource) {
 		case Study.Study1_BySegment:
-			return path.join(participantPoseRoot, 'study1-segmented');
+			return path.join(
+				participantPoseRoot,
+				'chi25_study1',
+				'pose-raw',
+				'canonical',
+				'study1-segmented'
+			);
 		case Study.Study2_BySegment:
-			return path.join(participantPoseRoot, 'study2-segmented');
+			return path.join(
+				participantPoseRoot,
+				'chi25_study2',
+				'pose-raw',
+				'canonical',
+				'study2-segmented'
+			);
 		case Study.Study1_Whole:
-			return path.join(participantPoseRoot, 'study1-whole');
+			return path.join(
+				participantPoseRoot,
+				'chi25_study1',
+				'pose-raw',
+				'canonical',
+				'study1-whole'
+			);
 		case Study.Study2_Whole:
-			return path.join(participantPoseRoot, 'study2-whole');
+			return path.join(
+				participantPoseRoot,
+				'chi25_study2',
+				'pose-raw',
+				'canonical',
+				'study2-whole'
+			);
 		case OtherPoseSource.TikTokClips:
 			return path.resolve(TIKTOK_CLIPS_POSES_FOLDER);
 	}

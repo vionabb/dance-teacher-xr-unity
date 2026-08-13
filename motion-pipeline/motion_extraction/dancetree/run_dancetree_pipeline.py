@@ -53,6 +53,8 @@ def run_dancetree_pipeline(
     temp_dir: Path,
     bundle_export_path: Path,
     bundle_media_export_path: Path,
+    holistic_processed_srcdir: Path | None = None,
+    pose2d_processed_srcdir: Path | None = None,
     include_audio_in_bundle: bool = False,
     include_thumbnail_in_bundle: bool = False,
     rewrite_existing_holistic_data: bool = False,
@@ -146,9 +148,9 @@ def run_dancetree_pipeline(
         return artifact_dir
 
     complexity_pose_data_root = (
-        holistic_data_srcdir
+        holistic_processed_srcdir or holistic_data_srcdir
         if COMPLEXITY_POSE_DATA_TYPE == PoseDataType.holistic_3d
-        else pose2d_data_srcdir
+        else pose2d_processed_srcdir or pose2d_data_srcdir
     )
     def run_stage(stage: str, operation: t.Callable[[], None]) -> None:
         """Run and validate one selected stage, retaining full-run step labels."""
@@ -176,6 +178,8 @@ def run_dancetree_pipeline(
     ))
     run_stage("preprocess-pose-data", lambda: preprocess_all_pose_data(
         holistic_data_root=holistic_data_srcdir, pose2d_data_root=pose2d_data_srcdir,
+        holistic_output_root=holistic_processed_srcdir,
+        pose2d_output_root=pose2d_processed_srcdir,
         rewrite_existing=rewrite_existing_preprocessed_pose_data,
         print_prefix=lambda: f'{step()} preprocess pose data:',
         artifact_output_dir=get_step_artifact_dir("03-preprocess-pose-data", suppress_preprocess_pose_data_artifacts),
@@ -229,6 +233,8 @@ if __name__ == "__main__":
     parser.add_argument('--video_srcdir', type=Path)
     parser.add_argument('--holistic_data_srcdir', type=Path)
     parser.add_argument('--pose2d_data_srcdir', type=Path)
+    parser.add_argument('--holistic_processed_srcdir', type=Path)
+    parser.add_argument('--pose2d_processed_srcdir', type=Path)
     parser.add_argument('--temp_dir', type=Path)
     parser.add_argument('--bundle_export_path', type=Path)
     parser.add_argument('--bundle_media_export_path', type=Path)
@@ -271,6 +277,8 @@ if __name__ == "__main__":
         temp_dir=args.temp_dir,
         bundle_export_path=args.bundle_export_path,
         bundle_media_export_path=args.bundle_media_export_path,
+        holistic_processed_srcdir=args.holistic_processed_srcdir,
+        pose2d_processed_srcdir=args.pose2d_processed_srcdir,
         include_audio_in_bundle=args.include_audio_in_bundle,
         include_thumbnail_in_bundle=args.include_thumbnail_in_bundle,
         rewrite_existing_holistic_data=args.rewrite_existing_holistic_data,

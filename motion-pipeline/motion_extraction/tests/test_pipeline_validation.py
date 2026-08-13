@@ -39,6 +39,8 @@ def _layout(tmp_path: Path) -> PipelineOutputLayout:
         temp_dir=output / "temp",
         bundle_export_path=output / "bundle" / "nonmedia",
         bundle_media_export_path=output / "bundle" / "media",
+        holistic_processed_srcdir=output / "holistic_data_processed",
+        pose2d_processed_srcdir=output / "pose2d_processed",
     )
 
 
@@ -64,8 +66,8 @@ def _populate_outputs(layout: PipelineOutputLayout) -> None:
     ):
         _write_csv(root / f"{stem.as_posix()}{suffix}", pd.DataFrame({"frame": [0, 1]}))
     for root, suffix in (
-        (layout.holistic_data_srcdir, ".holisticdata.clean.csv"),
-        (layout.pose2d_data_srcdir, ".pose2d.clean.csv"),
+        (layout.holistic_processed_srcdir or layout.holistic_data_srcdir, ".holisticdata.clean.csv"),
+        (layout.pose2d_processed_srcdir or layout.pose2d_data_srcdir, ".pose2d.clean.csv"),
     ):
         _write_csv(
             root / f"{stem.as_posix()}{suffix}",
@@ -364,7 +366,7 @@ def test_study_pose_pipeline_uses_canonical_roots_and_selected_stages(
 ) -> None:
     """Participant extraction reads videos in place and writes separate modalities."""
 
-    video_root = tmp_path / "chi2025-performancevideos" / "userperformances-study1-segmented"
+    video_root = tmp_path / "chi25_study1" / "videos" / "userperformances-study1-segmented"
     video_root.mkdir(parents=True)
     (video_root / "clip.mp4").write_bytes(b"video")
     calls: dict[str, object] = {}
@@ -385,10 +387,16 @@ def test_study_pose_pipeline_uses_canonical_roots_and_selected_stages(
     assert result == ("preprocess-pose-data",)
     assert calls["video_srcdir"] == video_root.resolve()
     assert calls["holistic_data_srcdir"] == (
-        tmp_path / "chi2025-poses/canonical/study1-segmented/holisticdata"
+        tmp_path / "chi25_study1/pose-raw/canonical/study1-segmented/holisticdata"
     ).resolve()
     assert calls["pose2d_data_srcdir"] == (
-        tmp_path / "chi2025-poses/canonical/study1-segmented/pose2d"
+        tmp_path / "chi25_study1/pose-raw/canonical/study1-segmented/pose2d"
+    ).resolve()
+    assert calls["holistic_processed_srcdir"] == (
+        tmp_path / "chi25_study1/pose-processed/canonical/study1-segmented/holisticdata"
+    ).resolve()
+    assert calls["pose2d_processed_srcdir"] == (
+        tmp_path / "chi25_study1/pose-processed/canonical/study1-segmented/pose2d"
     ).resolve()
     assert calls["start_at"] == "preprocess-pose-data"
     assert calls["stop_after"] == "preprocess-pose-data"

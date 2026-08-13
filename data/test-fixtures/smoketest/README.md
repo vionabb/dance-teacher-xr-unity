@@ -24,7 +24,7 @@ Generated outputs must go under an ignored directory such as `temp/smoketest/`; 
 The separate [`userstudydata/manifest.json`](userstudydata/manifest.json)
 registers two small participant-study cases. Their videos and canonical raw
 pose artifacts are kept in this corpus rather than the frontend project,
-matching production ownership in `motion-pipeline/temp/cached/userstudydata/`.
+matching production ownership in `data/participant_motions/<study>/`.
 
 ## Promoting a validated output
 
