@@ -145,11 +145,12 @@ When adding or changing a metric:
 
 ## Data locations
 
-- Persistent local source-video caches: `motion-pipeline/temp/cached/referencevideos/`
-  and `motion-pipeline/temp/cached/userstudydata/`. These are read-only inputs
-  to repeated runs; pipeline outputs belong in separate experiment directories.
+- Persistent reference inputs: `data/reference_motions/{videos,pose-raw}/`.
+  `data/reference_motions/db.csv` is the committed reference-video database.
+- Persistent participant inputs: `data/participant_motions/<study>/{videos,pose-raw}/`.
+- Generated reference outputs: `data/reference_motions/{pose-processed,audio-analysis,processed}/`.
+- Generated participant outputs: `data/participant_motions/<study>/pose-processed/`.
 - Generated/local metric output: `svelte-web-frontend/testResults/`
-- Canonical participant pose artifacts: `motion-pipeline/temp/cached/userstudydata/chi2025-poses/canonical/`
 - Checked-in metric fixtures: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
 - Cross-language metric artifacts: `svelte-web-frontend/artifacts/`
 - Frontend bundle JSON: `svelte-web-frontend/src/lib/data/bundle/`

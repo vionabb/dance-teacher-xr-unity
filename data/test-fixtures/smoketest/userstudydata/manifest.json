@@ -5,13 +5,13 @@
   "cases": {
     "user5630_pajama_clip1": {
       "video": "motionvideo/userstudy/user5630____performance____userstudy1--pajama-party--sheetmotion____workflowid-00388bd7-d313-4ce1-89e5-c88091f25357____clip1.mp4",
-      "pose2d_raw": "userstudydata/chi2025-poses/canonical/study1-segmented/pose2d/user5630____performance____userstudy1--pajama-party--sheetmotion____workflowid-00388bd7-d313-4ce1-89e5-c88091f25357____clip1.pose2d.raw.csv",
-      "holistic_raw": "userstudydata/chi2025-poses/canonical/study1-segmented/holisticdata/user5630____performance____userstudy1--pajama-party--sheetmotion____workflowid-00388bd7-d313-4ce1-89e5-c88091f25357____clip1.holisticdata.raw.csv"
+      "pose2d_raw": "userstudydata/chi25_study1/pose-raw/canonical/study1-segmented/pose2d/user5630____performance____userstudy1--pajama-party--sheetmotion____workflowid-00388bd7-d313-4ce1-89e5-c88091f25357____clip1.pose2d.raw.csv",
+      "holistic_raw": "userstudydata/chi25_study1/pose-raw/canonical/study1-segmented/holisticdata/user5630____performance____userstudy1--pajama-party--sheetmotion____workflowid-00388bd7-d313-4ce1-89e5-c88091f25357____clip1.holisticdata.raw.csv"
     },
     "user5645_mad_clip1": {
       "video": "motionvideo/userstudy/user5645____performance____userstudy1--mad-at-disney--skeleton____workflowid-44e54afd-19c0-4342-b753-fb4ab123aaad____clip1.mp4",
-      "pose2d_raw": "userstudydata/chi2025-poses/canonical/study1-segmented/pose2d/user5645____performance____userstudy1--mad-at-disney--skeleton____workflowid-44e54afd-19c0-4342-b753-fb4ab123aaad____clip1.pose2d.raw.csv",
-      "holistic_raw": "userstudydata/chi2025-poses/canonical/study1-segmented/holisticdata/user5645____performance____userstudy1--mad-at-disney--skeleton____workflowid-44e54afd-19c0-4342-b753-fb4ab123aaad____clip1.holisticdata.raw.csv"
+      "pose2d_raw": "userstudydata/chi25_study1/pose-raw/canonical/study1-segmented/pose2d/user5645____performance____userstudy1--mad-at-disney--skeleton____workflowid-44e54afd-19c0-4342-b753-fb4ab123aaad____clip1.pose2d.raw.csv",
+      "holistic_raw": "userstudydata/chi25_study1/pose-raw/canonical/study1-segmented/holisticdata/user5645____performance____userstudy1--mad-at-disney--skeleton____workflowid-44e54afd-19c0-4342-b753-fb4ab123aaad____clip1.holisticdata.raw.csv"
     }
   }
 }

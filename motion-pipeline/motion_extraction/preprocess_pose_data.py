@@ -37,6 +37,7 @@ from .artifacts import build_artifact_report, resolve_artifact_output_dir
 def preprocess_pose_data(
     pose_data_root: Path,
     pose_data_type: PoseDataType,
+    output_root: t.Optional[Path] = None,
     rewrite_existing: bool = False,
     print_prefix: t.Callable[[], str] = lambda: "",
     artifact_archive_root: t.Optional[Path] = None,
@@ -52,6 +53,7 @@ def preprocess_pose_data(
     summary_df = _shared_preprocess_pose_data(
         pose_data_root=pose_data_root,
         pose_data_type=pose_data_type,
+        output_root=output_root,
         rewrite_existing=rewrite_existing,
         print_prefix=print_prefix,
     )
@@ -68,6 +70,7 @@ def preprocess_pose_data(
         report.add_list(
             [
                 f"Pose-data root: `{pose_data_root}`",
+                f"Clean output root: `{output_root or pose_data_root}`",
                 f"Pose-data type: `{pose_data_type.value}`",
                 f"Raw suffix: `{schema.raw_suffix}`",
                 f"Clean suffix: `{schema.clean_suffix}`",
@@ -89,6 +92,8 @@ def preprocess_all_pose_data(
     *,
     holistic_data_root: t.Optional[Path],
     pose2d_data_root: t.Optional[Path],
+    holistic_output_root: t.Optional[Path] = None,
+    pose2d_output_root: t.Optional[Path] = None,
     rewrite_existing: bool = False,
     print_prefix: t.Callable[[], str] = lambda: "",
     artifact_archive_root: t.Optional[Path] = None,
@@ -101,6 +106,7 @@ def preprocess_all_pose_data(
         output[PoseDataType.holistic_3d] = preprocess_pose_data(
             pose_data_root=holistic_data_root,
             pose_data_type=PoseDataType.holistic_3d,
+            output_root=holistic_output_root,
             rewrite_existing=rewrite_existing,
             print_prefix=print_prefix,
             artifact_archive_root=artifact_archive_root,
@@ -112,6 +118,7 @@ def preprocess_all_pose_data(
         output[PoseDataType.pose2d] = preprocess_pose_data(
             pose_data_root=pose2d_data_root,
             pose_data_type=PoseDataType.pose2d,
+            output_root=pose2d_output_root,
             rewrite_existing=rewrite_existing,
             print_prefix=print_prefix,
             artifact_archive_root=artifact_archive_root,

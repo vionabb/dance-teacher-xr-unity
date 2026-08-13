@@ -130,6 +130,7 @@ def preprocess_pose_file(
 def preprocess_pose_data(
     pose_data_root: Path,
     pose_data_type: PoseDataType,
+    output_root: Path | None = None,
     rewrite_existing: bool = False,
     print_prefix: t.Callable[[], str] = lambda: "",
 ) -> pd.DataFrame:
@@ -137,6 +138,8 @@ def preprocess_pose_data(
 
     schema = get_pose_data_schema(pose_data_type)
     pose_data_root.mkdir(parents=True, exist_ok=True)
+    destination_root = output_root or pose_data_root
+    destination_root.mkdir(parents=True, exist_ok=True)
     migrate_legacy_pose_csv_outputs(pose_data_root, pose_data_type)
     raw_pose_files = collect_pose_data_files(
         pose_data_root, pose_data_type, preferred_versions=("raw", "legacy")
@@ -149,7 +152,7 @@ def preprocess_pose_data(
         relative_stem = relative_stem_from_pose_csv_path(
             raw_pose_csv_path, pose_data_root, pose_data_type
         )
-        clean_pose_csv_path = pose_data_root / f"{relative_stem}{schema.clean_suffix}"
+        clean_pose_csv_path = destination_root / f"{relative_stem}{schema.clean_suffix}"
         if rewrite_existing or not clean_pose_csv_path.exists() or clean_pose_csv_path.stat().st_size == 0:
             preprocess_pose_file(raw_pose_csv_path, clean_pose_csv_path, pose_data_type)
             status = "computed"
@@ -185,4 +188,3 @@ def preprocess_pose_data(
         f"used cached clean files for {cached_count}"
     )
     return summary_df
-

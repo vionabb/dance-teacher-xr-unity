@@ -152,24 +152,27 @@ The processed-bundle publication command replaces the cache and should run only 
 ### Persistent local video cache
 
 Reference and participant videos are immutable inputs to this project. Cache
-them once under `temp/cached/`, then point pipeline or analysis runs at that
-directory; ordinary runs never copy or write video files.
+them once under the workspace `data/` tree, then point pipeline or analysis
+runs at those directories; ordinary runs never copy or write video files.
 
 ```bash
 ./script_invocations/stage_video_cache.sh referencevideos
-./script_invocations/stage_video_cache.sh userstudydata
+./script_invocations/stage_video_cache.sh participant-study1-videos
+./script_invocations/stage_video_cache.sh participant-study2-videos
 ```
 
 The staging command uses `rclone copy`, so it never deletes local cache files.
 Run it deliberately to refresh a cache from Drive. Treat
-`temp/cached/userstudydata/` as access-controlled participant data and never
-publish or commit it.
+`data/participant_motions/` is access-controlled participant data and is never
+published or committed.
 
 ### Participant pose extraction
 
 `script_invocations/run_userstudy_pose_pipeline.sh` reads one study's videos
-from the persistent participant cache and writes canonical raw and clean pose
-artifacts to `temp/cached/userstudydata/chi2025-poses/canonical/<study>/`.
+from `data/participant_motions/<study>/videos/` and writes canonical raw pose
+artifacts to `data/participant_motions/<study>/pose-raw/canonical/` and clean
+artifacts to `pose-processed/canonical/<study>/` (with separate `holisticdata/`
+and `pose2d/` modality directories).
 The source videos are never copied or modified. Select the two pose stages with
 `--start-at` and `--stop-after` when rerunning only extraction or preprocessing:
 
@@ -181,7 +184,7 @@ STUDY=study1-segmented ./script_invocations/run_userstudy_pose_pipeline.sh \
 
 The frontend metric fixtures load paired `.pose2d.raw.csv` and
 `.holisticdata.raw.csv` files from this canonical tree. Legacy combined
-participant pose CSVs in older cache directories are not consumed or exported.
+participant pose CSVs are retained only as an ignored migration archive.
 
 ### One-off staged reference-video run
 

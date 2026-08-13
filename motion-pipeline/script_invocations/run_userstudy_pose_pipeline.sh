@@ -7,9 +7,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CODEWORKSPACE_ROOT="$(cd "${WORKSPACE_DIR}/.." && pwd)"
 UV_BIN="${UV_BIN:-uv}"
 STUDY="${STUDY:-study1-segmented}"
-DATA_ROOT="${USER_STUDY_DATA_DIR:-${WORKSPACE_DIR}/temp/cached/userstudydata}"
+DATA_ROOT="${USER_STUDY_DATA_DIR:-${CODEWORKSPACE_ROOT}/data/participant_motions}"
 
 if ! command -v "${UV_BIN}" >/dev/null 2>&1; then
     echo "Expected uv on PATH; install it and run 'uv sync --locked' in ${WORKSPACE_DIR}." >&2

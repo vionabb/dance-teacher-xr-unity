@@ -1,8 +1,8 @@
 """Extract participant-study videos into the canonical pose-data layout.
 
-Participant videos live in the persistent, access-controlled cache.  This
-module never copies or modifies those videos; it writes derived pose artifacts
-next to them under ``chi2025-poses/canonical``.
+Participant videos live in the persistent, access-controlled workspace data
+tree. This module never copies or modifies those videos; it writes canonical
+raw and generated clean pose artifacts under the study's data directory.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from pathlib import Path
 import typing as t
 
 from .dancetree.run_dancetree_pipeline import run_dancetree_pipeline
+from .data_paths import PARTICIPANT_ROOT
 
 
 @dataclass(frozen=True)
@@ -20,24 +21,25 @@ class StudyPoseLayout:
     """Paths for one participant-study video collection."""
 
     name: str
+    study_root_name: str
     video_relative_path: Path
 
     def video_root(self, data_root: Path) -> Path:
-        return data_root / "chi2025-performancevideos" / self.video_relative_path
+        return data_root / self.study_root_name / "videos" / self.video_relative_path
 
     def pose_root(self, data_root: Path) -> Path:
-        return data_root / "chi2025-poses" / "canonical" / self.name
+        return data_root / self.study_root_name / "pose-raw" / "canonical" / self.name
 
 
 STUDY_POSE_LAYOUTS: dict[str, StudyPoseLayout] = {
     "study1-segmented": StudyPoseLayout(
-        "study1-segmented", Path("userperformances-study1-segmented")
+        "study1-segmented", "chi25_study1", Path("userperformances-study1-segmented")
     ),
-    "study1-whole": StudyPoseLayout("study1-whole", Path("userperformances-study1")),
+    "study1-whole": StudyPoseLayout("study1-whole", "chi25_study1", Path("userperformances-study1")),
     "study2-segmented": StudyPoseLayout(
-        "study2-segmented", Path("userperformances-study2-segmented")
+        "study2-segmented", "chi25_study2", Path("userperformances-study2-segmented")
     ),
-    "study2-whole": StudyPoseLayout("study2-whole", Path("userperformances-study2")),
+    "study2-whole": StudyPoseLayout("study2-whole", "chi25_study2", Path("userperformances-study2")),
 }
 
 POSE_STAGES = ("extract-pose-data", "preprocess-pose-data")
@@ -46,7 +48,7 @@ POSE_STAGES = ("extract-pose-data", "preprocess-pose-data")
 def default_data_root() -> Path:
     """Return the local persistent participant-data cache."""
 
-    return Path(__file__).resolve().parents[1] / "temp" / "cached" / "userstudydata"
+    return PARTICIPANT_ROOT
 
 
 def get_study_pose_layout(study: str) -> StudyPoseLayout:
@@ -93,10 +95,13 @@ def run_study_pose_pipeline(
         raise ValueError("start_at must not come after stop_after")
 
     selected_stages = POSE_STAGES[start_index : stop_index + 1]
-    pose_root = layout.pose_root(root)
+    pose_root = root / layout.study_root_name / "pose-raw" / "canonical" / study
     holistic_root = pose_root / "holisticdata"
     pose2d_root = pose_root / "pose2d"
-    work_root = pose_root / "run-state"
+    processed_root = root / layout.study_root_name / "pose-processed" / "canonical" / study
+    holistic_processed_root = processed_root / "holisticdata"
+    pose2d_processed_root = processed_root / "pose2d"
+    work_root = processed_root / "run-state"
     completed: list[str] = []
 
     run_dancetree_pipeline(
@@ -107,6 +112,8 @@ def run_study_pose_pipeline(
         temp_dir=work_root / "temp",
         bundle_export_path=work_root / "bundle",
         bundle_media_export_path=work_root / "bundle-media",
+        holistic_processed_srcdir=holistic_processed_root,
+        pose2d_processed_srcdir=pose2d_processed_root,
         rewrite_existing_holistic_data=rewrite_existing_holistic_data,
         rewrite_existing_preprocessed_pose_data=rewrite_existing_preprocessed_pose_data,
         suppress_update_database_artifacts=True,

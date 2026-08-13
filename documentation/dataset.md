@@ -15,8 +15,8 @@ This document owns data provenance, sensitivity, storage, and transfer rules. Go
 | Research narrative assets | `lab-log/assets/` | Committed copies used by lab-log entries |
 | Checked-in metric fixtures | `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/` | Small durable fixtures and human-rating metadata |
 | Generated metric outputs | `svelte-web-frontend/testResults/` | Local/generated results and browser profiles |
-| Persistent local video cache | `motion-pipeline/temp/cached/{referencevideos,userstudydata}/` | Read-only local inputs; ignored by git |
-| Canonical participant pose cache | `motion-pipeline/temp/cached/userstudydata/chi2025-poses/canonical/` | Derived, access-controlled raw/clean pose artifacts |
+| Reference motion cache | `data/reference_motions/` | Videos/raw poses ignored; `db.csv` committed; downstream outputs generated locally |
+| Participant motion cache | `data/participant_motions/{chi25_study1,chi25_study2}/` | Access-controlled videos/raw poses ignored; processed outputs generated locally |
 
 Never infer consent, redistribution permission, or de-identification from the existence of a local file. Treat raw participant videos as sensitive and access-controlled.
 
@@ -24,8 +24,8 @@ Never infer consent, redistribution permission, or de-identification from the ex
 
 The earlier CHI studies provide participant performances, reference videos, human ratings, and derived poses used for technical validation.
 
-- Participant videos and derived pose files: `motion-pipeline/temp/cached/userstudydata/`
-- Canonical participant pose directories: `motion-pipeline/temp/cached/userstudydata/chi2025-poses/canonical/<study>/`
+- Reference videos/raw poses: `data/reference_motions/{videos,pose-raw}/`
+- Participant videos/raw poses: `data/participant_motions/<study>/{videos,pose-raw}/`
 - Human ratings and fixture definitions: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
 - Aggregate metric outputs: `svelte-web-frontend/artifacts/motion_metrics.csv` and `.db`
 
@@ -52,14 +52,22 @@ only generated outputs elsewhere:
 ```bash
 cd motion-pipeline
 ./script_invocations/stage_video_cache.sh referencevideos
-./script_invocations/stage_video_cache.sh userstudydata
+./script_invocations/stage_video_cache.sh participant-study1-videos
+./script_invocations/stage_video_cache.sh participant-study2-videos
+REFERENCE_RAW_POSE_REMOTE_PATH=referencevideos/<raw-pose-subtree> \
+  ./script_invocations/stage_video_cache.sh reference-raw-poses
+PARTICIPANT_STUDY1_RAW_POSE_REMOTE_PATH=userstudydata/<study1-pose-subtree> \
+  ./script_invocations/stage_video_cache.sh participant-study1-raw-poses
+PARTICIPANT_STUDY2_RAW_POSE_REMOTE_PATH=userstudydata/<study2-pose-subtree> \
+  ./script_invocations/stage_video_cache.sh participant-study2-raw-poses
 ```
 
-`stage_video_cache.sh` uses `rclone copy`; it never deletes cache files. It is
-the only cache writer. The reference-video pipeline and study-analysis commands
-must treat cached videos as read-only and must not copy them into new run
-directories. `userstudydata/` remains access-controlled even when cached
-locally.
+`stage_video_cache.sh` uses `rclone copy` for videos and `rclone sync` for raw
+pose files (the latter mirrors the authoritative, expensive-to-reproduce Drive
+cache). It is the only cache writer. The reference-video pipeline and
+study-analysis commands must treat cached inputs as read-only and must not copy
+them into new run directories. Participant data remains access-controlled even
+when cached locally.
 
 ## Cloud-agent access
 
