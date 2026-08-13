@@ -32,24 +32,24 @@ type TimeSeriesMetric = LiveEvaluationMetric<any, any, any> | SummaryEvaluationM
 const TIMESERIES_FIXTURE_SELECTIONS: StudyMetricFixtureSelector[] = [
 	{
 		study: Study.Study1_BySegment,
-		userId: 4751,
-		danceName: 'last-christmas',
-		workflowId: '0079b262-7575-4ae7-a377-60e21070106e',
+		userId: 5630,
+		danceName: 'pajama-party',
+		workflowId: '00388bd7-d313-4ce1-89e5-c88091f25357',
 		clipNumber: 1
 	},
 	{
 		study: Study.Study1_BySegment,
-		userId: 4751,
-		danceName: 'last-christmas',
-		workflowId: '0079b262-7575-4ae7-a377-60e21070106e',
+		userId: 5630,
+		danceName: 'pajama-party',
+		workflowId: '00388bd7-d313-4ce1-89e5-c88091f25357',
 		clipNumber: 2
 	},
 	{
-		study: Study.Study1_Whole,
-		userId: 4751,
-		danceName: 'last-christmas',
-		workflowId: '0079b262-7575-4ae7-a377-60e21070106e',
-		clipNumber: -1
+		study: Study.Study1_BySegment,
+		userId: 5645,
+		danceName: 'mad-at-disney',
+		workflowId: '44e54afd-19c0-4342-b753-fb4ab123aaad',
+		clipNumber: 1
 	}
 ];
 

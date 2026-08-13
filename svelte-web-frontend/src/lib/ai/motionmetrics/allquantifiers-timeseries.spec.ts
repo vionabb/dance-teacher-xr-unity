@@ -29,16 +29,16 @@ import {
 const QUANTIFIER_FIXTURE_SELECTIONS: StudyMetricFixtureSelector[] = [
 	{
 		study: Study.Study1_BySegment,
-		userId: 4751,
-		danceName: 'last-christmas',
-		workflowId: '0079b262-7575-4ae7-a377-60e21070106e',
+		userId: 5630,
+		danceName: 'pajama-party',
+		workflowId: '00388bd7-d313-4ce1-89e5-c88091f25357',
 		clipNumber: 1
 	},
 	{
 		study: Study.Study1_BySegment,
-		userId: 4751,
-		danceName: 'last-christmas',
-		workflowId: '0079b262-7575-4ae7-a377-60e21070106e',
+		userId: 5630,
+		danceName: 'pajama-party',
+		workflowId: '00388bd7-d313-4ce1-89e5-c88091f25357',
 		clipNumber: 2
 	}
 ];
