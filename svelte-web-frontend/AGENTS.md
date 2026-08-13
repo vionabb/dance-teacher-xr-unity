@@ -14,7 +14,9 @@ Follow [../AGENTS.md](../AGENTS.md) first.
 - Teaching and practice-plan logic: `src/lib/ai/TeachingAgent/`
 - Live and terminal evaluation: `src/lib/ai/evaluation/`
 - Metric implementations and study fixtures: `src/lib/ai/motionmetrics/`
-- Checked-in study pose fixtures: `src/lib/ai/motionmetrics/testdata/study-poses/`
+- Participant-study videos and canonical pose artifacts are owned by
+  `../motion-pipeline/temp/cached/userstudydata/`; do not add participant pose
+  files to this frontend repository.
 - Generated/local metric outputs: `testResults/`
 - Cross-language metric export: `artifacts/motion_metrics.csv`, consumed by the Python fitting script
 - Pipeline-provided app data: `src/lib/data/bundle/` and `static/bundle/`

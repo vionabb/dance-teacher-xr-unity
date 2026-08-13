@@ -149,7 +149,41 @@ uv run --locked python -m motion_extraction.rclone_transfer publish-processed-bu
 
 The processed-bundle publication command replaces the cache and should run only after frontend validation. See [the dataset guide](../documentation/dataset.md).
 
-### Full staged reference-video run
+### Persistent local video cache
+
+Reference and participant videos are immutable inputs to this project. Cache
+them once under `temp/cached/`, then point pipeline or analysis runs at that
+directory; ordinary runs never copy or write video files.
+
+```bash
+./script_invocations/stage_video_cache.sh referencevideos
+./script_invocations/stage_video_cache.sh userstudydata
+```
+
+The staging command uses `rclone copy`, so it never deletes local cache files.
+Run it deliberately to refresh a cache from Drive. Treat
+`temp/cached/userstudydata/` as access-controlled participant data and never
+publish or commit it.
+
+### Participant pose extraction
+
+`script_invocations/run_userstudy_pose_pipeline.sh` reads one study's videos
+from the persistent participant cache and writes canonical raw and clean pose
+artifacts to `temp/cached/userstudydata/chi2025-poses/canonical/<study>/`.
+The source videos are never copied or modified. Select the two pose stages with
+`--start-at` and `--stop-after` when rerunning only extraction or preprocessing:
+
+```bash
+STUDY=study1-segmented ./script_invocations/run_userstudy_pose_pipeline.sh
+STUDY=study1-segmented ./script_invocations/run_userstudy_pose_pipeline.sh \
+  --start-at preprocess-pose-data --stop-after preprocess-pose-data
+```
+
+The frontend metric fixtures load paired `.pose2d.raw.csv` and
+`.holisticdata.raw.csv` files from this canonical tree. Legacy combined
+participant pose CSVs in older cache directories are not consumed or exported.
+
+### One-off staged reference-video run
 
 For a full dataset run, stage a Drive subtree locally, process only local paths,
 and validate every pipeline stage before the command succeeds:
@@ -167,20 +201,30 @@ generated database, pose data, analysis outputs, bundle, and artifact archive
 under `<run-dir>/output/`. Its `<run-dir>/run-manifest.json` records parameters,
 source provenance, stage completion, and validation results.
 
-### Focused cached experiments
+### Cached reference-video and focused experiments
+
+For ordinary reference-video work, stage `referencevideos/` once, then use the
+persistent cache wrapper. It reads cached videos directly and writes generated
+results only to the supplied run directory:
+
+```bash
+./script_invocations/run_rclone_pipeline_cached.sh \
+  --run-dir temp/experiments/20260813-preprocess-baseline
+```
 
 The staged runner can execute one inclusive contiguous stage range. To protect
-a verified cache, it copies the cached `source/` and `output/` directories into
-a new, empty experiment directory, validates each upstream stage required by
-the selected range, and then runs only the requested stages.
+a verified generated-output baseline, it copies `output/` into a new, empty
+experiment directory, validates each upstream stage required by the selected
+range, and then runs only the requested stages. The persistent video cache is
+neither copied nor written.
 
 For example, rerun pose preprocessing against cached raw pose outputs and stop
 before complexity analysis:
 
 ```bash
-./script_invocations/run_rclone_pipeline.sh \
+./script_invocations/run_rclone_pipeline_cached.sh \
   --run-dir temp/experiments/20260812-preprocess-interpolation \
-  --reuse-from temp/rclone_pipeline_runs/20260811-baseline \
+  --reuse-from temp/experiments/20260813-preprocess-baseline \
   --start-at preprocess-pose-data \
   --stop-after preprocess-pose-data \
   --rewrite-existing-preprocessed-pose-data

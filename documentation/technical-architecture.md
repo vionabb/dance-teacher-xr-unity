@@ -145,8 +145,12 @@ When adding or changing a metric:
 
 ## Data locations
 
-- Generated/local metric output and study pose folders: `svelte-web-frontend/testResults/`
-- Checked-in study fixtures: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
+- Persistent local source-video caches: `motion-pipeline/temp/cached/referencevideos/`
+  and `motion-pipeline/temp/cached/userstudydata/`. These are read-only inputs
+  to repeated runs; pipeline outputs belong in separate experiment directories.
+- Generated/local metric output: `svelte-web-frontend/testResults/`
+- Canonical participant pose artifacts: `motion-pipeline/temp/cached/userstudydata/chi2025-poses/canonical/`
+- Checked-in metric fixtures: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
 - Cross-language metric artifacts: `svelte-web-frontend/artifacts/`
 - Frontend bundle JSON: `svelte-web-frontend/src/lib/data/bundle/`
 - Frontend bundle media: `svelte-web-frontend/static/bundle/`
