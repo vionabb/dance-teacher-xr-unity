@@ -110,6 +110,23 @@ It prepares the small MediaPipe model asset if needed, then runs `uv run --locke
 
 The repository workflow [`.github/workflows/motion-pipeline-smoke.yml`](../.github/workflows/motion-pipeline-smoke.yml) runs the same command in a clean Linux environment. Configure its `motion-pipeline-smoke` job as a required pull-request check when enforcing acceptance through GitHub.
 
+### macOS GUI-authorized pose-extraction smoke test
+
+The pinned macOS MediaPipe wheel initializes a native NSOpenGL context when
+the legacy Holistic graph starts, even though its inference delegate is CPU.
+Codex's default sandbox does not have access to that native graphics service,
+so run the pose-extraction smoke test in a GUI-authorized local process:
+
+```bash
+./script_invocations/run_pose_extraction_smoke.sh -q
+```
+
+In Codex, explicitly approve the command's local GUI/OpenGL access when
+requested. This is a test-environment constraint, not evidence that pose
+extraction will fail in a normal macOS login session. Keep the ordinary smoke
+suite for all other stage contracts, and use this focused command whenever a
+change affects MediaPipe extraction.
+
 For end-to-end changes, run the small pipeline script. It requires the referenced local media input:
 
 ```bash
