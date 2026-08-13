@@ -14,7 +14,9 @@ This document owns data provenance, sensitivity, storage, and transfer rules. Go
 | Generated local analysis | `artifact-archive/`, subproject artifact/temp folders | Local working outputs; often ignored by git |
 | Research narrative assets | `lab-log/assets/` | Committed copies used by lab-log entries |
 | Checked-in metric fixtures | `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/` | Small durable fixtures and human-rating metadata |
-| Generated metric/study outputs | `svelte-web-frontend/testResults/` | Local/generated results, browser profiles, and study pose folders |
+| Generated metric outputs | `svelte-web-frontend/testResults/` | Local/generated results and browser profiles |
+| Persistent local video cache | `motion-pipeline/temp/cached/{referencevideos,userstudydata}/` | Read-only local inputs; ignored by git |
+| Canonical participant pose cache | `motion-pipeline/temp/cached/userstudydata/chi2025-poses/canonical/` | Derived, access-controlled raw/clean pose artifacts |
 
 Never infer consent, redistribution permission, or de-identification from the existence of a local file. Treat raw participant videos as sensitive and access-controlled.
 
@@ -22,8 +24,8 @@ Never infer consent, redistribution permission, or de-identification from the ex
 
 The earlier CHI studies provide participant performances, reference videos, human ratings, and derived poses used for technical validation.
 
-- Generated/local study pose directories: `svelte-web-frontend/testResults/study*-pixelposes-*`
-- Checked-in pose fixtures: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/study-poses/`
+- Participant videos and derived pose files: `motion-pipeline/temp/cached/userstudydata/`
+- Canonical participant pose directories: `motion-pipeline/temp/cached/userstudydata/chi2025-poses/canonical/<study>/`
 - Human ratings and fixture definitions: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
 - Aggregate metric outputs: `svelte-web-frontend/artifacts/motion_metrics.csv` and `.db`
 
@@ -40,6 +42,24 @@ Additional historical/testbench paths are documented as launch arguments in `mot
 When `.github/localenvironment.json` exists, it maps the local synchronized Drive dataset and agent-output roots. The file is machine-specific and gitignored; use `.github/example-localenvironment.json` as the schema.
 
 Prefer project helpers or explicit local paths over copying absolute paths into source code. Do not commit credentials, service-account JSON, Drive folder IDs, or local environment files.
+
+## Persistent local video cache
+
+The local cache is the default input for repeated pipeline and study-analysis
+work. Stage each immutable Drive subtree once, then let individual runs write
+only generated outputs elsewhere:
+
+```bash
+cd motion-pipeline
+./script_invocations/stage_video_cache.sh referencevideos
+./script_invocations/stage_video_cache.sh userstudydata
+```
+
+`stage_video_cache.sh` uses `rclone copy`; it never deletes cache files. It is
+the only cache writer. The reference-video pipeline and study-analysis commands
+must treat cached videos as read-only and must not copy them into new run
+directories. `userstudydata/` remains access-controlled even when cached
+locally.
 
 ## Cloud-agent access
 
@@ -66,12 +86,14 @@ The Python wrapper `python -m motion_extraction.rclone_transfer` provides corres
 
 `rclone sync` is intentionally reserved for publishing a validated processed-media bundle. Use `copy` for ordinary inputs and research artifacts.
 
-The complete reference-video workflow is available from
-`motion-pipeline/script_invocations/run_rclone_pipeline.sh`. It stages a
-selected `dataset:` subtree into a local run directory, invokes the existing
-path-based DanceTree pipeline, and validates the database, raw pose, clean pose,
+The preferred reference-video workflow is
+`motion-pipeline/script_invocations/run_rclone_pipeline_cached.sh`. It reads
+the persistent `referencevideos/` cache directly, writes only generated output
+to the chosen run directory, and validates the database, raw pose, clean pose,
 complexity, audio, enriched DanceTree, and bundle outputs after each stage. A
-`run-manifest.json` records the remote source, parameters, and validated stages.
+`run-manifest.json` records the local-video-cache provenance, parameters, and
+validated stages. The older `run_rclone_pipeline.sh` remains available when an
+isolated, one-off Drive staging run is specifically needed.
 
 Processed media is promoted separately with
 `motion-pipeline/script_invocations/publish_processed_media.sh --confirm

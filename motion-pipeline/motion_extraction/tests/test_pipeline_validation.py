@@ -22,6 +22,7 @@ staged_pipeline = importlib.import_module("motion_extraction.run_staged_pipeline
 dancetree_pipeline = importlib.import_module(
     "motion_extraction.dancetree.run_dancetree_pipeline"
 )
+study_pose_pipeline = importlib.import_module("motion_extraction.study_pose_data")
 
 
 def _layout(tmp_path: Path) -> PipelineOutputLayout:
@@ -313,3 +314,81 @@ def test_staged_runner_copies_and_validates_cached_upstream_outputs(
     ]
     assert manifest["source_provenance"]["kind"] == "copied-cache"
     assert (destination / "output" / "db.csv").is_file()
+
+
+def test_staged_runner_reuses_outputs_without_copying_persistent_videos(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A local video cache stays outside each copied experiment run."""
+
+    cached_run = tmp_path / "baseline"
+    cached_run.mkdir()
+    cached_layout = _layout(cached_run)
+    _populate_outputs(cached_layout)
+    video_cache = tmp_path / "video-cache"
+    (video_cache / "lesson").mkdir(parents=True)
+    video_file = video_cache / "lesson" / "clip.mp4"
+    video_file.write_bytes(b"video")
+    destination = tmp_path / "experiment"
+
+    def fake_pipeline(**kwargs: object) -> None:
+        assert kwargs["video_srcdir"] == video_cache.resolve()
+        t.cast(t.Callable[[str], None], kwargs["stage_validator"])(
+            "preprocess-pose-data"
+        )
+
+    monkeypatch.setattr(staged_pipeline, "run_dancetree_pipeline", fake_pipeline)
+
+    staged_pipeline.run_staged_pipeline(
+        None,
+        destination,
+        start_at="preprocess-pose-data",
+        stop_after="preprocess-pose-data",
+        reuse_from=cached_run,
+        video_srcdir=video_cache,
+    )
+    manifest = json.loads((destination / "run-manifest.json").read_text(encoding="utf-8"))
+
+    assert not (destination / "source").exists()
+    assert video_file.read_bytes() == b"video"
+    assert (destination / "output" / "db.csv").is_file()
+    assert manifest["source_provenance"] == {
+        "kind": "local-video-cache",
+        "video_srcdir": str(video_cache.resolve()),
+        "reuse_from": str(cached_run.resolve()),
+    }
+
+
+def test_study_pose_pipeline_uses_canonical_roots_and_selected_stages(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Participant extraction reads videos in place and writes separate modalities."""
+
+    video_root = tmp_path / "chi2025-performancevideos" / "userperformances-study1-segmented"
+    video_root.mkdir(parents=True)
+    (video_root / "clip.mp4").write_bytes(b"video")
+    calls: dict[str, object] = {}
+
+    def fake_pipeline(**kwargs: object) -> None:
+        calls.update(kwargs)
+        t.cast(t.Callable[[str], None], kwargs["stage_validator"])("preprocess-pose-data")
+
+    monkeypatch.setattr(study_pose_pipeline, "run_dancetree_pipeline", fake_pipeline)
+
+    result = study_pose_pipeline.run_study_pose_pipeline(
+        study="study1-segmented",
+        data_root=tmp_path,
+        start_at="preprocess-pose-data",
+        stop_after="preprocess-pose-data",
+    )
+
+    assert result == ("preprocess-pose-data",)
+    assert calls["video_srcdir"] == video_root.resolve()
+    assert calls["holistic_data_srcdir"] == (
+        tmp_path / "chi2025-poses/canonical/study1-segmented/holisticdata"
+    ).resolve()
+    assert calls["pose2d_data_srcdir"] == (
+        tmp_path / "chi2025-poses/canonical/study1-segmented/pose2d"
+    ).resolve()
+    assert calls["start_at"] == "preprocess-pose-data"
+    assert calls["stop_after"] == "preprocess-pose-data"

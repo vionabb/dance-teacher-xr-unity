@@ -1,4 +1,4 @@
-"""Stage a Drive dataset locally and run the validated reference-video pipeline."""
+"""Run the validated reference-video pipeline from Drive staging or a local cache."""
 
 from __future__ import annotations
 
@@ -27,14 +27,17 @@ def _write_manifest(path: Path, manifest: dict[str, t.Any]) -> None:
     path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
-def _copy_cached_run(reuse_from: Path, run_dir: Path) -> None:
-    """Copy a staged run into a new run without permitting cache mutation."""
+def _copy_cached_run(
+    reuse_from: Path, run_dir: Path, *, copy_source: bool = True
+) -> None:
+    """Copy generated outputs and, only when requested, the staged video source."""
 
     cached_source = reuse_from / "source"
     cached_output = reuse_from / "output"
-    if not cached_source.is_dir() or not cached_output.is_dir():
+    if not cached_output.is_dir() or (copy_source and not cached_source.is_dir()):
         raise ValueError(
-            f"reuse_from must contain source/ and output/: {reuse_from}"
+            "reuse_from must contain output/ and, without --video-srcdir, source/: "
+            f"{reuse_from}"
         )
     if run_dir.resolve() == reuse_from.resolve():
         raise ValueError("run_dir must differ from reuse_from to protect the cached run")
@@ -42,7 +45,8 @@ def _copy_cached_run(reuse_from: Path, run_dir: Path) -> None:
         raise ValueError(
             f"run_dir must be empty when reusing a cached run: {run_dir}"
         )
-    shutil.copytree(cached_source, run_dir / "source")
+    if copy_source:
+        shutil.copytree(cached_source, run_dir / "source")
     shutil.copytree(cached_output, run_dir / "output")
 
 
@@ -74,12 +78,14 @@ def run_staged_pipeline(
     start_at: str | None = None,
     stop_after: str | None = None,
     reuse_from: Path | None = None,
+    video_srcdir: Path | None = None,
 ) -> Path:
-    """Run selected stages locally, optionally starting from a copied cache.
+    """Run selected stages against staged or persistent local video inputs.
 
-    A reused run is copied into a new empty ``run_dir`` so experiment changes
-    cannot alter the cache.  Starting after the first stage requires
-    ``reuse_from``; cached upstream stages are validated before execution.
+    ``video_srcdir`` is a persistent local video cache and is never copied or
+    written by this runner. A reused run copies only generated ``output/`` when
+    a local video source is supplied. Starting after the first stage requires
+    ``reuse_from``; its upstream generated outputs are validated before use.
     """
 
     run_dir = run_dir.resolve()
@@ -87,15 +93,31 @@ def run_staged_pipeline(
     start_index = PIPELINE_STAGES.index(selected_stages[0])
     if start_index and reuse_from is None:
         raise ValueError("start_at after update-database requires --reuse-from")
-    source_dir = run_dir / "source"
+    if remote_path is not None and video_srcdir is not None:
+        raise ValueError("remote_path and video_srcdir are mutually exclusive")
+    local_video_srcdir = video_srcdir.resolve() if video_srcdir is not None else None
+    if local_video_srcdir is not None and not local_video_srcdir.is_dir():
+        raise ValueError(f"video_srcdir must be an existing directory: {local_video_srcdir}")
+    source_dir = local_video_srcdir or run_dir / "source"
     output_dir = run_dir / "output"
     run_dir.mkdir(parents=True, exist_ok=True)
     reuse_path = reuse_from.resolve() if reuse_from is not None else None
     if reuse_path is not None:
-        _copy_cached_run(reuse_path, run_dir)
-        source_provenance: dict[str, t.Any] = {
-            "kind": "copied-cache",
-            "reuse_from": str(reuse_path),
+        _copy_cached_run(reuse_path, run_dir, copy_source=local_video_srcdir is None)
+        source_provenance: dict[str, t.Any] = (
+            {
+                "kind": "local-video-cache",
+                "video_srcdir": str(local_video_srcdir),
+                "reuse_from": str(reuse_path),
+            }
+            if local_video_srcdir is not None
+            else {"kind": "copied-cache", "reuse_from": str(reuse_path)}
+        )
+    elif local_video_srcdir is not None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        source_provenance = {
+            "kind": "local-video-cache",
+            "video_srcdir": str(local_video_srcdir),
         }
     else:
         if remote_path is None:
@@ -124,7 +146,9 @@ def run_staged_pipeline(
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
         "completed_at_utc": None,
         "run_directory": ".",
-        "source_directory": "source",
+        "source_directory": (
+            "source" if local_video_srcdir is None else str(local_video_srcdir)
+        ),
         "output_directory": "output",
         "remote_path": f"dataset:{remote_path}" if remote_path is not None else None,
         "source_provenance": source_provenance,
@@ -142,6 +166,7 @@ def run_staged_pipeline(
             "start_at": start_at,
             "stop_after": stop_after,
             "reuse_from": str(reuse_path) if reuse_path else None,
+            "video_srcdir": str(local_video_srcdir) if local_video_srcdir else None,
         },
     }
     _write_manifest(manifest_path, manifest)
@@ -226,6 +251,11 @@ def main(argv: t.Sequence[str] | None = None) -> None:
         "--reuse-from", type=Path,
         help="completed staged run to copy as an immutable upstream cache",
     )
+    parser.add_argument(
+        "--video-srcdir",
+        type=Path,
+        help="persistent local video cache; this runner reads it without copying or writing it",
+    )
     args = parser.parse_args(argv)
 
     run_staged_pipeline(
@@ -240,6 +270,7 @@ def main(argv: t.Sequence[str] | None = None) -> None:
         start_at=args.start_at,
         stop_after=args.stop_after,
         reuse_from=args.reuse_from,
+        video_srcdir=args.video_srcdir,
     )
 
 
