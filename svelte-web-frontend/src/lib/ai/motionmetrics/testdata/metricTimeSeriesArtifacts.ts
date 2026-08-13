@@ -32,6 +32,7 @@ export function writeTimeSeriesCsv(series: MotionMetricTimeSeries, outputDir: st
 	ensureDirectory(outputDir);
 	const csv = Papa.unparse(series.rows);
 	const outputPath = path.join(outputDir, `${sanitizePathPart(series.seriesId)}.csv`);
+	ensureDirectory(path.dirname(outputPath));
 	fs.writeFileSync(outputPath, csv, 'utf8');
 	return outputPath;
 }
@@ -76,6 +77,7 @@ export function writeTimeSeriesPlotHtml(series: MotionMetricTimeSeries, outputDi
 `;
 
 	const outputPath = path.join(outputDir, `${sanitizePathPart(series.seriesId)}.html`);
+	ensureDirectory(path.dirname(outputPath));
 	fs.writeFileSync(outputPath, html, 'utf8');
 	return outputPath;
 }

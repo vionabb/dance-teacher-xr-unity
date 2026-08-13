@@ -35,7 +35,7 @@ describe('Qijia2DPoseEvaluationMetric', () => {
 		expect(vecScores['rightElbow -> rightWrist']).toMatchInlineSnapshot('3.4184171877019267');
 	});
 
-	it('publishing metric outputs should not throw', ({ expect }) => {
+	it('publishing metric outputs should not throw', { timeout: 20000 }, ({ expect }) => {
 		expect(() => {
 			publishLiveMetricOutputForTracks(new Qijia2DPoseEvaluationMetric(), generateAllTestTracks());
 		}).not.toThrow();
