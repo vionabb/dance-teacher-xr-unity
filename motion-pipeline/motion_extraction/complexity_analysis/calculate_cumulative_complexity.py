@@ -1659,6 +1659,10 @@ def calculate_cumulative_complexities(
     fps = 30.0
 
     max_complexity_per_second = (max_complexity_per_frame - min_complexity_per_frame) * fps
+    if max_complexity_per_second == 0:
+        # Single video or all videos have identical complexity per frame: fall back to
+        # normalising by the absolute maximum complexity rate so scaled values are finite.
+        max_complexity_per_second = max_complexity_per_frame * fps if max_complexity_per_frame > 0 else 1.0
     max_frames = max(nontossed_frame_counts)
 
     # Add cols for min and max complexity
