@@ -46,8 +46,6 @@ function computeSkeletonDissimilarityQijiaMethod(
 	// of [0, 5], where 0 denotes the poorest performance and 5 rep-
 	// resents the best performance. This normalized score serves
 	// as the final performance rating.
-	let rawOverallDisimilarityScore = 0;
-
 	// Compare 8 Vectors
 	const vectorDissimilarityScores = QijiaMethodComparisonVectors.map((vecLandmarkIds) => {
 		const [srcLandmark, destLandmark] = vecLandmarkIds;
@@ -57,7 +55,7 @@ function computeSkeletonDissimilarityQijiaMethod(
 		return getMagnitude2DVec([dx, dy]) || 0;
 	});
 
-	rawOverallDisimilarityScore = GetArithmeticMean(vectorDissimilarityScores);
+	const rawOverallDisimilarityScore = GetArithmeticMean(vectorDissimilarityScores);
 
 	// According to Qijia, we used an upper bound of 2.0 for the dissimimlarity score (which would indicate all vectors
 	// of the user faced the exact opposite directions of the expert), and the lower bound was zero (which would indicate

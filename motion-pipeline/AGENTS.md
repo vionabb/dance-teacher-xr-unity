@@ -14,9 +14,16 @@ Run Python modules with `motion-pipeline/` as the working directory and use the 
 ## Important workflows and contracts
 
 - Main reference-video workflow: `motion_extraction.dancetree.run_dancetree_pipeline`
-- CHI study pose preparation: `motion_extraction/scripts/getposes.py` and related scripts
+- CHI study pose preparation: `motion_extraction.study_pose_data` via
+  `script_invocations/run_userstudy_pose_pipeline.sh`
 - Frontend metric model fitting: `motion_extraction/scripts/fit_metric_linear_model.py`
 - Cloud data staging/publication: `motion_extraction.rclone_transfer`; never use an rclone mount
+- Persistent reference inputs live under `../data/reference_motions/`; participant
+  inputs live under `../data/participant_motions/<study>/`. Treat videos and raw
+  poses as read-only inputs. Refresh them with `script_invocations/stage_video_cache.sh`.
+- Generated processed poses, audio analysis, bundles, and other downstream
+  outputs live in the corresponding `data/` cache unless directly iterating on
+  a pipeline step, in which case use `temp/` or an explicit experiment path.
 - Frontend boundary: bundle JSON/media and `svelte-web-frontend/artifacts/motion_metrics.csv`
 
 If a change affects bundle schemas, raw/clean filename conventions, metric columns, or shared artifact paths, inspect the corresponding frontend consumers and update the canonical documentation when needed.

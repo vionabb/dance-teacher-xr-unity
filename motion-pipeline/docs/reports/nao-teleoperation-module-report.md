@@ -63,7 +63,8 @@ For each successful frame:
 - Convert BGR -> RGB for MediaPipe.
 - Run pose inference.
 - Draw normalized landmarks onto display image.
-- Convert inference output into a "holistic" row (`transform_to_holistic_csvrow`).
+- Convert inference output into a "holistic" row using the shared
+  `dance_teacher_pose.extraction.transform_to_holistic_csvrow` serializer.
 - If world landmarks are absent, invoke callback with `None`.
 - Otherwise invoke callback with the pandas Series containing pose/world landmark fields.
 
@@ -130,7 +131,8 @@ Each motor applies:
 ---
 
 ## Coordinate Conventions
-When constructing the holistic row (`transform_to_holistic_csvrow`):
+When constructing the holistic row with the shared
+`transform_to_holistic_csvrow` serializer:
 - MediaPipe world coordinates are remapped as:
   - `x <- x`
   - `y <- -y`

@@ -25,6 +25,8 @@ class PipelineOutputLayout:
     temp_dir: Path
     bundle_export_path: Path
     bundle_media_export_path: Path
+    holistic_processed_srcdir: Path | None = None
+    pose2d_processed_srcdir: Path | None = None
 
     def video_stems(self) -> tuple[Path, ...]:
         """Return input video stems using the pipeline's relative path convention."""
@@ -133,10 +135,12 @@ def _validate_pose_outputs(layout: PipelineOutputLayout, stems: tuple[Path, ...]
     stage = "preprocess-pose-data" if clean else "extract-pose-data"
     holistic_suffix = ".holisticdata.clean.csv" if clean else ".holisticdata.raw.csv"
     pose2d_suffix = ".pose2d.clean.csv" if clean else ".pose2d.raw.csv"
+    holistic_root = layout.holistic_processed_srcdir if clean and layout.holistic_processed_srcdir else layout.holistic_data_srcdir
+    pose2d_root = layout.pose2d_processed_srcdir if clean and layout.pose2d_processed_srcdir else layout.pose2d_data_srcdir
     holistic_paths = _require_expected_files(
-        layout.holistic_data_srcdir, stems, holistic_suffix, stage
+        holistic_root, stems, holistic_suffix, stage
     )
-    pose2d_paths = _require_expected_files(layout.pose2d_data_srcdir, stems, pose2d_suffix, stage)
+    pose2d_paths = _require_expected_files(pose2d_root, stems, pose2d_suffix, stage)
 
     if clean:
         required_columns = {"preprocess_torso_length", "preprocess_is_usable"}
