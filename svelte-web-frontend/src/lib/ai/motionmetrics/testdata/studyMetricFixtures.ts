@@ -4,6 +4,7 @@ import {
 	loadPoses,
 	loadTikTokClipPoses,
 	loadTiktokWholePoses,
+	resolveParticipantPoseRoot,
 	Study,
 	type HumanRating,
 	type PoseFrame,
@@ -129,22 +130,32 @@ export async function loadStudyMetricFixturesContext() {
 }
 
 async function loadStudyPoseGenerators() {
-	const study1SegmentsPoseFiles = (await loadPoses(Study.Study1_BySegment, (clipInfo) => {
-		const studyInfo = clipInfo as SegmentInfo;
-		return studyInfo.study1phase === 'performance';
-	})) as AsyncGenerator<StudySegmentData>;
+	const participantPoseRoot = resolveParticipantPoseRoot();
 
-	const study1WholePoseFiles = (await loadPoses(Study.Study1_Whole, (clipInfo) => {
-		const studyInfo = clipInfo as SegmentInfo;
-		return studyInfo.study1phase === 'performance';
-	})) as AsyncGenerator<StudySegmentData>;
+	const study1SegmentsPoseFiles = (await loadPoses(
+		Study.Study1_BySegment,
+		(clipInfo) => {
+			const studyInfo = clipInfo as SegmentInfo;
+			return studyInfo.study1phase === 'performance';
+		},
+		{ participantPoseRoot }
+	)) as AsyncGenerator<StudySegmentData>;
 
-	const study2SegmentPoseFiles = (await loadPoses(
-		Study.Study2_BySegment
+	const study1WholePoseFiles = (await loadPoses(
+		Study.Study1_Whole,
+		(clipInfo) => {
+			const studyInfo = clipInfo as SegmentInfo;
+			return studyInfo.study1phase === 'performance';
+		},
+		{ participantPoseRoot }
 	)) as AsyncGenerator<StudySegmentData>;
-	const study2WholePoseFiles = (await loadPoses(
-		Study.Study2_Whole
-	)) as AsyncGenerator<StudySegmentData>;
+
+	const study2SegmentPoseFiles = (await loadPoses(Study.Study2_BySegment, undefined, {
+		participantPoseRoot
+	})) as AsyncGenerator<StudySegmentData>;
+	const study2WholePoseFiles = (await loadPoses(Study.Study2_Whole, undefined, {
+		participantPoseRoot
+	})) as AsyncGenerator<StudySegmentData>;
 
 	return [
 		study1WholePoseFiles,
@@ -161,7 +172,7 @@ export async function* generateStudyMetricFixtures(
 		limit?: number;
 	}
 ): AsyncGenerator<StudyMetricFixture> {
-	const allPoseFiles = takeAsnc(await loadStudyPoseGenerators(), opts?.limit ?? Infinity);
+	const allPoseFiles = takeAsnc([...(await loadStudyPoseGenerators())], opts?.limit ?? Infinity);
 
 	for await (const poseData of allPoseFiles) {
 		const segmentData = poseData as StudySegmentData;

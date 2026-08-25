@@ -6,26 +6,19 @@ matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-from functools import reduce
-import csv
 import fnmatch
 
 from .artifacts import build_artifact_report, resolve_artifact_output_dir
 from .utils import throttle
 from .mp_utils import (
-	HAND_CONNECTIONS,
 	POSE_CONNECTIONS,
-	HandLandmark,
 	PoseLandmark,
-	landmark_at,
 	landmark_list,
 )
-from mediapipe.python.solutions import holistic as mp_holistic
+from dance_teacher_pose.extraction import extract_holistic_video as _shared_extract_holistic_video
 
 import mpl_toolkits.mplot3d.art3d as art3d
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-
-T = t.TypeVar('T')
 
 _PRESENCE_THRESHOLD = 0.5
 _VISIBILITY_THRESHOLD = 0.5
@@ -134,113 +127,6 @@ def draw_normalized_landmarks(
 
 
 
-def construct_header_row():
-	return ['frame'] + \
-		   [f'{PoseLandmark(landmark_i).name}_{field}' 
-			   for landmark_i in np.array(sorted(PoseLandmark))
-			   for field in ('x', 'y', 'z', 'vis')
-		   ] + \
-		   [f'LEFTHAND_{HandLandmark(landmark_i).name}_{field}'
-			   for landmark_i in np.array(sorted(HandLandmark))
-			   for field in ('x', 'y', 'z')
-		   ] + \
-		   [f'RIGHTHAND_{HandLandmark(landmark_i).name}_{field}'
-			   for landmark_i in np.array(sorted(HandLandmark))
-			   for field in ('x', 'y', 'z')
-			]
-
-def construct_pose2d_header_row():
-   return ['frame'] + \
-		  [f'{PoseLandmark(landmark_i).name}_{field}' 
-			   for landmark_i in np.array(sorted(PoseLandmark))
-			   for field in ('x', 'y', 'distance', 'vis')
-		   ]
-
-def transform_to_pose2d_csvrow(
-	frame_i: int, 
-	frame_data, 
-	video_width: float, 
-	video_height: float, 
-	as_pdSeries: bool = False,
-	in_pixelCoords: bool = True,
-):
-	x_mult = 1 if not in_pixelCoords else video_width
-	y_mult = 1 if not in_pixelCoords else video_height
-	row = [frame_i]
-	row += list(reduce(
-		lambda x, y: x + y,
-		[
-            
-			# Get the pixel coordinates of the landmark.
-			# Pet the documentation, the z-coordinate is the approximate depth / distance from camera, 
-			# with the same approximate magnitude as x. 
-			([
-				pose2d_lm.x * x_mult, 
-				pose2d_lm.y * y_mult, 
-				pose2d_lm.z * x_mult,
-				pose2d_lm.visibility
-			 ] if pose2d_lm is not None 
-			 else [None, None, None, None]
-			)
-			for pose2d_lm in 
-			[
-				landmark_at(getattr(frame_data, "pose_landmarks", None), landmark_i)
-				for landmark_i in range(len(PoseLandmark))
-			]
-		]
-	))
-
-	if as_pdSeries:
-		return pd.Series(row, index=construct_header_row())
-
-	return row
-
-def transform_to_holistic_csvrow(frame_i: int, frame_data, as_pdSeries: bool = False):
-	row = [frame_i]
-            
-	row += list(reduce(
-			lambda x, y: x + y,
-			[
-				# We want to remap x, y, z. 
-				#   > The default has negative y being up, positive x being right, and pozitive z being away from the camera.
-				#   > We actually want y being up, x being left, and z being forward (towards camera).
-				#   So x <- x
-				#      y <- -y
-				#      z <- -z
-				[ 
-					lm.x,
-					-lm.y, 
-					-lm.z,
-					lm.visibility
-				] if lm is not None else [None, None, None, None]
-				for lm in 
-				[landmark_at(getattr(frame_data, "pose_world_landmarks", None), landmark_i) for landmark_i in range(len(PoseLandmark))]
-			]
-		))
-        
-	row += list(reduce(
-			lambda x, y: x + y,
-			[
-				([lm.x, lm.y, lm.z] if lm is not None else [None, None, None])
-				for lm in 
-				[landmark_at(getattr(frame_data, "right_hand_landmarks", None), landmark_i) for landmark_i in range(len(HandLandmark))]
-			]
-		))
-
-	row += list(reduce(
-			lambda x, y: x + y,
-			[
-				([lm.x, lm.y, lm.z] if lm is not None else [None, None, None])
-				for lm in 
-				[landmark_at(getattr(frame_data, "left_hand_landmarks", None), landmark_i) for landmark_i in range(len(HandLandmark))]
-			]
-		))
-
-	if as_pdSeries:
-		return pd.Series(row, index=construct_header_row())
-
-	return row
-
 def plot_3d_pose(holistic_row_series, fig=None, ax: t.Optional[Axes3D]=None, title=None):
 	if fig is None and ax is None:
 		fig = plt.figure(title)
@@ -274,37 +160,6 @@ def plot_3d_pose(holistic_row_series, fig=None, ax: t.Optional[Axes3D]=None, tit
 		colors="gray"
 	)
 	ax.add_collection3d(lines)
-
-def _perform_by_frame(video_path: Path):
-	cap = None
-	try:
-		cap = cv2.VideoCapture(str(video_path))
-		frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-		fps = cap.get(cv2.CAP_PROP_FPS) or 0
-		fps = fps if fps > 0 else 30.0
-		frame_count = 1 if frame_count == 0 else frame_count
-		i = 0
-		while cap.isOpened():
-			success, image = cap.read()
-			if not success:
-				return
-				# raise Exception('Error reading image from video')
-
-			# Convert the BGR image to RGB.
-			image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            
-			# To improve performance, optionally mark the image as not writeable to pass by reference.
-			image.flags.writeable = False
-			# percent_done = int(i * 100 / frame_count)
-			# print(f'{percent_done}% ', end='')
-			timestamp_ms = int((i * 1000) / fps)
-			yield i, frame_count, timestamp_ms, image
-
-			i += 1
-	finally:
-		if cap is not None:
-			cap.release()
-
 
 def _match_debug_frame_whitelist(relative_path: Path, whitelist: t.Sequence[str]) -> bool:
 	patterns = list(whitelist) if len(whitelist) > 0 else ["*"]
@@ -390,131 +245,50 @@ def _zero_quality_summary(frame_count: int) -> pd.Series:
 	return pd.Series(summary)
 
 def process_video(
-	input_video_path: Path, 
+	input_video_path: Path,
 	model_complexity: int,
 	holistic_data_output_filepath: Path,
 	pose_2d_data_output_filepath: t.Optional[Path] = None,
 	frame_output_folder: t.Optional[Path] = None,
-	print_progress_context: t.Callable[[],str] = lambda: '',
+	print_progress_context: t.Callable[[], str] = lambda: "",
 ):
+	"""Extract one video through the shared pose-processing package."""
 	@throttle(seconds=1)
 	def print_progress(i, frame_count):
-		percent_done = i / frame_count
-		print(f'{print_progress_context()}: {i}/{frame_count} {percent_done:.1%}')
+		percent_done = i / frame_count if frame_count else 0.0
+		print(f"{print_progress_context()}: {i}/{frame_count} {percent_done:.1%}")
 
-	# Get video width / height
-	cap = cv2.VideoCapture(str(input_video_path))
-	video_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-	video_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-	cap.release()
+	def frame_callback(frame_i, frame_count, image_rgb, frame_data, holistic_series_row):
+		print_progress(frame_i, frame_count)
+		if frame_output_folder is None:
+			return
+		image = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+		draw_normalized_landmarks(image, frame_data.pose_landmarks, POSE_CONNECTIONS)
+		frame_output_folder.mkdir(parents=True, exist_ok=True)
+		width = len(str(int(frame_count)))
+		out_path_2d = frame_output_folder / f"{input_video_path.stem}_2d" / f"{input_video_path.stem}_{frame_i:0{width}}.jpg"
+		out_path_2d.parent.mkdir(parents=True, exist_ok=True)
+		cv2.imwrite(str(out_path_2d), image)
+		if landmark_list(frame_data.pose_world_landmarks):
+			plot_3d_pose(holistic_series_row, title=f"{holistic_data_output_filepath.name}-frame{frame_i}")
+			out_path_3d = frame_output_folder / f"{input_video_path.stem}_3d" / f"{input_video_path.stem}_{frame_i:0{width}}.png"
+			out_path_3d.parent.mkdir(parents=True, exist_ok=True)
+			ax = plt.gca()
+			ax.azim = -92  # type: ignore
+			ax.elev = 118  # type: ignore
+			ax.dist = 10  # type: ignore
+			plt.savefig(out_path_3d)
+			plt.close()
 
-    
-	header_row = construct_header_row()
-	pose2d_header_row = construct_pose2d_header_row()
-
-	holistic_data_output_filepath.parent.mkdir(parents=True, exist_ok=True)
-	pose_2d_file = None
-	pose_2d_csv_writer = None
-	if pose_2d_data_output_filepath:
-		pose_2d_data_output_filepath.parent.mkdir(parents=True, exist_ok=True)
-		pose_2d_file = pose_2d_data_output_filepath.open('w', encoding='utf-8', newline='')
-		pose_2d_csv_writer = csv.writer(pose_2d_file)
-
-	with (
-		holistic_data_output_filepath.open('w', encoding='utf-8', newline='') as holistic_file,
-		mp_holistic.Holistic(
-			static_image_mode=True,
-			model_complexity=model_complexity,
-			refine_face_landmarks=False,
-			enable_segmentation=False,
-		) as holistic_processor,
-	):
-		holistic_csv_writer = csv.writer(holistic_file)
-		for frame_i, (_, frame_count, _timestamp_ms, image) in enumerate(_perform_by_frame(input_video_path)):
-			frame_data: t.Any = holistic_processor.process(image)
+	_shared_extract_holistic_video(
+		input_video_path=input_video_path,
+		holistic_output_path=holistic_data_output_filepath,
+		pose2d_output_path=pose_2d_data_output_filepath,
+		model_complexity=model_complexity,
+		frame_callback=frame_callback,
+	)
 
 
-			# cv2.imshow(f'Frame {frame_i}', image)
-			# cv2.waitKey(500)
-			holistic_csv_row = transform_to_holistic_csvrow(frame_i, frame_data)
-			holistic_series_row = pd.Series(holistic_csv_row, index=header_row)
-
-			if frame_output_folder is not None:
-				image.flags.writeable = True
-				image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
-				# # # Some code to draw the analysis vectors
-				# imgcpy = image.copy()
-				# analysis_connection_thickness = 7
-				# connections_analysis_drawing_spec = {
-				#     (14, 16): mp_drawing.DrawingSpec(color=(255, 153, 153), thickness=analysis_connection_thickness),
-				#     (12, 14): mp_drawing.DrawingSpec(color=(255, 204, 153), thickness=analysis_connection_thickness),
-				#     (12, 11): mp_drawing.DrawingSpec(color=(255, 255, 153), thickness=analysis_connection_thickness),
-				#     (12, 24): mp_drawing.DrawingSpec(color=(204, 255, 153), thickness=analysis_connection_thickness),
-				#     (24, 23): mp_drawing.DrawingSpec(color=(153, 255, 204), thickness=analysis_connection_thickness),
-				#     (11, 23): mp_drawing.DrawingSpec(color=(153, 204, 255), thickness=analysis_connection_thickness),
-				#     (11, 13): mp_drawing.DrawingSpec(color=(204, 154, 255), thickness=analysis_connection_thickness),
-				#     (13, 15): mp_drawing.DrawingSpec(color=(255, 153, 255), thickness=analysis_connection_thickness),
-				# }
-				# connections_analysis = frozenset(connections_analysis_drawing_spec.keys())
-				# analysis_unique_lms = set()
-				# for connection in connections_analysis:
-				#     analysis_unique_lms.add(connection[0])
-				#     analysis_unique_lms.add(connection[1])
-				# analysis_unique_lms = frozenset(analysis_unique_lms)
-				# analysis_lm_drawing_spec = {
-				#     lm: mp_drawing.DrawingSpec(color=(244, 244, 244), thickness=analysis_connection_thickness + 2)
-				#     for lm in analysis_unique_lms
-				# }
-
-				# custom_draw_landmarks(
-				#     imgcpy,
-				#     frame_data.pose_landmarks,
-				#     connections_analysis,
-				#     landmark_drawing_spec=analysis_lm_drawing_spec,
-				#     connection_drawing_spec=connections_analysis_drawing_spec
-				# )
-				# cv2.imwrite('temp.jpg', imgcpy)
-
-				draw_normalized_landmarks(image, frame_data.pose_landmarks, POSE_CONNECTIONS)
-				frame_output_folder.mkdir(parents=True, exist_ok=True)
-				out_path_2d = f'{frame_output_folder}/{input_video_path.stem}_2d/{input_video_path.stem}_{frame_i:0{len(str(int(frame_count)))}}.jpg'
-				Path(out_path_2d).parent.mkdir(parents=True, exist_ok=True)
-				cv2.imwrite(out_path_2d, image)
-
-				if landmark_list(frame_data.pose_world_landmarks):
-					plot_3d_pose(
-						holistic_series_row, 
-						title=f'{holistic_data_output_filepath.name}-frame{frame_i}'
-					)
-
-					out_path = f'{frame_output_folder}/{input_video_path.stem}_3d/{input_video_path.stem}_{frame_i:0{len(str(int(frame_count)))}}.png'
-					Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-
-					ax = plt.gca()
-					ax.azim = -92 # type: ignore
-					ax.elev = 118 # type: ignore
-					ax.dist = 10  # type: ignore
-                    
-					# plt.show(block=True)
-					plt.savefig(out_path)
-					# plt.show(block=True)
-					plt.close()
-
-			print_progress(frame_i, frame_count)
-			if frame_i == 0:
-				holistic_csv_writer.writerow(header_row)
-				if (pose_2d_csv_writer):
-					pose_2d_csv_writer.writerow(pose2d_header_row)
-            
-			holistic_csv_writer.writerow(holistic_csv_row)
-			if (pose_2d_csv_writer):
-				pose2d_csv_row = transform_to_pose2d_csvrow(frame_i, frame_data, video_width, video_height)
-				pose_2d_csv_writer.writerow(pose2d_csv_row)
-    
-	if (pose_2d_file):
-		pose_2d_file.close()
-            
 def extract_holistic_data(
 	video_folder: Path,
 	output_folder: Path,

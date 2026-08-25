@@ -1,57 +1,8 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run DanceTree Pipeline",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.dancetree.run_dancetree_pipeline",
-            // "args": [
-            //     "--database_csv_path=${workspaceFolder}/temp/db.csv",
-            //     "--video_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos",
-            //     "--holistic_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data",
-            //     "--pose2d_data_srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/pose2d_data",
-            //     "--temp_dir=${workspaceFolder}/temp/pipeline",
-            //     "--bundle_export_path=${workspaceFolder}/../svelte-web-frontend/src/lib/data/bundle",
-            //     "--bundle_media_export_path=${workspaceFolder}/../svelte-web-frontend/static/bundle/",
-            //     "--include_thumbnail_in_bundle",
-            //     // "--include_audio_in_bundle",
-
-            //     // Feel free to comment out any of the following
-            //     // "--rewrite_existing_holistic_data",
-            //     "--skip_existing_cumulative_complexity",
-            //     "--skip_existing_audioanalysis",
-            //     "--holistic_debug_frames_dir=${workspaceFolder}/temp/holistic_debug_frames",
-            //     "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
-            //     "--suppress_bundle_data_artifacts"
-            // ],
-            // "osx": {
-                "args": [
-                    "--database_csv_path=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_data/db.csv",
-                    "--video_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/videos",
-                    "--holistic_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/holistic_data",
-                    "--pose2d_data_srcdir=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/pose2d_data",
-                    "--temp_dir=${workspaceFolder}/temp/tempCloud/",
-                    "--bundle_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_data",
-                    "--bundle_media_export_path=/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2026-Cognitive-Stage-Feedback/data/bundle_media/",
-                    "--include_thumbnail_in_bundle",
-                    // "--include_audio_in_bundle",
-
-                    // Feel free to comment out any of the following
-                    // "--rewrite_existing_holistic_data",
-                    // "--skip_existing_cumulative_complexity",
-                    // "--skip_existing_audioanalysis",
-                    // "--holistic_debug_frames_dir=${workspaceFolder}/temp/tempCloud/holistic_debug_frames",
-                    "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
-                    // "--suppress_bundle_data_artifacts"
-                ]
-            // }
-        },
-        {
-            "name": "Run DanceTree Pipeline (test run)",
+            "name": "Run Reference Pipeline (smoke)",
             "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.dancetree.run_dancetree_pipeline",
@@ -72,7 +23,17 @@
                 "--suppress_audio_analysis_artifacts",
                 "--suppress_add_complexity_artifacts",
                 "--suppress_bundle_data_artifacts"
-            ],
+            ]
+        },
+        {
+            "name": "Run Participant Pose Pipeline",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "motion_extraction.study_pose_data",
+            "args": [
+                "--study=study1-segmented",
+                "--data-root=${workspaceFolder}/../data/participant_motions"
+            ]
         },
         {
             "name": "Python: Current File",
@@ -83,221 +44,47 @@
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "VideoPipeline: Get MP Holistic Data",
+            "name": "Extract Raw Pose Data (smoke)",
             "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.extract_holistic_data",
             "justMyCode": true,
             "args": [
-                "--video_folder=${workspaceFolder}/../data/test-fixtures/smoketest/motionvideo/",
+                "--video_folder=${workspaceFolder}/../data/test-fixtures/smoketest/motionvideo",
                 "--output_folder=${workspaceFolder}/temp/vscode_smoketest/holistic_data",
-                "--log_level=INFO",
+                "--pose2d_output_folder=${workspaceFolder}/temp/vscode_smoketest/pose2d_data",
                 "--model-complexity=2",
                 "--frame_output_folder=${workspaceFolder}/temp/vscode_smoketest/frames",
                 "--debug_frame_whitelist=*",
-                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
-                // "--rewrite_existing",
-            ],
+                "--rewrite_existing"
+            ]
         },
         {
-            "name": "VideoPipeline: Preprocess Holistic Data",
+            "name": "Preprocess Holistic Data (smoke)",
             "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.preprocess_pose_data",
             "justMyCode": true,
             "args": [
                 "--pose_data_root=${workspaceFolder}/temp/vscode_smoketest/holistic_data",
-                "--pose_data_type=holistic_3d"
-                // "--rewrite_existing",
-            ],
+                "--pose_data_type=holistic_3d",
+                "--rewrite_existing"
+            ]
         },
         {
-            "name": "VideoPipeline: Preprocess Pose2D Data",
+            "name": "Preprocess Pose2D Data (smoke)",
             "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.preprocess_pose_data",
             "justMyCode": true,
             "args": [
                 "--pose_data_root=${workspaceFolder}/temp/vscode_smoketest/pose2d_data",
-                "--pose_data_type=pose2d"
-                // "--rewrite_existing",
-            ],
-        },
-        {
-            "name": "VideoPipeline: Convert to Joint Space",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.convert_to_jointspace",
-            "justMyCode": true,
-            "args": [
-                "--naocsv_output_folder=${workspaceFolder}/temp/jointspace/nao",
-                "--bvh_output_folder=${workspaceFolder}/temp/jointspace/bvh",
-                "--csv_output_folder=${workspaceFolder}/temp/jointspace/bvhcsv",
-                "--log_level=INFO",
-                "--frame_limit=-1",
-                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/debbieallenchallenge.holisticdata.raw.csv"
-                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose2.holisticdata.raw.csv"
-                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/ArmShuffle.holisticdata.raw.csv"
-                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/last-christmas-tutorial.holisticdata.raw.csv"
-                "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/mad-at-disney.holisticdata.raw.csv"
-                // "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/"
-            ],
-        },
-        {
-            "name": "VideoPipeline (2.x): Convert to Joint Space",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.convert_to_jointspace",
-            "justMyCode": true,
-            "args": [
-                "--output_folder=${workspaceFolder}/temp/jointspace_data",
-                "--log_level=INFO",
-                "${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose.holisticdata.raw.csv"
-            ],
-        },
-        {
-            "name": "Test: Visualize Pose",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.pose_visualization",
-            "justMyCode": true,
-            "args": [
-                "--pose_file=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/supalonely.holisticdata.raw.csv",
-                "--hand_file=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/supalonely.holisticdata.raw.csv",
-            ],
-        },
-        {
-            "name": "Test: Make Mecanim Humanoid",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.MecanimHumanoid",
-            "justMyCode": true,
-            "args": [
-                "--skeleton_file=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tpose2.holisticdata.raw.csv",
-            ],
-        },
-        {
-            "name": "Encode Videos HEVC",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/motion_extraction/reencode_videos_hevc.py",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "args": [
-                "--source_glob=C:/Users/julie/Desktop/standalone-video-uploads/*.webm",
-                "--target_folder=C:/Users/julie/Desktop/vids_reencoded",
+                "--pose_data_type=pose2d",
+                "--rewrite_existing"
             ]
         },
         {
-
-            "name": "View BVH",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.bvh.view_bvh",
-            "args": [
-                // "${workspaceFolder}/docs/walk_sample.bvh",
-                // "-joint_angle_output=${workspaceFolder}/docs/walk_sample_joint_angles.csv",
-                // "${workspaceFolder}/docs/minimal_bvh.bvh",
-                // "-joint_angle_output=${workspaceFolder}/docs/minimal_bvh_joint_angles.csv",
-                "${workspaceFolder}/temp/jointspace_data/tpose2.bvh",
-                "-joint_angle_output=${workspaceFolder}/temp/jointspace_data/tpose2_bvhjointangles.csv",
-                "-frame_time=4.5",
-                "-repeat=1"
-            ]
-        },
-        {
-            "name": "View URDF",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.temp.view_urdf",
-            "args": [
-                "${workspaceFolder}/../data/nao/urdf/nao.urdf",
-            ]
-        },
-        {
-            "name": "Nao Teleoperation",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.teleoperation",
-            "args": [
-                "--input=webcam",
-                "--webcam-index=3",
-            ]
-        },
-        {
-            "name": "Nao Teleoperation (Simulation)",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.teleoperation",
-            "args": [
-                "-i=${workspaceFolder}/data/nao/test-poses/nao-test-%d.jpg",
-                "-sim",
-                "-br", "8",
-            ]
-        },
-        {   
-            "name": "Complexity Metric (UIST)",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.complexity_analysis.uist_complexityanalysis",
-            "args": [
-                "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/",
-                "--destination=${workspaceFolder}/temp/complexity.csv",
-                "--db=${workspaceFolder}/temp/db.csv",
-                "-wl", "bartender",
-                "-wl", "last-christmas-tutorial",
-                "-wl", "mad-at-disney-tutorial",
-                "-wl", "pajamaparty-tutorial",
-            ],
-        },
-        {   
-            "name": "Calculate Cumulative Complexity",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.complexity_analysis.calculate_cumulative_complexity",
-            "args": [
-                "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/",
-                "--destdir=${workspaceFolder}/temp/complexities/",
-                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
-                // "--measure_weighting=decreasing_by_half",
-                // "--measure_weighting=decreasing_by_quarter",
-                "--measure_weighting=all",
-                // "--measure_weighting=equal",
-                // "--landmark_weighting=balanced",
-                // "--landmark_weighting=dempster",
-                "--landmark_weighting=all",
-                "--pose_data_type=holistic_3d",
-                "--visibility_mode=all",
-                // "--visibility_mode=weight",
-                "--include_base=both",
-                // "--include_base=true",
-            ],
-        },
-        {   
-            "name": "Calculate Cumulative Complexity (test)",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.complexity_analysis.calculate_cumulative_complexity",
-            "args": [
-                "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/holistic_data/tests",
-                "--destdir=${workspaceFolder}/temp/test_complexities/",
-                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
-                // "--measure_weighting=decreasing_by_half",
-                "--measure_weighting=decreasing_by_quarter",
-                // "--measure_weighting=all",
-                // "--measure_weighting=equal",
-                "--landmark_weighting=balanced",
-                // "--landmark_weighting=dempster",
-                // "--landmark_weighting=all",
-                // "--visibility_mode=all",
-                "--visibility_mode=weight",
-                // "--include_base=both",
-                "--include_base=true",
-                "--plot_whitelist=study2/*",
-            ],
-        },
-        {
-            "name": "Audio Analysis",
+            "name": "Audio Analysis (smoke)",
             "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.audio_analysis",
@@ -306,140 +93,19 @@
                 "--destdir=${workspaceFolder}/temp/vscode_smoketest/audio_analysis",
                 "--analysis_summary_out=${workspaceFolder}/temp/vscode_smoketest/audio_analysis/audio_analysis_summary.csv",
                 "--audiocachedir=${workspaceFolder}/temp/vscode_smoketest/audio_cache",
-                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
-                "--skip_existing",
+                "--skip_existing"
             ]
         },
         {
-            "name": "Update Database",
+            "name": "Update Database (smoke)",
             "type": "debugpy",
             "request": "launch",
             "module": "motion_extraction.update_database",
             "args": [
                 "--videos_dir=${workspaceFolder}/../data/test-fixtures/smoketest/motionvideo",
                 "--thumbnails_dir=${workspaceFolder}/temp/vscode_smoketest/thumbnails",
-                "--database_csv_path=${workspaceFolder}/temp/vscode_smoketest/db.csv",
-                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
+                "--database_csv_path=${workspaceFolder}/temp/vscode_smoketest/db.csv"
             ]
-        },
-        {
-            "name": "Add Complexities to DanceTrees",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.complexity_analysis.add_complexity_to_dancetree",
-            "args": [
-                "--tree_srcdir=${workspaceFolder}/temp/vscode_smoketest/audio_analysis/dancetrees/video/",
-                "--complexity_srcdir=${workspaceFolder}/temp/vscode_smoketest/pipeline/complexities/",
-                "--database_path=${workspaceFolder}/temp/vscode_smoketest/db.csv",
-                "--output_dir=${workspaceFolder}/temp/vscode_smoketest/dancetrees_with_complexity/",
-                "--complexity_method=mw-decreasing_by_quarter_lmw-balanced_interpolatevisibility_includebase",
-                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive"
-            ]
-        },
-        {
-            "name": "Bundle Data for Frontend",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "motion_extraction.dancetree.bundle_data",
-            "args": [
-                "--dancetree_srcdir=${workspaceFolder}/temp/vscode_smoketest/dancetrees_with_complexity",
-                "--db_csv_path=${workspaceFolder}/temp/vscode_smoketest/db.csv",
-                "--audio_results_dir=${workspaceFolder}/temp/vscode_smoketest/audio_analysis",
-                "--bundle_export_path=${workspaceFolder}/temp/vscode_smoketest/bundle",
-                // "--artifact_archive_root=${workspaceFolder}/../artifact-archive",
-                "--exclude_test"
-            ]
-        },
-        {
-            "name": "Run PyFeat",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/adhoc_analysis/pyfeat.py",
-            "args": [
-                "--srcdir=${workspaceFolder}/../svelte-web-frontend/static/bundle/source_videos/study2/last-christmas-tutorial.mp4",
-                "--destdir=${workspaceFolder}/temp/pyfeat",
-            ]
-        },
-        {
-            "name": "Run ChatGPT",
-            "type": "debugpy",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/adhoc_analysis/",
-            "module": "chatgpt-test.test",
-        },
-        {
-            "name": "Extract Poses from Videos",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/motion_extraction/scripts/getposes.py",
-            "console": "integratedTerminal",
-            "windows": {
-                "args": [
-                    // "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup",
-                    // "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup-poses"
-                    "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\Tiktok Video Clips\\fixed-and-horz-mirrored",
-                    "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\Tiktok Video Clips\\fixed-and-horz-mirrored\\tiktoks-pixelposes-segmented",
-                    "-f",
-                    "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\Tiktok Video Clips\\fixed-and-horz-mirrored\\tiktoks-poseframes-segmented",
-                ],  
-            },
-            "osx": {
-                "args": [
-                    //// VIDEO FOLDER and then POSE FOLDER arguments
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-videos-segmented",
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-pixelposes-segmented",
-                    // "-f",
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poseframes-segmented",
-
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-orig-videos",
-                    "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/user-study-1-isls2022-mp4",
-                    "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-pixelposes-whole",
-                    "-f",
-                    "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study1-poseframes-whole",
-
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-videos-segmented",
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-pixelposes-segmented",
-                    // "-f",
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-segmented",
-
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/user-study-2-whole-reencoded",
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-pixelposes-whole",
-                    // "-f",
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/study2-poseframes-whole",
-
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored",
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/tiktoks-pixelposes-segmented",
-                    // "-f",
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/Tiktok Video Clips/fixed-and-horz-mirrored/tiktoks-poseframes-segmented",
-
-                    // "/Users/viona/Desktop/test/flipped_clips/flipped",
-                    // "/Users/viona/Desktop/test/output",
-                    // "/Users/viona/Desktop/test/output-poses-participants",
-
-                    //// POSE FOLDER ARGUMENTS
-                    // "${workspaceFolder}/data/video-pose-frames/tiktok-segment-frames/",
-                    // "${workspaceFolder}/data/video-pose-frames/participant-study1-segmented/",
-                    // "-o",
-                    // "/Users/viona/Library/CloudStorage/GoogleDrive-viona.blanchet.gr@dartmouth.edu/Shared drives/Human Motion Lab/2025-CHI-2D-Dance-TikTok-Teaching/UserVideos/AzureBlobFiles/testbench_files/tiktok-flipped-clip-poses",
-                ]
-            }
-        },
-        {
-            "name": "Combine user study 2 ratings files",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/motion_extraction/scripts/process_study2_ratings.py",
-            "console": "integratedTerminal",
-            "args": [
-                // "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup",
-                // "H:\\Shared drives\\Human Motion Lab\\2025-CHI-2D-Dance-TikTok-Teaching\\UserVideos\\AzureBlobFiles\\user-study-2-segmented-take3-beataligned-spedup-poses"
-            ],
-            "osx": {
-                "args": [
-                    "/Users/viona/dev/dance-teacher-xr-unity/svelte-web-frontend/src/lib/ai/motionmetrics/testdata/user2_segment_ratings.xlsx",
-                    "/Users/viona/dev/dance-teacher-xr-unity/svelte-web-frontend/src/lib/ai/motionmetrics/testdata/study2_humanratings.csv",
-                ]
-            }
         }
     ]
 }

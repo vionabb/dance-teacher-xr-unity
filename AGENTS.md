@@ -29,8 +29,35 @@ Do not load the full thesis or CHI paper unless the task requires primary-source
 - Keep raw and clean pose contracts explicit. Raw `pose2d` is required for image-space overlays; analytical consumers should normally use the appropriate clean representation.
 - Check both sides of cross-project contracts when changing bundle schemas, metric exports, filenames, or artifact paths.
 - Use the smallest existing validation command that covers a change. Subproject `AGENTS.md` files list the canonical commands.
+- On macOS, MediaPipe pose-extraction tests require a GUI-authorized local
+  process because the pinned wheel creates a native NSOpenGL context. When a
+  change affects extraction, run the focused wrapper in
+  `motion-pipeline/script_invocations/run_pose_extraction_smoke.sh` with the
+  required local permission; do not misclassify a sandbox-only OpenGL failure
+  as an extraction regression.
 - Update the owning canonical document rather than copying the same explanation into several files. Update [documentation/project-state.md](documentation/project-state.md) only when research maturity, known limitations, or priorities change.
 - Update the owning canonical document rather than copying the same explanation into several files.
+
+## Experimental research loops
+
+For metric and pose-data validation experiments, the parent agent is the
+research lead: it owns the hypothesis, acceptance criterion, decisions,
+progress updates, lab-log entry, and any later project-state or thesis edits.
+
+- Delegate one bounded implementation brief at a time to
+  `implementation_worker`; it is the only agent allowed to edit source code
+  during that experiment.
+- Use `metric_experimenter` to inspect the baseline, run the focused pipeline
+  or metric analysis, and interpret results. It must not edit source code.
+- Use `evidence_reviewer` for an independent, read-only validity review after
+  meaningful results exist.
+- Never run concurrent source writers. Give each experiment a unique output
+  directory under `temp/experiments/` and preserve cached upstream inputs.
+- Keep raw logs and stack traces in subagent threads; return concise evidence
+  summaries with commands, parameters, provenance, artifact paths, findings,
+  uncertainty, and a recommended decision.
+- Do not treat technical correlation as coaching validity, and do not update
+  `documentation/project-state.md` or the thesis until findings are settled.
 
 ## Artifact archive
 

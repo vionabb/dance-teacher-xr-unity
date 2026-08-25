@@ -9,6 +9,35 @@ from ..complexity_analysis.add_complexity_to_dancetree import add_complexities_t
 from .bundle_data import bundle_dance_data_as_json
 
 
+PIPELINE_STAGES = (
+    "update-database",
+    "extract-pose-data",
+    "preprocess-pose-data",
+    "cumulative-complexity",
+    "audio-analysis",
+    "add-complexity",
+    "bundle-data",
+)
+
+
+def _selected_pipeline_stages(
+    start_at: str | None, stop_after: str | None
+) -> tuple[str, ...]:
+    """Return the inclusive contiguous stage range requested by the caller."""
+
+    start = start_at or PIPELINE_STAGES[0]
+    stop = stop_after or PIPELINE_STAGES[-1]
+    try:
+        start_index = PIPELINE_STAGES.index(start)
+        stop_index = PIPELINE_STAGES.index(stop)
+    except ValueError as error:
+        choices = ", ".join(PIPELINE_STAGES)
+        raise ValueError(f"Unknown pipeline stage; choose one of: {choices}") from error
+    if start_index > stop_index:
+        raise ValueError("start_at must not come after stop_after")
+    return PIPELINE_STAGES[start_index : stop_index + 1]
+
+
 def _audio_result_subdirectory(
     results_dir: Path,
     result_type: t.Literal['analysis', 'dancetrees', 'segmentsimilarity'],
@@ -24,6 +53,8 @@ def run_dancetree_pipeline(
     temp_dir: Path,
     bundle_export_path: Path,
     bundle_media_export_path: Path,
+    holistic_processed_srcdir: Path | None = None,
+    pose2d_processed_srcdir: Path | None = None,
     include_audio_in_bundle: bool = False,
     include_thumbnail_in_bundle: bool = False,
     rewrite_existing_holistic_data: bool = False,
@@ -48,9 +79,16 @@ def run_dancetree_pipeline(
     suppress_add_complexity_artifacts: bool = False,
     suppress_bundle_data_artifacts: bool = False,
     stage_validator: t.Optional[t.Callable[[str], None]] = None,
+    start_at: str | None = None,
+    stop_after: str | None = None,
+) -> tuple[str, ...]:
+    """Run an inclusive contiguous range of reference-video pipeline stages.
 
-):
-    """Run the reference-video pipeline and optionally validate each stage."""
+    ``start_at`` and ``stop_after`` use values from :data:`PIPELINE_STAGES`.
+    Starting after the first stage requires compatible upstream outputs already
+    at the supplied paths.  The return value lists stages that completed.
+    """
+    selected_stages = _selected_pipeline_stages(start_at, stop_after)
     complexities_temp_dir = temp_dir / 'complexities'
     audio_results_temp_dir = temp_dir / 'audio_analysis'
     audio_analysis_tree_dir = _audio_result_subdirectory(
@@ -109,118 +147,84 @@ def run_dancetree_pipeline(
         artifact_dir.mkdir(parents=True, exist_ok=True)
         return artifact_dir
 
-    current_step += 1
-    update_database(
-        database_csv_path=database_csv_path,
-        videos_dir=video_srcdir,
-        thumbnails_dir=thumbnails_outdir,
-        print_prefix=lambda: f'{step()} update database:',
+    complexity_pose_data_root = (
+        holistic_processed_srcdir or holistic_data_srcdir
+        if COMPLEXITY_POSE_DATA_TYPE == PoseDataType.holistic_3d
+        else pose2d_processed_srcdir or pose2d_data_srcdir
+    )
+    def run_stage(stage: str, operation: t.Callable[[], None]) -> None:
+        """Run and validate one selected stage, retaining full-run step labels."""
+
+        nonlocal current_step
+        current_step = PIPELINE_STAGES.index(stage) + 1
+        if stage not in selected_stages:
+            return
+        operation()
+        if stage_validator is not None:
+            stage_validator(stage)
+
+    run_stage("update-database", lambda: update_database(
+        database_csv_path=database_csv_path, videos_dir=video_srcdir,
+        thumbnails_dir=thumbnails_outdir, print_prefix=lambda: f'{step()} update database:',
         replace_existing_thumbnails=False,
         artifact_output_dir=get_step_artifact_dir("01-update-database", suppress_update_database_artifacts),
-    )
-    if stage_validator is not None:
-        stage_validator("update-database")
-
-    current_step += 1
-    extract_holistic_data(
-        video_folder=video_srcdir,
-        output_folder=holistic_data_srcdir,
-        pose2d_output_folder=pose2d_data_srcdir,
-        frame_output_folder=holistic_frames_dir,
-        debug_frame_whitelist=debug_frame_whitelist,
-        rewrite_existing=rewrite_existing_holistic_data,
+    ))
+    run_stage("extract-pose-data", lambda: extract_holistic_data(
+        video_folder=video_srcdir, output_folder=holistic_data_srcdir,
+        pose2d_output_folder=pose2d_data_srcdir, frame_output_folder=holistic_frames_dir,
+        debug_frame_whitelist=debug_frame_whitelist, rewrite_existing=rewrite_existing_holistic_data,
         print_prefix=lambda: f'{step()} extract raw pose data:',
         artifact_output_dir=get_step_artifact_dir("02-extract-pose-data", suppress_compute_holistic_data_artifacts),
-    )
-    if stage_validator is not None:
-        stage_validator("extract-pose-data")
-
-    current_step += 1
-    preprocess_all_pose_data(
-        holistic_data_root=holistic_data_srcdir,
-        pose2d_data_root=pose2d_data_srcdir,
+    ))
+    run_stage("preprocess-pose-data", lambda: preprocess_all_pose_data(
+        holistic_data_root=holistic_data_srcdir, pose2d_data_root=pose2d_data_srcdir,
+        holistic_output_root=holistic_processed_srcdir,
+        pose2d_output_root=pose2d_processed_srcdir,
         rewrite_existing=rewrite_existing_preprocessed_pose_data,
         print_prefix=lambda: f'{step()} preprocess pose data:',
         artifact_output_dir=get_step_artifact_dir("03-preprocess-pose-data", suppress_preprocess_pose_data_artifacts),
-    )
-    if stage_validator is not None:
-        stage_validator("preprocess-pose-data")
-
-    current_step += 1
-    complexity_pose_data_root = (
-        holistic_data_srcdir
-        if COMPLEXITY_POSE_DATA_TYPE == PoseDataType.holistic_3d
-        else pose2d_data_srcdir
-    )
-    cmplxty.calculate_cumulative_complexities(
-        srcdir=complexity_pose_data_root,
-        other_files=[],
-        destdir=complexities_temp_dir,
-        measure_weighting=COMPLEXITY_MEASURE_WEIGHITNG,
-        landmark_weighting=COMPLEXITY_LANDMARK_WEIGHITNG,
+    ))
+    run_stage("cumulative-complexity", lambda: cmplxty.calculate_cumulative_complexities(
+        srcdir=complexity_pose_data_root, other_files=[], destdir=complexities_temp_dir,
+        measure_weighting=COMPLEXITY_MEASURE_WEIGHITNG, landmark_weighting=COMPLEXITY_LANDMARK_WEIGHITNG,
         database_csv_path=database_csv_path,
         artifact_output_dir=get_step_artifact_dir("04-cumulative-complexity", suppress_cumulative_complexity_artifacts),
-        plot_whitelist=complexity_plot_whitelist,
-        include_base=True,
-        pose_data_type=COMPLEXITY_POSE_DATA_TYPE,
-        visibility_mode=COMPLEXITY_VISIBILITY_MODE,
-        visibility_repair_cutoff=visibility_repair_cutoff,
-        visibility_plot_alpha_floor=visibility_plot_alpha_floor,
-        target_complexity_per_segment=target_complexity_per_segment,
+        plot_whitelist=complexity_plot_whitelist, include_base=True, pose_data_type=COMPLEXITY_POSE_DATA_TYPE,
+        visibility_mode=COMPLEXITY_VISIBILITY_MODE, visibility_repair_cutoff=visibility_repair_cutoff,
+        visibility_plot_alpha_floor=visibility_plot_alpha_floor, target_complexity_per_segment=target_complexity_per_segment,
         bodyparts_for_artifact_plotting=bodyparts_for_artifact_plotting or cmplxty.DEFAULT_BODYPARTS_FOR_ARTIFACT_PLOTTING,
-        print_prefix=lambda: f'{step()} calc. complexity:',
-        skip_existing=skip_existing_cumulative_complexity,
-    )
-    if stage_validator is not None:
-        stage_validator("cumulative-complexity")
-    
-    current_step += 1
-    if skip_existing_audioanalysis and audio_analysis_tree_dir.exists() and (audio_results_temp_dir / 'audio_analysis_summary.csv').exists():
-        print(f"{step()} audio analysis: reusing existing audio analysis outputs")
-    else:
-        from ..audio_analysis.perform_analysis import perform_audio_analysis
+        print_prefix=lambda: f'{step()} calc. complexity:', skip_existing=skip_existing_cumulative_complexity,
+    ))
 
+    def run_audio_analysis() -> None:
+        """Create or reuse audio analysis outputs for the audio stage."""
+        if skip_existing_audioanalysis and audio_analysis_tree_dir.exists() and (audio_results_temp_dir / 'audio_analysis_summary.csv').exists():
+            print(f"{step()} audio analysis: reusing existing audio analysis outputs")
+            return
+        from ..audio_analysis.perform_analysis import perform_audio_analysis
         perform_audio_analysis(
-            videosrcdir=video_srcdir,
-            audiosrcdir=None,
-            audio_analysis_destdir=audio_results_temp_dir,
+            videosrcdir=video_srcdir, audiosrcdir=None, audio_analysis_destdir=audio_results_temp_dir,
             audiocachedir=audio_cache_dir if audio_cache_dir else temp_dir / 'audio_cache',
-            analysis_summary_out=audio_results_temp_dir / 'audio_analysis_summary.csv',
-            database_csv_path=database_csv_path,
-            include_mem_usage=False,
-            skip_existing=skip_existing_audioanalysis,
+            analysis_summary_out=audio_results_temp_dir / 'audio_analysis_summary.csv', database_csv_path=database_csv_path,
+            include_mem_usage=False, skip_existing=skip_existing_audioanalysis,
             print_prefix=lambda: f'{step()} audio analysis:',
             artifact_output_dir=get_step_artifact_dir("05-audio-analysis", suppress_audio_analysis_artifacts),
         )
-    if stage_validator is not None:
-        stage_validator("audio-analysis")
 
-    current_step += 1
-    add_complexities_to_dancetrees(
-        tree_srcdir=audio_analysis_tree_dir,
-        complexity_srcdir=complexities_temp_dir,
-        database_path=database_csv_path,
-        output_dir=trees_with_complexity_dir,
-        complexity_method=complexity_method,
-        trim_zero_complexity=True,
-        get_print_prefix=lambda: f'{step()} add complexity:',
+    run_stage("audio-analysis", run_audio_analysis)
+    run_stage("add-complexity", lambda: add_complexities_to_dancetrees(
+        tree_srcdir=audio_analysis_tree_dir, complexity_srcdir=complexities_temp_dir,
+        database_path=database_csv_path, output_dir=trees_with_complexity_dir, complexity_method=complexity_method,
+        trim_zero_complexity=True, get_print_prefix=lambda: f'{step()} add complexity:',
         artifact_output_dir=get_step_artifact_dir("06-add-complexity", suppress_add_complexity_artifacts),
-    )
-    if stage_validator is not None:
-        stage_validator("add-complexity")
-
-    current_step += 1
-    bundle_dance_data_as_json(
-        dancetree_srcdir=trees_with_complexity_dir,
-        db_csv_path=database_csv_path,
-        audio_results_dir=audio_results_temp_dir,
-        bundle_export_path=bundle_export_path,
-        exclude_test=True,
-        print_prefix=lambda: f'{step()} bundle data:',
+    ))
+    run_stage("bundle-data", lambda: bundle_dance_data_as_json(
+        dancetree_srcdir=trees_with_complexity_dir, db_csv_path=database_csv_path,
+        audio_results_dir=audio_results_temp_dir, bundle_export_path=bundle_export_path,
+        exclude_test=True, print_prefix=lambda: f'{step()} bundle data:',
         artifact_output_dir=get_step_artifact_dir("07-bundle-data", suppress_bundle_data_artifacts),
-    )
-    if stage_validator is not None:
-        stage_validator("bundle-data")
+    ))
+    return selected_stages
 
 if __name__ == "__main__":
     import argparse
@@ -229,6 +233,8 @@ if __name__ == "__main__":
     parser.add_argument('--video_srcdir', type=Path)
     parser.add_argument('--holistic_data_srcdir', type=Path)
     parser.add_argument('--pose2d_data_srcdir', type=Path)
+    parser.add_argument('--holistic_processed_srcdir', type=Path)
+    parser.add_argument('--pose2d_processed_srcdir', type=Path)
     parser.add_argument('--temp_dir', type=Path)
     parser.add_argument('--bundle_export_path', type=Path)
     parser.add_argument('--bundle_media_export_path', type=Path)
@@ -259,6 +265,8 @@ if __name__ == "__main__":
     parser.add_argument("--suppress_audio_analysis_artifacts", action='store_true')
     parser.add_argument("--suppress_add_complexity_artifacts", action='store_true')
     parser.add_argument("--suppress_bundle_data_artifacts", action='store_true')
+    parser.add_argument("--start-at", choices=PIPELINE_STAGES)
+    parser.add_argument("--stop-after", choices=PIPELINE_STAGES)
     args = parser.parse_args()
     
     run_dancetree_pipeline(
@@ -269,6 +277,8 @@ if __name__ == "__main__":
         temp_dir=args.temp_dir,
         bundle_export_path=args.bundle_export_path,
         bundle_media_export_path=args.bundle_media_export_path,
+        holistic_processed_srcdir=args.holistic_processed_srcdir,
+        pose2d_processed_srcdir=args.pose2d_processed_srcdir,
         include_audio_in_bundle=args.include_audio_in_bundle,
         include_thumbnail_in_bundle=args.include_thumbnail_in_bundle,
         rewrite_existing_holistic_data=args.rewrite_existing_holistic_data,
@@ -292,4 +302,6 @@ if __name__ == "__main__":
         suppress_audio_analysis_artifacts=args.suppress_audio_analysis_artifacts,
         suppress_add_complexity_artifacts=args.suppress_add_complexity_artifacts,
         suppress_bundle_data_artifacts=args.suppress_bundle_data_artifacts,
+        start_at=args.start_at,
+        stop_after=args.stop_after,
     )

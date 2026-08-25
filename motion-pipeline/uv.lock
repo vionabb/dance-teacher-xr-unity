@@ -135,6 +135,7 @@ name = "dance-teacher-motion-pipeline"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "dance-teacher-pose-processing" },
     { name = "dataclasses-json" },
     { name = "librosa" },
     { name = "matplotlib" },
@@ -159,6 +160,7 @@ legacy-robotics = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dance-teacher-pose-processing", editable = "../pose-processing" },
     { name = "dataclasses-json", specifier = "==0.6.7" },
     { name = "librosa", specifier = "==0.11.0" },
     { name = "matplotlib", specifier = "==3.8.0" },
@@ -178,6 +180,28 @@ dev = [
     { name = "pytest", specifier = ">=8,<9" },
 ]
 legacy-robotics = [{ name = "pytransform3d", specifier = "==3.14.0" }]
+
+[[package]]
+name = "dance-teacher-pose-processing"
+version = "0.1.0"
+source = { editable = "../pose-processing" }
+dependencies = [
+    { name = "mediapipe" },
+    { name = "numpy" },
+    { name = "opencv-contrib-python" },
+    { name = "pandas" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "mediapipe", specifier = "==0.10.21" },
+    { name = "numpy", specifier = "==1.25.2" },
+    { name = "opencv-contrib-python", specifier = "==4.8.1.78" },
+    { name = "pandas", specifier = "==2.3.3" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8,<9" }]
 
 [[package]]
 name = "dataclasses-json"

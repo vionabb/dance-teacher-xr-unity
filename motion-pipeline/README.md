@@ -75,13 +75,16 @@ Pose artifacts use explicit naming:
 
 Keep raw `pose2d` for source-aligned overlays. Prefer the appropriate clean artifact for analytical consumers.
 
-### Prior user-study analysis
+### Participant-study analysis
 
-This is a separate, more ad hoc workflow:
+Participant videos are prepared with the same pose stages as reference videos:
 
-- `motion_extraction/scripts/getposes.py`: extract poses from participant/reference videos;
-- frontend motion-metric tests: evaluate study fixtures and export aggregate metrics;
-- `motion_extraction/scripts/fit_metric_linear_model.py`: compare metrics with human ratings.
+- `motion_extraction.study_pose_data` invokes the shared raw extraction and
+  clean preprocessing stages for one participant study;
+- `script_invocations/run_userstudy_pose_pipeline.sh` is the canonical command;
+- frontend motion-metric tests evaluate the resulting participant pose pairs;
+- `motion_extraction/scripts/fit_metric_linear_model.py` compares metrics with
+  human ratings.
 
 Study data locations and access rules are documented in [the dataset guide](../documentation/dataset.md).
 
@@ -110,6 +113,23 @@ It prepares the small MediaPipe model asset if needed, then runs `uv run --locke
 
 The repository workflow [`.github/workflows/motion-pipeline-smoke.yml`](../.github/workflows/motion-pipeline-smoke.yml) runs the same command in a clean Linux environment. Configure its `motion-pipeline-smoke` job as a required pull-request check when enforcing acceptance through GitHub.
 
+### macOS GUI-authorized pose-extraction smoke test
+
+The pinned macOS MediaPipe wheel initializes a native NSOpenGL context when
+the legacy Holistic graph starts, even though its inference delegate is CPU.
+Codex's default sandbox does not have access to that native graphics service,
+so run the pose-extraction smoke test in a GUI-authorized local process:
+
+```bash
+./script_invocations/run_pose_extraction_smoke.sh -q
+```
+
+In Codex, explicitly approve the command's local GUI/OpenGL access when
+requested. This is a test-environment constraint, not evidence that pose
+extraction will fail in a normal macOS login session. Keep the ordinary smoke
+suite for all other stage contracts, and use this focused command whenever a
+change affects MediaPipe extraction.
+
 For end-to-end changes, run the small pipeline script. It requires the referenced local media input:
 
 ```bash
@@ -132,7 +152,44 @@ uv run --locked python -m motion_extraction.rclone_transfer publish-processed-bu
 
 The processed-bundle publication command replaces the cache and should run only after frontend validation. See [the dataset guide](../documentation/dataset.md).
 
-### Full staged reference-video run
+### Persistent local video cache
+
+Reference and participant videos are immutable inputs to this project. Cache
+them once under the workspace `data/` tree, then point pipeline or analysis
+runs at those directories; ordinary runs never copy or write video files.
+
+```bash
+./script_invocations/stage_video_cache.sh referencevideos
+./script_invocations/stage_video_cache.sh participant-study1-videos
+./script_invocations/stage_video_cache.sh participant-study2-videos
+```
+
+The staging command uses `rclone copy`, so it never deletes local cache files.
+Run it deliberately to refresh a cache from Drive. Treat
+`data/participant_motions/` is access-controlled participant data and is never
+published or committed.
+
+### Participant pose extraction
+
+`script_invocations/run_userstudy_pose_pipeline.sh` reads one study's videos
+from `data/participant_motions/<study>/videos/` and writes canonical raw pose
+artifacts to `data/participant_motions/<study>/pose-raw/canonical/` and clean
+artifacts to `pose-processed/canonical/<study>/` (with separate `holisticdata/`
+and `pose2d/` modality directories).
+The source videos are never copied or modified. Select the two pose stages with
+`--start-at` and `--stop-after` when rerunning only extraction or preprocessing:
+
+```bash
+STUDY=study1-segmented ./script_invocations/run_userstudy_pose_pipeline.sh
+STUDY=study1-segmented ./script_invocations/run_userstudy_pose_pipeline.sh \
+  --start-at preprocess-pose-data --stop-after preprocess-pose-data
+```
+
+The frontend metric fixtures load paired `.pose2d.raw.csv` and
+`.holisticdata.raw.csv` files from this canonical tree. Legacy combined
+participant pose CSVs are retained only as an ignored migration archive.
+
+### One-off staged reference-video run
 
 For a full dataset run, stage a Drive subtree locally, process only local paths,
 and validate every pipeline stage before the command succeeds:
@@ -147,10 +204,42 @@ and validate every pipeline stage before the command succeeds:
 
 The command uses `rclone copy dataset:<remote-path> ...`, then writes the
 generated database, pose data, analysis outputs, bundle, and artifact archive
-under `<run-dir>/output/`. It writes `<run-dir>/run-manifest.json` only after
-all seven stages have passed their output contracts. Reusing a run directory is
-supported for pipeline caching; use a new directory when an isolated snapshot
-is required.
+under `<run-dir>/output/`. Its `<run-dir>/run-manifest.json` records parameters,
+source provenance, stage completion, and validation results.
+
+### Cached reference-video and focused experiments
+
+For ordinary reference-video work, stage `referencevideos/` once, then use the
+persistent cache wrapper. It reads cached videos directly and writes generated
+results only to the supplied run directory:
+
+```bash
+./script_invocations/run_rclone_pipeline_cached.sh \
+  --run-dir temp/experiments/20260813-preprocess-baseline
+```
+
+The staged runner can execute one inclusive contiguous stage range. To protect
+a verified generated-output baseline, it copies `output/` into a new, empty
+experiment directory, validates each upstream stage required by the selected
+range, and then runs only the requested stages. The persistent video cache is
+neither copied nor written.
+
+For example, rerun pose preprocessing against cached raw pose outputs and stop
+before complexity analysis:
+
+```bash
+./script_invocations/run_rclone_pipeline_cached.sh \
+  --run-dir temp/experiments/20260812-preprocess-interpolation \
+  --reuse-from temp/experiments/20260813-preprocess-baseline \
+  --start-at preprocess-pose-data \
+  --stop-after preprocess-pose-data \
+  --rewrite-existing-preprocessed-pose-data
+```
+
+The manifest is updated after every successful selected stage; on a failure it
+records the exception and the stages that completed. A range beginning after
+`update-database` requires `--reuse-from`, because its inputs must be validated
+from a prior staged run.
 
 After validating the generated media in the frontend, publication is a separate
 explicit operation. It replaces the remote processed-media cache, so the

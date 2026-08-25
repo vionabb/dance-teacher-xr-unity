@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'path';
 import type { Pose2DPixelLandmarks, Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
@@ -6,21 +7,60 @@ import type { ValueOf } from '$lib/data/dances-store';
 import {
 	loadPoseInformation,
 	GetPixelLandmarksFromPose2DRow,
-	GetPixelLandmarksFromPose3DRow,
-	getRawCsvPathCandidates
+	GetPixelLandmarksFromPose3DRow
 } from '$lib/data/dances-store';
 
 import danceData from '$lib/data/bundle/dances.json';
 type Dance = (typeof danceData)[number];
 const dances = danceData;
 
-export const STUDY_1_SEGMENTED_POSES_FOLDER = 'testResults/study1-pixelposes-segmented/';
-export const STUDY_1_WHOLE_POSES_FOLDER = 'testResults/study1-pixelposes-whole/';
-export const STUDY_2_SEGMENTED_POSES_FOLDER = 'testResults/study2-pixelposes-segmented/';
-export const STUDY_2_WHOLE_POSES_FOLDER = 'testResults/study2-pixelposes-whole/';
 export const TIKTOK_CLIPS_POSES_FOLDER = 'testResults/tiktoks-pixelposes-segmented/';
 export const TIKTOK_WHOLE_POSES_FOLDER_2D = 'static/bundle/pose2d_data/';
 export const TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC = 'static/bundle/holistic_data/';
+
+const PROJECT_ROOT = path.resolve(process.cwd(), '..');
+const DEFAULT_PARTICIPANT_DATA_ROOT = path.join(PROJECT_ROOT, 'data', 'participant_motions');
+const SMOKE_USER_STUDY_DATA_ROOT = path.join(
+	PROJECT_ROOT,
+	'data',
+	'test-fixtures',
+	'smoketest',
+	'userstudydata'
+);
+
+const PARTICIPANT_DATA_ROOT = path.resolve(
+	process.env.MOTION_PIPELINE_USER_STUDY_DATA_DIR ?? DEFAULT_PARTICIPANT_DATA_ROOT
+);
+export const PARTICIPANT_POSES_ROOT = PARTICIPANT_DATA_ROOT;
+
+function hasStudyPoseFiles(root: string): boolean {
+	return [
+		Study.Study1_BySegment,
+		Study.Study1_Whole,
+		Study.Study2_BySegment,
+		Study.Study2_Whole
+	].some((study) => existsSync(getPoseFolder(study, root)));
+}
+
+export function resolveParticipantPoseRoot(root = PARTICIPANT_POSES_ROOT): string {
+	const candidateRoots = [
+		process.env.MOTION_PIPELINE_USER_STUDY_DATA_DIR,
+		root,
+		DEFAULT_PARTICIPANT_DATA_ROOT,
+		SMOKE_USER_STUDY_DATA_ROOT
+	].filter((candidate): candidate is string => !!candidate);
+
+	for (const candidate of candidateRoots) {
+		if (hasStudyPoseFiles(candidate)) {
+			return candidate;
+		}
+	}
+
+	return root;
+}
+
+const POSE2D_RAW_SUFFIX = '.pose2d.raw.csv';
+const HOLISTIC_RAW_SUFFIX = '.holisticdata.raw.csv';
 
 export const LandmarkNames = [
 	'NOSE',
@@ -150,11 +190,18 @@ const WORKFLOW_STUDY1_ID_TO_CONDITION: Readonly<
 	'00388bd7-d313-4ce1-89e5-c88091f25357': 'sheetmotion' // pajama-party
 });
 
+function canonicalPoseStem(filename: string): string | null {
+	for (const suffix of [POSE2D_RAW_SUFFIX, HOLISTIC_RAW_SUFFIX]) {
+		if (filename.endsWith(suffix)) return filename.slice(0, -suffix.length);
+	}
+	return null;
+}
+
 function getWholePixelPoseData(filename: string, study: Study): SegmentInfo | null {
-	if (!filename.endsWith('.csv')) {
+	const cleanname = canonicalPoseStem(filename);
+	if (cleanname === null) {
 		return null; // not a valid pose data file
 	}
-	const cleanname = filename.replace('.pose.csv', '').replace('.pixel_cords', '');
 
 	if (Study1Studies.includes(study)) {
 		// example study 1_whole filename: "44e54afd-19c0-4342-b753-fb4ab123aaad-4324-mad-at-disney-tutorial-blurred-44e54afd-19c0-4342-b753-fb4ab123aaad-initial-0.5"
@@ -235,7 +282,7 @@ function getWholePixelPoseData(filename: string, study: Study): SegmentInfo | nu
 			clipNumber: -1, // whole pose data does not have a clip number
 			performanceSpeed: speed // study 1 videos were recorded at full speed
 		} as SegmentInfo;
-	} else if (Study.Study2_Whole) {
+	} else if (study === Study.Study2_Whole) {
 		// example study 2_whole filename: "user5349________userstudy2-madatdisney-emojiandsegmented____workflowid-568e88b5-0a90-4755-bef4-3132efd7ffa1____whole.pixel_cords.pose.csv"
 		const parts = cleanname.split('_').filter((s) => s.length > 0);
 		if (parts.length < 4) {
@@ -299,7 +346,9 @@ function getSegmentInfo(filename: string, study: Study): SegmentInfo | null {
 
 	// Study 1 example filename: user4751____performance____userstudy1--last-christmas--control____workflowid-0079b262-7575-4ae7-a377-60e21070106e____clip1.pose
 	// Study 2 example filename: user3209________userstudy2-bartender-segmented____workflowid-c096aef4-3cd9-415d-9ca1-f8709a7f770a____clip2.pose
-	filename = filename.replace('.pose.csv', '').replace('.pixel_cords', '');
+	const canonicalStem = canonicalPoseStem(filename);
+	if (canonicalStem === null) return null;
+	filename = canonicalStem;
 	const isStudy1 = Study1Studies.includes(study);
 	const targetPartCount = isStudy1 ? 5 : 4; // study 2, study2 segmented
 	const conditionSeparator = isStudy1 ? '--' : '-';
@@ -438,7 +487,7 @@ function canonicalizeDanceName(danceNameRaw: string): [DanceId, DanceName] | nul
 	return null;
 }
 
-function convertCsvRow(row: Record<string, number>): PoseFrame {
+function convertLegacyCombinedCsvRow(row: Record<string, number>): PoseFrame {
 	const user2dPose: Pose2DPixelLandmarks = LandmarkNames.map((name) => {
 		return {
 			x: row[`${name}_x_2d`],
@@ -463,20 +512,157 @@ function convertCsvRow(row: Record<string, number>): PoseFrame {
 	};
 }
 
-function getPoseFolder(poseSource: Study | OtherPoseSource) {
+function getPoseFolder(
+	poseSource: Study | OtherPoseSource,
+	participantPoseRoot: string = PARTICIPANT_POSES_ROOT
+) {
 	switch (poseSource) {
 		case Study.Study1_BySegment:
-			return path.resolve(STUDY_1_SEGMENTED_POSES_FOLDER);
+			return path.join(
+				participantPoseRoot,
+				'chi25_study1',
+				'pose-raw',
+				'canonical',
+				'study1-segmented'
+			);
 		case Study.Study2_BySegment:
-			return path.resolve(STUDY_2_SEGMENTED_POSES_FOLDER);
+			return path.join(
+				participantPoseRoot,
+				'chi25_study2',
+				'pose-raw',
+				'canonical',
+				'study2-segmented'
+			);
 		case Study.Study1_Whole:
-			return path.resolve(STUDY_1_WHOLE_POSES_FOLDER);
+			return path.join(
+				participantPoseRoot,
+				'chi25_study1',
+				'pose-raw',
+				'canonical',
+				'study1-whole'
+			);
 		case Study.Study2_Whole:
-			return path.resolve(STUDY_2_WHOLE_POSES_FOLDER);
+			return path.join(
+				participantPoseRoot,
+				'chi25_study2',
+				'pose-raw',
+				'canonical',
+				'study2-whole'
+			);
 		case OtherPoseSource.TikTokClips:
 			return path.resolve(TIKTOK_CLIPS_POSES_FOLDER);
 	}
 	throw new Error('Invalid pose source');
+}
+
+type CanonicalPosePair = { stem: string; pose2dPath: string; holisticPath: string };
+
+async function listFilesRecursively(folder: string): Promise<string[]> {
+	if (!existsSync(folder)) {
+		return [];
+	}
+
+	const entries = await readdir(folder, { withFileTypes: true });
+	const files: string[] = [];
+	for (const entry of entries) {
+		const entryPath = path.join(folder, entry.name);
+		if (entry.isDirectory()) {
+			files.push(...(await listFilesRecursively(entryPath)));
+		} else if (entry.isFile()) {
+			files.push(entryPath);
+		}
+	}
+	return files;
+}
+
+async function collectCanonicalPosePairs(folder: string): Promise<CanonicalPosePair[]> {
+	if (!existsSync(folder)) {
+		return [];
+	}
+
+	const pairs = new Map<string, Partial<CanonicalPosePair>>();
+	for (const filePath of await listFilesRecursively(folder)) {
+		const fileName = path.basename(filePath);
+		const stem = canonicalPoseStem(fileName);
+		if (stem === null) continue;
+		const pair = pairs.get(stem) ?? { stem };
+		if (fileName.endsWith(POSE2D_RAW_SUFFIX)) pair.pose2dPath = filePath;
+		if (fileName.endsWith(HOLISTIC_RAW_SUFFIX)) pair.holisticPath = filePath;
+		pairs.set(stem, pair);
+	}
+	return [...pairs.values()]
+		.filter(
+			(pair): pair is CanonicalPosePair =>
+				typeof pair.stem === 'string' &&
+				typeof pair.pose2dPath === 'string' &&
+				typeof pair.holisticPath === 'string'
+		)
+		.sort((a, b) => a.stem.localeCompare(b.stem));
+}
+
+async function* loadCanonicalStudyPoses(
+	poseSource: Study,
+	filter?: (clipInfo: SegmentInfo) => boolean,
+	participantPoseRoot: string = resolveParticipantPoseRoot(PARTICIPANT_POSES_ROOT)
+): AsyncGenerator<StudySegmentData> {
+	const folder = getPoseFolder(poseSource, participantPoseRoot);
+	if (!existsSync(folder)) {
+		return;
+	}
+
+	const pairs = await collectCanonicalPosePairs(folder);
+	for (const pair of pairs) {
+		const segmentInfo = getClipInfo(`${pair.stem}${POSE2D_RAW_SUFFIX}`, poseSource);
+		if (segmentInfo === null) continue;
+		if (filter && !filter(segmentInfo)) continue;
+
+		const [pose2d, pose3d] = await Promise.all([
+			loadPoseInformation(pair.pose2dPath, 30, false, GetPixelLandmarksFromPose2DRow),
+			loadPoseInformation(pair.holisticPath, 30, false, GetPixelLandmarksFromPose3DRow)
+		]);
+		if (pose2d.poses.length !== pose3d.poses.length) {
+			throw new Error(
+				`Canonical pose modalities differ in length for ${pair.stem}: ` +
+					`${pose2d.poses.length} vs ${pose3d.poses.length}`
+			);
+		}
+
+		yield {
+			poses: pose2d.poses.map((pixelPose, index) => ({
+				pixelPose,
+				worldPose: pose3d.poses[index]
+			})),
+			segmentInfo,
+			study: poseSource
+		};
+	}
+}
+
+async function* loadLegacyCombinedPoses(
+	poseSource: OtherPoseSource,
+	filter?: (clipInfo: TikTokClipInfo) => boolean
+): AsyncGenerator<TiktokDanceClipData> {
+	const folder = getPoseFolder(poseSource);
+	if (!existsSync(folder)) {
+		return;
+	}
+
+	for (const file of await readdir(folder)) {
+		const segmentInfo = getClipInfo(file, poseSource);
+		if (segmentInfo === null) continue;
+		if (filter && !filter(segmentInfo)) continue;
+		const data = await readFile(path.join(folder, file), 'utf-8');
+		const convertedFrames = await new Promise<PoseFrame[]>((resolve, reject) => {
+			Papa.parse(data, {
+				header: true,
+				dynamicTyping: true,
+				complete: (results) =>
+					resolve((results.data as Array<Record<string, number>>).map(convertLegacyCombinedCsvRow)),
+				error: reject
+			});
+		});
+		yield { poses: convertedFrames, segmentInfo };
+	}
 }
 
 /**
@@ -484,51 +670,21 @@ function getPoseFolder(poseSource: Study | OtherPoseSource) {
  */
 export async function* loadPoses<T extends Study | OtherPoseSource>(
 	poseSource: T,
-	filter?: (clipInfo: SegmentInfo | TikTokClipInfo) => boolean
+	filter?: (clipInfo: SegmentInfo | TikTokClipInfo) => boolean,
+	options?: { participantPoseRoot?: string }
 ): AsyncGenerator<StudySegmentData | TiktokDanceClipData> {
-	const folder = getPoseFolder(poseSource);
-
-	// List all files in the folder
-	const files = await readdir(folder);
-
-	for (const file of files) {
-		const segmentInfo = getClipInfo(file, poseSource);
-		if (segmentInfo == null) continue; // skip invalidly named files
-
-		if (filter && !filter(segmentInfo)) continue; // skip invalidly named files
-
-		const fullpath = `${folder}/${file}`;
-
-		const data = await readFile(fullpath, 'utf-8');
-
-		yield await new Promise((res, rej) => {
-			Papa.parse(data, {
-				header: true,
-				dynamicTyping: true,
-				complete: (results) => {
-					const convertedFrames = (results.data as Array<Record<string, number>>).map(
-						convertCsvRow
-					);
-
-					if (isStudy(poseSource)) {
-						res({
-							poses: convertedFrames,
-							segmentInfo: segmentInfo as SegmentInfo,
-							study: poseSource
-						} as StudySegmentData);
-					} else {
-						res({
-							poses: convertedFrames,
-							segmentInfo: segmentInfo as SegmentInfo
-						});
-					}
-				},
-				error: (error: Error) => {
-					rej(error);
-				}
-			});
-		});
+	if (isStudy(poseSource)) {
+		yield* loadCanonicalStudyPoses(
+			poseSource,
+			filter as ((clipInfo: SegmentInfo) => boolean) | undefined,
+			options?.participantPoseRoot
+		);
+		return;
 	}
+	yield* loadLegacyCombinedPoses(
+		poseSource,
+		filter as ((clipInfo: TikTokClipInfo) => boolean) | undefined
+	);
 }
 
 export async function loadTikTokClipPoses() {
@@ -567,37 +723,40 @@ function cononicalizeClipName(clipName: string): DanceName | undefined {
 }
 
 export async function loadTiktokWholePoses() {
-	// const poseMap = new ();
-
 	const studyDancesRequests = dances
 		.filter((dance) => cononicalizeClipName(dance.clipName))
 		.map((dance) => {
 			const danceName = cononicalizeClipName(dance.clipName) as DanceName;
-			const poses2Durl = getRawCsvPathCandidates(
+			const poses2DPath = path.join(
 				`${TIKTOK_WHOLE_POSES_FOLDER_2D}${dance.clipRelativeStem}.pose2d.raw.csv`
 			);
-			const poses3Durl = getRawCsvPathCandidates(
+			const poses3DPath = path.join(
 				`${TIKTOK_WHOLE_POSES_FOLDER_3D_HOLISTIC}${dance.clipRelativeStem}.holisticdata.raw.csv`
 			);
-			const useFetch = false; // have loadPoseInformation use the node fs.
+			const useFetch = false;
+
+			if (!existsSync(path.resolve(poses2DPath)) || !existsSync(path.resolve(poses3DPath))) {
+				return null;
+			}
 
 			return {
 				danceName,
 				dance,
 				poses2Dpromise: loadPoseInformation(
-					poses2Durl,
+					poses2DPath,
 					dance.fps,
 					useFetch,
 					GetPixelLandmarksFromPose2DRow
 				),
 				poses3Dpromose: loadPoseInformation(
-					poses3Durl,
+					poses3DPath,
 					dance.fps,
 					useFetch,
 					GetPixelLandmarksFromPose3DRow
 				)
 			};
-		});
+		})
+		.filter((request): request is NonNullable<typeof request> => request !== null);
 
 	const studyDances = await Promise.all(
 		studyDancesRequests.map(async (request) => {

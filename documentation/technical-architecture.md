@@ -79,13 +79,20 @@ When changing bundle fields or filenames, inspect the frontend loader, sync scri
 
 ### Study-analysis workflow
 
-The CHI study analysis path is distinct from the reference-video bundle pipeline:
+The participant-video pose path reuses the reference pipeline's pose stages:
 
-- [getposes.py](../motion-pipeline/motion_extraction/scripts/getposes.py) prepares poses from study videos;
-- frontend metric fixtures and tests evaluate participant performances against references;
-- [fit_metric_linear_model.py](../motion-pipeline/motion_extraction/scripts/fit_metric_linear_model.py) consumes the exported metric CSV.
+- [study_pose_data.py](../motion-pipeline/motion_extraction/study_pose_data.py)
+  selects a study's videos and invokes the same `extract-pose-data` and
+  `preprocess-pose-data` stages as the reference workflow;
+- frontend metric fixtures and tests evaluate participant performances against
+  references;
+- [fit_metric_linear_model.py](../motion-pipeline/motion_extraction/scripts/fit_metric_linear_model.py)
+  consumes the exported metric CSV.
 
-Do not force this ad hoc research workflow through the bundle pipeline unless the data contract is intentionally redesigned.
+Participant processing intentionally uses a separate data layout and exposes
+only the two pose stages, so it does not generate reference-video audio,
+complexity, or bundle outputs. Changes to the shared extractor or preprocessing
+package therefore apply to both reference and participant videos.
 
 ## Frontend
 
@@ -145,8 +152,13 @@ When adding or changing a metric:
 
 ## Data locations
 
-- Generated/local metric output and study pose folders: `svelte-web-frontend/testResults/`
-- Checked-in study fixtures: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
+- Persistent reference inputs: `data/reference_motions/{videos,pose-raw}/`.
+  `data/reference_motions/db.csv` is the committed reference-video database.
+- Persistent participant inputs: `data/participant_motions/<study>/{videos,pose-raw}/`.
+- Generated reference outputs: `data/reference_motions/{pose-processed,audio-analysis,processed}/`.
+- Generated participant outputs: `data/participant_motions/<study>/pose-processed/`.
+- Generated/local metric output: `svelte-web-frontend/testResults/`
+- Checked-in metric fixtures: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
 - Cross-language metric artifacts: `svelte-web-frontend/artifacts/`
 - Frontend bundle JSON: `svelte-web-frontend/src/lib/data/bundle/`
 - Frontend bundle media: `svelte-web-frontend/static/bundle/`
