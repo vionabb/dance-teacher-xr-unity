@@ -13,7 +13,6 @@ from pathlib import Path
 import typing as t
 
 from .dancetree.run_dancetree_pipeline import run_dancetree_pipeline
-from .data_paths import PARTICIPANT_ROOT
 
 
 @dataclass(frozen=True)
@@ -27,8 +26,15 @@ class StudyPoseLayout:
     def video_root(self, data_root: Path) -> Path:
         return data_root / self.study_root_name / "videos" / self.video_relative_path
 
-    def pose_root(self, data_root: Path) -> Path:
+    def raw_pose_root(self, data_root: Path) -> Path:
+        """Return the canonical raw-pose root for this study."""
+
         return data_root / self.study_root_name / "pose-raw" / "canonical" / self.name
+
+    def processed_pose_root(self, data_root: Path) -> Path:
+        """Return the canonical clean-pose root for this study."""
+
+        return data_root / self.study_root_name / "pose-processed" / "canonical" / self.name
 
 
 STUDY_POSE_LAYOUTS: dict[str, StudyPoseLayout] = {
@@ -48,7 +54,7 @@ POSE_STAGES = ("extract-pose-data", "preprocess-pose-data")
 def default_data_root() -> Path:
     """Return the local persistent participant-data cache."""
 
-    return PARTICIPANT_ROOT
+    return Path(__file__).resolve().parents[2] / "data" / "participant_motions"
 
 
 def get_study_pose_layout(study: str) -> StudyPoseLayout:
@@ -95,10 +101,10 @@ def run_study_pose_pipeline(
         raise ValueError("start_at must not come after stop_after")
 
     selected_stages = POSE_STAGES[start_index : stop_index + 1]
-    pose_root = root / layout.study_root_name / "pose-raw" / "canonical" / study
+    pose_root = layout.raw_pose_root(root)
     holistic_root = pose_root / "holisticdata"
     pose2d_root = pose_root / "pose2d"
-    processed_root = root / layout.study_root_name / "pose-processed" / "canonical" / study
+    processed_root = layout.processed_pose_root(root)
     holistic_processed_root = processed_root / "holisticdata"
     pose2d_processed_root = processed_root / "pose2d"
     work_root = processed_root / "run-state"

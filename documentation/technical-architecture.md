@@ -79,13 +79,20 @@ When changing bundle fields or filenames, inspect the frontend loader, sync scri
 
 ### Study-analysis workflow
 
-The CHI study analysis path is distinct from the reference-video bundle pipeline:
+The participant-video pose path reuses the reference pipeline's pose stages:
 
-- [getposes.py](../motion-pipeline/motion_extraction/scripts/getposes.py) prepares poses from study videos;
-- frontend metric fixtures and tests evaluate participant performances against references;
-- [fit_metric_linear_model.py](../motion-pipeline/motion_extraction/scripts/fit_metric_linear_model.py) consumes the exported metric CSV.
+- [study_pose_data.py](../motion-pipeline/motion_extraction/study_pose_data.py)
+  selects a study's videos and invokes the same `extract-pose-data` and
+  `preprocess-pose-data` stages as the reference workflow;
+- frontend metric fixtures and tests evaluate participant performances against
+  references;
+- [fit_metric_linear_model.py](../motion-pipeline/motion_extraction/scripts/fit_metric_linear_model.py)
+  consumes the exported metric CSV.
 
-Do not force this ad hoc research workflow through the bundle pipeline unless the data contract is intentionally redesigned.
+Participant processing intentionally uses a separate data layout and exposes
+only the two pose stages, so it does not generate reference-video audio,
+complexity, or bundle outputs. Changes to the shared extractor or preprocessing
+package therefore apply to both reference and participant videos.
 
 ## Frontend
 

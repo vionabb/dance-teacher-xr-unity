@@ -7,7 +7,6 @@ from matplotlib.axes import Axes
 import pandas as pd
 from ..motion_output_provider import NaoTrajectoryOutputProvider
 from ..view_urdf import load_urdf, plot_urdf
-from ..extract_holistic_data import transform_to_holistic_csvrow
 from ..MecanimHumanoid import HumanoidPositionSkeleton
 import json
 import socket

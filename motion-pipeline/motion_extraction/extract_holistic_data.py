@@ -6,27 +6,19 @@ matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-from functools import reduce
-import csv
 import fnmatch
 
 from .artifacts import build_artifact_report, resolve_artifact_output_dir
 from .utils import throttle
 from .mp_utils import (
-	HAND_CONNECTIONS,
 	POSE_CONNECTIONS,
-	HandLandmark,
 	PoseLandmark,
-	landmark_at,
 	landmark_list,
 )
-from mediapipe.python.solutions import holistic as mp_holistic
 from dance_teacher_pose.extraction import extract_holistic_video as _shared_extract_holistic_video
 
 import mpl_toolkits.mplot3d.art3d as art3d
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-
-T = t.TypeVar('T')
 
 _PRESENCE_THRESHOLD = 0.5
 _VISIBILITY_THRESHOLD = 0.5
@@ -135,113 +127,6 @@ def draw_normalized_landmarks(
 
 
 
-def construct_header_row():
-	return ['frame'] + \
-		   [f'{PoseLandmark(landmark_i).name}_{field}' 
-			   for landmark_i in np.array(sorted(PoseLandmark))
-			   for field in ('x', 'y', 'z', 'vis')
-		   ] + \
-		   [f'LEFTHAND_{HandLandmark(landmark_i).name}_{field}'
-			   for landmark_i in np.array(sorted(HandLandmark))
-			   for field in ('x', 'y', 'z')
-		   ] + \
-		   [f'RIGHTHAND_{HandLandmark(landmark_i).name}_{field}'
-			   for landmark_i in np.array(sorted(HandLandmark))
-			   for field in ('x', 'y', 'z')
-			]
-
-def construct_pose2d_header_row():
-   return ['frame'] + \
-		  [f'{PoseLandmark(landmark_i).name}_{field}' 
-			   for landmark_i in np.array(sorted(PoseLandmark))
-			   for field in ('x', 'y', 'distance', 'vis')
-		   ]
-
-def transform_to_pose2d_csvrow(
-	frame_i: int, 
-	frame_data, 
-	video_width: float, 
-	video_height: float, 
-	as_pdSeries: bool = False,
-	in_pixelCoords: bool = True,
-):
-	x_mult = 1 if not in_pixelCoords else video_width
-	y_mult = 1 if not in_pixelCoords else video_height
-	row = [frame_i]
-	row += list(reduce(
-		lambda x, y: x + y,
-		[
-            
-			# Get the pixel coordinates of the landmark.
-			# Pet the documentation, the z-coordinate is the approximate depth / distance from camera, 
-			# with the same approximate magnitude as x. 
-			([
-				pose2d_lm.x * x_mult, 
-				pose2d_lm.y * y_mult, 
-				pose2d_lm.z * x_mult,
-				pose2d_lm.visibility
-			 ] if pose2d_lm is not None 
-			 else [None, None, None, None]
-			)
-			for pose2d_lm in 
-			[
-				landmark_at(getattr(frame_data, "pose_landmarks", None), landmark_i)
-				for landmark_i in range(len(PoseLandmark))
-			]
-		]
-	))
-
-	if as_pdSeries:
-		return pd.Series(row, index=construct_header_row())
-
-	return row
-
-def transform_to_holistic_csvrow(frame_i: int, frame_data, as_pdSeries: bool = False):
-	row = [frame_i]
-            
-	row += list(reduce(
-			lambda x, y: x + y,
-			[
-				# We want to remap x, y, z. 
-				#   > The default has negative y being up, positive x being right, and pozitive z being away from the camera.
-				#   > We actually want y being up, x being left, and z being forward (towards camera).
-				#   So x <- x
-				#      y <- -y
-				#      z <- -z
-				[ 
-					lm.x,
-					-lm.y, 
-					-lm.z,
-					lm.visibility
-				] if lm is not None else [None, None, None, None]
-				for lm in 
-				[landmark_at(getattr(frame_data, "pose_world_landmarks", None), landmark_i) for landmark_i in range(len(PoseLandmark))]
-			]
-		))
-        
-	row += list(reduce(
-			lambda x, y: x + y,
-			[
-				([lm.x, lm.y, lm.z] if lm is not None else [None, None, None])
-				for lm in 
-				[landmark_at(getattr(frame_data, "right_hand_landmarks", None), landmark_i) for landmark_i in range(len(HandLandmark))]
-			]
-		))
-
-	row += list(reduce(
-			lambda x, y: x + y,
-			[
-				([lm.x, lm.y, lm.z] if lm is not None else [None, None, None])
-				for lm in 
-				[landmark_at(getattr(frame_data, "left_hand_landmarks", None), landmark_i) for landmark_i in range(len(HandLandmark))]
-			]
-		))
-
-	if as_pdSeries:
-		return pd.Series(row, index=construct_header_row())
-
-	return row
-
 def plot_3d_pose(holistic_row_series, fig=None, ax: t.Optional[Axes3D]=None, title=None):
 	if fig is None and ax is None:
 		fig = plt.figure(title)
@@ -275,37 +160,6 @@ def plot_3d_pose(holistic_row_series, fig=None, ax: t.Optional[Axes3D]=None, tit
 		colors="gray"
 	)
 	ax.add_collection3d(lines)
-
-def _perform_by_frame(video_path: Path):
-	cap = None
-	try:
-		cap = cv2.VideoCapture(str(video_path))
-		frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-		fps = cap.get(cv2.CAP_PROP_FPS) or 0
-		fps = fps if fps > 0 else 30.0
-		frame_count = 1 if frame_count == 0 else frame_count
-		i = 0
-		while cap.isOpened():
-			success, image = cap.read()
-			if not success:
-				return
-				# raise Exception('Error reading image from video')
-
-			# Convert the BGR image to RGB.
-			image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            
-			# To improve performance, optionally mark the image as not writeable to pass by reference.
-			image.flags.writeable = False
-			# percent_done = int(i * 100 / frame_count)
-			# print(f'{percent_done}% ', end='')
-			timestamp_ms = int((i * 1000) / fps)
-			yield i, frame_count, timestamp_ms, image
-
-			i += 1
-	finally:
-		if cap is not None:
-			cap.release()
-
 
 def _match_debug_frame_whitelist(relative_path: Path, whitelist: t.Sequence[str]) -> bool:
 	patterns = list(whitelist) if len(whitelist) > 0 else ["*"]

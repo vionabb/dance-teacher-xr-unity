@@ -47,6 +47,13 @@ def _landmark_list(value: t.Any) -> t.Any:
         return None
     if hasattr(value, "landmark"):
         return value.landmark
+    if (
+        hasattr(value, "__len__")
+        and len(value) > 0
+        and not hasattr(value[0], "x")
+        and hasattr(value[0], "__len__")
+    ):
+        return value[0]
     return value
 
 
@@ -210,4 +217,3 @@ def extract_holistic_video(
     finally:
         if pose2d_file is not None:
             pose2d_file.close()
-
