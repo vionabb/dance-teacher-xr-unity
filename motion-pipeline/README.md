@@ -75,13 +75,16 @@ Pose artifacts use explicit naming:
 
 Keep raw `pose2d` for source-aligned overlays. Prefer the appropriate clean artifact for analytical consumers.
 
-### Prior user-study analysis
+### Participant-study analysis
 
-This is a separate, more ad hoc workflow:
+Participant videos are prepared with the same pose stages as reference videos:
 
-- `motion_extraction/scripts/getposes.py`: extract poses from participant/reference videos;
-- frontend motion-metric tests: evaluate study fixtures and export aggregate metrics;
-- `motion_extraction/scripts/fit_metric_linear_model.py`: compare metrics with human ratings.
+- `motion_extraction.study_pose_data` invokes the shared raw extraction and
+  clean preprocessing stages for one participant study;
+- `script_invocations/run_userstudy_pose_pipeline.sh` is the canonical command;
+- frontend motion-metric tests evaluate the resulting participant pose pairs;
+- `motion_extraction/scripts/fit_metric_linear_model.py` compares metrics with
+  human ratings.
 
 Study data locations and access rules are documented in [the dataset guide](../documentation/dataset.md).
 

@@ -400,3 +400,34 @@ def test_study_pose_pipeline_uses_canonical_roots_and_selected_stages(
     ).resolve()
     assert calls["start_at"] == "preprocess-pose-data"
     assert calls["stop_after"] == "preprocess-pose-data"
+
+
+def test_study_pose_pipeline_reuses_reference_pose_stage_implementations(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Participant videos go through the same extraction and preprocessing calls."""
+
+    video_root = tmp_path / "chi25_study1" / "videos" / "userperformances-study1-segmented"
+    video_root.mkdir(parents=True)
+    (video_root / "clip.mp4").write_bytes(b"video")
+    pose_pipeline = dancetree_pipeline
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        pose_pipeline,
+        "extract_holistic_data",
+        lambda **_kwargs: calls.append("extract-pose-data"),
+    )
+    monkeypatch.setattr(
+        pose_pipeline,
+        "preprocess_all_pose_data",
+        lambda **_kwargs: calls.append("preprocess-pose-data"),
+    )
+
+    result = study_pose_pipeline.run_study_pose_pipeline(
+        study="study1-segmented",
+        data_root=tmp_path,
+    )
+
+    assert result == ("extract-pose-data", "preprocess-pose-data")
+    assert calls == ["extract-pose-data", "preprocess-pose-data"]

@@ -18,10 +18,10 @@ from ..mp_utils import (
     landmark_list,
     rgb_image_to_mp_image,
 )
+from dance_teacher_pose.extraction import transform_to_holistic_csvrow
 from ..extract_holistic_data import (
     draw_normalized_landmarks,
     plot_3d_pose,
-    transform_to_holistic_csvrow,
 )
 
 @throttle(1)
@@ -94,7 +94,7 @@ def stream_realtime(
             pose_landmarks = results.pose_landmarks[0] if results.pose_landmarks else None
             draw_normalized_landmarks(image, pose_landmarks, POSE_CONNECTIONS)
 
-            holistic_row = transform_to_holistic_csvrow(frame_i, results, as_pdSeries=True)
+            holistic_row = transform_to_holistic_csvrow(frame_i, results, as_pd_series=True)
             if not results.pose_world_landmarks:
                 on_pose(None)
             else:
