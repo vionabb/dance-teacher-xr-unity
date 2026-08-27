@@ -36,6 +36,15 @@ dev = [
 legacy-robotics = [
     "pytransform3d==3.14.0",
 ]
+# Real-browser tests for the annotation tool (motion_extraction/tests/
+# test_annotation_tool_browser.py) drive an actual Chromium instance, which
+# is heavier and network-dependent (CDN-hosted Tailwind/daisyUI) compared to
+# the rest of the suite. Kept out of the default dev group so a plain `uv
+# sync` never requires a browser install; opt in with `uv sync --group
+# browser-tests` and then `uv run playwright install chromium` once.
+browser-tests = [
+    "pytest-playwright>=0.5,<0.6",
+]
 
 [tool.setuptools.packages.find]
 include = ["motion_extraction*"]
@@ -51,6 +60,7 @@ testpaths = [
 ]
 markers = [
     "smoke: stage-contract and end-to-end motion-pipeline smoke tests",
+    "browser: real-Chromium annotation-tool interaction tests (opt in, see browser-tests dependency group)",
 ]
 filterwarnings = [
     # matplotlib uses deprecated pyparsing camelCase API (third-party, not fixable by us)
