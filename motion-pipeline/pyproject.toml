@@ -34,7 +34,7 @@ dev = [
 # Historical BVH, Mecanim, and NAO work is intentionally not installed by
 # default.  It remains runnable by opting into this group.
 legacy-robotics = [
-    "pytransform3d==3.14.0",
+    "pytransform3d==3.16.0",
 ]
 # Real-browser tests for the annotation tool (motion_extraction/tests/
 # test_annotation_tool_browser.py) drive an actual Chromium instance, which
