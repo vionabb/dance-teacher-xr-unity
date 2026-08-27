@@ -62,6 +62,10 @@ Status: **in progress**
 - Evaluate detector and descriptor stability in 2D and 3D.
 - Define metric semantics and acceptance criteria.
 - Compare automatic metrics with human ratings without conflating correlation with coaching validity.
+- Smoothing-strength parameter selection for the `C4` preprocessing profile is
+  in progress and blocked on a pending blinded human temporal review; see
+  [lab-log/2026-08-26-c4-smoothing-parameter-selection.md](../lab-log/2026-08-26-c4-smoothing-parameter-selection.md)
+  for current status and the exact next action.
 
 ### System integration
 
