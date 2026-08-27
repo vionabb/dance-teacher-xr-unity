@@ -29,6 +29,7 @@ Do not load the full thesis or CHI paper unless the task requires primary-source
 - Keep raw and clean pose contracts explicit. Raw `pose2d` is required for image-space overlays; analytical consumers should normally use the appropriate clean representation.
 - Check both sides of cross-project contracts when changing bundle schemas, metric exports, filenames, or artifact paths.
 - Use the smallest existing validation command that covers a change. Subproject `AGENTS.md` files list the canonical commands.
+- Browser automation (e.g. the Playwright MCP server) against the Svelte frontend or the annotation tool is token-expensive: it returns the page's full accessibility tree on every action. Reserve it for exploratory, interactive work and local UI debugging. For CI/CD or any repeated run, generate a static Playwright test script (e.g. via `npx playwright codegen`) instead of driving a persistent MCP loop headlessly.
 - On macOS, MediaPipe pose-extraction tests require a GUI-authorized local
   process because the pinned wheel creates a native NSOpenGL context. When a
   change affects extraction, run the focused wrapper in
@@ -58,6 +59,24 @@ progress updates, lab-log entry, and any later project-state or thesis edits.
   uncertainty, and a recommended decision.
 - Do not treat technical correlation as coaching validity, and do not update
   `documentation/project-state.md` or the thesis until findings are settled.
+
+### Session handoff
+
+These experiments routinely span multiple agent sessions, sometimes with
+different agents or tools in the research-lead role. Before ending a session
+with unresolved experimental work, update the relevant dated lab-log entry
+(create one if none exists yet for this thread) with a state a future agent
+can resume from without replaying this session's reasoning:
+
+- Exact commands already run, with their output paths under `temp/experiments/`.
+- What is decided versus still open, and why.
+- What is blocked and on whom — for example, work that requires Viona's own
+  visual or perceptual judgment, which no agent should infer or fabricate on
+  her behalf.
+- The single next action, stated concretely enough to act on directly.
+
+A later agent picking up the thread should read that lab-log entry (and the
+artifacts it links) before re-deriving context from raw experiment output.
 
 ## Artifact archive
 
