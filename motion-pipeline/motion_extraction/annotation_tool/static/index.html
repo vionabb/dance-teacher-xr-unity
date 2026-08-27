@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Frame overlay review</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
+</head>
+<body>
+  <header class="navbar bg-primary px-4 text-primary-content">
+    <div class="btn btn-circle btn-ghost text-accent" aria-hidden="true">◈</div>
+    <div>
+      <p class="text-xs font-bold uppercase tracking-widest text-primary-content/70">Motion extraction</p>
+      <h1>Frame overlay review</h1>
+    </div>
+    <div class="navbar-end">
+      <div id="user-menu" class="user-menu dropdown dropdown-end" hidden>
+        <details>
+          <summary id="logged-in-annotator" class="btn btn-ghost btn-sm"></summary>
+          <ul class="dropdown-content menu menu-sm z-10 mt-2 w-32 rounded-box bg-base-100 p-2 shadow-lg">
+            <li><button id="logout" type="button">Log out</button></li>
+          </ul>
+        </details>
+      </div>
+    </div>
+  </header>
+  <section id="login-panel" class="login-panel max-w-2xl mx-auto">
+    <h2>Sign in to annotate</h2>
+    <div class="access-form">    <label>Annotator <input id="annotator" class="input input-bordered" autocomplete="name" placeholder="your name or ID"></label>
+      <label id="access-token-field">Access code <input id="access-token" class="input input-bordered" type="password" autocomplete="one-time-code" inputmode="text" autocapitalize="characters" maxlength="6" pattern="[A-Z0-9]{6}" placeholder="6-character code"></label>
+      <label class="remember-token"><input id="remember-access-token" class="checkbox" type="checkbox"> Remember this device</label>
+      <button id="start" class="btn btn-primary">Load / resume</button></div>
+    <span id="login-state" aria-live="polite"></span>
+  </section>
+  <div id="save-state" class="sr-only" aria-live="polite"></div>
+  <main hidden id="workspace" class="mx-auto max-w-5xl p-4 pb-20">
+    <section class="card card-border flex flex-row items-center justify-between gap-4 bg-base-100 p-4 shadow-sm max-md:flex-col max-md:items-stretch" aria-label="Annotation progress">
+      <div class="grid min-w-0 gap-1"><span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Your queue</span><strong id="progress"></strong></div>
+      <label class="grid min-w-0 max-w-[52%] gap-1 text-xs font-bold text-base-content/60 max-md:w-full max-md:max-w-none">Jump to case<select id="task-picker" class="select select-bordered w-full text-base-content" aria-label="Select case"></select></label>
+    </section>
+
+    <section id="skeleton-screen" class="card card-border bg-base-100 p-4 shadow-sm">
+      <div class="section-heading">
+        <div><span class="step-badge">01</span><h2>Align the skeleton</h2></div>
+        <p>Drag landmarks onto the person. Tap a landmark to set its occlusion.</p>
+      </div>
+      <div class="editor-layout">
+        <aside id="landmark-panel" class="card card-border self-center p-4" aria-labelledby="landmark-dialog-title">
+          <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Selected landmark</span>
+          <h3 id="landmark-dialog-title">Select a landmark</h3>
+          <fieldset><legend>Occlusion</legend><div id="landmark-occlusion-options"></div></fieldset>
+        </aside>
+        <div id="editor-viewport"><button id="reset-skeleton" class="btn btn-sm" type="button">Reset</button><canvas id="ground-truth-canvas" aria-label="Editable skeleton over source frame"></canvas></div>
+      </div>
+    </section>
+
+    <section id="annotation-screen" class="card card-border bg-base-100 p-4 shadow-sm">
+      <div class="section-heading compact"><div><span class="step-badge">02</span><h2>Describe the frame</h2></div><p>Record how much of the source evidence you can trust.</p></div>
+      <fieldset id="source-evidence-quality" class="fieldset"><legend>How clear is this frame?</legend><div id="source-evidence-quality-options"></div></fieldset>
+      <fieldset id="source-evidence-factors" class="fieldset"><legend>What makes it difficult? <span>(optional)</span></legend><div id="source-evidence-factor-options"></div></fieldset>
+      <label class="note-field" for="frame-note">Note (optional)<textarea id="frame-note" class="textarea textarea-bordered" placeholder="Anything useful about this frame"></textarea></label>
+    </section>
+
+    <section id="temporal-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
+      <div class="section-heading">
+        <div><span class="step-badge">▶</span><h2>Compare motion over time</h2></div>
+        <p>Watch the source and all three anonymized pose overlays. Choose the overlay that best follows the source motion.</p>
+      </div>
+      <div class="temporal-source">
+        <h3>Source motion</h3>
+        <video id="temporal-source-video" preload="auto" playsinline aria-label="Source motion video"></video>
+      </div>
+      <div id="temporal-candidates" class="temporal-candidates" aria-label="Candidate pose overlay videos"></div>
+      <div class="temporal-controls" role="group" aria-label="Synchronized playback controls">
+        <button id="temporal-play" class="btn btn-primary" type="button">Play</button>
+        <button id="temporal-pause" class="btn" type="button">Pause</button>
+        <button id="temporal-restart" class="btn" type="button">Restart</button>
+        <label><input id="temporal-loop" class="checkbox checkbox-sm" type="checkbox" checked> Loop</label>
+        <span class="control-label">Speed</span>
+        <button id="temporal-speed-half" class="btn btn-sm" type="button" aria-pressed="false">0.5×</button>
+        <button id="temporal-speed-normal" class="btn btn-sm btn-active" type="button" aria-pressed="true">1×</button>
+      </div>
+      <fieldset class="temporal-response">
+        <legend>Which candidate best follows the source motion?</legend>
+        <div id="temporal-choice-options">
+          <label><input type="radio" name="temporal-choice" value="A"> Candidate A</label>
+          <label><input type="radio" name="temporal-choice" value="B"> Candidate B</label>
+          <label><input type="radio" name="temporal-choice" value="C"> Candidate C</label>
+          <label><input type="radio" name="temporal-choice" value="no_discernible_difference"> No discernible difference</label>
+          <label><input type="radio" name="temporal-choice" value="cannot_judge"> Cannot judge</label>
+        </div>
+      </fieldset>
+      <fieldset id="temporal-confidence">
+        <legend>Confidence</legend>
+        <div>
+          <label><input type="radio" name="temporal-confidence" value="low"> Low</label>
+          <label><input type="radio" name="temporal-confidence" value="medium"> Medium</label>
+          <label><input type="radio" name="temporal-confidence" value="high"> High</label>
+        </div>
+        <p id="temporal-confidence-help" class="small">Required unless you choose “Cannot judge.”</p>
+      </fieldset>
+      <label class="note-field" for="temporal-note">Note (optional)<textarea id="temporal-note" class="textarea textarea-bordered" placeholder="What made the difference visible or difficult to judge?"></textarea></label>
+    </section>
+
+    <section id="actions" data-actions class="actions fixed inset-x-0 bottom-0 z-[100] flex min-h-16 flex-wrap items-center justify-center gap-2 border-t border-base-300 bg-base-100/95 p-3 shadow-[0_-6px_24px_rgba(22,51,46,.12)] backdrop-blur">
+      <button id="previous-case" class="btn btn-ghost" type="button">← Previous case</button>
+      <button id="mark-unclear" class="btn btn-warning btn-outline" data-status="unclear" type="button">Mark unclear</button>
+      <button id="complete-case" class="btn btn-success" data-status="completed" type="button">Complete case</button>
+    </section>
+  </main>
+
+  <dialog id="image-dialog" class="modal"><button id="close-dialog" class="btn" type="button" aria-label="Close enlarged image">Close</button><img id="dialog-image" alt="Enlarged review image"></dialog>
+  <script src="/app.js"></script>
+</body>
+</html>
