@@ -16,6 +16,7 @@ from dance_teacher_pose.preprocessing import (
     PREPROCESS_ROOT_COLUMN_PREFIX,
     PREPROCESS_TORSO_LENGTH_COLUMN,
     PREPROCESS_USABLE_FRAME_COLUMN,
+    PosePreprocessingConfig,
     preprocess_pose_dataframe,
     preprocess_pose_file,
 )
@@ -42,6 +43,7 @@ def preprocess_pose_data(
     print_prefix: t.Callable[[], str] = lambda: "",
     artifact_archive_root: t.Optional[Path] = None,
     artifact_output_dir: t.Optional[Path] = None,
+    config: t.Optional[PosePreprocessingConfig] = None,
 ) -> pd.DataFrame:
     """Preprocess one pose-data tree and preserve the legacy report contract."""
 
@@ -56,6 +58,7 @@ def preprocess_pose_data(
         output_root=output_root,
         rewrite_existing=rewrite_existing,
         print_prefix=print_prefix,
+        config=config,
     )
     if artifact_dir is not None:
         schema = get_pose_data_schema(pose_data_type)
@@ -75,6 +78,7 @@ def preprocess_pose_data(
                 f"Raw suffix: `{schema.raw_suffix}`",
                 f"Clean suffix: `{schema.clean_suffix}`",
                 f"Rewrite existing: `{rewrite_existing}`",
+                f"Cleanup config: `{config}`",
                 f"Files computed: `{computed}`",
                 f"Files cached: `{cached}`",
             ]
@@ -98,6 +102,7 @@ def preprocess_all_pose_data(
     print_prefix: t.Callable[[], str] = lambda: "",
     artifact_archive_root: t.Optional[Path] = None,
     artifact_output_dir: t.Optional[Path] = None,
+    config: t.Optional[PosePreprocessingConfig] = None,
 ) -> dict[PoseDataType, pd.DataFrame]:
     """Preprocess any configured pose-data roots through the shared library."""
 
@@ -113,6 +118,7 @@ def preprocess_all_pose_data(
             artifact_output_dir=None
             if artifact_output_dir is None
             else artifact_output_dir / "holistic_3d",
+            config=config,
         )
     if pose2d_data_root is not None:
         output[PoseDataType.pose2d] = preprocess_pose_data(
@@ -125,6 +131,7 @@ def preprocess_all_pose_data(
             artifact_output_dir=None
             if artifact_output_dir is None
             else artifact_output_dir / "pose2d",
+            config=config,
         )
     return output
 
