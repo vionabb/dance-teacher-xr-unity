@@ -55,6 +55,10 @@ The asset copy in `lab-log/assets/` is always committed. Source files (e.g. in `
 
 **Never reference paths outside the repository or inside directories that are `.gitignore`d.**
 
+**Copy only what the entry actually cites inline.** An experiment run typically produces far more plots and data files than are relevant to the narrative. List and copy the specific ones the entry's prose links to and explains — not every output the run happened to write. If a future reader needs the full run output, point to its path under `temp/experiments/` (or the Drive `agent-output/` area per [`../documentation/dataset.md`](../documentation/dataset.md)) instead of duplicating it here. An asset that ends up in the `artifacts:` frontmatter list without a matching inline link in the entry body is a sign it was swept in rather than chosen.
+
+**Never commit a frame of a participant's video, in any form.** This includes lightly processed renders such as a pose overlay drawn on top of the original frame — the participant is still identifiable in the image. See [`../documentation/dataset.md`](../documentation/dataset.md): raw participant videos and poses are access-controlled and must not enter a broader-access location, and `lab-log/assets/` is always committed to this git repository. If a finding genuinely needs a visual example of a skeleton over a person, use a synthetic or non-participant frame, or a skeleton-only rendering with no source image beneath it. Reference-video frames (the tutorial/dance videos being taught, not participant recordings) are lower sensitivity but are still Drive-owned source data — prefer linking to the source path over duplicating full frames, and keep any copied crop to what the point actually requires.
+
 ---
 
 ## What goes in an entry

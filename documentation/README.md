@@ -12,6 +12,7 @@ This directory is the canonical documentation hub for the standalone code reposi
 | Locate study data or use Google Drive/rclone safely | [Dataset and artifact guide](dataset.md) |
 | Work on the Svelte app | [Frontend README](../svelte-web-frontend/README.md) and [frontend agent instructions](../svelte-web-frontend/AGENTS.md) |
 | Work on Python processing or analysis | [Motion pipeline README](../motion-pipeline/README.md) and [pipeline agent instructions](../motion-pipeline/AGENTS.md) |
+| Review the pose-preprocessing experiment | [Experiment report](preprocessing-cleanup-experiment-report.md), [short paper](preprocessing-cleanup-short-paper.md), and [dated lab log](../lab-log/2026-08-25-preprocessing-cleanup.md) |
 | Understand why a research decision was made | [Lab log conventions](../lab-log/README.md), then search dated entries by tag |
 | Understand research lineage and claim boundaries | [Research context](research-context.md) |
 
