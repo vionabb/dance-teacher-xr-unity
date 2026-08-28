@@ -118,6 +118,18 @@ def _build_landmarker(use_gpu: bool) -> t.Any:
     return vision.PoseLandmarker.create_from_options(options)
 
 
+def _is_complete_output(path: Path) -> bool:
+    """A resumability check must not trust bare existence: a process killed
+    mid-write (this script has been killed by the OS more than once during
+    real corpus runs) can leave a 0-byte file that would otherwise be
+    silently treated as "already done" forever. Non-empty is a cheap,
+    sufficient proxy here since every output always gets a header row
+    written before any per-frame content.
+    """
+
+    return path.is_file() and path.stat().st_size > 0
+
+
 def run_extraction(
     targets: list[ExtractionTarget],
     *,
@@ -127,7 +139,9 @@ def run_extraction(
 ) -> list[dict[str, t.Any]]:
     results: list[dict[str, t.Any]] = []
     for index, target in enumerate(targets):
-        already_done = target.pose2d_output_path.exists() and target.pose3d_output_path.exists()
+        already_done = _is_complete_output(target.pose2d_output_path) and _is_complete_output(
+            target.pose3d_output_path
+        )
         row: dict[str, t.Any] = {
             "corpus": target.video.corpus,
             "relative_stem": target.video.relative_stem,

@@ -67,15 +67,37 @@ def test_build_extraction_targets_excludes_whole_session_recordings(tmp_path: Pa
     assert len(targets) == 1
 
 
+def _write_nonempty(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("frame,NOSE_x,NOSE_y,NOSE_distance,NOSE_vis\n")
+
+
 def test_run_extraction_skips_clips_with_both_outputs_already_present(tmp_path: Path) -> None:
     _make_corpus(tmp_path)
     targets = build_extraction_targets(tmp_path, ["reference"])
-    _touch(targets[0].pose2d_output_path)
-    _touch(targets[0].pose3d_output_path)
+    _write_nonempty(targets[0].pose2d_output_path)
+    _write_nonempty(targets[0].pose3d_output_path)
 
     results = run_extraction(targets, landmarker=None, overwrite=False)
 
     assert results[0]["status"] == "skipped_existing"
+
+
+def test_run_extraction_reprocesses_a_zero_byte_output_left_by_a_killed_run(tmp_path: Path) -> None:
+    # Regression test: a real corpus run was killed by the OS mid-write,
+    # leaving one clip's pose2d output as a 0-byte file. Since it existed,
+    # every subsequent resumed attempt skipped it forever, silently leaving
+    # that clip permanently unextracted. Existence alone must not satisfy
+    # the "already done" check.
+    _make_corpus(tmp_path)
+    targets = build_extraction_targets(tmp_path, ["reference"])
+    targets[0].pose2d_output_path.parent.mkdir(parents=True, exist_ok=True)
+    targets[0].pose2d_output_path.write_bytes(b"")  # zero bytes, as a kill mid-write leaves
+    _write_nonempty(targets[0].pose3d_output_path)
+
+    results = run_extraction(targets, landmarker=None, overwrite=False)
+
+    assert results[0]["status"] != "skipped_existing"
 
 
 def test_run_extraction_survives_an_unreadable_video_without_aborting(tmp_path: Path) -> None:
