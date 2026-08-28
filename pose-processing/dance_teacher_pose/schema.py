@@ -13,6 +13,7 @@ class PoseDataType(enum.Enum):
 
     holistic_3d = "holistic_3d"
     pose2d = "pose2d"
+    pose3d = "pose3d"
 
 
 @dataclass(frozen=True)
@@ -31,8 +32,8 @@ _POSE_DATA_SCHEMAS: dict[PoseDataType, PoseDataSchema] = {
         pose_data_type=PoseDataType.holistic_3d,
         coordinate_fields=("x", "y", "z"),
         legacy_suffix=".holisticdata.csv",
-        raw_suffix=".holisticdata.raw.csv",
-        clean_suffix=".holisticdata.clean.csv",
+        raw_suffix=".holistic.raw.csv",
+        clean_suffix=".holistic.clean.csv",
     ),
     PoseDataType.pose2d: PoseDataSchema(
         pose_data_type=PoseDataType.pose2d,
@@ -40,6 +41,13 @@ _POSE_DATA_SCHEMAS: dict[PoseDataType, PoseDataSchema] = {
         legacy_suffix=".pose2d.csv",
         raw_suffix=".pose2d.raw.csv",
         clean_suffix=".pose2d.clean.csv",
+    ),
+    PoseDataType.pose3d: PoseDataSchema(
+        pose_data_type=PoseDataType.pose3d,
+        coordinate_fields=("x", "y", "z"),
+        legacy_suffix=".pose3d.csv",
+        raw_suffix=".pose3d.raw.csv",
+        clean_suffix=".pose3d.clean.csv",
     ),
 }
 

@@ -61,12 +61,12 @@ def _populate_outputs(layout: PipelineOutputLayout) -> None:
         pd.DataFrame({"clipRelativeStem": [stem.as_posix()], "frameCount": [10], "fps": [30]}),
     )
     for root, suffix in (
-        (layout.holistic_data_srcdir, ".holisticdata.raw.csv"),
+        (layout.holistic_data_srcdir, ".holistic.raw.csv"),
         (layout.pose2d_data_srcdir, ".pose2d.raw.csv"),
     ):
         _write_csv(root / f"{stem.as_posix()}{suffix}", pd.DataFrame({"frame": [0, 1]}))
     for root, suffix in (
-        (layout.holistic_processed_srcdir or layout.holistic_data_srcdir, ".holisticdata.clean.csv"),
+        (layout.holistic_processed_srcdir or layout.holistic_data_srcdir, ".holistic.clean.csv"),
         (layout.pose2d_processed_srcdir or layout.pose2d_data_srcdir, ".pose2d.clean.csv"),
     ):
         _write_csv(
@@ -387,13 +387,13 @@ def test_study_pose_pipeline_uses_canonical_roots_and_selected_stages(
     assert result == ("preprocess-pose-data",)
     assert calls["video_srcdir"] == video_root.resolve()
     assert calls["holistic_data_srcdir"] == (
-        tmp_path / "chi25_study1/pose-raw/canonical/study1-segmented/holisticdata"
+        tmp_path / "chi25_study1/pose-raw/canonical/study1-segmented/holistic"
     ).resolve()
     assert calls["pose2d_data_srcdir"] == (
         tmp_path / "chi25_study1/pose-raw/canonical/study1-segmented/pose2d"
     ).resolve()
     assert calls["holistic_processed_srcdir"] == (
-        tmp_path / "chi25_study1/pose-processed/canonical/study1-segmented/holisticdata"
+        tmp_path / "chi25_study1/pose-processed/canonical/study1-segmented/holistic"
     ).resolve()
     assert calls["pose2d_processed_srcdir"] == (
         tmp_path / "chi25_study1/pose-processed/canonical/study1-segmented/pose2d"

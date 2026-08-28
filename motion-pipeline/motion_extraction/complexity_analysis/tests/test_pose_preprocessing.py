@@ -159,7 +159,7 @@ class PosePreprocessingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_root = Path(tmpdir)
             pose2d_raw_path = temp_root / "sample.pose2d.raw.csv"
-            holistic_clean_path = temp_root / "sample.holisticdata.clean.csv"
+            holistic_clean_path = temp_root / "sample.holistic.clean.csv"
             pose2d_raw_df.to_csv(pose2d_raw_path, index_label="frame")
             holistic_clean_df.to_csv(holistic_clean_path, index_label="frame")
 

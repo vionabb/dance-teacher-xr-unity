@@ -133,7 +133,7 @@ def _validate_database(layout: PipelineOutputLayout, stems: tuple[Path, ...]) ->
 
 def _validate_pose_outputs(layout: PipelineOutputLayout, stems: tuple[Path, ...], *, clean: bool) -> None:
     stage = "preprocess-pose-data" if clean else "extract-pose-data"
-    holistic_suffix = ".holisticdata.clean.csv" if clean else ".holisticdata.raw.csv"
+    holistic_suffix = ".holistic.clean.csv" if clean else ".holistic.raw.csv"
     pose2d_suffix = ".pose2d.clean.csv" if clean else ".pose2d.raw.csv"
     holistic_root = layout.holistic_processed_srcdir if clean and layout.holistic_processed_srcdir else layout.holistic_data_srcdir
     pose2d_root = layout.pose2d_processed_srcdir if clean and layout.pose2d_processed_srcdir else layout.pose2d_data_srcdir
