@@ -90,4 +90,4 @@ When the user asks to archive an artifact, place it under `artifact-archive/` us
 
 ## Lab log
 
-Follow [lab-log/README.md](lab-log/README.md). Add or update a dated entry for substantive user-driven research work: decisions, analyses, findings, or changes in direction. Preserve the researcher's wording closely, record decisions and rationale, and copy referenced artifacts into `lab-log/assets/` before linking them.
+Follow [lab-log/README.md](lab-log/README.md). Add or update a dated entry for substantive user-driven research work: decisions, analyses, findings, or changes in direction. Preserve the researcher's wording closely, record decisions and rationale, and copy referenced artifacts into `lab-log/assets/` before linking them. Whenever you add a new entry or materially update an existing one, also add or revise its 1-4 line synopsis in [lab-log/index.md](lab-log/index.md) so the index stays an accurate, short summary of the entry's current content.

@@ -61,6 +61,27 @@ The asset copy in `lab-log/assets/` is always committed. Source files (e.g. in `
 
 ---
 
+## Index page
+
+[`index.md`](index.md) is a running, chronological index of every entry: one
+1-4 line synopsis each, giving a high-level view of how the research direction
+has evolved without requiring every entry to be opened. It is a summary aid,
+not a substitute for reading the entry itself.
+
+Keep it in sync with the entries:
+
+- **New entry**: append a synopsis line for it, in date order.
+- **Material update to an existing entry** (a new decision, a finding that
+  changes the conclusion, a resolved open question — not a typo fix): revise
+  that entry's existing synopsis so it still accurately reflects the entry's
+  current content. Do not just append a second synopsis line for the same
+  entry.
+- Keep each synopsis to 1-4 lines. If it no longer fits that length after a
+  revision, tighten it rather than letting it grow — the detail belongs in the
+  entry, not the index.
+
+---
+
 ## What goes in an entry
 
 - **User intent**: capture the researcher's own phrasing as closely as possible — this is the most important thing to preserve
