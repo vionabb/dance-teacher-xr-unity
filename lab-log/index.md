@@ -75,4 +75,5 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   aren't smoothing-related at all. Paused smoothing-parameter selection and
   reordered the workstream around a quality gate: detect bad-quality video/pose
   data, fix what's fixable, exclude what isn't, before any further
-  optimization.
+  optimization. Live implementation plan and status:
+  [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).

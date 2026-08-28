@@ -39,6 +39,16 @@ Do not load the full thesis or CHI paper unless the task requires primary-source
 - Update the owning canonical document rather than copying the same explanation into several files. Update [documentation/project-state.md](documentation/project-state.md) only when research maturity, known limitations, or priorities change.
 - Update the owning canonical document rather than copying the same explanation into several files.
 
+## Branching, worktrees, and commit cadence
+
+Default to a dedicated branch for any non-trivial work — new features, multi-file changes, or anything likely to span more than one sitting — rather than committing directly to `main`. Use the harness's `EnterWorktree`/`ExitWorktree` tools (or `git worktree add`/`git worktree remove` outside Claude Code) so a long-running or multi-session piece of work gets its own isolated checkout and branch, separate from whatever else may be happening in the primary working directory. A single small, low-risk documentation or lab-log-only edit may still go straight to `main` in one scoped commit, matching this repo's existing practice for that class of change.
+
+Commit at phase or milestone boundaries, not only once at the end: each commit should represent one coherent, individually-reviewable unit of work — one phase of a multi-phase plan, one bounded implementation brief in the sense used under "Experimental research loops" below — rather than a single large dump of unrelated changes. This matches the git-hygiene already visible throughout this repo's history: small scoped commits on feature branches, merged via pull request (`git log --merges` shows the existing `<owner-or-agent>/<slug>` branch-naming pattern this repo has always used).
+
+Open a pull request rather than pushing directly to `main` for anything beyond a trivial doc fix, and never push or merge without the user's explicit go-ahead — creating a branch or worktree and committing to it locally does not by itself authorize publishing it.
+
+When a piece of work is expected to span multiple sessions, record its state in a lab-log handoff document (see [lab-log/README.md](lab-log/README.md)'s "Handoff documents" section) so a future session — potentially on a different machine, in a different worktree — can resume it without re-deriving context from scratch.
+
 ## Experimental research loops
 
 For metric and pose-data validation experiments, the parent agent is the

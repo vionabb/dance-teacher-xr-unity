@@ -80,3 +80,6 @@ This doesn't prove the automatic signal is sufficient on its own, but it means a
 ## Next step
 
 Build and validate the automatic quality/defect detectors against the existing ~30 human-labeled `editable_pose_ground_truth` judgments (step 2 above) — this can start immediately since the ground truth already exists. Do not touch normal pipeline defaults or the thesis chapter until the exclusion schema and decision rule are settled.
+
+**Superseded by a 2026-08-28 scoping decision**: Viona judged the existing ~30 labels insufficient to validate a detector (they're a byproduct of other targeted sessions, not a systematic pass) and asked for a purpose-built two-stage annotation workflow — fast triage, then auto-generated, warm-started detailed follow-up — across the full local corpus instead. The full design, current status, and the concrete next action are maintained in
+[2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md), which future sessions should read and update in place rather than this entry.
