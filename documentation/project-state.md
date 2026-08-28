@@ -40,6 +40,8 @@ The current system should be described as an operational research prototype, not
 - Feedback policies that fade, reintroduce, or personalize support based on learner history.
 - Complexity-aware progression and difficulty modeling.
 - Visibility repair, outlier masking, interpolation, and smoothing beyond the current preprocessing phase.
+- Corpus-level quality gating: automatic detection of bad-quality source video or bad-quality pose detection, correction of fixable issues, and exclusion of clips/spans with compromising unfixable errors from metric development.
+- A live webcam input-quality check for the study frontend (framing, lighting, tracking confidence) that prompts the participant to adjust before recording, informed by whichever offline quality detectors prove cheap enough to run in-browser.
 
 ## Historical findings that constrain current work
 
@@ -62,10 +64,19 @@ Status: **in progress**
 - Evaluate detector and descriptor stability in 2D and 3D.
 - Define metric semantics and acceptance criteria.
 - Compare automatic metrics with human ratings without conflating correlation with coaching validity.
-- Smoothing-strength parameter selection for the `C4` preprocessing profile is
-  in progress and blocked on a pending blinded human temporal review; see
+- **Reordered as of 2026-08-27**: a corpus-level quality gate (identify bad-quality
+  source video and bad-quality pose detections, fix what's fixable, exclude what
+  isn't) now precedes further smoothing/optimization work. The blinded temporal
+  review of `C4` smoothing candidates completed with "no discernible difference"
+  on every case, but the free-text evidence showed the comparison was confounded
+  by larger, smoothing-invariant artifacts (occlusion-driven jitter, framing/crop,
+  hallucinated limb tracking) rather than actually discriminating smoothing
+  strength. Smoothing-parameter selection is paused, not resolved, until it can
+  be re-run on a quality-gated corpus; see
+  [lab-log/2026-08-27-preprocessing-quality-gate-pivot.md](../lab-log/2026-08-27-preprocessing-quality-gate-pivot.md)
+  for the evidence review and the proposed gate/fix/exclude plan (superseding
   [lab-log/2026-08-26-c4-smoothing-parameter-selection.md](../lab-log/2026-08-26-c4-smoothing-parameter-selection.md)
-  for current status and the exact next action.
+  as the current status).
 
 ### System integration
 
@@ -93,9 +104,10 @@ A new study is needed to evaluate the current coaching system. Before recruitmen
 ## Near-term priorities
 
 1. Make pose/metric assumptions explicit and reproducible.
-2. Establish technical validity and failure modes for candidate metrics.
-3. Decide which signals are safe to use for learner-facing feedback.
-4. Integrate self-report and performance history into a testable decision policy.
-5. Define the study protocol and analysis plan before collecting new data.
+2. Quality-gate the pose/video corpus: validate automatic bad-quality detectors against existing human annotations, then fix or exclude affected clips/spans before further metric or preprocessing-optimization work.
+3. Establish technical validity and failure modes for candidate metrics.
+4. Decide which signals are safe to use for learner-facing feedback.
+5. Integrate self-report and performance history into a testable decision policy.
+6. Define the study protocol and analysis plan before collecting new data.
 
 Use the [lab log](../lab-log/README.md) for dated decisions and findings; keep this document at the level of current status.

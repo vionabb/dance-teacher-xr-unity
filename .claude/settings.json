@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' | { read -r f; if [[ \"$f\" == *\"motion-pipeline/data/test-fixtures/smoketest/\"* ]]; then printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"motion-pipeline/data/test-fixtures/smoketest/ is an immutable contract fixture corpus (see motion-pipeline/AGENTS.md) -- do not hand-edit it. Generate under temp/ and promote via script_invocations/promote_smoke_fixture.py instead.\"}}'; fi; }"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; if [[ \"$f\" == *\"/svelte-web-frontend/src/\"* ]] && [[ \"$f\" =~ \\.(ts|svelte|js|json|scss|css|html)$ ]]; then dir=\"${f%%/svelte-web-frontend/*}/svelte-web-frontend\"; \"$dir/node_modules/.bin/prettier\" --write \"$f\" >/dev/null 2>&1 || true; fi; }",
+            "statusMessage": "Formatting with prettier..."
+          }
+        ]
+      }
+    ]
+  }
+}
