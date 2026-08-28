@@ -1,24 +1,18 @@
 """Sweep the full local pose/video corpus and compute automatic quality signals.
 
 Enumerates every video under the reference and both participant-study video
-roots, matches each to its raw pose data, and writes one CSV row per clip
-with coverage, roughness, frame-bounds crop, lighting, and false-tracking
-signals. This is a read-only research script: it never writes pose or video
-files, and it never modifies pipeline defaults.
+roots, matches each to its canonical raw pose2d CSV, and writes one CSV row
+per clip with coverage, roughness, frame-bounds crop, lighting, and
+false-tracking signals. This is a read-only research script: it never writes
+pose or video files, and it never modifies pipeline defaults.
 
-Reference clips already have canonical pose2d raw CSVs
-(``<stem>.pose2d.raw.csv``, pixel-space x/y). Neither participant study has
-been run through the canonical extraction pipeline yet -- their only local
-pose data is a pre-canonical ``.pose.csv`` format (frame-normalized [0, 1]
-x/y, ``_2d``-suffixed columns, an ``is_valid`` frame flag). ``adapt_legacy_
-pose2d`` renames that format onto the canonical column contract in memory so
-every downstream signal function only has to know one column layout; the
-``pose_schema`` field on each ``ClipSource`` records which convention a clip
-came from, since it changes unit handling (pixel vs. already-normalized) for
-the crop signal and frame-seeking (frame index vs. timestamp) for lighting.
-
-See ``lab-log/2026-08-27-preprocessing-quality-gate-pivot-handoff.md`` for
-the full design and the current phase status.
+Every clip in the corpus now has a canonical pose2d CSV (pixel-space x/y),
+extracted via ``scripts/extract_pose_landmarker_corpus.py`` (GPU Tasks-API
+Pose Landmarker) -- this script previously carried an in-memory adapter for
+participant studies' older, pre-canonical pose format, removed once that
+extraction ran across the whole corpus. See
+``lab-log/2026-08-27-preprocessing-quality-gate-pivot-handoff.md`` for the
+full design and the current phase status.
 """
 
 from __future__ import annotations
@@ -34,13 +28,8 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from dance_teacher_pose import (
-    PoseDataType,
-    collect_pose_data_files,
-    get_pose_data_schema,
-    preprocess_pose_dataframe,
-    relative_stem_from_pose_csv_path,
-)
+from dance_teacher_pose import PoseDataType, get_pose_data_schema, preprocess_pose_dataframe
+from motion_extraction.scripts.extract_pose_landmarker_corpus import build_extraction_targets
 from motion_extraction.scripts.run_preprocessing_experiment import (
     _direct_quality_summary,
     _visible_roots,
@@ -48,122 +37,39 @@ from motion_extraction.scripts.run_preprocessing_experiment import (
 
 CROP_LANDMARKS = ("LEFT_HIP", "RIGHT_HIP", "LEFT_SHOULDER", "RIGHT_SHOULDER")
 
-LEGACY_FIELD_SUFFIXES = (
-    ("_x_2d", "_x"),
-    ("_y_2d", "_y"),
-    ("_z_2d", "_distance"),
-    ("_visibility_2d", "_vis"),
-)
-
 PARTICIPANT_STUDIES = ("chi25_study1", "chi25_study2")
 
 
 @dataclass(frozen=True)
 class ClipSource:
-    """One video plus whatever raw pose data (if any) matches it."""
+    """One video plus its canonical pose2d CSV, if it exists yet."""
 
     corpus: str
     relative_stem: str
     video_path: Path
     raw_pose_path: Path | None
-    pose_schema: str  # "canonical_pixel" | "legacy_normalized" | "none"
-
-
-def adapt_legacy_pose2d(raw_legacy: pd.DataFrame) -> pd.DataFrame:
-    """Rename a legacy ``_2d``-suffixed raw pose CSV onto the canonical pose2d
-    column contract.
-
-    Legacy x/y are already frame-normalized to [0, 1], unlike canonical
-    pose2d's pixel-space columns. Torso-normalization in
-    ``preprocess_pose_dataframe`` cancels absolute units, so this does not
-    affect roughness/coverage signals -- but a caller computing frame-bounds
-    crop fractions must not re-divide these values by video width/height.
-    Frames where ``is_valid`` is false have every coordinate field set to NaN,
-    matching how an undetected landmark is represented elsewhere.
-    """
-
-    landmark_names = sorted(
-        {column[: -len("_x_2d")] for column in raw_legacy.columns if column.endswith("_x_2d")}
-    )
-    valid = (
-        raw_legacy["is_valid"].astype(bool).to_numpy()
-        if "is_valid" in raw_legacy.columns
-        else np.ones(len(raw_legacy), dtype=bool)
-    )
-    columns: dict[str, np.ndarray] = {}
-    for landmark in landmark_names:
-        for legacy_suffix, canonical_suffix in LEGACY_FIELD_SUFFIXES:
-            column = f"{landmark}{legacy_suffix}"
-            if column not in raw_legacy.columns:
-                continue
-            values = raw_legacy[column].to_numpy(dtype=float)
-            columns[f"{landmark}{canonical_suffix}"] = np.where(valid, values, np.nan)
-    if "timestamp" in raw_legacy.columns:
-        columns["timestamp_ms"] = raw_legacy["timestamp"].to_numpy(dtype=float)
-    return pd.DataFrame(columns, index=pd.Index(raw_legacy["frame"].to_numpy(), name="frame"))
-
-
-def _discover_reference_clips(data_root: Path) -> list[ClipSource]:
-    video_root = data_root / "reference_motions" / "videos"
-    pose_root = data_root / "reference_motions" / "pose-raw" / "pose2d"
-    pose_files: dict[str, Path] = {}
-    if pose_root.is_dir():
-        for pose_path in collect_pose_data_files(
-            pose_root, PoseDataType.pose2d, preferred_versions=("raw", "legacy")
-        ):
-            stem = relative_stem_from_pose_csv_path(pose_path, pose_root, PoseDataType.pose2d)
-            pose_files[stem] = pose_path
-    clips: list[ClipSource] = []
-    if not video_root.is_dir():
-        return clips
-    for video_path in sorted(video_root.rglob("*.mp4")):
-        stem = video_path.relative_to(video_root).with_suffix("").as_posix()
-        pose_path = pose_files.get(stem)
-        clips.append(
-            ClipSource("reference", stem, video_path, pose_path, "canonical_pixel" if pose_path else "none")
-        )
-    return clips
-
-
-def _discover_participant_clips(data_root: Path, study: str, legacy_dirname: str) -> list[ClipSource]:
-    video_root = data_root / "participant_motions" / study / "videos"
-    pose_root = data_root / "participant_motions" / study / "pose-raw" / "legacy" / legacy_dirname
-    legacy_suffix = ".pose.csv"
-    pose_files: dict[str, Path] = {}
-    if pose_root.is_dir():
-        for pose_path in pose_root.glob(f"*{legacy_suffix}"):
-            pose_files[pose_path.name[: -len(legacy_suffix)]] = pose_path
-    clips: list[ClipSource] = []
-    if not video_root.is_dir():
-        return clips
-    for video_path in sorted(video_root.glob("*.mp4")):
-        stem = video_path.stem
-        pose_path = pose_files.get(stem)
-        clips.append(
-            ClipSource(study, stem, video_path, pose_path, "legacy_normalized" if pose_path else "none")
-        )
-    return clips
 
 
 def discover_corpus(data_root: Path) -> list[ClipSource]:
-    """Enumerate every reference and participant-study video plus its raw pose match, if any."""
+    """Enumerate every reference and participant-study video plus its canonical pose2d match, if any."""
 
-    clips = list(_discover_reference_clips(data_root))
-    clips += _discover_participant_clips(data_root, "chi25_study1", "study1-poses-segmented")
-    clips += _discover_participant_clips(data_root, "chi25_study2", "study2-poses-segmented")
-    return clips
+    return [
+        ClipSource(
+            target.video.corpus,
+            target.video.relative_stem,
+            target.video.video_path,
+            target.pose2d_output_path if target.pose2d_output_path.exists() else None,
+        )
+        for target in build_extraction_targets(data_root, ["reference", *PARTICIPANT_STUDIES])
+    ]
 
 
 def load_raw_pose(clip: ClipSource) -> pd.DataFrame | None:
-    """Load one clip's raw pose data onto the canonical pose2d column contract."""
+    """Load one clip's canonical raw pose2d data, if it exists."""
 
     if clip.raw_pose_path is None:
         return None
-    if clip.pose_schema == "canonical_pixel":
-        return pd.read_csv(clip.raw_pose_path, index_col="frame")
-    if clip.pose_schema == "legacy_normalized":
-        return adapt_legacy_pose2d(pd.read_csv(clip.raw_pose_path))
-    return None
+    return pd.read_csv(clip.raw_pose_path, index_col="frame")
 
 
 def _longest_true_run(mask: np.ndarray) -> int:
@@ -176,13 +82,15 @@ def _longest_true_run(mask: np.ndarray) -> int:
 
 def crop_signal(
     raw: pd.DataFrame,
-    pixel_space: bool,
     video_width: float | None,
     video_height: float | None,
     margin: float,
 ) -> dict[str, t.Any]:
     """Fraction of frames, and the longest contiguous run, where a hip/shoulder
     landmark sits within ``margin`` of the frame edge or off-frame entirely.
+
+    ``raw`` is canonical pose2d: pixel-space x/y, divided here by the video's
+    width/height to get frame-relative fractions.
     """
 
     violation = np.zeros(len(raw), dtype=bool)
@@ -191,13 +99,10 @@ def crop_signal(
         x_col, y_col = f"{landmark}_x", f"{landmark}_y"
         if x_col not in raw.columns or y_col not in raw.columns:
             continue
-        x = raw[x_col].to_numpy(dtype=float)
-        y = raw[y_col].to_numpy(dtype=float)
-        if pixel_space:
-            if not video_width or not video_height:
-                continue
-            x = x / video_width
-            y = y / video_height
+        if not video_width or not video_height:
+            continue
+        x = raw[x_col].to_numpy(dtype=float) / video_width
+        y = raw[y_col].to_numpy(dtype=float) / video_height
         finite = np.isfinite(x) & np.isfinite(y)
         landmark_violation = finite & ((x < margin) | (x > 1 - margin) | (y < margin) | (y > 1 - margin))
         violation |= landmark_violation
@@ -293,7 +198,7 @@ def false_tracking_signal(
     }
 
 
-def lighting_signal(video_path: Path, raw: pd.DataFrame, pixel_space: bool, sample_count: int) -> dict[str, t.Any]:
+def lighting_signal(video_path: Path, raw: pd.DataFrame, sample_count: int) -> dict[str, t.Any]:
     """Video dimensions plus mean luminance/contrast sampled at a handful of
     frames spread across the clip. Extends the single-frame triage-hint
     snippet in ``append_targeted_preprocessing_tasks.py`` (``_frame_quality``)
@@ -325,12 +230,7 @@ def lighting_signal(video_path: Path, raw: pd.DataFrame, pixel_space: bool, samp
     means: list[float] = []
     stds: list[float] = []
     for position in positions:
-        if pixel_space:
-            capture.set(cv2.CAP_PROP_POS_FRAMES, int(raw.index[position]))
-        elif "timestamp_ms" in raw.columns:
-            capture.set(cv2.CAP_PROP_POS_MSEC, float(raw["timestamp_ms"].iloc[position]))
-        else:
-            continue
+        capture.set(cv2.CAP_PROP_POS_FRAMES, int(raw.index[position]))
         ok, frame = capture.read()
         if not ok:
             continue
@@ -367,7 +267,6 @@ def compute_clip_signals(
         "relative_stem": clip.relative_stem,
         "video_path": str(clip.video_path),
         "pose_path": str(clip.raw_pose_path) if clip.raw_pose_path else "",
-        "pose_schema": clip.pose_schema,
         "pose_available": clip.raw_pose_path is not None,
         "error": "",
     }
@@ -376,13 +275,12 @@ def compute_clip_signals(
     try:
         raw = load_raw_pose(clip)
         clean = preprocess_pose_dataframe(raw, PoseDataType.pose2d, config=None)
-        pixel_space = clip.pose_schema == "canonical_pixel"
 
         row.update(_direct_quality_summary(clean, PoseDataType.pose2d))
-        lighting = lighting_signal(clip.video_path, raw, pixel_space, lighting_sample_count)
+        lighting = lighting_signal(clip.video_path, raw, lighting_sample_count)
         row.update(lighting)
         row.update(
-            crop_signal(raw, pixel_space, lighting.get("video_width"), lighting.get("video_height"), crop_margin)
+            crop_signal(raw, lighting.get("video_width"), lighting.get("video_height"), crop_margin)
         )
         row.update(windowed_roughness(clean, roughness_window_frames))
         row.update(

@@ -14,7 +14,7 @@ from .motion_output_provider import (BVHOutputProvider, MotionOutputProvider,
 from .utils import throttle
 
 _HOLISTIC_DATA_LEGACY_SUFFIX = '.holisticdata.csv'
-_HOLISTIC_DATA_RAW_SUFFIX = '.holisticdata.raw.csv'
+_HOLISTIC_DATA_RAW_SUFFIX = '.holistic.raw.csv'
 
 
 def _clip_stem_from_holistic_csv_path(data_file: Path) -> str:

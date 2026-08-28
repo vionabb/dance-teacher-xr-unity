@@ -26,7 +26,7 @@ _BGR_CHANNELS = 3
 from typing import Iterable
 
 _HOLISTIC_DATA_LEGACY_SUFFIX = ".holisticdata.csv"
-_HOLISTIC_DATA_RAW_SUFFIX = ".holisticdata.raw.csv"
+_HOLISTIC_DATA_RAW_SUFFIX = ".holistic.raw.csv"
 _POSE2D_DATA_LEGACY_SUFFIX = ".pose2d.csv"
 _POSE2D_DATA_RAW_SUFFIX = ".pose2d.raw.csv"
 

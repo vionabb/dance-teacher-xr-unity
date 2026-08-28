@@ -163,7 +163,7 @@ def test_pose_extraction_stage_smoke(case_name: str, tmp_path: Path) -> None:
     )
 
     for output_path in (
-        holistic_root / f"{video_path.stem}.holisticdata.raw.csv",
+        holistic_root / f"{video_path.stem}.holistic.raw.csv",
         pose2d_root / f"{video_path.stem}.pose2d.raw.csv",
     ):
         assert output_path.is_file()
@@ -183,7 +183,7 @@ def test_preprocessing_stage_smoke(case_name: str, tmp_path: Path) -> None:
         pytest.skip("Preprocessing smoke test requires both raw pose modalities")
     holistic_root = tmp_path / "holistic_data"
     pose2d_root = tmp_path / "pose2d_data"
-    holistic_path = next((path for path in raw_paths if ".holisticdata." in path.name), None)
+    holistic_path = next((path for path in raw_paths if ".holistic." in path.name), None)
     pose2d_path = next((path for path in raw_paths if ".pose2d." in path.name), None)
     if holistic_path is None or pose2d_path is None:
         pytest.skip("Preprocessing smoke test requires holistic and pose2d fixtures")
@@ -198,7 +198,7 @@ def test_preprocessing_stage_smoke(case_name: str, tmp_path: Path) -> None:
 
     clean_paths = [
         holistic_root / holistic_path.name.replace(
-            ".holisticdata.raw.csv", ".holisticdata.clean.csv"
+            ".holistic.raw.csv", ".holistic.clean.csv"
         ),
         pose2d_root / pose2d_path.name.replace(
             ".pose2d.raw.csv", ".pose2d.clean.csv"
@@ -221,7 +221,7 @@ def test_complexity_stage_smoke(case_name: str, tmp_path: Path) -> None:
     if raw_pose_paths is None:
         pytest.skip("Smoke case has no raw-pose fixtures")
     raw_holistic_path = next(
-        (path for path in raw_pose_paths if ".holisticdata." in path),
+        (path for path in raw_pose_paths if ".holistic." in path),
         None,
     )
     if raw_holistic_path is None:
@@ -243,7 +243,7 @@ def test_complexity_stage_smoke(case_name: str, tmp_path: Path) -> None:
         visibility_mode=VisibilityMode.interpolate,
     )
 
-    per_file_output = output_root / "byfile" / f"{raw_holistic.name.removesuffix('.holisticdata.raw.csv')}.complexity.csv"
+    per_file_output = output_root / "byfile" / f"{raw_holistic.name.removesuffix('.holistic.raw.csv')}.complexity.csv"
     summary_output = output_root / "dvaj_complexity.csv"
     assert per_file_output.is_file()
     assert summary_output.is_file()
@@ -407,9 +407,9 @@ def test_full_pipeline_smoke(case_name: str, tmp_path: Path) -> None:
         "bundle-data",
     ]
 
-    assert (holistic_root / f"{video_path.stem}.holisticdata.raw.csv").is_file()
+    assert (holistic_root / f"{video_path.stem}.holistic.raw.csv").is_file()
     assert (pose2d_root / f"{video_path.stem}.pose2d.raw.csv").is_file()
-    assert (holistic_root / f"{video_path.stem}.holisticdata.clean.csv").is_file()
+    assert (holistic_root / f"{video_path.stem}.holistic.clean.csv").is_file()
     assert (temp_root / "complexities" / "byfile" / f"{video_path.stem}.complexity.csv").is_file()
     assert (temp_root / "audio_analysis" / "analysis" / "video" / f"{video_path.stem}.json").is_file()
     assert (temp_root / "trees_with_complexity" / f"{video_path.stem}.dancetree.json").is_file()

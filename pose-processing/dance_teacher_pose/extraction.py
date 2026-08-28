@@ -1,4 +1,20 @@
-"""MediaPipe Holistic extraction into the canonical raw pose CSVs."""
+"""MediaPipe extraction into the canonical raw pose CSVs.
+
+Two independent extraction paths exist:
+
+- ``extract_holistic_video`` (legacy Solutions API, CPU-only): the original
+  path, producing canonical holistic (pose-world + hand landmarks) and pose2d
+  CSVs from one shared ``mediapipe.python.solutions.holistic.Holistic`` call.
+  Kept as-is; still the only source of hand/face data.
+- ``extract_pose_landmarker_video`` (Tasks API standalone Pose Landmarker,
+  GPU-capable): pose-only, no hands/face. The combined Holistic Landmarker
+  Task has a long-standing upstream crash on any frame with no confident
+  detection (mediapipe#5181); the standalone Pose Landmarker does not share
+  that bug and supports a GPU delegate on macOS. Produces canonical pose2d
+  (image-space) and pose3d (world-space) CSVs from one shared landmarker
+  instance the caller creates and passes in, since GPU model load/context
+  setup is expensive to repeat per clip.
+"""
 
 from __future__ import annotations
 
@@ -217,3 +233,83 @@ def extract_holistic_video(
     finally:
         if pose2d_file is not None:
             pose2d_file.close()
+
+
+def construct_pose3d_header_row() -> list[str]:
+    """Return the canonical 3D world-space pose CSV header."""
+
+    return ["frame"] + [
+        f"{PoseLandmark(index).name}_{field}"
+        for index in range(len(PoseLandmark))
+        for field in ("x", "y", "z", "vis")
+    ]
+
+
+def transform_to_pose3d_csvrow(
+    frame_i: int, frame_data: t.Any, *, as_pd_series: bool = False
+) -> list[t.Any] | pd.Series:
+    """Serialize one Pose Landmarker result into the canonical 3D world-space row.
+
+    ``frame_data`` is a ``mediapipe.tasks.python.vision.PoseLandmarkerResult``
+    (or any object exposing an equivalent ``pose_world_landmarks`` attribute):
+    a list with at most one entry (this extractor only asks for a single
+    person), itself a list of 33 landmarks with ``x``/``y``/``z`` in meters,
+    hip-midpoint-relative, and a ``visibility`` score. An empty list (no
+    confident detection this frame) yields an all-``None`` row, the same
+    convention ``transform_to_holistic_csvrow``/``transform_to_pose2d_csvrow``
+    already use.
+    """
+
+    world_landmarks = frame_data.pose_world_landmarks[0] if frame_data.pose_world_landmarks else None
+    row: list[t.Any] = [frame_i]
+    for index in range(len(PoseLandmark)):
+        landmark = world_landmarks[index] if world_landmarks is not None else None
+        row.extend(
+            [landmark.x, landmark.y, landmark.z, landmark.visibility]
+            if landmark is not None
+            else [None, None, None, None]
+        )
+    if as_pd_series:
+        return pd.Series(row, index=construct_pose3d_header_row())
+    return row
+
+
+def extract_pose_landmarker_video(
+    input_video_path: Path,
+    pose2d_output_path: Path,
+    pose3d_output_path: Path,
+    *,
+    landmarker: t.Any,
+) -> None:
+    """Extract one video into canonical pose2d and pose3d CSVs via a shared,
+    caller-owned ``mediapipe.tasks.python.vision.PoseLandmarker`` instance
+    (typically GPU-delegated). Pose-only: no hand or face data, unlike
+    ``extract_holistic_video``. The landmarker is reused across an entire
+    corpus sweep rather than re-created per clip, since GPU model load and
+    Metal context setup is comparatively expensive.
+    """
+
+    cap = cv2.VideoCapture(str(input_video_path))
+    video_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    video_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    cap.release()
+
+    pose2d_output_path.parent.mkdir(parents=True, exist_ok=True)
+    pose3d_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with (
+        pose2d_output_path.open("w", encoding="utf-8", newline="") as pose2d_file,
+        pose3d_output_path.open("w", encoding="utf-8", newline="") as pose3d_file,
+    ):
+        pose2d_writer = csv.writer(pose2d_file)
+        pose3d_writer = csv.writer(pose3d_file)
+        pose2d_writer.writerow(construct_pose2d_header_row())
+        pose3d_writer.writerow(construct_pose3d_header_row())
+        for frame_i, _frame_count, _timestamp_ms, image_rgb in _perform_by_frame(input_video_path):
+            image_rgba = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2RGBA)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGBA, data=image_rgba)
+            frame_data = landmarker.detect(mp_image)
+            pose2d_writer.writerow(
+                transform_to_pose2d_csvrow(frame_i, frame_data, video_width, video_height)
+            )
+            pose3d_writer.writerow(transform_to_pose3d_csvrow(frame_i, frame_data))

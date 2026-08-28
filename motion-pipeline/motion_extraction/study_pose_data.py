@@ -102,10 +102,10 @@ def run_study_pose_pipeline(
 
     selected_stages = POSE_STAGES[start_index : stop_index + 1]
     pose_root = layout.raw_pose_root(root)
-    holistic_root = pose_root / "holisticdata"
+    holistic_root = pose_root / "holistic"
     pose2d_root = pose_root / "pose2d"
     processed_root = layout.processed_pose_root(root)
-    holistic_processed_root = processed_root / "holisticdata"
+    holistic_processed_root = processed_root / "holistic"
     pose2d_processed_root = processed_root / "pose2d"
     work_root = processed_root / "run-state"
     completed: list[str] = []
