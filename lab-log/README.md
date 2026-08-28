@@ -61,6 +61,30 @@ The asset copy in `lab-log/assets/` is always committed. Source files (e.g. in `
 
 ---
 
+## Handoff documents (living, not narrative)
+
+A multi-session, multi-phase piece of work may accumulate a companion
+**handoff document** alongside its originating dated entry, named
+`YYYY-MM-DD-slug-handoff.md` (the same slug as the entry it belongs to, plus
+`-handoff`). Unlike a normal entry, a handoff document is a **living
+document**: maintain it in place across sessions by overwriting its status and
+next-action sections as work progresses, rather than appending a growing log
+of updates the way a narrative entry would. It exists so a full implementation
+plan, current phase status, decisions already settled, and the concrete next
+action survive independently of any session-local plan file (such as a
+`~/.claude/plans/` artifact, which is not part of this repository and will not
+be available to a future session or a different machine).
+
+Link a handoff document from its originating entry's "Next step" section, and
+give it its own synopsis line in [index.md](index.md) (it does not replace or
+get folded into the parent entry's synopsis, since the two serve different
+purposes — one is history, the other is current state). Every session that
+picks up work described in a handoff document must update its status before
+ending, per the "Session handoff" convention in the top-level
+[AGENTS.md](../AGENTS.md).
+
+---
+
 ## Index page
 
 [`index.md`](index.md) is a running, chronological index of every entry: one
