@@ -104,6 +104,32 @@
       <label class="note-field" for="temporal-note">Note (optional)<textarea id="temporal-note" class="textarea textarea-bordered" placeholder="What made the difference visible or difficult to judge?"></textarea></label>
     </section>
 
+    <section id="triage-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
+      <div class="section-heading">
+        <div><span class="step-badge">▶</span><h2>Quick quality check</h2></div>
+        <p>The pose overlay is burned in. Does the pose estimation look fine, or is something wrong?</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="triage-category-badge" class="badge badge-soft"></span>
+        <span id="triage-signal-value" class="text-xs text-base-content/60"></span>
+      </div>
+      <figure id="triage-frame-figure" class="mt-2" hidden>
+        <img id="triage-frame-image" class="w-full rounded-box object-contain" alt="Pose-overlay frame for quality review">
+      </figure>
+      <figure id="triage-clip-figure" class="mt-2" hidden>
+        <video id="triage-clip-video" class="w-full rounded-box" controls loop playsinline muted aria-label="Pose-overlay clip for quality review"></video>
+      </figure>
+      <fieldset class="triage-response">
+        <legend>Does this look right?</legend>
+        <div id="triage-verdict-options">
+          <label><input class="radio" type="radio" name="triage-verdict" value="fine"> Looks fine</label>
+          <label><input class="radio" type="radio" name="triage-verdict" value="problematic"> Has a problem</label>
+          <label><input class="radio" type="radio" name="triage-verdict" value="cannot_judge"> Can't judge</label>
+        </div>
+      </fieldset>
+      <label class="note-field" for="triage-note">Note (optional)<textarea id="triage-note" class="textarea" placeholder="What's wrong, or why can't you judge it?"></textarea></label>
+    </section>
+
     <section id="actions" data-actions class="actions fixed inset-x-0 bottom-0 z-[100] flex min-h-16 flex-wrap items-center justify-center gap-2 border-t border-base-300 bg-base-100/95 p-3 shadow-[0_-6px_24px_rgba(22,51,46,.12)] backdrop-blur">
       <button id="previous-case" class="btn btn-ghost" type="button">← Previous case</button>
       <button id="mark-unclear" class="btn btn-warning btn-outline" data-status="unclear" type="button">Mark unclear</button>

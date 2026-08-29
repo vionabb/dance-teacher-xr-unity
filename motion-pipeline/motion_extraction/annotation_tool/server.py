@@ -30,6 +30,8 @@ TEMPORAL_CHOICES = {
     "cannot_judge",
 }
 TEMPORAL_CONFIDENCES = {"low", "medium", "high"}
+TRIAGE_VERDICTS = {"fine", "problematic", "cannot_judge"}
+SKELETON_FREE_TASK_TYPES = {"temporal_pose_comparison", "quality_triage"}
 SOURCE_EVIDENCE_QUALITIES = {"usable", "constrained", "weak"}
 SOURCE_EVIDENCE_FACTORS = {
     "motion_blur",
@@ -92,6 +94,7 @@ class AnnotationStore:
                     temporal_choice TEXT NOT NULL DEFAULT '',
                     temporal_confidence TEXT NOT NULL DEFAULT '',
                     temporal_note TEXT NOT NULL DEFAULT '',
+                    triage_response_json TEXT NOT NULL DEFAULT '{}',
                     profile_provenance_json TEXT NOT NULL,
                     frame_window_json TEXT NOT NULL,
                     artifact_ids_json TEXT NOT NULL,
@@ -160,6 +163,10 @@ class AnnotationStore:
                 connection.execute(
                     "ALTER TABLE judgment_revisions ADD COLUMN temporal_note TEXT NOT NULL DEFAULT ''"
                 )
+            if "triage_response_json" not in columns:
+                connection.execute(
+                    "ALTER TABLE judgment_revisions ADD COLUMN triage_response_json TEXT NOT NULL DEFAULT '{}'"
+                )
             connection.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_judgment_revisions_resume
@@ -200,6 +207,9 @@ class AnnotationStore:
         temporal_response = self._validate_temporal_response(
             payload.get("temporal_response", {}), task_type, status
         )
+        triage_response = self._validate_triage_response(
+            payload.get("triage_response", {}), task_type, status
+        )
         assignments = payload.get("tier_assignments", {})
         if not isinstance(assignments, dict):
             raise ValueError("tier_assignments must be an object")
@@ -219,7 +229,7 @@ class AnnotationStore:
                 raise ValueError(
                     f"tier for {overlay_id} must be one of {sorted(allowed_tiers)}"
                 )
-        if task_type == "temporal_pose_comparison":
+        if task_type in SKELETON_FREE_TASK_TYPES:
             ground_truth: dict[str, dict[str, t.Any]] = {}
             initial_ground_truth: dict[str, dict[str, t.Any]] = {}
             interactions: dict[str, dict[str, t.Any]] = {}
@@ -247,7 +257,7 @@ class AnnotationStore:
             raise ValueError("ground_truth_initial_profile must name an overlay")
         if (
             status == "completed"
-            and task_type != "temporal_pose_comparison"
+            and task_type not in SKELETON_FREE_TASK_TYPES
             and not ground_truth
             and set(assignments) != overlay_ids
         ):
@@ -338,9 +348,10 @@ class AnnotationStore:
                     ground_truth_initial_profile, automatic_profile_scores_json,
                     source_evidence_quality, source_evidence_factors_json, task_type,
                     temporal_choice, temporal_confidence, temporal_note,
+                    triage_response_json,
                     profile_provenance_json, frame_window_json, artifact_ids_json,
                     created_at, supersedes_revision_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     SCHEMA_VERSION,
@@ -366,6 +377,7 @@ class AnnotationStore:
                     temporal_response["choice"],
                     temporal_response["confidence"],
                     temporal_response["note"],
+                    json.dumps(triage_response, sort_keys=True),
                     json.dumps(self.manifest.get("profile_provenance", {}), sort_keys=True),
                     json.dumps(task.get("frame_window", {}), sort_keys=True),
                     json.dumps(
@@ -430,6 +442,32 @@ class AnnotationStore:
                     "completed temporal response requires confidence unless cannot_judge"
                 )
         return {"choice": choice, "confidence": confidence, "note": note}
+
+    @staticmethod
+    def _validate_triage_response(
+        value: t.Any, task_type: str, status: str
+    ) -> dict[str, str]:
+        """Validate the response fields used only by quality_triage tasks."""
+
+        empty = {"verdict": "", "note": ""}
+        if task_type != "quality_triage":
+            if value not in ({}, None):
+                raise ValueError(
+                    "triage_response is only valid for quality_triage tasks"
+                )
+            return empty
+        if not isinstance(value, dict):
+            raise ValueError("triage_response must be an object")
+        verdict = value.get("verdict", "")
+        note = value.get("note", "")
+        if not all(isinstance(item, str) for item in (verdict, note)):
+            raise ValueError("triage response fields must be strings")
+        verdict, note = verdict.strip(), note.strip()
+        if verdict and verdict not in TRIAGE_VERDICTS:
+            raise ValueError(f"triage verdict must be one of {sorted(TRIAGE_VERDICTS)}")
+        if status == "completed" and verdict not in TRIAGE_VERDICTS:
+            raise ValueError("completed triage response requires a verdict")
+        return {"verdict": verdict, "note": note}
 
     @staticmethod
     def _validate_source_evidence_quality(value: t.Any) -> str:
@@ -956,6 +994,7 @@ class AnnotationStore:
             "confidence": decoded.get("temporal_confidence", ""),
             "note": decoded.get("temporal_note", ""),
         }
+        decoded["triage_response"] = json.loads(decoded.pop("triage_response_json", "{}") or "{}")
         return decoded
 
 

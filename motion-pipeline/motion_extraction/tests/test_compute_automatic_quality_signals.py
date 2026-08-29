@@ -55,6 +55,7 @@ def test_crop_signal_tracks_longest_contiguous_violation_run() -> None:
 
     assert result["crop_violation_fraction"] == 0.5
     assert result["crop_longest_run_frames"] == 2
+    assert result["crop_longest_run_start"] == 1
 
 
 def test_crop_signal_without_dimensions_reports_nan() -> None:
@@ -64,6 +65,7 @@ def test_crop_signal_without_dimensions_reports_nan() -> None:
 
     assert np.isnan(result["crop_violation_fraction"])
     assert result["crop_longest_run_frames"] == 0
+    assert result["crop_longest_run_start"] == -1
 
 
 def test_windowed_roughness_localizes_a_sharp_jump_to_its_window() -> None:
@@ -100,3 +102,4 @@ def test_false_tracking_signal_requires_both_high_velocity_and_low_visibility() 
         low_visibility_jump, low_visibility_clean, velocity_threshold=0.5, visibility_threshold=0.5
     )
     assert flagged_result["false_tracking_candidate_fraction"] > 0.0
+    assert flagged_result["false_tracking_longest_run_start"] == 5

@@ -733,6 +733,96 @@ def test_completed_temporal_response_validation_is_separate_from_skeleton_scores
         )
 
 
+def _triage_manifest() -> dict:
+    return {
+        "schema_version": "1.0",
+        "experiment_id": "triage-test",
+        "task_type": "quality_triage",
+        "tasks": [
+            {
+                "task_id": "triage-1",
+                "case_id": "triage-1",
+                "priority": 1,
+                "task_type": "quality_triage",
+                "category": "crop",
+                "review_unit": "frame",
+                "source_artifact": "triage-1/frame.png",
+                "signal_value": 0.87,
+            }
+        ],
+    }
+
+
+def test_triage_responses_are_typed_append_only_and_exported(tmp_path: Path) -> None:
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", _triage_manifest())
+    first = store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "triage-1",
+            "status": "started",
+            "triage_response": {"verdict": "fine", "note": ""},
+            "tier_assignments": {},
+        }
+    )
+    second = store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "triage-1",
+            "status": "completed",
+            "triage_response": {"verdict": "problematic", "note": "Hips off-frame the whole clip."},
+            "tier_assignments": {},
+        }
+    )
+    assert second["revision_id"] > first["revision_id"]
+    latest = store.state("reviewer")["latest_judgments"]["triage-1"]
+    assert latest["task_type"] == "quality_triage"
+    assert latest["triage_response"] == {
+        "verdict": "problematic",
+        "note": "Hips off-frame the whole clip.",
+    }
+    rows = store.export_rows()
+    assert len(rows) == 2
+    assert rows[1]["supersedes_revision_id"] == rows[0]["revision_id"]
+    assert json.loads(rows[1]["triage_response_json"]) == {
+        "verdict": "problematic",
+        "note": "Hips off-frame the whole clip.",
+    }
+    assert rows[1]["ground_truth_landmarks_json"] == "{}"
+
+
+def test_completed_triage_response_requires_a_verdict(tmp_path: Path) -> None:
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", _triage_manifest())
+    with pytest.raises(ValueError, match="requires a verdict"):
+        store.append(
+            {
+                "annotator": "reviewer",
+                "task_id": "triage-1",
+                "status": "completed",
+                "triage_response": {"note": "no verdict chosen"},
+            }
+        )
+    store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "triage-1",
+            "status": "completed",
+            "triage_response": {"verdict": "cannot_judge", "note": "Frame is fully black."},
+        }
+    )
+
+
+def test_triage_response_is_rejected_on_a_non_triage_task(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="only valid"):
+        AnnotationStore(tmp_path / "skeleton.sqlite3", _manifest()).append(
+            {
+                "annotator": "reviewer",
+                "task_id": "task-high",
+                "status": "started",
+                "triage_response": {"verdict": "fine"},
+            }
+        )
+
+
 def test_mp4_serving_supports_mime_type_and_single_byte_ranges(tmp_path: Path) -> None:
     experiment = tmp_path / "experiment"
     media = experiment / "media"
@@ -940,3 +1030,22 @@ def test_temporal_ui_contract_has_blinded_synchronized_responsive_controls() -> 
     assert ".temporal-candidates { display: grid;" in css
     assert "@media (max-width: 800px)" in css
     assert ".temporal-candidates { grid-template-columns: 1fr; }" in css
+
+
+def test_triage_ui_contract_shows_overlay_and_a_fast_verdict_only() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    assert 'id="triage-screen"' in html
+    assert 'id="triage-category-badge"' in html
+    assert 'id="triage-frame-figure"' in html
+    assert 'id="triage-frame-image"' in html
+    assert 'id="triage-clip-figure"' in html
+    assert 'id="triage-clip-video"' in html
+    assert 'id="triage-note"' in html
+    assert all(f'value="{value}"' in html for value in ("fine", "problematic", "cannot_judge"))
+    # No factor-tag or source-evidence-quality checkboxes on this screen -- the
+    # design deliberately keeps Stage 1 to a single fast verdict.
+    assert "source-evidence-factor" not in html.split('id="triage-screen"')[1].split("</section>")[0]
+    assert "function isTriageTask" in javascript
+    assert "function renderTriageTask" in javascript
+    assert "triage_response: triageResponse" in javascript

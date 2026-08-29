@@ -72,12 +72,27 @@ def load_raw_pose(clip: ClipSource) -> pd.DataFrame | None:
     return pd.read_csv(clip.raw_pose_path, index_col="frame")
 
 
-def _longest_true_run(mask: np.ndarray) -> int:
+def _longest_true_run(mask: np.ndarray) -> tuple[int, int]:
+    """Return (length, start index) of the longest contiguous True run.
+
+    The start index feeds Stage 2 defect-localization warm-starts and the
+    quality-triage generator's frame/window selection, so it must survive
+    into the signals CSV alongside the length, not just be discarded.
+    """
+
     longest = current = 0
-    for value in mask:
-        current = current + 1 if value else 0
-        longest = max(longest, current)
-    return longest
+    longest_start = current_start = 0
+    for index, value in enumerate(mask):
+        if value:
+            if current == 0:
+                current_start = index
+            current += 1
+        else:
+            current = 0
+        if current > longest:
+            longest = current
+            longest_start = current_start
+    return longest, longest_start
 
 
 def crop_signal(
@@ -108,10 +123,12 @@ def crop_signal(
         violation |= landmark_violation
         contributing_landmarks += 1
     if contributing_landmarks == 0:
-        return {"crop_violation_fraction": float("nan"), "crop_longest_run_frames": 0}
+        return {"crop_violation_fraction": float("nan"), "crop_longest_run_frames": 0, "crop_longest_run_start": -1}
+    length, start = _longest_true_run(violation)
     return {
         "crop_violation_fraction": float(violation.mean()),
-        "crop_longest_run_frames": _longest_true_run(violation),
+        "crop_longest_run_frames": length,
+        "crop_longest_run_start": start if length else -1,
     }
 
 
@@ -191,10 +208,16 @@ def false_tracking_signal(
         flagged[1:] |= implausible
         contributing_landmarks += 1
     if contributing_landmarks == 0:
-        return {"false_tracking_candidate_fraction": float("nan"), "false_tracking_longest_run_frames": 0}
+        return {
+            "false_tracking_candidate_fraction": float("nan"),
+            "false_tracking_longest_run_frames": 0,
+            "false_tracking_longest_run_start": -1,
+        }
+    length, start = _longest_true_run(flagged)
     return {
         "false_tracking_candidate_fraction": float(flagged.mean()),
-        "false_tracking_longest_run_frames": _longest_true_run(flagged),
+        "false_tracking_longest_run_frames": length,
+        "false_tracking_longest_run_start": start if length else -1,
     }
 
 
