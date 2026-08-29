@@ -106,6 +106,7 @@ function occlusionStates() { return state.data.occlusion_states?.length ? state.
 ]; }
 function profile(task, id) { return task.overlays.find((item) => item.overlay_id === id); }
 function isTemporalTask(task) { return task.task_type === "temporal_pose_comparison"; }
+function isTriageTask(task) { return task.task_type === "quality_triage"; }
 
 function temporalVideos() {
   return [...document.querySelectorAll("#temporal-screen video")];
@@ -190,6 +191,54 @@ function renderTemporalTask(task, judgment) {
     if ($("temporal-loop").checked) playTemporalVideos(true);
   };
   temporalVideos().forEach((video) => video.load());
+}
+
+const TRIAGE_CATEGORY_LABELS = {
+  crop: "Framing / crop",
+  roughness: "Jitter / roughness",
+  false_tracking: "Possible false tracking",
+  control: "Random control (unflagged)",
+};
+
+function renderTriageTask(task, judgment) {
+  pauseTemporalVideos();
+  $("skeleton-screen").hidden = true;
+  $("annotation-screen").hidden = true;
+  $("temporal-screen").hidden = true;
+  $("triage-screen").hidden = false;
+  $("mark-unclear").hidden = true;
+
+  $("triage-category-badge").textContent = TRIAGE_CATEGORY_LABELS[task.category] || task.category;
+  $("triage-signal-value").textContent = Number.isFinite(task.signal_value)
+    ? `signal value: ${task.signal_value.toFixed(3)}`
+    : "";
+
+  const isFrame = task.review_unit === "frame";
+  $("triage-frame-figure").hidden = !isFrame;
+  $("triage-clip-figure").hidden = isFrame;
+  if (isFrame) {
+    $("triage-frame-image").src = `/artifacts/${task.source_artifact}`;
+  } else {
+    const video = $("triage-clip-video");
+    video.pause();
+    video.src = `/artifacts/${task.source_artifact}`;
+    video.load();
+  }
+
+  const response = judgment?.triage_response || {};
+  document.querySelectorAll('input[name="triage-verdict"]').forEach((input) => {
+    input.checked = input.value === response.verdict;
+    input.onchange = () => scheduleSave("started");
+  });
+  $("triage-note").value = response.note || "";
+  $("triage-note").oninput = () => scheduleSave("started");
+}
+
+function triageResponsePayload() {
+  return {
+    verdict: document.querySelector('input[name="triage-verdict"]:checked')?.value || "",
+    note: $("triage-note").value.trim(),
+  };
 }
 
 function renderSourceEvidence(task, judgment) {
@@ -406,11 +455,18 @@ function render() {
   $("task-picker").innerHTML = state.data.tasks.map((item, index) => `<option value="${index}" ${index === state.taskIndex ? "selected" : ""}>Case ${index + 1}: ${taskStatus(item).replace(/^./, (letter) => letter.toUpperCase())}</option>`).join("");
   $("previous-case").hidden = state.taskIndex === 0;
   if (isTemporalTask(task)) {
+    $("triage-screen").hidden = true;
     renderTemporalTask(task, judgment);
+    return;
+  }
+  if (isTriageTask(task)) {
+    $("temporal-screen").hidden = true;
+    renderTriageTask(task, judgment);
     return;
   }
   pauseTemporalVideos();
   $("temporal-screen").hidden = true;
+  $("triage-screen").hidden = true;
   $("skeleton-screen").hidden = false;
   $("annotation-screen").hidden = false;
   $("mark-unclear").hidden = false;
@@ -450,6 +506,19 @@ function payload(status) {
       task_id: task.task_id,
       status,
       temporal_response: temporalResponse,
+      tier_assignments: {},
+    };
+  }
+  if (isTriageTask(task)) {
+    const triageResponse = triageResponsePayload();
+    if (status === "completed" && !triageResponse.verdict) {
+      throw new Error("Choose looks fine, has a problem, or can't judge.");
+    }
+    return {
+      annotator: state.annotator,
+      task_id: task.task_id,
+      status,
+      triage_response: triageResponse,
       tier_assignments: {},
     };
   }

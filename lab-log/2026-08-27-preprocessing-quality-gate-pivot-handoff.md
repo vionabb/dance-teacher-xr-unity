@@ -10,7 +10,13 @@ artifacts: []
 
 ## Status
 
-**Phase 1 complete: the whole corpus (1,808/1,808 clips) has canonical `pose2d` + `pose3d`, computed via GPU, adapter-free, zero errors. Not yet committed on this branch as of this line — commit before doing anything else if it isn't. Awaiting Viona's review of the results below before Phase 2 (the triage/defect-localization annotation-tool UI) starts.**
+**Phase 1 complete** (whole corpus, 1,808/1,808 clips, canonical `pose2d`+`pose3d` via GPU, adapter-free, zero errors). **Phase 1 Stage 1 (quick quality-triage UI) is also now built and a real 60-task batch is generated, ready for Viona to run** — she asked for exactly this after finding the raw signals CSV too dense to review directly: concrete test cases to judge, added as a new task type in the annotation tool, daisyUI-styled.
+
+**To start reviewing**: `cd motion-pipeline && .venv/bin/python -m motion_extraction.annotation_tool.server --experiment-root temp/experiments/20260828-quality-triage-batch-v1 --database data/human-annotations/quality-triage/annotations.sqlite3 --port 8765`, then open `http://127.0.0.1:8765`. Each task shows one clip or frame with the pose overlay burned in and three buttons: Looks fine / Has a problem / Can't judge, plus an optional note. 60 tasks: 15 each of the most-extreme examples per automatic signal (crop, roughness, false-tracking) plus 15 random unflagged controls, stratified so no clip repeats across categories.
+
+Regenerate a fresh/larger batch anytime with `.venv/bin/python -m motion_extraction.annotation_tool.generate_quality_triage_tasks --signals-csv temp/experiments/20260828-quality-signals-canonical-sweep/automatic_quality_signals.csv --output-root temp/experiments/<new-name> --per-signal-count N --control-count N` (must not already exist).
+
+**Not yet committed on this branch as of this line for the Stage-1 UI work** — commit before doing anything else if it isn't (Phase 1 extraction/signals work from earlier in this session is already committed as of `f1fe612`). Once Viona's triage pass is done, next is Stage 2 (defect-localization follow-up for clips marked "problematic", with a warm-started span guess) — still design-only, see "Full architecture" below.
 
 **What happened, in order** (prompted by Viona: re-extract the whole corpus through the canonical pipeline instead of adapting participant studies' pre-canonical format in memory, and do it on GPU):
 1. Confirmed via `gh issue view` on `google-ai-edge/mediapipe` that the combined Holistic Landmarker Task (pose+hands+face) has a real, upstream, 2+-year-open, unresolved crash on any empty-detection sub-packet (mediapipe#5181), reproducing the exact crash the 2026-08-08 lab-log entry hit. The *standalone* Pose Landmarker Task does not share that bug and does support a GPU (Metal) delegate on macOS — validated directly against both a synthetic blank frame and real corpus frames, landmark output matching the existing CPU `Holistic` output within ~0.01-0.015 normalized units.
@@ -83,38 +89,37 @@ Per clip, compute:
 
 Output: one CSV row per clip under `temp/experiments/<name>/automatic_quality_signals.csv`, following the shape of the existing `pose_quality_by_file.csv`, plus `run_provenance.json`. Support `--max-files`; 1,955 clips will take a while — validate on a small slice first.
 
-### 2. Stage 1 triage task generator — `annotation_tool/generate_quality_triage_tasks.py` (not yet created)
+### 2. Stage 1 triage task generator — `annotation_tool/generate_quality_triage_tasks.py` (BUILT)
 
-Modeled on `generate_temporal_comparison_tasks.py` (the only existing generator that renders overlay video, via ffmpeg/libx264 + `_encode_frames`/`_draw_pose`; frame items reuse the `_write_review_frame` overlay-image pattern from `append_targeted_preprocessing_tasks.py`).
+Built close to plan, one simplification: instead of a validated threshold-based "flagged" cutoff (none exists yet), each signal's candidates are the **top-N most extreme clips by that signal's raw ranking** -- the most informative test cases for judging whether the signal's ranking makes sense at all, and avoids inventing an unvalidated cutoff. A clip that ranks top-N on more than one signal is only shown once (fixed priority: crop, then roughness, then false-tracking; regression-tested). Reuses `_encode_frames`/`_draw_pose` from `generate_temporal_comparison_tasks.py` and `_pose_pixels`/`_write_review_frame` from `run_preprocessing_experiment.py` for rendering, and each signal's own `*_longest_run_start`/`windowed_roughness_worst_window_start` column (added to `compute_automatic_quality_signals.py` for exactly this) to center the frame/clip window on the actual flagged span, not just the clip midpoint.
 
-- Stratified sampling: flagged candidates grouped by which signal fired (crop, lighting, roughness/jitter, false-tracking) + a random unflagged sample as controls, using `_select_diverse_windows()`-style seeded sampling already in `generate_temporal_comparison_tasks.py:253-311`.
-- Emits `task_type: "quality_triage"` tasks into a fresh manifest, following the existing manifest-header shape (`schema_version`, `experiment_id`, `task_type`, `seed`, `input_provenance` with sha256s, `tasks`).
+- Emits `task_type: "quality_triage"` tasks into a fresh manifest, following the existing manifest-header shape (`schema_version`, `experiment_id`, `task_type`, `seed`, `input_provenance` with a signals-CSV sha256, `tasks`).
+- Default batch: `--per-signal-count 15 --control-count 15` = 60 tasks. A real batch (`temp/experiments/20260828-quality-triage-batch-v1/`) is generated and ready to review.
 
 ### 3. Stage 2 follow-up generator — `annotation_tool/append_defect_localization_tasks.py` (not yet created)
 
 Reads the triage SQLite database for the latest `quality_triage` judgments with verdict `problematic` lacking a follow-up task (idempotent — matches the `_require_new_batch`-style guard used by other `append_*` scripts). For each: computes a warm-start suggestion (sub-span where windowed-roughness/crop-violation is most extreme, reusing signal #1's output), renders a wider-context overlay clip, appends a `task_type: "defect_localization"` task (`suggested_span`, `suggested_factors`, `generated_from_task_id`) to the **same manifest** — Viona restarts the annotation server to pick up new follow-ups (no live in-session generation; that would require rendering video inside the request path).
 
-### Server changes — `annotation_tool/server.py` (not yet made)
+### Server changes — `annotation_tool/server.py` (quality_triage half BUILT; defect_localization half still pending)
 
-Following the existing `ALTER TABLE ... ADD COLUMN` migration pattern (lines 103-162) and the `task_type`-branching pattern already used for `temporal_pose_comparison` (lines 181-432):
-- New columns: `triage_response_json` (`{verdict, note}`), `marked_spans_json` (`[{start, end, factors}]`).
+Followed the existing `ALTER TABLE ... ADD COLUMN` migration pattern and the `task_type`-branching pattern already used for `temporal_pose_comparison`, generalized into a `SKELETON_FREE_TASK_TYPES` set so a future `defect_localization` addition is a one-line extension, not another duplicated branch:
+- New column: `triage_response_json` (`{verdict, note}`). (`marked_spans_json` for Stage 2 not yet added.)
 - New `TRIAGE_VERDICTS = {"fine", "problematic", "cannot_judge"}` + `_validate_triage_response` mirroring `_validate_temporal_response`.
-- `append()`: `quality_triage` requires ground_truth/source_evidence empty + validates `triage_response`; `defect_localization` validates `marked_spans` shape and reuses existing `source_evidence_quality`/`source_evidence_factors` validation for the overall verdict.
-- Extend `SOURCE_EVIDENCE_FACTORS` (line 34-41) with `false_tracking`, `track_discontinuity`.
+- `append()`: `quality_triage` (and `temporal_pose_comparison`) skip ground_truth/skeleton validation via `SKELETON_FREE_TASK_TYPES`; validates `triage_response`.
 - No new HTTP endpoints — `POST /api/judgments`, `GET /api/state`, `GET /api/export.*` are already generic enough.
+- Still pending for Stage 2: `marked_spans_json` column, `defect_localization` validation branch, `SOURCE_EVIDENCE_FACTORS` additions (`false_tracking`, `track_discontinuity`).
 
-### Frontend changes — `static/index.html`, `static/app.js`, `static/style.css` (not yet made)
+### Frontend changes — `static/index.html`, `static/app.js`, `static/style.css` (triage screen BUILT; defect screen still pending)
 
-Following the `isTemporalTask(task)` / `renderTemporalTask()` / two-more-branches-in-`render()`-and-`payload()` pattern exactly (app.js:108, 157-193, 403-458):
-- **`#triage-screen`**: overlay-burned `<video>` or `<img>` (routed by `task.review_unit`), three buttons only — "Looks fine" / "Has a problem" / "Can't judge".
-- **`#defect-screen`**: clip playback reusing existing temporal-screen video plumbing; new "Set start"/"Set end" buttons bound to `video.currentTime`, supporting multiple marked spans each with its own factor-tag checkboxes (reusing `renderSourceEvidence`/`sourceEvidencePayload` chip-list pattern, app.js:195-213), plus overall-quality radio and notes.
-- Warm start: `#defect-screen` pre-populates one span row from `task.suggested_span` and pre-checks `task.suggested_factors` on load.
+Followed the `isTemporalTask(task)` / `renderTemporalTask()` / two-more-branches-in-`render()`-and-`payload()` pattern exactly:
+- **`#triage-screen`** (built): daisyUI card with a category badge, the overlay-burned `<img>` or `<video>` (routed by `task.review_unit`), three radio choices -- "Looks fine" / "Has a problem" / "Can't judge" -- and an optional note. Ran through the mandatory daisyUI setup/rules/component-syntax/quality-inspector workflow (workflowId `quality-triage-screen-1`); inspector passed clean after fixing one invalid class (`textarea-bordered`, not a real daisyUI v5 class -- note this same invalid class is still present, pre-existing, on the frame-note/temporal-note textareas outside this change's scope) and one missing `object-contain` on the review image. Rendered/visual QA was recorded as unavailable (no connected browser tool in this environment) rather than skipped or faked.
+- **`#defect-screen`** (not yet built): clip playback reusing existing temporal-screen video plumbing; new "Set start"/"Set end" buttons bound to `video.currentTime`, supporting multiple marked spans each with its own factor-tag checkboxes (reusing `renderSourceEvidence`/`sourceEvidencePayload` chip-list pattern), plus overall-quality radio and notes. Warm start: pre-populate one span row from `task.suggested_span`, pre-check `task.suggested_factors`.
 
 ## Implementation phasing (build/validate in this order)
 
-1. **Signals only** — `compute_automatic_quality_signals.py`, run over the full corpus (start with `--max-files` on a slice). **Review the resulting CSV with Viona before writing any UI** — this validates the signals are worth surfacing at all.
-2. **Triage end-to-end** — generator #2 + server + `#triage-screen`. Run a real triage session against a small batch first.
-3. **Defect localization follow-up** — generator #3 + server + `#defect-screen` + warm start, triggered from Stage 2's `problematic` verdicts.
+1. **Signals only** (DONE) — `compute_automatic_quality_signals.py`, run over the full corpus.
+2. **Triage end-to-end** (DONE) — `generate_quality_triage_tasks.py` + server + `#triage-screen`. A real 60-task batch is generated and ready; run a real session against it before deciding on Stage 3.
+3. **Defect localization follow-up** (NOT STARTED) — `append_defect_localization_tasks.py` + server + `#defect-screen` + warm start, triggered from Stage 2's `problematic` verdicts. Wait for real triage results first -- if very few clips come back `problematic`, or if the automatic signals turn out not to correlate with Viona's judgment, this phase's design may need to change before building it.
 
 ## Verification
 
