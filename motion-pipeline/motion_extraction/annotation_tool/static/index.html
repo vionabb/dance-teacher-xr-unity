@@ -130,6 +130,70 @@
       <label class="note-field" for="triage-note">Note (optional)<textarea id="triage-note" class="textarea" placeholder="What's wrong, or why can't you judge it?"></textarea></label>
     </section>
 
+    <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
+      <div class="section-heading">
+        <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
+        <p>Play the clip. For each error you see, pick its type, seek to where it starts and ends, and mark the range.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="error-marking-category-badge" class="badge badge-soft"></span>
+      </div>
+      <figure class="mt-2">
+        <video id="error-marking-video" class="w-full rounded-box" controls loop playsinline muted aria-label="Pose-overlay clip for error marking"></video>
+      </figure>
+      <div class="flex flex-wrap items-center gap-2 mt-2">
+        <button id="error-marking-step-back-10" class="btn btn-sm" type="button">−10</button>
+        <button id="error-marking-step-back-1" class="btn btn-sm" type="button">−1</button>
+        <span id="error-marking-frame-indicator" class="text-sm font-bold">frame 0 / 0</span>
+        <button id="error-marking-step-forward-1" class="btn btn-sm" type="button">+1</button>
+        <button id="error-marking-step-forward-10" class="btn btn-sm" type="button">+10</button>
+      </div>
+      <div class="flex flex-wrap items-end gap-2 mt-3">
+        <label class="grid gap-1 text-xs font-bold text-base-content/60">Error type
+          <select id="error-marking-type-select" class="select select-bordered">
+            <option value="occlusion">Occlusion (limb crosses/hides behind body)</option>
+            <option value="out_of_frame">Out of frame</option>
+            <option value="missing_tracking">Missing / lost tracking</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <button id="error-marking-mark-start" class="btn btn-sm" type="button">Mark start here</button>
+        <button id="error-marking-mark-end" class="btn btn-sm btn-primary" type="button" disabled>Mark end here</button>
+        <button id="error-marking-cancel-pending" class="btn btn-sm btn-ghost" type="button" hidden>Cancel</button>
+      </div>
+      <p id="error-marking-pending-hint" class="small" hidden></p>
+      <ul id="error-marking-list" class="mt-3 grid gap-1"></ul>
+      <label class="remember-token mt-2"><input id="error-marking-none-found" class="checkbox" type="checkbox"> No errors observed in this clip</label>
+      <label class="note-field" for="error-marking-note">Note (optional)<textarea id="error-marking-note" class="textarea" placeholder="Anything else worth flagging"></textarea></label>
+    </section>
+
+    <section id="quality-rating-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
+      <div class="section-heading">
+        <div><span class="step-badge">▶</span><h2>Video quality rating</h2></div>
+        <p>Rate the source video itself (lighting and clothing), not the pose tracking output.</p>
+      </div>
+      <figure class="mt-2">
+        <img id="quality-rating-image" class="w-full rounded-box object-contain" alt="Representative frame of the source video">
+      </figure>
+      <fieldset class="triage-response">
+        <legend>Lighting (contrast / exposure)</legend>
+        <div id="quality-rating-lighting-options">
+          <label><input class="radio" type="radio" name="quality-rating-lighting" value="good"> Good — clear, sufficient contrast</label>
+          <label><input class="radio" type="radio" name="quality-rating-lighting" value="moderate"> Moderate — usable but not ideal</label>
+          <label><input class="radio" type="radio" name="quality-rating-lighting" value="poor"> Poor — too dark, too bright, or flat</label>
+        </div>
+      </fieldset>
+      <fieldset class="triage-response">
+        <legend>Clothing suitability</legend>
+        <div id="quality-rating-clothing-options">
+          <label><input class="radio" type="radio" name="quality-rating-clothing" value="well_suited"> Well suited — form-fitting or bare arms</label>
+          <label><input class="radio" type="radio" name="quality-rating-clothing" value="moderate"> Moderate — somewhat loose</label>
+          <label><input class="radio" type="radio" name="quality-rating-clothing" value="poorly_suited"> Poorly suited — baggy, joints obscured</label>
+        </div>
+      </fieldset>
+      <label class="note-field" for="quality-rating-note">Note (optional)<textarea id="quality-rating-note" class="textarea" placeholder="Anything else about this video"></textarea></label>
+    </section>
+
     <section id="actions" data-actions class="actions fixed inset-x-0 bottom-0 z-[100] flex min-h-16 flex-wrap items-center justify-center gap-2 border-t border-base-300 bg-base-100/95 p-3 shadow-[0_-6px_24px_rgba(22,51,46,.12)] backdrop-blur">
       <button id="previous-case" class="btn btn-ghost" type="button">← Previous case</button>
       <button id="mark-unclear" class="btn btn-warning btn-outline" data-status="unclear" type="button">Mark unclear</button>
