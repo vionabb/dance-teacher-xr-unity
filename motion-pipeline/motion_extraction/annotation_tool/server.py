@@ -20,7 +20,7 @@ import typing as t
 from urllib.parse import parse_qs, urlparse
 
 
-SCHEMA_VERSION = "3.3"
+SCHEMA_VERSION = "3.4"
 STATUSES = {"started", "completed", "unclear", "skipped"}
 TEMPORAL_CHOICES = {
     "A",
@@ -31,7 +31,15 @@ TEMPORAL_CHOICES = {
 }
 TEMPORAL_CONFIDENCES = {"low", "medium", "high"}
 TRIAGE_VERDICTS = {"fine", "problematic", "cannot_judge"}
-SKELETON_FREE_TASK_TYPES = {"temporal_pose_comparison", "quality_triage"}
+ERROR_MARK_TYPES = {"occlusion", "out_of_frame", "missing_tracking", "other"}
+LIGHTING_RATINGS = {"good", "moderate", "poor"}
+CLOTHING_RATINGS = {"well_suited", "moderate", "poorly_suited"}
+SKELETON_FREE_TASK_TYPES = {
+    "temporal_pose_comparison",
+    "quality_triage",
+    "error_marking",
+    "video_quality_rating",
+}
 SOURCE_EVIDENCE_QUALITIES = {"usable", "constrained", "weak"}
 SOURCE_EVIDENCE_FACTORS = {
     "motion_blur",
@@ -95,6 +103,8 @@ class AnnotationStore:
                     temporal_confidence TEXT NOT NULL DEFAULT '',
                     temporal_note TEXT NOT NULL DEFAULT '',
                     triage_response_json TEXT NOT NULL DEFAULT '{}',
+                    error_marking_response_json TEXT NOT NULL DEFAULT '{}',
+                    quality_rating_response_json TEXT NOT NULL DEFAULT '{}',
                     profile_provenance_json TEXT NOT NULL,
                     frame_window_json TEXT NOT NULL,
                     artifact_ids_json TEXT NOT NULL,
@@ -167,6 +177,14 @@ class AnnotationStore:
                 connection.execute(
                     "ALTER TABLE judgment_revisions ADD COLUMN triage_response_json TEXT NOT NULL DEFAULT '{}'"
                 )
+            if "error_marking_response_json" not in columns:
+                connection.execute(
+                    "ALTER TABLE judgment_revisions ADD COLUMN error_marking_response_json TEXT NOT NULL DEFAULT '{}'"
+                )
+            if "quality_rating_response_json" not in columns:
+                connection.execute(
+                    "ALTER TABLE judgment_revisions ADD COLUMN quality_rating_response_json TEXT NOT NULL DEFAULT '{}'"
+                )
             connection.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_judgment_revisions_resume
@@ -209,6 +227,12 @@ class AnnotationStore:
         )
         triage_response = self._validate_triage_response(
             payload.get("triage_response", {}), task_type, status
+        )
+        error_marking_response = self._validate_error_marking_response(
+            payload.get("error_marking_response", {}), task_type, status
+        )
+        quality_rating_response = self._validate_quality_rating_response(
+            payload.get("quality_rating_response", {}), task_type, status
         )
         assignments = payload.get("tier_assignments", {})
         if not isinstance(assignments, dict):
@@ -348,10 +372,10 @@ class AnnotationStore:
                     ground_truth_initial_profile, automatic_profile_scores_json,
                     source_evidence_quality, source_evidence_factors_json, task_type,
                     temporal_choice, temporal_confidence, temporal_note,
-                    triage_response_json,
+                    triage_response_json, error_marking_response_json, quality_rating_response_json,
                     profile_provenance_json, frame_window_json, artifact_ids_json,
                     created_at, supersedes_revision_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     SCHEMA_VERSION,
@@ -378,6 +402,8 @@ class AnnotationStore:
                     temporal_response["confidence"],
                     temporal_response["note"],
                     json.dumps(triage_response, sort_keys=True),
+                    json.dumps(error_marking_response, sort_keys=True),
+                    json.dumps(quality_rating_response, sort_keys=True),
                     json.dumps(self.manifest.get("profile_provenance", {}), sort_keys=True),
                     json.dumps(task.get("frame_window", {}), sort_keys=True),
                     json.dumps(
@@ -468,6 +494,82 @@ class AnnotationStore:
         if status == "completed" and verdict not in TRIAGE_VERDICTS:
             raise ValueError("completed triage response requires a verdict")
         return {"verdict": verdict, "note": note}
+
+    @staticmethod
+    def _validate_error_marking_response(
+        value: t.Any, task_type: str, status: str
+    ) -> dict[str, t.Any]:
+        """Validate the response fields used only by error_marking tasks."""
+
+        empty: dict[str, t.Any] = {"marks": [], "no_errors_found": False, "note": ""}
+        if task_type != "error_marking":
+            if value not in ({}, None):
+                raise ValueError(
+                    "error_marking_response is only valid for error_marking tasks"
+                )
+            return empty
+        if not isinstance(value, dict):
+            raise ValueError("error_marking_response must be an object")
+        raw_marks = value.get("marks", [])
+        if not isinstance(raw_marks, list):
+            raise ValueError("error_marking_response marks must be an array")
+        marks: list[dict[str, t.Any]] = []
+        for item in raw_marks:
+            if not isinstance(item, dict):
+                raise ValueError("each error mark must be an object")
+            error_type = str(item.get("error_type", "")).strip()
+            if error_type not in ERROR_MARK_TYPES:
+                raise ValueError(f"error_type must be one of {sorted(ERROR_MARK_TYPES)}")
+            start_frame, end_frame = item.get("start_frame"), item.get("end_frame")
+            if isinstance(start_frame, bool) or isinstance(end_frame, bool):
+                raise ValueError("start_frame/end_frame must be integers")
+            try:
+                start_frame, end_frame = int(start_frame), int(end_frame)
+            except (TypeError, ValueError) as error:
+                raise ValueError("start_frame/end_frame must be integers") from error
+            if start_frame < 0 or end_frame < start_frame:
+                raise ValueError("error mark frame range is invalid")
+            marks.append(
+                {"error_type": error_type, "start_frame": start_frame, "end_frame": end_frame}
+            )
+        no_errors_found = bool(value.get("no_errors_found", False))
+        note = str(value.get("note", "")).strip()
+        if status == "completed":
+            if not marks and not no_errors_found:
+                raise ValueError(
+                    "completed error_marking requires marks, or no_errors_found checked"
+                )
+            if marks and no_errors_found:
+                raise ValueError("no_errors_found must not be set when marks are present")
+        return {"marks": marks, "no_errors_found": no_errors_found, "note": note}
+
+    @staticmethod
+    def _validate_quality_rating_response(
+        value: t.Any, task_type: str, status: str
+    ) -> dict[str, str]:
+        """Validate the response fields used only by video_quality_rating tasks."""
+
+        empty = {"lighting": "", "clothing": "", "note": ""}
+        if task_type != "video_quality_rating":
+            if value not in ({}, None):
+                raise ValueError(
+                    "quality_rating_response is only valid for video_quality_rating tasks"
+                )
+            return empty
+        if not isinstance(value, dict):
+            raise ValueError("quality_rating_response must be an object")
+        lighting = str(value.get("lighting", "")).strip()
+        clothing = str(value.get("clothing", "")).strip()
+        note = str(value.get("note", "")).strip()
+        if lighting and lighting not in LIGHTING_RATINGS:
+            raise ValueError(f"lighting must be one of {sorted(LIGHTING_RATINGS)}")
+        if clothing and clothing not in CLOTHING_RATINGS:
+            raise ValueError(f"clothing must be one of {sorted(CLOTHING_RATINGS)}")
+        if status == "completed" and (not lighting or not clothing):
+            raise ValueError(
+                "completed video_quality_rating requires both lighting and clothing"
+            )
+        return {"lighting": lighting, "clothing": clothing, "note": note}
 
     @staticmethod
     def _validate_source_evidence_quality(value: t.Any) -> str:
@@ -995,6 +1097,12 @@ class AnnotationStore:
             "note": decoded.get("temporal_note", ""),
         }
         decoded["triage_response"] = json.loads(decoded.pop("triage_response_json", "{}") or "{}")
+        decoded["error_marking_response"] = json.loads(
+            decoded.pop("error_marking_response_json", "{}") or "{}"
+        )
+        decoded["quality_rating_response"] = json.loads(
+            decoded.pop("quality_rating_response_json", "{}") or "{}"
+        )
         return decoded
 
 

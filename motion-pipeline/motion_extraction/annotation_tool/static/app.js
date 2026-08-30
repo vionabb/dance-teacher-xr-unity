@@ -4,7 +4,7 @@ const state = {
   initialGroundTruth: {}, initialLandmarkSources: {}, landmarkInteractions: {}, sourceImage: null,
   sourceObjectUrl: null, dragLandmark: null, dragStart: null, dragMoved: false,
   activePointers: new Map(), selectedLandmark: null, screen: "skeleton",
-  temporalPlaybackRate: 1,
+  temporalPlaybackRate: 1, errorMarks: [], pendingMark: null,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -107,6 +107,10 @@ function occlusionStates() { return state.data.occlusion_states?.length ? state.
 function profile(task, id) { return task.overlays.find((item) => item.overlay_id === id); }
 function isTemporalTask(task) { return task.task_type === "temporal_pose_comparison"; }
 function isTriageTask(task) { return task.task_type === "quality_triage"; }
+function isErrorMarkingTask(task) { return task.task_type === "error_marking"; }
+function isQualityRatingTask(task) { return task.task_type === "video_quality_rating"; }
+const ALL_SCREEN_IDS = ["skeleton-screen", "annotation-screen", "temporal-screen", "triage-screen", "error-marking-screen", "quality-rating-screen"];
+function hideAllScreens() { ALL_SCREEN_IDS.forEach((id) => { $(id).hidden = true; }); }
 
 function temporalVideos() {
   return [...document.querySelectorAll("#temporal-screen video")];
@@ -157,8 +161,7 @@ function updateTemporalConfidence() {
 
 function renderTemporalTask(task, judgment) {
   pauseTemporalVideos();
-  $("skeleton-screen").hidden = true;
-  $("annotation-screen").hidden = true;
+  hideAllScreens();
   $("temporal-screen").hidden = false;
   $("mark-unclear").hidden = true;
   const source = $("temporal-source-video");
@@ -202,9 +205,7 @@ const TRIAGE_CATEGORY_LABELS = {
 
 function renderTriageTask(task, judgment) {
   pauseTemporalVideos();
-  $("skeleton-screen").hidden = true;
-  $("annotation-screen").hidden = true;
-  $("temporal-screen").hidden = true;
+  hideAllScreens();
   $("triage-screen").hidden = false;
   $("mark-unclear").hidden = true;
 
@@ -238,6 +239,119 @@ function triageResponsePayload() {
   return {
     verdict: document.querySelector('input[name="triage-verdict"]:checked')?.value || "",
     note: $("triage-note").value.trim(),
+  };
+}
+
+const ERROR_TYPE_LABELS = {
+  occlusion: "Occlusion",
+  out_of_frame: "Out of frame",
+  missing_tracking: "Missing / lost tracking",
+  other: "Other",
+};
+
+function errorMarkingVideo() { return $("error-marking-video"); }
+function errorMarkingFps() { return Number(state.data.tasks[state.taskIndex].fps) || 30; }
+function errorMarkingFrameCount() { return Number(state.data.tasks[state.taskIndex].frame_count) || 0; }
+function errorMarkingCurrentFrame() { return Math.round(errorMarkingVideo().currentTime * errorMarkingFps()); }
+
+function updateErrorMarkingFrameIndicator() {
+  const total = errorMarkingFrameCount();
+  $("error-marking-frame-indicator").textContent = `frame ${errorMarkingCurrentFrame()} / ${Math.max(total - 1, 0)}`;
+}
+
+function stepErrorMarkingVideo(deltaFrames) {
+  const video = errorMarkingVideo(), fps = errorMarkingFps(), frameCount = errorMarkingFrameCount();
+  const maxTime = frameCount ? (frameCount - 1) / fps : (video.duration || 0);
+  video.pause();
+  video.currentTime = Math.max(0, Math.min(maxTime, video.currentTime + deltaFrames / fps));
+  updateErrorMarkingFrameIndicator();
+}
+
+function updateErrorMarkingPendingUI() {
+  const pending = state.pendingMark;
+  $("error-marking-mark-end").disabled = !pending;
+  $("error-marking-cancel-pending").hidden = !pending;
+  $("error-marking-pending-hint").hidden = !pending;
+  if (pending) {
+    $("error-marking-pending-hint").textContent = `${ERROR_TYPE_LABELS[pending.error_type] || pending.error_type} start marked at frame ${pending.start_frame}. Seek to where it ends, then click “Mark end here.”`;
+  }
+}
+
+function renderErrorMarkingList() {
+  $("error-marking-list").innerHTML = state.errorMarks.length
+    ? state.errorMarks.map((mark, index) =>
+        `<li class="flex items-center gap-2"><span class="badge badge-soft">${ERROR_TYPE_LABELS[mark.error_type] || mark.error_type}</span><span class="text-xs">frames ${mark.start_frame}–${mark.end_frame}</span><button type="button" class="btn btn-xs btn-ghost" data-remove-mark="${index}">Remove</button></li>`
+      ).join("")
+    : `<li class="text-xs text-base-content/60">No marks added yet.</li>`;
+  $("error-marking-list").querySelectorAll("[data-remove-mark]").forEach((button) => {
+    button.onclick = () => {
+      state.errorMarks.splice(Number(button.dataset.removeMark), 1);
+      renderErrorMarkingList();
+      scheduleSave("started");
+    };
+  });
+}
+
+function renderErrorMarkingTask(task, judgment) {
+  pauseTemporalVideos();
+  hideAllScreens();
+  $("error-marking-screen").hidden = false;
+  $("mark-unclear").hidden = true;
+
+  $("error-marking-category-badge").textContent = TRIAGE_CATEGORY_LABELS[task.category] || task.category || "";
+
+  const video = errorMarkingVideo();
+  video.pause();
+  video.src = `/artifacts/${task.source_artifact}`;
+  video.load();
+  video.ontimeupdate = updateErrorMarkingFrameIndicator;
+  video.onloadedmetadata = updateErrorMarkingFrameIndicator;
+
+  state.pendingMark = null;
+  const response = judgment?.error_marking_response || {};
+  state.errorMarks = structuredClone(response.marks || []);
+  renderErrorMarkingList();
+  updateErrorMarkingPendingUI();
+  updateErrorMarkingFrameIndicator();
+  $("error-marking-none-found").checked = Boolean(response.no_errors_found);
+  $("error-marking-note").value = response.note || "";
+  $("error-marking-note").oninput = () => scheduleSave("started");
+}
+
+function errorMarkingResponsePayload() {
+  return {
+    marks: state.errorMarks,
+    no_errors_found: $("error-marking-none-found").checked,
+    note: $("error-marking-note").value.trim(),
+  };
+}
+
+function renderQualityRatingTask(task, judgment) {
+  pauseTemporalVideos();
+  hideAllScreens();
+  $("quality-rating-screen").hidden = false;
+  $("mark-unclear").hidden = true;
+
+  $("quality-rating-image").src = `/artifacts/${task.source_artifact}`;
+
+  const response = judgment?.quality_rating_response || {};
+  document.querySelectorAll('input[name="quality-rating-lighting"]').forEach((input) => {
+    input.checked = input.value === response.lighting;
+    input.onchange = () => scheduleSave("started");
+  });
+  document.querySelectorAll('input[name="quality-rating-clothing"]').forEach((input) => {
+    input.checked = input.value === response.clothing;
+    input.onchange = () => scheduleSave("started");
+  });
+  $("quality-rating-note").value = response.note || "";
+  $("quality-rating-note").oninput = () => scheduleSave("started");
+}
+
+function qualityRatingResponsePayload() {
+  return {
+    lighting: document.querySelector('input[name="quality-rating-lighting"]:checked')?.value || "",
+    clothing: document.querySelector('input[name="quality-rating-clothing"]:checked')?.value || "",
+    note: $("quality-rating-note").value.trim(),
   };
 }
 
@@ -464,9 +578,16 @@ function render() {
     renderTriageTask(task, judgment);
     return;
   }
+  if (isErrorMarkingTask(task)) {
+    renderErrorMarkingTask(task, judgment);
+    return;
+  }
+  if (isQualityRatingTask(task)) {
+    renderQualityRatingTask(task, judgment);
+    return;
+  }
   pauseTemporalVideos();
-  $("temporal-screen").hidden = true;
-  $("triage-screen").hidden = true;
+  hideAllScreens();
   $("skeleton-screen").hidden = false;
   $("annotation-screen").hidden = false;
   $("mark-unclear").hidden = false;
@@ -519,6 +640,32 @@ function payload(status) {
       task_id: task.task_id,
       status,
       triage_response: triageResponse,
+      tier_assignments: {},
+    };
+  }
+  if (isErrorMarkingTask(task)) {
+    const errorMarkingResponse = errorMarkingResponsePayload();
+    if (status === "completed" && !errorMarkingResponse.marks.length && !errorMarkingResponse.no_errors_found) {
+      throw new Error('Add at least one error mark, or check "No errors observed in this clip."');
+    }
+    return {
+      annotator: state.annotator,
+      task_id: task.task_id,
+      status,
+      error_marking_response: errorMarkingResponse,
+      tier_assignments: {},
+    };
+  }
+  if (isQualityRatingTask(task)) {
+    const qualityRatingResponse = qualityRatingResponsePayload();
+    if (status === "completed" && (!qualityRatingResponse.lighting || !qualityRatingResponse.clothing)) {
+      throw new Error("Choose a lighting rating and a clothing rating.");
+    }
+    return {
+      annotator: state.annotator,
+      task_id: task.task_id,
+      status,
+      quality_rating_response: qualityRatingResponse,
       tier_assignments: {},
     };
   }
@@ -597,6 +744,26 @@ document.querySelectorAll(".actions button[data-status]").forEach((button) => bu
     lockInteraction(false);
   }
 });
+$("error-marking-step-back-10").onclick = () => stepErrorMarkingVideo(-10);
+$("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
+$("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
+$("error-marking-step-forward-10").onclick = () => stepErrorMarkingVideo(10);
+$("error-marking-mark-start").onclick = () => {
+  state.pendingMark = {error_type: $("error-marking-type-select").value, start_frame: errorMarkingCurrentFrame()};
+  updateErrorMarkingPendingUI();
+};
+$("error-marking-mark-end").onclick = () => {
+  if (!state.pendingMark) return;
+  const end = errorMarkingCurrentFrame();
+  const start = Math.min(state.pendingMark.start_frame, end), finish = Math.max(state.pendingMark.start_frame, end);
+  state.errorMarks.push({error_type: state.pendingMark.error_type, start_frame: start, end_frame: finish});
+  state.pendingMark = null;
+  updateErrorMarkingPendingUI();
+  renderErrorMarkingList();
+  scheduleSave("started");
+};
+$("error-marking-cancel-pending").onclick = () => { state.pendingMark = null; updateErrorMarkingPendingUI(); };
+$("error-marking-none-found").onchange = () => scheduleSave("started");
 $("close-dialog").onclick = () => $("image-dialog").close(); $("image-dialog").onclick = (event) => { if (event.target === $("image-dialog")) $("image-dialog").close(); };
 $("access-token").oninput = (event) => { event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6); };
 document.querySelectorAll(".export-button").forEach((button) => button.onclick = () => downloadExport(button.dataset.export));
