@@ -134,7 +134,7 @@
     <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
-        <p>Mark which body part is inaccurate and for which frames. Ranges from different body parts can overlap. Attribute a probable cause to each mark separately, any time.</p>
+        <p>Mark which body part is inaccurate and for which frames. Click a marked span to set its probable cause; drag its edges to adjust the frames. Ranges from different body parts can overlap.</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <span id="error-marking-category-badge" class="badge badge-soft"></span>
@@ -164,7 +164,7 @@
             </div>
           </div>
           <button id="error-marking-mark-start" class="btn btn-sm" type="button">Mark start here</button>
-          <button id="error-marking-mark-end" class="btn btn-sm btn-primary" type="button" disabled>Mark end here</button>
+          <button id="error-marking-mark-end" class="btn btn-sm btn-primary" type="button" disabled title="Click this on the first frame where the error is no longer visible">Mark end (first OK frame)</button>
           <button id="error-marking-cancel-pending" class="btn btn-sm btn-ghost" type="button" hidden>Cancel</button>
         </div>
         <div id="error-marking-pending-hint" role="alert" class="alert alert-info alert-soft mt-2 text-sm" hidden></div>
@@ -244,6 +244,25 @@
       </div>
       <div class="modal-action">
         <button id="list-manager-reset" class="btn btn-sm btn-ghost" type="button">Reset to defaults</button>
+        <form method="dialog"><button class="btn btn-sm">Done</button></form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <dialog id="error-mark-dialog" class="modal">
+    <div class="modal-box max-w-md">
+      <h3 id="error-mark-dialog-title" class="text-lg font-bold"></h3>
+      <p id="error-mark-dialog-frames" class="mt-0.5 font-mono text-sm text-base-content/70"></p>
+      <figure class="mt-2">
+        <canvas id="error-mark-dialog-preview" class="w-full rounded-box bg-base-300" width="320" height="180"></canvas>
+      </figure>
+      <div class="mt-3">
+        <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Probable cause</span>
+        <div id="error-mark-dialog-causes" class="mt-1 flex flex-wrap gap-1"></div>
+      </div>
+      <div class="modal-action">
+        <button id="error-mark-dialog-remove" class="btn btn-sm btn-error btn-outline" type="button">Remove mark</button>
         <form method="dialog"><button class="btn btn-sm">Done</button></form>
       </div>
     </div>
