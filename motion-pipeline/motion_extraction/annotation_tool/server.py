@@ -20,7 +20,7 @@ import typing as t
 from urllib.parse import parse_qs, urlparse
 
 
-SCHEMA_VERSION = "3.4"
+SCHEMA_VERSION = "3.5"
 STATUSES = {"started", "completed", "unclear", "skipped"}
 TEMPORAL_CHOICES = {
     "A",
@@ -31,8 +31,25 @@ TEMPORAL_CHOICES = {
 }
 TEMPORAL_CONFIDENCES = {"low", "medium", "high"}
 TRIAGE_VERDICTS = {"fine", "problematic", "cannot_judge"}
-ERROR_MARK_TYPE_MAX_LENGTH = 64
-DEFAULT_ERROR_MARK_TYPES = [
+ERROR_MARK_LABEL_MAX_LENGTH = 64
+# A skeletal error (which body part is inaccurate, over which frames) is
+# recorded separately from its guessed cause(s), so one clip can carry
+# several independently-typed, independently-timed, and possibly-overlapping
+# errors -- e.g. a right-arm inaccuracy across frames 1-14, an inaccurate hip
+# location at just frame 10, and something else across frames 12-16 -- and a
+# single marked error can be attributed to more than one probable cause.
+DEFAULT_ERROR_BODY_PARTS = [
+    {"id": "right_arm", "label": "Right arm"},
+    {"id": "left_arm", "label": "Left arm"},
+    {"id": "right_hip", "label": "Right hip"},
+    {"id": "left_hip", "label": "Left hip"},
+    {"id": "right_leg", "label": "Right leg"},
+    {"id": "left_leg", "label": "Left leg"},
+    {"id": "torso", "label": "Torso"},
+    {"id": "head", "label": "Head"},
+    {"id": "other", "label": "Other"},
+]
+DEFAULT_ERROR_CAUSES = [
     {"id": "occlusion", "label": "Occlusion (limb crosses/hides behind body)"},
     {"id": "out_of_frame", "label": "Out of frame"},
     {"id": "missing_tracking", "label": "Missing / lost tracking"},
@@ -523,12 +540,12 @@ class AnnotationStore:
         for item in raw_marks:
             if not isinstance(item, dict):
                 raise ValueError("each error mark must be an object")
-            error_type = str(item.get("error_type", "")).strip()
-            if not error_type:
-                raise ValueError("each error mark requires a non-empty error_type")
-            if len(error_type) > ERROR_MARK_TYPE_MAX_LENGTH:
+            body_part = str(item.get("body_part", "")).strip()
+            if not body_part:
+                raise ValueError("each error mark requires a non-empty body_part")
+            if len(body_part) > ERROR_MARK_LABEL_MAX_LENGTH:
                 raise ValueError(
-                    f"error_type must be at most {ERROR_MARK_TYPE_MAX_LENGTH} characters"
+                    f"body_part must be at most {ERROR_MARK_LABEL_MAX_LENGTH} characters"
                 )
             start_frame, end_frame = item.get("start_frame"), item.get("end_frame")
             if isinstance(start_frame, bool) or isinstance(end_frame, bool):
@@ -539,8 +556,29 @@ class AnnotationStore:
                 raise ValueError("start_frame/end_frame must be integers") from error
             if start_frame < 0 or end_frame < start_frame:
                 raise ValueError("error mark frame range is invalid")
+            raw_causes = item.get("causes", [])
+            if not isinstance(raw_causes, list) or any(
+                not isinstance(cause, str) for cause in raw_causes
+            ):
+                raise ValueError("causes must be an array of strings")
+            causes: list[str] = []
+            for cause in raw_causes:
+                cause = cause.strip()
+                if not cause:
+                    continue
+                if len(cause) > ERROR_MARK_LABEL_MAX_LENGTH:
+                    raise ValueError(
+                        f"each cause must be at most {ERROR_MARK_LABEL_MAX_LENGTH} characters"
+                    )
+                if cause not in causes:
+                    causes.append(cause)
             marks.append(
-                {"error_type": error_type, "start_frame": start_frame, "end_frame": end_frame}
+                {
+                    "body_part": body_part,
+                    "start_frame": start_frame,
+                    "end_frame": end_frame,
+                    "causes": causes,
+                }
             )
         no_errors_found = bool(value.get("no_errors_found", False))
         note = str(value.get("note", "")).strip()
@@ -1011,7 +1049,8 @@ class AnnotationStore:
             "pose_edges": self.manifest.get("pose_edges", []),
             "occlusion_states": self.manifest.get("occlusion_states", []),
             "issue_tags": self.manifest.get("issue_tags", []),
-            "error_mark_type_defaults": DEFAULT_ERROR_MARK_TYPES,
+            "error_mark_body_part_defaults": DEFAULT_ERROR_BODY_PARTS,
+            "error_mark_cause_defaults": DEFAULT_ERROR_CAUSES,
             "source_evidence_quality_definitions": [
                 {
                     "id": "usable",

@@ -4,7 +4,8 @@ const state = {
   initialGroundTruth: {}, initialLandmarkSources: {}, landmarkInteractions: {}, sourceImage: null,
   sourceObjectUrl: null, dragLandmark: null, dragStart: null, dragMoved: false,
   activePointers: new Map(), selectedLandmark: null, screen: "skeleton",
-  temporalPlaybackRate: 1, errorMarks: [], pendingMark: null, errorMarkTypes: [],
+  temporalPlaybackRate: 1, errorMarks: [], pendingMark: null,
+  errorBodyParts: [], errorCauses: [], editingListKind: "body_part",
 };
 const $ = (id) => document.getElementById(id);
 
@@ -15,10 +16,12 @@ function authenticatedFetch(url, options = {}) {
   return fetch(url, {...options, headers});
 }
 
+const OCCLUSION_RADIO_COLOR = {non_occluded: "radio-success", semi_occluded: "radio-warning", fully_occluded: "radio-error"};
+
 function openLandmarkDialog(landmark) {
   state.selectedLandmark = landmark;
   $("landmark-dialog-title").textContent = landmark.replaceAll("_", " ");
-  $("landmark-occlusion-options").innerHTML = occlusionStates().map((item) => `<label><input type="radio" name="landmark-occlusion" value="${item.id}" ${state.groundTruth[landmark].occlusion === item.id ? "checked" : ""}> ${item.label}</label>`).join("");
+  $("landmark-occlusion-options").innerHTML = occlusionStates().map((item) => `<label class="label cursor-pointer justify-start gap-2"><input type="radio" class="radio radio-sm ${OCCLUSION_RADIO_COLOR[item.id] || ""}" name="landmark-occlusion" value="${item.id}" ${state.groundTruth[landmark].occlusion === item.id ? "checked" : ""}> ${item.label}</label>`).join("");
   document.querySelectorAll('input[name="landmark-occlusion"]').forEach((input) => input.onchange = (event) => {
     const interaction = state.landmarkInteractions[landmark];
     state.groundTruth[landmark].occlusion = event.target.value;
@@ -72,7 +75,8 @@ async function loadState() {
     alert(`Could not load annotations: ${error.message}. If this is the LAN server, enter its access code.`);
     return;
   }
-  state.errorMarkTypes = loadErrorMarkTypes();
+  state.errorBodyParts = loadErrorList("body_part");
+  state.errorCauses = loadErrorList("cause");
   const resume = state.data.tasks.findIndex((task) => task.task_id === state.data.resume_task_id);
   state.taskIndex = Math.max(0, resume);
   $("login-panel").hidden = true;
@@ -243,68 +247,95 @@ function triageResponsePayload() {
   };
 }
 
-const ERROR_TYPE_STORAGE_KEY = "annotation-error-mark-types";
-const FALLBACK_ERROR_MARK_TYPES = [
-  {id: "occlusion", label: "Occlusion (limb crosses/hides behind body)"},
-  {id: "out_of_frame", label: "Out of frame"},
-  {id: "missing_tracking", label: "Missing / lost tracking"},
-  {id: "other", label: "Other"},
-];
+const ERROR_LIST_STORAGE_KEYS = {
+  body_part: "annotation-error-mark-body-parts",
+  cause: "annotation-error-mark-causes",
+};
+const ERROR_LIST_STATE_KEYS = {body_part: "errorBodyParts", cause: "errorCauses"};
+const ERROR_LIST_SERVER_KEYS = {body_part: "error_mark_body_part_defaults", cause: "error_mark_cause_defaults"};
+const FALLBACK_ERROR_LISTS = {
+  body_part: [
+    {id: "right_arm", label: "Right arm"},
+    {id: "left_arm", label: "Left arm"},
+    {id: "right_hip", label: "Right hip"},
+    {id: "left_hip", label: "Left hip"},
+    {id: "right_leg", label: "Right leg"},
+    {id: "left_leg", label: "Left leg"},
+    {id: "torso", label: "Torso"},
+    {id: "head", label: "Head"},
+    {id: "other", label: "Other"},
+  ],
+  cause: [
+    {id: "occlusion", label: "Occlusion (limb crosses/hides behind body)"},
+    {id: "out_of_frame", label: "Out of frame"},
+    {id: "missing_tracking", label: "Missing / lost tracking"},
+    {id: "other", label: "Other"},
+  ],
+};
 
-function defaultErrorMarkTypes() {
-  const source = (state.data && state.data.error_mark_type_defaults) || FALLBACK_ERROR_MARK_TYPES;
+function defaultErrorList(kind) {
+  const source = (state.data && state.data[ERROR_LIST_SERVER_KEYS[kind]]) || FALLBACK_ERROR_LISTS[kind];
   return source.map((item) => ({...item}));
 }
 
-function loadErrorMarkTypes() {
+function loadErrorList(kind) {
   try {
-    const stored = JSON.parse(localStorage.getItem(ERROR_TYPE_STORAGE_KEY) || "null");
+    const stored = JSON.parse(localStorage.getItem(ERROR_LIST_STORAGE_KEYS[kind]) || "null");
     if (Array.isArray(stored) && stored.length) return stored;
   } catch (error) { /* ignore malformed storage, fall through to defaults */ }
-  return defaultErrorMarkTypes();
+  return defaultErrorList(kind);
 }
 
-function slugifyErrorType(label) {
-  return label.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "type";
+function slugifyErrorListEntry(label) {
+  return label.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "item";
 }
 
-function errorTypeLabel(id) {
-  return (state.errorMarkTypes.find((item) => item.id === id) || {}).label || id;
-}
+function errorListArray(kind) { return state[ERROR_LIST_STATE_KEYS[kind]]; }
+function labelFor(kind, id) { return (errorListArray(kind).find((item) => item.id === id) || {}).label || id; }
+function bodyPartLabel(id) { return labelFor("body_part", id); }
+function causeLabel(id) { return labelFor("cause", id); }
 
-function populateErrorTypeSelect() {
-  const select = $("error-marking-type-select");
+function populateBodyPartSelect() {
+  const select = $("error-marking-body-part-select");
   const previous = select.value;
-  select.innerHTML = state.errorMarkTypes.map((item) => `<option value="${item.id}">${item.label}</option>`).join("");
+  select.innerHTML = errorListArray("body_part").map((item) => `<option value="${item.id}">${item.label}</option>`).join("");
   if ([...select.options].some((option) => option.value === previous)) select.value = previous;
 }
 
-function saveErrorMarkTypes(types) {
-  state.errorMarkTypes = types;
-  localStorage.setItem(ERROR_TYPE_STORAGE_KEY, JSON.stringify(types));
-  populateErrorTypeSelect();
+function saveErrorList(kind, list) {
+  state[ERROR_LIST_STATE_KEYS[kind]] = list;
+  localStorage.setItem(ERROR_LIST_STORAGE_KEYS[kind], JSON.stringify(list));
+  if (kind === "body_part") populateBodyPartSelect();
   renderErrorMarkingList();
 }
 
-function renderErrorTypeManagerList() {
-  $("error-type-manager-list").innerHTML = state.errorMarkTypes.map((item, index) =>
+function openListManager(kind) {
+  state.editingListKind = kind;
+  $("list-manager-title").textContent = kind === "body_part" ? "Body parts" : "Error causes";
+  renderListManager();
+  $("list-manager-dialog").showModal();
+}
+
+function renderListManager() {
+  const kind = state.editingListKind, list = errorListArray(kind);
+  $("list-manager-list").innerHTML = list.map((item, index) =>
     `<li class="list-row items-center gap-2">
-      <input type="text" class="input input-sm flex-1" aria-label="Error type label" data-type-label-index="${index}" value="${item.label.replace(/"/g, "&quot;")}">
-      <button type="button" class="btn btn-xs btn-ghost" data-type-remove-index="${index}">Remove</button>
+      <input type="text" class="input input-sm flex-1" aria-label="Entry label" data-list-label-index="${index}" value="${item.label.replace(/"/g, "&quot;")}">
+      <button type="button" class="btn btn-xs btn-ghost" data-list-remove-index="${index}">Remove</button>
     </li>`
-  ).join("") || `<li class="list-row text-sm text-base-content/60">No error types defined.</li>`;
-  $("error-type-manager-list").querySelectorAll("[data-type-label-index]").forEach((input) => {
+  ).join("") || `<li class="list-row text-sm text-base-content/60">No entries defined.</li>`;
+  $("list-manager-list").querySelectorAll("[data-list-label-index]").forEach((input) => {
     input.onchange = () => {
-      const index = Number(input.dataset.typeLabelIndex);
-      state.errorMarkTypes[index].label = input.value.trim() || state.errorMarkTypes[index].label;
-      saveErrorMarkTypes(state.errorMarkTypes);
+      const index = Number(input.dataset.listLabelIndex);
+      list[index].label = input.value.trim() || list[index].label;
+      saveErrorList(kind, list);
     };
   });
-  $("error-type-manager-list").querySelectorAll("[data-type-remove-index]").forEach((button) => {
+  $("list-manager-list").querySelectorAll("[data-list-remove-index]").forEach((button) => {
     button.onclick = () => {
-      state.errorMarkTypes.splice(Number(button.dataset.typeRemoveIndex), 1);
-      saveErrorMarkTypes(state.errorMarkTypes);
-      renderErrorTypeManagerList();
+      list.splice(Number(button.dataset.listRemoveIndex), 1);
+      saveErrorList(kind, list);
+      renderListManager();
     };
   });
 }
@@ -333,19 +364,56 @@ function updateErrorMarkingPendingUI() {
   $("error-marking-cancel-pending").hidden = !pending;
   $("error-marking-pending-hint").hidden = !pending;
   if (pending) {
-    $("error-marking-pending-hint").textContent = `${errorTypeLabel(pending.error_type)} start marked at frame ${pending.start_frame}. Seek to where it ends, then click “Mark end here.”`;
+    $("error-marking-pending-hint").textContent = `${bodyPartLabel(pending.body_part)} start marked at frame ${pending.start_frame}. Seek to where it ends, then click “Mark end here.”`;
   }
+}
+
+function renderErrorMarkingTimeline() {
+  const container = $("error-marking-timeline");
+  if (!state.errorMarks.length) { container.innerHTML = ""; return; }
+  const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
+  container.innerHTML = `<div class="text-xs font-bold uppercase tracking-widest text-base-content/60 mb-1">Marked ranges (overlap is expected across different body parts)</div>` +
+    state.errorMarks.map((mark) => {
+      const left = Math.min((mark.start_frame / frameCount) * 100, 100);
+      const width = Math.max(((mark.end_frame - mark.start_frame) / frameCount) * 100, 1.5);
+      return `<div class="relative h-5 w-full rounded bg-base-300 mb-1">
+        <div class="absolute inset-y-0 rounded bg-primary/70" style="left:${left}%;width:${width}%" title="${bodyPartLabel(mark.body_part)}: frames ${mark.start_frame}–${mark.end_frame}"></div>
+      </div>`;
+    }).join("");
 }
 
 function renderErrorMarkingList() {
   $("error-marking-list").innerHTML = state.errorMarks.length
-    ? state.errorMarks.map((mark, index) =>
-        `<li class="list-row items-center"><span class="badge badge-soft">${errorTypeLabel(mark.error_type)}</span><span class="font-mono text-sm">frames ${mark.start_frame}–${mark.end_frame}</span><button type="button" class="btn btn-xs btn-ghost ml-auto" data-remove-mark="${index}">Remove</button></li>`
+    ? state.errorMarks.map((mark, index) => `
+      <li class="list-row flex-col items-stretch gap-2">
+        <div class="flex items-center gap-2">
+          <span class="badge badge-soft">${bodyPartLabel(mark.body_part)}</span>
+          <span class="font-mono text-sm">frames ${mark.start_frame}–${mark.end_frame}</span>
+          <button type="button" class="btn btn-xs btn-ghost ml-auto" data-remove-mark="${index}">Remove</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-1">
+          <span class="text-xs text-base-content/60">Probable cause:</span>
+          ${errorListArray("cause").map((cause) =>
+            `<button type="button" class="badge badge-sm ${mark.causes.includes(cause.id) ? "badge-primary" : "badge-outline"}" data-toggle-cause-index="${index}" data-toggle-cause-id="${cause.id}">${cause.label}</button>`
+          ).join("")}
+        </div>
+      </li>`
       ).join("")
     : `<li class="list-row text-sm text-base-content/60">No marks added yet.</li>`;
   $("error-marking-list").querySelectorAll("[data-remove-mark]").forEach((button) => {
     button.onclick = () => {
       state.errorMarks.splice(Number(button.dataset.removeMark), 1);
+      renderErrorMarkingList();
+      renderErrorMarkingTimeline();
+      scheduleSave("started");
+    };
+  });
+  $("error-marking-list").querySelectorAll("[data-toggle-cause-index]").forEach((button) => {
+    button.onclick = () => {
+      const mark = state.errorMarks[Number(button.dataset.toggleCauseIndex)];
+      const causeId = button.dataset.toggleCauseId;
+      const position = mark.causes.indexOf(causeId);
+      if (position === -1) mark.causes.push(causeId); else mark.causes.splice(position, 1);
       renderErrorMarkingList();
       scheduleSave("started");
     };
@@ -359,19 +427,20 @@ function renderErrorMarkingTask(task, judgment) {
   $("mark-unclear").hidden = true;
 
   $("error-marking-category-badge").textContent = TRIAGE_CATEGORY_LABELS[task.category] || task.category || "";
-  populateErrorTypeSelect();
+  populateBodyPartSelect();
 
   const video = errorMarkingVideo();
   video.pause();
   video.src = `/artifacts/${task.source_artifact}`;
   video.load();
   video.ontimeupdate = updateErrorMarkingFrameIndicator;
-  video.onloadedmetadata = updateErrorMarkingFrameIndicator;
+  video.onloadedmetadata = () => { updateErrorMarkingFrameIndicator(); renderErrorMarkingTimeline(); };
 
   state.pendingMark = null;
   const response = judgment?.error_marking_response || {};
-  state.errorMarks = structuredClone(response.marks || []);
+  state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], ...mark}));
   renderErrorMarkingList();
+  renderErrorMarkingTimeline();
   updateErrorMarkingPendingUI();
   updateErrorMarkingFrameIndicator();
   $("error-marking-none-found").checked = Boolean(response.no_errors_found);
@@ -422,10 +491,10 @@ function renderSourceEvidence(task, judgment) {
   const required = Boolean(task.requires_source_evidence_quality || task.requires_evidence_quality);
   const qualities = state.data.source_evidence_quality_definitions || [];
   const factors = state.data.source_evidence_factor_definitions || [];
-  $("source-evidence-quality-options").className = "source-evidence-options";
-  $("source-evidence-quality-options").innerHTML = [`<label><input class="radio" type="radio" name="source-evidence-quality" value="" ${!selectedQuality ? "checked" : ""}> Not classified yet</label>`, ...qualities.map((item) => `<label title="${item.description || ""}"><input class="radio" type="radio" name="source-evidence-quality" value="${item.id}" ${selectedQuality === item.id ? "checked" : ""}> ${item.label}</label>`)].join("") + (required ? `<p class="source-evidence-help">Required to complete this task.</p>` : "");
-  $("source-evidence-factor-options").className = "source-evidence-options";
-  $("source-evidence-factor-options").innerHTML = factors.map((item) => `<label><input class="checkbox" type="checkbox" name="source-evidence-factor" value="${item.id}" ${selectedFactors.has(item.id) ? "checked" : ""}> ${item.label}</label>`).join("");
+  $("source-evidence-quality-options").className = "grid gap-1";
+  $("source-evidence-quality-options").innerHTML = [`<label class="label cursor-pointer justify-start gap-2"><input class="radio radio-sm" type="radio" name="source-evidence-quality" value="" ${!selectedQuality ? "checked" : ""}> Not classified yet</label>`, ...qualities.map((item) => `<label class="label cursor-pointer justify-start gap-2" title="${item.description || ""}"><input class="radio radio-sm" type="radio" name="source-evidence-quality" value="${item.id}" ${selectedQuality === item.id ? "checked" : ""}> ${item.label}</label>`)].join("") + (required ? `<p class="text-xs text-base-content/60 mt-1">Required to complete this task.</p>` : "");
+  $("source-evidence-factor-options").className = "grid gap-1";
+  $("source-evidence-factor-options").innerHTML = factors.map((item) => `<label class="label cursor-pointer justify-start gap-2"><input class="checkbox checkbox-sm" type="checkbox" name="source-evidence-factor" value="${item.id}" ${selectedFactors.has(item.id) ? "checked" : ""}> ${item.label}</label>`).join("");
   document.querySelectorAll('input[name="source-evidence-quality"], input[name="source-evidence-factor"]').forEach((input) => input.addEventListener("change", () => scheduleSave("started")));
 }
 
@@ -820,42 +889,42 @@ $("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
 $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
 $("error-marking-step-forward-10").onclick = () => stepErrorMarkingVideo(10);
 $("error-marking-mark-start").onclick = () => {
-  state.pendingMark = {error_type: $("error-marking-type-select").value, start_frame: errorMarkingCurrentFrame()};
+  state.pendingMark = {body_part: $("error-marking-body-part-select").value, start_frame: errorMarkingCurrentFrame()};
   updateErrorMarkingPendingUI();
 };
 $("error-marking-mark-end").onclick = () => {
   if (!state.pendingMark) return;
   const end = errorMarkingCurrentFrame();
   const start = Math.min(state.pendingMark.start_frame, end), finish = Math.max(state.pendingMark.start_frame, end);
-  state.errorMarks.push({error_type: state.pendingMark.error_type, start_frame: start, end_frame: finish});
+  state.errorMarks.push({body_part: state.pendingMark.body_part, start_frame: start, end_frame: finish, causes: []});
   state.pendingMark = null;
   updateErrorMarkingPendingUI();
   renderErrorMarkingList();
+  renderErrorMarkingTimeline();
   scheduleSave("started");
 };
 $("error-marking-cancel-pending").onclick = () => { state.pendingMark = null; updateErrorMarkingPendingUI(); };
 $("error-marking-none-found").onchange = () => scheduleSave("started");
-$("error-marking-manage-types").onclick = () => {
-  renderErrorTypeManagerList();
-  $("error-type-manager-dialog").showModal();
-};
-$("error-type-manager-add").onclick = () => {
-  const input = $("error-type-manager-new-label");
+$("error-marking-manage-body-parts").onclick = () => openListManager("body_part");
+$("error-marking-manage-causes").onclick = () => openListManager("cause");
+$("list-manager-add").onclick = () => {
+  const input = $("list-manager-new-label");
   const label = input.value.trim();
   if (!label) return;
-  const existingIds = new Set(state.errorMarkTypes.map((item) => item.id));
-  let id = slugifyErrorType(label), suffix = 1;
-  while (existingIds.has(id)) { id = `${slugifyErrorType(label)}_${++suffix}`; }
-  state.errorMarkTypes.push({id, label});
-  saveErrorMarkTypes(state.errorMarkTypes);
-  renderErrorTypeManagerList();
+  const kind = state.editingListKind, list = errorListArray(kind);
+  const existingIds = new Set(list.map((item) => item.id));
+  let id = slugifyErrorListEntry(label), suffix = 1;
+  while (existingIds.has(id)) { id = `${slugifyErrorListEntry(label)}_${++suffix}`; }
+  list.push({id, label});
+  saveErrorList(kind, list);
+  renderListManager();
   input.value = "";
 };
-$("error-type-manager-new-label").onkeydown = (event) => { if (event.key === "Enter") { event.preventDefault(); $("error-type-manager-add").click(); } };
-$("error-type-manager-reset").onclick = () => {
-  saveErrorMarkTypes(defaultErrorMarkTypes());
-  renderErrorTypeManagerList();
+$("list-manager-new-label").onkeydown = (event) => { if (event.key === "Enter") { event.preventDefault(); $("list-manager-add").click(); } };
+$("list-manager-reset").onclick = () => {
+  const kind = state.editingListKind;
+  saveErrorList(kind, defaultErrorList(kind));
+  renderListManager();
 };
-$("close-dialog").onclick = () => $("image-dialog").close(); $("image-dialog").onclick = (event) => { if (event.target === $("image-dialog")) $("image-dialog").close(); };
 $("access-token").oninput = (event) => { event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6); };
 document.querySelectorAll(".export-button").forEach((button) => button.onclick = () => downloadExport(button.dataset.export));
