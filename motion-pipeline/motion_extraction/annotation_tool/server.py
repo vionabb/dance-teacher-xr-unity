@@ -31,7 +31,13 @@ TEMPORAL_CHOICES = {
 }
 TEMPORAL_CONFIDENCES = {"low", "medium", "high"}
 TRIAGE_VERDICTS = {"fine", "problematic", "cannot_judge"}
-ERROR_MARK_TYPES = {"occlusion", "out_of_frame", "missing_tracking", "other"}
+ERROR_MARK_TYPE_MAX_LENGTH = 64
+DEFAULT_ERROR_MARK_TYPES = [
+    {"id": "occlusion", "label": "Occlusion (limb crosses/hides behind body)"},
+    {"id": "out_of_frame", "label": "Out of frame"},
+    {"id": "missing_tracking", "label": "Missing / lost tracking"},
+    {"id": "other", "label": "Other"},
+]
 LIGHTING_RATINGS = {"good", "moderate", "poor"}
 CLOTHING_RATINGS = {"well_suited", "moderate", "poorly_suited"}
 SKELETON_FREE_TASK_TYPES = {
@@ -518,8 +524,12 @@ class AnnotationStore:
             if not isinstance(item, dict):
                 raise ValueError("each error mark must be an object")
             error_type = str(item.get("error_type", "")).strip()
-            if error_type not in ERROR_MARK_TYPES:
-                raise ValueError(f"error_type must be one of {sorted(ERROR_MARK_TYPES)}")
+            if not error_type:
+                raise ValueError("each error mark requires a non-empty error_type")
+            if len(error_type) > ERROR_MARK_TYPE_MAX_LENGTH:
+                raise ValueError(
+                    f"error_type must be at most {ERROR_MARK_TYPE_MAX_LENGTH} characters"
+                )
             start_frame, end_frame = item.get("start_frame"), item.get("end_frame")
             if isinstance(start_frame, bool) or isinstance(end_frame, bool):
                 raise ValueError("start_frame/end_frame must be integers")
@@ -1001,6 +1011,7 @@ class AnnotationStore:
             "pose_edges": self.manifest.get("pose_edges", []),
             "occlusion_states": self.manifest.get("occlusion_states", []),
             "issue_tags": self.manifest.get("issue_tags", []),
+            "error_mark_type_defaults": DEFAULT_ERROR_MARK_TYPES,
             "source_evidence_quality_definitions": [
                 {
                     "id": "usable",

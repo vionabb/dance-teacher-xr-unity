@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Frame overlay review</title>
   <link rel="stylesheet" href="/style.css">
-  <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
 <body>
   <header class="navbar bg-primary px-4 text-primary-content">
@@ -28,8 +28,8 @@
   </header>
   <section id="login-panel" class="login-panel max-w-2xl mx-auto">
     <h2>Sign in to annotate</h2>
-    <div class="access-form">    <label>Annotator <input id="annotator" class="input input-bordered" autocomplete="name" placeholder="your name or ID"></label>
-      <label id="access-token-field">Access code <input id="access-token" class="input input-bordered" type="password" autocomplete="one-time-code" inputmode="text" autocapitalize="characters" maxlength="6" pattern="[A-Z0-9]{6}" placeholder="6-character code"></label>
+    <div class="access-form">    <label>Annotator <input id="annotator" class="input" autocomplete="name" placeholder="your name or ID"></label>
+      <label id="access-token-field">Access code <input id="access-token" class="input" type="password" autocomplete="one-time-code" inputmode="text" autocapitalize="characters" maxlength="6" pattern="[A-Z0-9]{6}" placeholder="6-character code"></label>
       <label class="remember-token"><input id="remember-access-token" class="checkbox" type="checkbox"> Remember this device</label>
       <button id="start" class="btn btn-primary">Load / resume</button></div>
     <span id="login-state" aria-live="polite"></span>
@@ -38,7 +38,7 @@
   <main hidden id="workspace" class="mx-auto max-w-5xl p-4 pb-20">
     <section class="card card-border flex flex-row items-center justify-between gap-4 bg-base-100 p-4 shadow-sm max-md:flex-col max-md:items-stretch" aria-label="Annotation progress">
       <div class="grid min-w-0 gap-1"><span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Your queue</span><strong id="progress"></strong></div>
-      <label class="grid min-w-0 max-w-[52%] gap-1 text-xs font-bold text-base-content/60 max-md:w-full max-md:max-w-none">Jump to case<select id="task-picker" class="select select-bordered w-full text-base-content" aria-label="Select case"></select></label>
+      <label class="grid min-w-0 max-w-[52%] gap-1 text-xs font-bold text-base-content/60 max-md:w-full max-md:max-w-none">Jump to case<select id="task-picker" class="select w-full text-base-content" aria-label="Select case"></select></label>
     </section>
 
     <section id="skeleton-screen" class="card card-border bg-base-100 p-4 shadow-sm">
@@ -60,7 +60,7 @@
       <div class="section-heading compact"><div><span class="step-badge">02</span><h2>Describe the frame</h2></div><p>Record how much of the source evidence you can trust.</p></div>
       <fieldset id="source-evidence-quality" class="fieldset"><legend>How clear is this frame?</legend><div id="source-evidence-quality-options"></div></fieldset>
       <fieldset id="source-evidence-factors" class="fieldset"><legend>What makes it difficult? <span>(optional)</span></legend><div id="source-evidence-factor-options"></div></fieldset>
-      <label class="note-field" for="frame-note">Note (optional)<textarea id="frame-note" class="textarea textarea-bordered" placeholder="Anything useful about this frame"></textarea></label>
+      <label class="note-field" for="frame-note">Note (optional)<textarea id="frame-note" class="textarea" placeholder="Anything useful about this frame"></textarea></label>
     </section>
 
     <section id="temporal-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
@@ -101,7 +101,7 @@
         </div>
         <p id="temporal-confidence-help" class="small">Required unless you choose “Cannot judge.”</p>
       </fieldset>
-      <label class="note-field" for="temporal-note">Note (optional)<textarea id="temporal-note" class="textarea textarea-bordered" placeholder="What made the difference visible or difficult to judge?"></textarea></label>
+      <label class="note-field" for="temporal-note">Note (optional)<textarea id="temporal-note" class="textarea" placeholder="What made the difference visible or difficult to judge?"></textarea></label>
     </section>
 
     <section id="triage-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
@@ -141,30 +141,44 @@
       <figure class="mt-2">
         <video id="error-marking-video" class="w-full rounded-box" controls loop playsinline muted aria-label="Pose-overlay clip for error marking"></video>
       </figure>
-      <div class="flex flex-wrap items-center gap-2 mt-2">
-        <button id="error-marking-step-back-10" class="btn btn-sm" type="button">−10</button>
-        <button id="error-marking-step-back-1" class="btn btn-sm" type="button">−1</button>
-        <span id="error-marking-frame-indicator" class="text-sm font-bold">frame 0 / 0</span>
-        <button id="error-marking-step-forward-1" class="btn btn-sm" type="button">+1</button>
-        <button id="error-marking-step-forward-10" class="btn btn-sm" type="button">+10</button>
+
+      <div class="mt-3 flex flex-wrap items-center justify-center gap-3">
+        <div class="join">
+          <button id="error-marking-step-back-10" class="btn btn-sm join-item" type="button" aria-label="Back 10 frames">−10</button>
+          <button id="error-marking-step-back-1" class="btn btn-sm join-item" type="button" aria-label="Back 1 frame">−1</button>
+          <button id="error-marking-step-forward-1" class="btn btn-sm join-item" type="button" aria-label="Forward 1 frame">+1</button>
+          <button id="error-marking-step-forward-10" class="btn btn-sm join-item" type="button" aria-label="Forward 10 frames">+10</button>
+        </div>
+        <span id="error-marking-frame-indicator" class="badge badge-lg font-mono" aria-live="polite">frame 0 / 0</span>
       </div>
-      <div class="flex flex-wrap items-end gap-2 mt-3">
-        <label class="grid gap-1 text-xs font-bold text-base-content/60">Error type
-          <select id="error-marking-type-select" class="select select-bordered">
-            <option value="occlusion">Occlusion (limb crosses/hides behind body)</option>
-            <option value="out_of_frame">Out of frame</option>
-            <option value="missing_tracking">Missing / lost tracking</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <button id="error-marking-mark-start" class="btn btn-sm" type="button">Mark start here</button>
-        <button id="error-marking-mark-end" class="btn btn-sm btn-primary" type="button" disabled>Mark end here</button>
-        <button id="error-marking-cancel-pending" class="btn btn-sm btn-ghost" type="button" hidden>Cancel</button>
-      </div>
-      <p id="error-marking-pending-hint" class="small" hidden></p>
-      <ul id="error-marking-list" class="mt-3 grid gap-1"></ul>
-      <label class="remember-token mt-2"><input id="error-marking-none-found" class="checkbox" type="checkbox"> No errors observed in this clip</label>
-      <label class="note-field" for="error-marking-note">Note (optional)<textarea id="error-marking-note" class="textarea" placeholder="Anything else worth flagging"></textarea></label>
+
+      <fieldset class="fieldset bg-base-200 rounded-box p-3 mt-3">
+        <legend class="fieldset-legend">Mark an error</legend>
+        <div class="flex flex-wrap items-end gap-2">
+          <div>
+            <label class="label" for="error-marking-type-select">Error type</label>
+            <div class="join">
+              <select id="error-marking-type-select" class="select select-sm join-item"></select>
+              <button id="error-marking-manage-types" class="btn btn-sm join-item" type="button">Edit list</button>
+            </div>
+          </div>
+          <button id="error-marking-mark-start" class="btn btn-sm" type="button">Mark start here</button>
+          <button id="error-marking-mark-end" class="btn btn-sm btn-primary" type="button" disabled>Mark end here</button>
+          <button id="error-marking-cancel-pending" class="btn btn-sm btn-ghost" type="button" hidden>Cancel</button>
+        </div>
+        <div id="error-marking-pending-hint" role="alert" class="alert alert-info alert-soft mt-2 text-sm" hidden></div>
+      </fieldset>
+
+      <ul id="error-marking-list" class="list bg-base-200 rounded-box mt-3"></ul>
+
+      <label class="label cursor-pointer justify-start gap-2 mt-3">
+        <input id="error-marking-none-found" type="checkbox" class="checkbox checkbox-sm">
+        No errors observed in this clip
+      </label>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Note (optional)</legend>
+        <textarea id="error-marking-note" class="textarea w-full" aria-label="Note (optional)" placeholder="Anything else worth flagging"></textarea>
+      </fieldset>
     </section>
 
     <section id="quality-rating-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
@@ -175,23 +189,26 @@
       <figure class="mt-2">
         <img id="quality-rating-image" class="w-full rounded-box object-contain" alt="Representative frame of the source video">
       </figure>
-      <fieldset class="triage-response">
-        <legend>Lighting (contrast / exposure)</legend>
-        <div id="quality-rating-lighting-options">
-          <label><input class="radio" type="radio" name="quality-rating-lighting" value="good"> Good — clear, sufficient contrast</label>
-          <label><input class="radio" type="radio" name="quality-rating-lighting" value="moderate"> Moderate — usable but not ideal</label>
-          <label><input class="radio" type="radio" name="quality-rating-lighting" value="poor"> Poor — too dark, too bright, or flat</label>
+      <fieldset class="fieldset bg-base-200 rounded-box p-3 mt-2">
+        <legend class="fieldset-legend">Lighting (contrast / exposure)</legend>
+        <div id="quality-rating-lighting-options" class="grid gap-1">
+          <label class="label cursor-pointer justify-start gap-2"><input class="radio radio-sm" type="radio" name="quality-rating-lighting" value="good"> Good — clear, sufficient contrast</label>
+          <label class="label cursor-pointer justify-start gap-2"><input class="radio radio-sm" type="radio" name="quality-rating-lighting" value="moderate"> Moderate — usable but not ideal</label>
+          <label class="label cursor-pointer justify-start gap-2"><input class="radio radio-sm" type="radio" name="quality-rating-lighting" value="poor"> Poor — too dark, too bright, or flat</label>
         </div>
       </fieldset>
-      <fieldset class="triage-response">
-        <legend>Clothing suitability</legend>
-        <div id="quality-rating-clothing-options">
-          <label><input class="radio" type="radio" name="quality-rating-clothing" value="well_suited"> Well suited — form-fitting or bare arms</label>
-          <label><input class="radio" type="radio" name="quality-rating-clothing" value="moderate"> Moderate — somewhat loose</label>
-          <label><input class="radio" type="radio" name="quality-rating-clothing" value="poorly_suited"> Poorly suited — baggy, joints obscured</label>
+      <fieldset class="fieldset bg-base-200 rounded-box p-3 mt-2">
+        <legend class="fieldset-legend">Clothing suitability</legend>
+        <div id="quality-rating-clothing-options" class="grid gap-1">
+          <label class="label cursor-pointer justify-start gap-2"><input class="radio radio-sm" type="radio" name="quality-rating-clothing" value="well_suited"> Well suited — form-fitting or bare arms</label>
+          <label class="label cursor-pointer justify-start gap-2"><input class="radio radio-sm" type="radio" name="quality-rating-clothing" value="moderate"> Moderate — somewhat loose</label>
+          <label class="label cursor-pointer justify-start gap-2"><input class="radio radio-sm" type="radio" name="quality-rating-clothing" value="poorly_suited"> Poorly suited — baggy, joints obscured</label>
         </div>
       </fieldset>
-      <label class="note-field" for="quality-rating-note">Note (optional)<textarea id="quality-rating-note" class="textarea" placeholder="Anything else about this video"></textarea></label>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Note (optional)</legend>
+        <textarea id="quality-rating-note" class="textarea w-full" aria-label="Note (optional)" placeholder="Anything else about this video"></textarea>
+      </fieldset>
     </section>
 
     <section id="actions" data-actions class="actions fixed inset-x-0 bottom-0 z-[100] flex min-h-16 flex-wrap items-center justify-center gap-2 border-t border-base-300 bg-base-100/95 p-3 shadow-[0_-6px_24px_rgba(22,51,46,.12)] backdrop-blur">
@@ -202,6 +219,23 @@
   </main>
 
   <dialog id="image-dialog" class="modal"><button id="close-dialog" class="btn" type="button" aria-label="Close enlarged image">Close</button><img id="dialog-image" alt="Enlarged review image"></dialog>
+
+  <dialog id="error-type-manager-dialog" class="modal">
+    <div class="modal-box">
+      <h3 class="text-lg font-bold">Error types</h3>
+      <p class="py-2 text-sm text-base-content/70">Rename, remove, or add the error types available when marking a clip. Changes are saved on this device.</p>
+      <ul id="error-type-manager-list" class="list"></ul>
+      <div class="join mt-3">
+        <input id="error-type-manager-new-label" class="input input-sm join-item" type="text" aria-label="New error type name" placeholder="New error type name">
+        <button id="error-type-manager-add" class="btn btn-sm join-item" type="button">Add</button>
+      </div>
+      <div class="modal-action">
+        <button id="error-type-manager-reset" class="btn btn-sm btn-ghost" type="button">Reset to defaults</button>
+        <form method="dialog"><button class="btn btn-sm">Done</button></form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
   <script src="/app.js"></script>
 </body>
 </html>

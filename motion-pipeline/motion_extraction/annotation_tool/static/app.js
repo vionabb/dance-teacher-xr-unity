@@ -4,7 +4,7 @@ const state = {
   initialGroundTruth: {}, initialLandmarkSources: {}, landmarkInteractions: {}, sourceImage: null,
   sourceObjectUrl: null, dragLandmark: null, dragStart: null, dragMoved: false,
   activePointers: new Map(), selectedLandmark: null, screen: "skeleton",
-  temporalPlaybackRate: 1, errorMarks: [], pendingMark: null,
+  temporalPlaybackRate: 1, errorMarks: [], pendingMark: null, errorMarkTypes: [],
 };
 const $ = (id) => document.getElementById(id);
 
@@ -72,6 +72,7 @@ async function loadState() {
     alert(`Could not load annotations: ${error.message}. If this is the LAN server, enter its access code.`);
     return;
   }
+  state.errorMarkTypes = loadErrorMarkTypes();
   const resume = state.data.tasks.findIndex((task) => task.task_id === state.data.resume_task_id);
   state.taskIndex = Math.max(0, resume);
   $("login-panel").hidden = true;
@@ -242,12 +243,71 @@ function triageResponsePayload() {
   };
 }
 
-const ERROR_TYPE_LABELS = {
-  occlusion: "Occlusion",
-  out_of_frame: "Out of frame",
-  missing_tracking: "Missing / lost tracking",
-  other: "Other",
-};
+const ERROR_TYPE_STORAGE_KEY = "annotation-error-mark-types";
+const FALLBACK_ERROR_MARK_TYPES = [
+  {id: "occlusion", label: "Occlusion (limb crosses/hides behind body)"},
+  {id: "out_of_frame", label: "Out of frame"},
+  {id: "missing_tracking", label: "Missing / lost tracking"},
+  {id: "other", label: "Other"},
+];
+
+function defaultErrorMarkTypes() {
+  const source = (state.data && state.data.error_mark_type_defaults) || FALLBACK_ERROR_MARK_TYPES;
+  return source.map((item) => ({...item}));
+}
+
+function loadErrorMarkTypes() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(ERROR_TYPE_STORAGE_KEY) || "null");
+    if (Array.isArray(stored) && stored.length) return stored;
+  } catch (error) { /* ignore malformed storage, fall through to defaults */ }
+  return defaultErrorMarkTypes();
+}
+
+function slugifyErrorType(label) {
+  return label.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "type";
+}
+
+function errorTypeLabel(id) {
+  return (state.errorMarkTypes.find((item) => item.id === id) || {}).label || id;
+}
+
+function populateErrorTypeSelect() {
+  const select = $("error-marking-type-select");
+  const previous = select.value;
+  select.innerHTML = state.errorMarkTypes.map((item) => `<option value="${item.id}">${item.label}</option>`).join("");
+  if ([...select.options].some((option) => option.value === previous)) select.value = previous;
+}
+
+function saveErrorMarkTypes(types) {
+  state.errorMarkTypes = types;
+  localStorage.setItem(ERROR_TYPE_STORAGE_KEY, JSON.stringify(types));
+  populateErrorTypeSelect();
+  renderErrorMarkingList();
+}
+
+function renderErrorTypeManagerList() {
+  $("error-type-manager-list").innerHTML = state.errorMarkTypes.map((item, index) =>
+    `<li class="list-row items-center gap-2">
+      <input type="text" class="input input-sm flex-1" aria-label="Error type label" data-type-label-index="${index}" value="${item.label.replace(/"/g, "&quot;")}">
+      <button type="button" class="btn btn-xs btn-ghost" data-type-remove-index="${index}">Remove</button>
+    </li>`
+  ).join("") || `<li class="list-row text-sm text-base-content/60">No error types defined.</li>`;
+  $("error-type-manager-list").querySelectorAll("[data-type-label-index]").forEach((input) => {
+    input.onchange = () => {
+      const index = Number(input.dataset.typeLabelIndex);
+      state.errorMarkTypes[index].label = input.value.trim() || state.errorMarkTypes[index].label;
+      saveErrorMarkTypes(state.errorMarkTypes);
+    };
+  });
+  $("error-type-manager-list").querySelectorAll("[data-type-remove-index]").forEach((button) => {
+    button.onclick = () => {
+      state.errorMarkTypes.splice(Number(button.dataset.typeRemoveIndex), 1);
+      saveErrorMarkTypes(state.errorMarkTypes);
+      renderErrorTypeManagerList();
+    };
+  });
+}
 
 function errorMarkingVideo() { return $("error-marking-video"); }
 function errorMarkingFps() { return Number(state.data.tasks[state.taskIndex].fps) || 30; }
@@ -273,16 +333,16 @@ function updateErrorMarkingPendingUI() {
   $("error-marking-cancel-pending").hidden = !pending;
   $("error-marking-pending-hint").hidden = !pending;
   if (pending) {
-    $("error-marking-pending-hint").textContent = `${ERROR_TYPE_LABELS[pending.error_type] || pending.error_type} start marked at frame ${pending.start_frame}. Seek to where it ends, then click “Mark end here.”`;
+    $("error-marking-pending-hint").textContent = `${errorTypeLabel(pending.error_type)} start marked at frame ${pending.start_frame}. Seek to where it ends, then click “Mark end here.”`;
   }
 }
 
 function renderErrorMarkingList() {
   $("error-marking-list").innerHTML = state.errorMarks.length
     ? state.errorMarks.map((mark, index) =>
-        `<li class="flex items-center gap-2"><span class="badge badge-soft">${ERROR_TYPE_LABELS[mark.error_type] || mark.error_type}</span><span class="text-xs">frames ${mark.start_frame}–${mark.end_frame}</span><button type="button" class="btn btn-xs btn-ghost" data-remove-mark="${index}">Remove</button></li>`
+        `<li class="list-row items-center"><span class="badge badge-soft">${errorTypeLabel(mark.error_type)}</span><span class="font-mono text-sm">frames ${mark.start_frame}–${mark.end_frame}</span><button type="button" class="btn btn-xs btn-ghost ml-auto" data-remove-mark="${index}">Remove</button></li>`
       ).join("")
-    : `<li class="text-xs text-base-content/60">No marks added yet.</li>`;
+    : `<li class="list-row text-sm text-base-content/60">No marks added yet.</li>`;
   $("error-marking-list").querySelectorAll("[data-remove-mark]").forEach((button) => {
     button.onclick = () => {
       state.errorMarks.splice(Number(button.dataset.removeMark), 1);
@@ -299,6 +359,7 @@ function renderErrorMarkingTask(task, judgment) {
   $("mark-unclear").hidden = true;
 
   $("error-marking-category-badge").textContent = TRIAGE_CATEGORY_LABELS[task.category] || task.category || "";
+  populateErrorTypeSelect();
 
   const video = errorMarkingVideo();
   video.pause();
@@ -689,7 +750,17 @@ async function downloadExport(format) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (error) { alert(`Could not download export: ${error.message}`); }
 }
-function lockInteraction(locked) { $("workspace").querySelectorAll("button, select, input, textarea").forEach((element) => { element.disabled = locked; }); $("ground-truth-canvas").style.pointerEvents = locked ? "none" : "auto"; }
+function lockInteraction(locked) {
+  $("workspace").querySelectorAll("button, select, input, textarea").forEach((element) => { element.disabled = locked; });
+  $("ground-truth-canvas").style.pointerEvents = locked ? "none" : "auto";
+  // Unlocking re-enables every control indiscriminately; task screens with a
+  // control that should stay conditionally disabled (e.g. "Mark end here"
+  // before a pending mark exists) must re-apply their own disabled state.
+  if (!locked) {
+    const task = state.data?.tasks?.[state.taskIndex];
+    if (task && isErrorMarkingTask(task)) updateErrorMarkingPendingUI();
+  }
+}
 async function navigateTo(targetIndex) {
   lockInteraction(true);
   try {
@@ -764,6 +835,27 @@ $("error-marking-mark-end").onclick = () => {
 };
 $("error-marking-cancel-pending").onclick = () => { state.pendingMark = null; updateErrorMarkingPendingUI(); };
 $("error-marking-none-found").onchange = () => scheduleSave("started");
+$("error-marking-manage-types").onclick = () => {
+  renderErrorTypeManagerList();
+  $("error-type-manager-dialog").showModal();
+};
+$("error-type-manager-add").onclick = () => {
+  const input = $("error-type-manager-new-label");
+  const label = input.value.trim();
+  if (!label) return;
+  const existingIds = new Set(state.errorMarkTypes.map((item) => item.id));
+  let id = slugifyErrorType(label), suffix = 1;
+  while (existingIds.has(id)) { id = `${slugifyErrorType(label)}_${++suffix}`; }
+  state.errorMarkTypes.push({id, label});
+  saveErrorMarkTypes(state.errorMarkTypes);
+  renderErrorTypeManagerList();
+  input.value = "";
+};
+$("error-type-manager-new-label").onkeydown = (event) => { if (event.key === "Enter") { event.preventDefault(); $("error-type-manager-add").click(); } };
+$("error-type-manager-reset").onclick = () => {
+  saveErrorMarkTypes(defaultErrorMarkTypes());
+  renderErrorTypeManagerList();
+};
 $("close-dialog").onclick = () => $("image-dialog").close(); $("image-dialog").onclick = (event) => { if (event.target === $("image-dialog")) $("image-dialog").close(); };
 $("access-token").oninput = (event) => { event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6); };
 document.querySelectorAll(".export-button").forEach((button) => button.onclick = () => downloadExport(button.dataset.export));
