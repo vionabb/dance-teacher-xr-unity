@@ -76,7 +76,13 @@ Status: **in progress**
   [lab-log/2026-08-27-preprocessing-quality-gate-pivot.md](../lab-log/2026-08-27-preprocessing-quality-gate-pivot.md)
   for the evidence review and the proposed gate/fix/exclude plan (superseding
   [lab-log/2026-08-26-c4-smoothing-parameter-selection.md](../lab-log/2026-08-26-c4-smoothing-parameter-selection.md)
-  as the current status).
+  as the current status). The gate work is underway: a human-vs-automatic-signal
+  comparison on a real triage batch, a full-corpus framing/out-of-frame analysis,
+  a first (inconclusive) test of automatic occlusion-error detection, and two new
+  annotation-tool task types for gathering further ground truth are all done as
+  of 2026-08-30 — current status, findings, and next actions are maintained in
+  [lab-log/2026-08-27-preprocessing-quality-gate-pivot-handoff.md](../lab-log/2026-08-27-preprocessing-quality-gate-pivot-handoff.md),
+  not duplicated here.
 
 ### System integration
 
