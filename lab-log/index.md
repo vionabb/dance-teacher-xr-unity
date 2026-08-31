@@ -79,7 +79,7 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).
 
 - [Handoff: corpus-wide quality triage + defect localization](2026-08-27-preprocessing-quality-gate-pivot-handoff.md)
-  (living document — status as of 2026-08-30) Compared Claude's judgments
+  (living document — status as of 2026-08-31) Compared Claude's judgments
   against Viona's on the 60-task Stage-1 triage batch: crop alone doesn't
   predict "problematic," false-tracking only validates when the actual flagged
   window is shown, ~44% of random controls have undetected defects. Full-corpus
@@ -87,6 +87,11 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   would drop ~59% of the corpus (almost entirely hips, not arms) and that
   MediaPipe's visibility score is trustworthy for wrists but not hips/shoulders.
   A first test of automatic occlusion-error detection was inconclusive. Built
-  two new annotation-tool task types (`error_marking`, `video_quality_rating`)
-  with pilot batches now in Viona's queue, and fixed a CDN mismatch that had
-  the whole tool rendering unstyled.
+  an `error_marking` annotation task type (body-part-and-range marks with
+  separately-attributed probable causes) and a `video_quality_rating` type,
+  with pilot batches in Viona's queue; migrated the rest of the annotation
+  tool's custom-styled pickers to daisyUI and fixed a CDN mismatch that had
+  the whole tool rendering unstyled. Built a reusable, re-runnable corpus-wide
+  frame-quality map (one pixel-row per participant clip, white/yellow/red by
+  frame, grouped by dance): first run is 63.9% white / 28.5% yellow / 7.6% red
+  frame-weighted, with 17 of 1,756 clips more than half red.
