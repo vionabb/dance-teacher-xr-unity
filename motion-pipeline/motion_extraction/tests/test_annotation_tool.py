@@ -99,18 +99,27 @@ def test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker() -> None:
     assert 'id="login-panel"' in html
     assert 'id="user-menu"' in html
     assert 'id="logout"' in html
-    assert '<summary id="logged-in-annotator" class="btn btn-ghost btn-sm"></summary>' in html
+    assert '<button id="logged-in-annotator" class="btn btn-ghost btn-sm" popovertarget="user-menu-popover"' in html
     assert html.count(">Log out<") == 1
-    assert 'class="user-menu dropdown dropdown-end"' in html
+    assert 'class="user-menu"' in html
     assert '<div class="navbar-end">' in html
     assert 'id="landmark-panel" class="card card-border self-center p-4" aria-labelledby="landmark-dialog-title"' in html
     assert 'class="card card-border flex flex-row items-center justify-between' in html
-    assert "dropdown-content menu" in html
+    # daisyUI v5 dropdowns use the popover API, not the legacy details/summary +
+    # dropdown-content pattern (deprecated -- see the header user-menu).
+    assert "dropdown-content" not in html
+    assert 'class="dropdown dropdown-end menu menu-sm bg-base-100' in html
     assert 'id="close-landmark-dialog"' not in html
     assert "daisyui@5" in html
     assert "btn btn-primary" in html
-    assert "select select-bordered" in html
-    assert "textarea textarea-bordered" in html
+    # daisyUI v5 dropped the "-bordered" input/select/textarea modifiers (bordered
+    # is now the default); this app was briefly paired with the wrong Tailwind CDN
+    # (v3 Play CDN, incompatible with the daisyUI 5 plugin) which silently no-opped
+    # every daisyUI class and made the mismatch invisible until fixed.
+    assert "select-bordered" not in html
+    assert "textarea-bordered" not in html
+    assert "input-bordered" not in html
+    assert "@tailwindcss/browser@4" in html
     assert 'class="modal"' in html
     assert "Identity and access" not in html
     assert ">Reset<" in html
@@ -140,8 +149,11 @@ def test_annotation_ui_declares_single_pointer_drag_and_native_page_pan() -> Non
     assert "position: fixed" in css
     assert "max-height: min(70vh, calc(100vh - 15rem))" in css
     assert "overflow: visible" in css
-    assert ".user-menu summary::-webkit-details-marker { display: none; }" in css
-    assert ".user-menu summary::after { content: none; }" in css
+    # The header user-menu dropdown no longer uses details/summary -- daisyUI v5
+    # dropdowns use the popover API instead (see the "no legacy dropdown-content"
+    # assertion in test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker).
+    assert "<summary" not in html
+    assert 'popovertarget="user-menu-popover"' in html
     assert "function nearestLandmark(point, radius)" in javascript
     assert "const nearest = nearestLandmark(point, hitRadius)" in javascript
 
@@ -177,10 +189,12 @@ def test_annotation_ui_has_outside_dismissible_occlusion_tiles() -> None:
     javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert 'id="landmark-occlusion-options"' in html
     assert "function mostDiscrepantLandmark(task)" in javascript
-    assert "#landmark-occlusion-options label" in css
+    # Occlusion tiles are daisyUI radios with semantic colors (green/amber/red
+    # for non/semi/fully occluded) rendered directly, not hidden inputs behind
+    # custom-CSS-colored label tiles.
+    assert 'const OCCLUSION_RADIO_COLOR = {non_occluded: "radio-success", semi_occluded: "radio-warning", fully_occluded: "radio-error"};' in javascript
     assert "#ground-truth-canvas { display: block; max-width: 100%; max-height: min(70vh, calc(100vh - 15rem));" in css
-    assert "pointer-events: none" in css
-    assert "label:has(input:checked)" in css
+    assert "opacity: 0; pointer-events: none" not in css
     assert '$("landmark-dialog").show();' not in javascript
     assert "#landmark-panel" in css
     assert ".actions .btn-ghost { color: #173c37;" in css

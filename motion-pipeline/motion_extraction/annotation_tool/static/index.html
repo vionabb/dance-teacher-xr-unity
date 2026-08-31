@@ -13,16 +13,14 @@
     <div class="btn btn-circle btn-ghost text-accent" aria-hidden="true">◈</div>
     <div>
       <p class="text-xs font-bold uppercase tracking-widest text-primary-content/70">Motion extraction</p>
-      <h1>Frame overlay review</h1>
+      <h1 class="text-lg font-bold tracking-tight">Frame overlay review</h1>
     </div>
     <div class="navbar-end">
-      <div id="user-menu" class="user-menu dropdown dropdown-end" hidden>
-        <details>
-          <summary id="logged-in-annotator" class="btn btn-ghost btn-sm"></summary>
-          <ul class="dropdown-content menu menu-sm z-10 mt-2 w-32 rounded-box bg-base-100 p-2 shadow-lg">
-            <li><button id="logout" type="button">Log out</button></li>
-          </ul>
-        </details>
+      <div id="user-menu" class="user-menu" hidden>
+        <button id="logged-in-annotator" class="btn btn-ghost btn-sm" popovertarget="user-menu-popover" style="anchor-name:--user-menu-anchor"></button>
+        <ul class="dropdown dropdown-end menu menu-sm bg-base-100 rounded-box z-1 mt-2 w-32 p-2 shadow-sm" popover id="user-menu-popover" style="position-anchor:--user-menu-anchor">
+          <li><button id="logout" type="button">Log out</button></li>
+        </ul>
       </div>
     </div>
   </header>
@@ -50,7 +48,7 @@
         <aside id="landmark-panel" class="card card-border self-center p-4" aria-labelledby="landmark-dialog-title">
           <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Selected landmark</span>
           <h3 id="landmark-dialog-title">Select a landmark</h3>
-          <fieldset><legend>Occlusion</legend><div id="landmark-occlusion-options"></div></fieldset>
+          <fieldset class="fieldset"><legend class="fieldset-legend">Occlusion</legend><div id="landmark-occlusion-options" class="grid gap-1"></div></fieldset>
         </aside>
         <div id="editor-viewport"><button id="reset-skeleton" class="btn btn-sm" type="button">Reset</button><canvas id="ground-truth-canvas" aria-label="Editable skeleton over source frame"></canvas></div>
       </div>
@@ -58,8 +56,8 @@
 
     <section id="annotation-screen" class="card card-border bg-base-100 p-4 shadow-sm">
       <div class="section-heading compact"><div><span class="step-badge">02</span><h2>Describe the frame</h2></div><p>Record how much of the source evidence you can trust.</p></div>
-      <fieldset id="source-evidence-quality" class="fieldset"><legend>How clear is this frame?</legend><div id="source-evidence-quality-options"></div></fieldset>
-      <fieldset id="source-evidence-factors" class="fieldset"><legend>What makes it difficult? <span>(optional)</span></legend><div id="source-evidence-factor-options"></div></fieldset>
+      <fieldset id="source-evidence-quality" class="fieldset"><legend class="fieldset-legend">How clear is this frame?</legend><div id="source-evidence-quality-options"></div></fieldset>
+      <fieldset id="source-evidence-factors" class="fieldset"><legend class="fieldset-legend">What makes it difficult? <span>(optional)</span></legend><div id="source-evidence-factor-options"></div></fieldset>
       <label class="note-field" for="frame-note">Note (optional)<textarea id="frame-note" class="textarea" placeholder="Anything useful about this frame"></textarea></label>
     </section>
 
@@ -82,26 +80,29 @@
         <button id="temporal-speed-half" class="btn btn-sm" type="button" aria-pressed="false">0.5×</button>
         <button id="temporal-speed-normal" class="btn btn-sm btn-active" type="button" aria-pressed="true">1×</button>
       </div>
-      <fieldset class="temporal-response">
-        <legend>Which candidate best follows the source motion?</legend>
-        <div id="temporal-choice-options">
-          <label><input type="radio" name="temporal-choice" value="A"> Candidate A</label>
-          <label><input type="radio" name="temporal-choice" value="B"> Candidate B</label>
-          <label><input type="radio" name="temporal-choice" value="C"> Candidate C</label>
-          <label><input type="radio" name="temporal-choice" value="no_discernible_difference"> No discernible difference</label>
-          <label><input type="radio" name="temporal-choice" value="cannot_judge"> Cannot judge</label>
+      <fieldset class="fieldset bg-base-200 rounded-box p-3 mt-2">
+        <legend class="fieldset-legend">Which candidate best follows the source motion?</legend>
+        <div id="temporal-choice-options" class="flex flex-wrap gap-1">
+          <label class="label cursor-pointer justify-start gap-2"><input type="radio" class="radio radio-sm" name="temporal-choice" value="A"> Candidate A</label>
+          <label class="label cursor-pointer justify-start gap-2"><input type="radio" class="radio radio-sm" name="temporal-choice" value="B"> Candidate B</label>
+          <label class="label cursor-pointer justify-start gap-2"><input type="radio" class="radio radio-sm" name="temporal-choice" value="C"> Candidate C</label>
+          <label class="label cursor-pointer justify-start gap-2"><input type="radio" class="radio radio-sm" name="temporal-choice" value="no_discernible_difference"> No discernible difference</label>
+          <label class="label cursor-pointer justify-start gap-2"><input type="radio" class="radio radio-sm" name="temporal-choice" value="cannot_judge"> Cannot judge</label>
         </div>
       </fieldset>
-      <fieldset id="temporal-confidence">
-        <legend>Confidence</legend>
-        <div>
-          <label><input type="radio" name="temporal-confidence" value="low"> Low</label>
-          <label><input type="radio" name="temporal-confidence" value="medium"> Medium</label>
-          <label><input type="radio" name="temporal-confidence" value="high"> High</label>
+      <fieldset id="temporal-confidence" class="fieldset bg-base-200 rounded-box p-3 mt-2">
+        <legend class="fieldset-legend">Confidence</legend>
+        <div class="flex flex-wrap gap-1">
+          <label class="label cursor-pointer justify-start gap-2"><input type="radio" class="radio radio-sm" name="temporal-confidence" value="low"> Low</label>
+          <label class="label cursor-pointer justify-start gap-2"><input type="radio" class="radio radio-sm" name="temporal-confidence" value="medium"> Medium</label>
+          <label class="label cursor-pointer justify-start gap-2"><input type="radio" class="radio radio-sm" name="temporal-confidence" value="high"> High</label>
         </div>
-        <p id="temporal-confidence-help" class="small">Required unless you choose “Cannot judge.”</p>
+        <p id="temporal-confidence-help" class="text-xs text-base-content/60 mt-1">Required unless you choose “Cannot judge.”</p>
       </fieldset>
-      <label class="note-field" for="temporal-note">Note (optional)<textarea id="temporal-note" class="textarea" placeholder="What made the difference visible or difficult to judge?"></textarea></label>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Note (optional)</legend>
+        <textarea id="temporal-note" class="textarea w-full" aria-label="Note (optional)" placeholder="What made the difference visible or difficult to judge?"></textarea>
+      </fieldset>
     </section>
 
     <section id="triage-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
@@ -133,7 +134,7 @@
     <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
-        <p>Play the clip. For each error you see, pick its type, seek to where it starts and ends, and mark the range.</p>
+        <p>Mark which body part is inaccurate and for which frames. Ranges from different body parts can overlap. Attribute a probable cause to each mark separately, any time.</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <span id="error-marking-category-badge" class="badge badge-soft"></span>
@@ -153,13 +154,13 @@
       </div>
 
       <fieldset class="fieldset bg-base-200 rounded-box p-3 mt-3">
-        <legend class="fieldset-legend">Mark an error</legend>
+        <legend class="fieldset-legend">Mark a skeletal error</legend>
         <div class="flex flex-wrap items-end gap-2">
           <div>
-            <label class="label" for="error-marking-type-select">Error type</label>
+            <label class="label" for="error-marking-body-part-select">Body part</label>
             <div class="join">
-              <select id="error-marking-type-select" class="select select-sm join-item"></select>
-              <button id="error-marking-manage-types" class="btn btn-sm join-item" type="button">Edit list</button>
+              <select id="error-marking-body-part-select" class="select select-sm join-item"></select>
+              <button id="error-marking-manage-body-parts" class="btn btn-sm join-item" type="button">Edit list</button>
             </div>
           </div>
           <button id="error-marking-mark-start" class="btn btn-sm" type="button">Mark start here</button>
@@ -169,7 +170,13 @@
         <div id="error-marking-pending-hint" role="alert" class="alert alert-info alert-soft mt-2 text-sm" hidden></div>
       </fieldset>
 
-      <ul id="error-marking-list" class="list bg-base-200 rounded-box mt-3"></ul>
+      <div id="error-marking-timeline" class="mt-3"></div>
+
+      <div class="mt-3 flex items-center justify-between gap-2">
+        <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Marked errors and probable causes</span>
+        <button id="error-marking-manage-causes" class="btn btn-xs btn-ghost" type="button">Edit cause list</button>
+      </div>
+      <ul id="error-marking-list" class="list bg-base-200 rounded-box mt-1"></ul>
 
       <label class="label cursor-pointer justify-start gap-2 mt-3">
         <input id="error-marking-none-found" type="checkbox" class="checkbox checkbox-sm">
@@ -177,7 +184,7 @@
       </label>
       <fieldset class="fieldset">
         <legend class="fieldset-legend">Note (optional)</legend>
-        <textarea id="error-marking-note" class="textarea w-full" aria-label="Note (optional)" placeholder="Anything else worth flagging"></textarea>
+        <textarea id="error-marking-note" class="textarea w-full" aria-label="Note (optional)" placeholder="Anything else worth noting"></textarea>
       </fieldset>
     </section>
 
@@ -218,19 +225,25 @@
     </section>
   </main>
 
-  <dialog id="image-dialog" class="modal"><button id="close-dialog" class="btn" type="button" aria-label="Close enlarged image">Close</button><img id="dialog-image" alt="Enlarged review image"></dialog>
+  <dialog id="image-dialog" class="modal">
+    <div class="modal-box w-11/12 max-w-5xl">
+      <form method="dialog"><button id="close-dialog" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" type="button" aria-label="Close enlarged image">✕</button></form>
+      <img id="dialog-image" class="w-full rounded-box object-contain" alt="Enlarged review image">
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
 
-  <dialog id="error-type-manager-dialog" class="modal">
+  <dialog id="list-manager-dialog" class="modal">
     <div class="modal-box">
-      <h3 class="text-lg font-bold">Error types</h3>
-      <p class="py-2 text-sm text-base-content/70">Rename, remove, or add the error types available when marking a clip. Changes are saved on this device.</p>
-      <ul id="error-type-manager-list" class="list"></ul>
+      <h3 id="list-manager-title" class="text-lg font-bold">List</h3>
+      <p class="py-2 text-sm text-base-content/70">Rename, remove, or add entries. Changes are saved on this device.</p>
+      <ul id="list-manager-list" class="list"></ul>
       <div class="join mt-3">
-        <input id="error-type-manager-new-label" class="input input-sm join-item" type="text" aria-label="New error type name" placeholder="New error type name">
-        <button id="error-type-manager-add" class="btn btn-sm join-item" type="button">Add</button>
+        <input id="list-manager-new-label" class="input input-sm join-item" type="text" aria-label="New entry name" placeholder="New entry name">
+        <button id="list-manager-add" class="btn btn-sm join-item" type="button">Add</button>
       </div>
       <div class="modal-action">
-        <button id="error-type-manager-reset" class="btn btn-sm btn-ghost" type="button">Reset to defaults</button>
+        <button id="list-manager-reset" class="btn btn-sm btn-ghost" type="button">Reset to defaults</button>
         <form method="dialog"><button class="btn btn-sm">Done</button></form>
       </div>
     </div>
