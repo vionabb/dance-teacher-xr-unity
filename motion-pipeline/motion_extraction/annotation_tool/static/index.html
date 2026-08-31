@@ -134,7 +134,7 @@
     <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
-        <p>Mark which body part is inaccurate and for which frames using the timeline below, or the frame stepper and buttons for precise placement.</p>
+        <p>Mark which body part is inaccurate and for which frames using the timeline below. Step to a frame, then click that body part's + to start an error there.</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <span id="error-marking-category-badge" class="badge badge-soft"></span>
@@ -153,30 +153,12 @@
         <span id="error-marking-frame-indicator" class="badge badge-lg font-mono" aria-live="polite">frame 0 / 0</span>
       </div>
 
-      <fieldset class="fieldset bg-base-200 rounded-box p-3 mt-3">
-        <legend class="fieldset-legend">Mark a skeletal error</legend>
-        <div class="flex flex-wrap items-end gap-2">
-          <div>
-            <label class="label" for="error-marking-body-part-select">Body part</label>
-            <div class="join">
-              <select id="error-marking-body-part-select" class="select select-sm join-item"></select>
-              <button id="error-marking-manage-body-parts" class="btn btn-sm join-item" type="button">Edit list</button>
-            </div>
-          </div>
-          <button id="error-marking-mark-start" class="btn btn-sm" type="button">Mark start here</button>
-          <button id="error-marking-mark-end" class="btn btn-sm btn-primary" type="button" disabled title="Click this on the first frame where the error is no longer visible">Mark end (first OK frame)</button>
-          <button id="error-marking-cancel-pending" class="btn btn-sm btn-ghost" type="button" hidden>Cancel</button>
-        </div>
-        <div id="error-marking-pending-hint" role="alert" class="alert alert-info alert-soft mt-2 text-sm" hidden></div>
-      </fieldset>
+      <div class="mt-3 flex justify-end">
+        <button id="error-marking-manage-body-parts" class="btn btn-xs btn-ghost" type="button">Edit body-part list</button>
+      </div>
+      <div id="error-marking-timeline" class="mt-1"></div>
 
-      <div id="error-marking-timeline" class="mt-3"></div>
-
-      <label class="label cursor-pointer justify-start gap-2 mt-3">
-        <input id="error-marking-none-found" type="checkbox" class="checkbox checkbox-sm">
-        No errors observed in this clip
-      </label>
-      <fieldset class="fieldset">
+      <fieldset class="fieldset mt-3">
         <legend class="fieldset-legend">Note (optional)</legend>
         <textarea id="error-marking-note" class="textarea w-full" aria-label="Note (optional)" placeholder="Anything else worth noting"></textarea>
       </fieldset>
@@ -256,6 +238,8 @@
         <button id="error-marking-manage-causes" class="btn btn-xs btn-ghost" type="button">Edit cause list</button>
       </div>
       <div id="error-mark-dialog-causes" class="mt-1 flex flex-wrap gap-1"></div>
+      <label class="label mt-3 text-xs font-bold uppercase tracking-widest text-base-content/60" for="error-mark-dialog-note">Note (optional)</label>
+      <textarea id="error-mark-dialog-note" class="textarea textarea-sm w-full" placeholder="Anything specific about this error"></textarea>
       <div class="modal-action">
         <button id="error-mark-dialog-remove" class="btn btn-sm btn-error btn-outline" type="button">Remove mark</button>
         <form method="dialog"><button class="btn btn-sm">Done</button></form>
