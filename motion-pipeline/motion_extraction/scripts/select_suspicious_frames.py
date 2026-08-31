@@ -24,7 +24,9 @@ from dance_teacher_pose import PoseDataType, get_pose_data_schema, preprocess_po
 from motion_extraction.scripts.run_preprocessing_experiment import _visible_roots
 
 
-def per_frame_suspicion(raw: pd.DataFrame, clean: pd.DataFrame) -> pd.DataFrame:
+def per_frame_suspicion(
+    raw: pd.DataFrame, clean: pd.DataFrame, *, roots: list[str] | None = None
+) -> pd.DataFrame:
     """Return a per-frame DataFrame of jump/visibility features and a combined score.
 
     - ``max_velocity``: largest torso-normalized frame-to-frame displacement
@@ -35,10 +37,15 @@ def per_frame_suspicion(raw: pd.DataFrame, clean: pd.DataFrame) -> pd.DataFrame:
     - ``visibility_drop``: how much the minimum visibility fell versus the
       previous frame (catches the moment tracking is lost, not just frames
       that are already low-visibility throughout, e.g. a mostly-cropped clip).
+
+    ``roots`` restricts scoring to a specific landmark subset (e.g. the 6
+    arm/shoulder landmarks, excluding hips -- see the 2026-08-30 out-of-frame
+    analysis in the quality-gate handoff doc for why hip visibility alone
+    isn't a meaningful defect signal). Defaults to every visible landmark.
     """
 
     fields = get_pose_data_schema(PoseDataType.pose2d).coordinate_fields
-    roots = _visible_roots(clean, fields)
+    roots = roots if roots is not None else _visible_roots(clean, fields)
     frame_count = len(clean)
 
     velocity_by_frame = np.zeros((frame_count, len(roots)))
