@@ -88,9 +88,18 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .status-unjudged { color: #777; }.status-completed { color: #16745f; }.status-skipped { color: #9a6500; }.status-unclear { color: #7b4594; }
 
 #error-marking-video { display: block; max-height: 32vh; margin: 0 auto; background: #111817; border-radius: .75rem; object-fit: contain; }
-.timeline-row { display: flex; align-items: center; gap: .6rem; margin-bottom: .4rem; }
+.timeline-grid { display: flex; align-items: stretch; gap: .6rem; }
+.timeline-left-col { display: flex; flex: 0 0 auto; flex-direction: column; gap: .4rem; min-width: 0; }
+.timeline-row-header { display: flex; align-items: center; gap: .4rem; height: 1.6rem; }
 .timeline-row-label { flex: 0 0 6.5rem; overflow: hidden; color: var(--muted); font-size: .78rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.timeline-row-track { position: relative; flex: 1 1 auto; height: 1.6rem; background: #e2e9e6; border-radius: .4rem; cursor: crosshair; touch-action: none; }
+.timeline-add-btn { flex: 0 0 auto; min-height: 1.6rem; height: 1.6rem; width: 1.6rem; padding: 0; font-size: 1rem; line-height: 1; }
+/* The timeline needs at least MIN_TIMELINE_PX_PER_FRAME px/frame (set in app.js)
+   to stay clickable/draggable on long clips, so the track column scrolls
+   horizontally on its own once the frame count outgrows the available width;
+   the label/+ column stays fixed so it's always reachable without scrolling. */
+.timeline-scroll { flex: 1 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden; padding-bottom: .25rem; }
+.timeline-scroll-inner { display: flex; flex-direction: column; gap: .4rem; width: 100%; }
+.timeline-row-track { position: relative; height: 1.6rem; background: #e2e9e6; border-radius: .4rem; cursor: crosshair; touch-action: none; }
 .timeline-segment { position: absolute; top: 0; bottom: 0; min-width: 1.5%; border-radius: .35rem; cursor: pointer; box-shadow: inset 0 0 0 1px #00000022; }
 .timeline-segment:hover { filter: brightness(1.08); }
 .timeline-handle { position: absolute; top: -.15rem; bottom: -.15rem; width: .85rem; cursor: ew-resize; touch-action: none; }

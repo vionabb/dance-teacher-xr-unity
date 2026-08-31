@@ -4,9 +4,9 @@ const state = {
   initialGroundTruth: {}, initialLandmarkSources: {}, landmarkInteractions: {}, sourceImage: null,
   sourceObjectUrl: null, dragLandmark: null, dragStart: null, dragMoved: false,
   activePointers: new Map(), selectedLandmark: null, screen: "skeleton",
-  temporalPlaybackRate: 1, errorMarks: [], pendingMark: null,
+  temporalPlaybackRate: 1, errorMarks: [],
   errorBodyParts: [], errorCauses: [], editingListKind: "body_part",
-  activeMarkIndex: null,
+  activeMarkIndex: null, errorMarkingNoErrorsConfirmed: false,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -258,11 +258,10 @@ const FALLBACK_ERROR_LISTS = {
   body_part: [
     {id: "right_arm", label: "Right arm"},
     {id: "left_arm", label: "Left arm"},
-    {id: "right_hip", label: "Right hip"},
-    {id: "left_hip", label: "Left hip"},
+    {id: "hips", label: "Hips"},
     {id: "right_leg", label: "Right leg"},
     {id: "left_leg", label: "Left leg"},
-    {id: "torso", label: "Torso"},
+    {id: "torso", label: "Shoulders"},
     {id: "head", label: "Head"},
     {id: "other", label: "Other"},
   ],
@@ -279,10 +278,34 @@ function defaultErrorList(kind) {
   return source.map((item) => ({...item}));
 }
 
+// One-time forward-migration for a device's already-persisted body-part list:
+// merges a still-default "Right hip"/"Left hip" pair into one "Hips" entry,
+// and renames a still-default "Torso" label to "Shoulders" (same id, so any
+// already-submitted marks tagged with it keep displaying correctly under the
+// new label). Only touches entries an annotator hasn't already customized
+// away from the shipped defaults.
+function migrateBodyPartDefaults(list) {
+  const torso = list.find((item) => item.id === "torso");
+  if (torso && torso.label === "Torso") torso.label = "Shoulders";
+  const rightHip = list.find((item) => item.id === "right_hip" && item.label === "Right hip");
+  const leftHip = list.find((item) => item.id === "left_hip" && item.label === "Left hip");
+  if (rightHip && leftHip) {
+    rightHip.id = "hips";
+    rightHip.label = "Hips";
+    list.splice(list.indexOf(leftHip), 1);
+  }
+  return list;
+}
+
 function loadErrorList(kind) {
   try {
     const stored = JSON.parse(localStorage.getItem(ERROR_LIST_STORAGE_KEYS[kind]) || "null");
-    if (Array.isArray(stored) && stored.length) return stored;
+    if (Array.isArray(stored) && stored.length) {
+      if (kind !== "body_part") return stored;
+      const migrated = migrateBodyPartDefaults(stored);
+      localStorage.setItem(ERROR_LIST_STORAGE_KEYS[kind], JSON.stringify(migrated));
+      return migrated;
+    }
   } catch (error) { /* ignore malformed storage, fall through to defaults */ }
   return defaultErrorList(kind);
 }
@@ -295,17 +318,9 @@ function errorListArray(kind) { return state[ERROR_LIST_STATE_KEYS[kind]]; }
 function labelFor(kind, id) { return (errorListArray(kind).find((item) => item.id === id) || {}).label || id; }
 function bodyPartLabel(id) { return labelFor("body_part", id); }
 
-function populateBodyPartSelect() {
-  const select = $("error-marking-body-part-select");
-  const previous = select.value;
-  select.innerHTML = errorListArray("body_part").map((item) => `<option value="${item.id}">${item.label}</option>`).join("");
-  if ([...select.options].some((option) => option.value === previous)) select.value = previous;
-}
-
 function saveErrorList(kind, list) {
   state[ERROR_LIST_STATE_KEYS[kind]] = list;
   localStorage.setItem(ERROR_LIST_STORAGE_KEYS[kind], JSON.stringify(list));
-  if (kind === "body_part") populateBodyPartSelect();
   const task = state.data?.tasks?.[state.taskIndex];
   if (task && isErrorMarkingTask(task)) renderErrorMarkingTimeline();
   if (kind === "cause" && state.activeMarkIndex != null && $("error-mark-dialog").open) {
@@ -349,9 +364,21 @@ function errorMarkingFps() { return Number(state.data.tasks[state.taskIndex].fps
 function errorMarkingFrameCount() { return Number(state.data.tasks[state.taskIndex].frame_count) || 0; }
 function errorMarkingCurrentFrame() { return Math.round(errorMarkingVideo().currentTime * errorMarkingFps()); }
 
+function frameCoveredForPart(partId, frame) {
+  return state.errorMarks.some((mark) => mark.body_part === partId && frame >= mark.start_frame && frame <= mark.end_frame);
+}
+
+function updateTimelineAddButtons() {
+  const frame = errorMarkingCurrentFrame();
+  $("error-marking-timeline").querySelectorAll("[data-add-part]").forEach((button) => {
+    button.disabled = frameCoveredForPart(button.dataset.addPart, frame);
+  });
+}
+
 function updateErrorMarkingFrameIndicator() {
   const total = errorMarkingFrameCount();
   $("error-marking-frame-indicator").textContent = `frame ${errorMarkingCurrentFrame()} / ${Math.max(total - 1, 0)}`;
+  updateTimelineAddButtons();
 }
 
 function stepErrorMarkingVideo(deltaFrames) {
@@ -360,16 +387,6 @@ function stepErrorMarkingVideo(deltaFrames) {
   video.pause();
   video.currentTime = Math.max(0, Math.min(maxTime, video.currentTime + deltaFrames / fps));
   updateErrorMarkingFrameIndicator();
-}
-
-function updateErrorMarkingPendingUI() {
-  const pending = state.pendingMark;
-  $("error-marking-mark-end").disabled = !pending;
-  $("error-marking-cancel-pending").hidden = !pending;
-  $("error-marking-pending-hint").hidden = !pending;
-  if (pending) {
-    $("error-marking-pending-hint").textContent = `${bodyPartLabel(pending.body_part)} start marked at frame ${pending.start_frame}. Seek to the first frame where it's no longer visible, then click “Mark end (first OK frame).”`;
-  }
 }
 
 const CAUSE_COLOR_PALETTE = ["#e0578c", "#3a8fd9", "#e0a63a", "#5fb87a", "#9366c9", "#e0653a", "#3ab7b0", "#b08c3a"];
@@ -398,8 +415,11 @@ function timelineRowGroups() {
   return groups;
 }
 
+const MIN_TIMELINE_PX_PER_FRAME = 6;
+
 function timelineSegmentTitle(mark) {
-  return `${bodyPartLabel(mark.body_part)}: frames ${mark.start_frame}–${mark.end_frame} (click to set cause, drag edges to adjust)`;
+  const base = `${bodyPartLabel(mark.body_part)}: frames ${mark.start_frame}–${mark.end_frame} (click to set cause, drag edges to adjust)`;
+  return mark.note ? `${base}\nNote: ${mark.note}` : base;
 }
 
 function renderTimelineSegment(index, frameCount) {
@@ -433,14 +453,37 @@ function renderErrorMarkingTimeline() {
   const container = $("error-marking-timeline");
   const groups = timelineRowGroups();
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
-  container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Click an empty part of a body part's timeline to add an error there, then drag to set how long it lasts. Click an existing span to set its cause; drag its edges to adjust.</div>` +
-    groups.map(({part, indices}) => `
-      <div class="timeline-row">
-        <span class="timeline-row-label">${part.label}</span>
-        <div class="timeline-row-track" data-track-part="${part.id}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>
-      </div>`
-    ).join("") + renderErrorMarkingLegend();
+  const currentFrame = errorMarkingCurrentFrame();
+  const minTrackWidth = Math.max(1, errorMarkingFrameCount()) * MIN_TIMELINE_PX_PER_FRAME;
+
+  const leftColHTML = groups.map(({part}) => `
+    <div class="timeline-row-header">
+      <span class="timeline-row-label">${part.label}</span>
+      <button type="button" class="btn btn-xs btn-circle timeline-add-btn" data-add-part="${part.id}" aria-label="Start a new ${part.label} error at the current frame" title="Start a new ${part.label} error at the current frame" ${frameCoveredForPart(part.id, currentFrame) ? "disabled" : ""}>+</button>
+    </div>`
+  ).join("");
+
+  const tracksHTML = groups.map(({part, indices}) =>
+    `<div class="timeline-row-track" data-track-part="${part.id}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>`
+  ).join("");
+
+  container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Click + to start a new error at the current frame, or click-drag an empty part of the timeline. Click an existing span to set its cause; drag its edges to adjust.</div>` +
+    `<div class="timeline-grid">
+      <div class="timeline-left-col">${leftColHTML}</div>
+      <div class="timeline-scroll"><div class="timeline-scroll-inner" style="min-width:${minTrackWidth}px">${tracksHTML}</div></div>
+    </div>` + renderErrorMarkingLegend();
   attachTimelineHandlers();
+}
+
+function addMarkAtCurrentFrame(partId) {
+  const frame = errorMarkingCurrentFrame();
+  if (frameCoveredForPart(partId, frame)) return;
+  state.errorMarks.push({body_part: partId, start_frame: frame, end_frame: frame, causes: [], note: ""});
+  const index = state.errorMarks.length - 1;
+  state.errorMarkingNoErrorsConfirmed = false;
+  renderErrorMarkingTimeline();
+  scheduleSave("started");
+  openErrorMarkPopup(index);
 }
 
 function attachTimelineHandlers() {
@@ -451,6 +494,8 @@ function attachTimelineHandlers() {
   if (container.dataset.handlersAttached) return;
   container.dataset.handlersAttached = "1";
   container.addEventListener("click", (event) => {
+    const addButton = event.target.closest("[data-add-part]");
+    if (addButton) { if (!addButton.disabled) addMarkAtCurrentFrame(addButton.dataset.addPart); return; }
     const segment = event.target.closest(".timeline-segment");
     if (!segment || event.target.closest(".timeline-handle")) return;
     openErrorMarkPopup(Number(segment.dataset.markIndex));
@@ -499,6 +544,11 @@ function startTimelineHandleDrag(event, handleEl) {
     if (dragged) {
       renderErrorMarkingTimeline();
       scheduleSave("started");
+    } else {
+      // A plain tap on a handle, with no movement: on a very short mark the
+      // handles can cover its whole visible width, leaving no other spot to
+      // click, so this is the only way to reach the popup for it.
+      openErrorMarkPopup(index);
     }
   }
 
@@ -521,8 +571,9 @@ function startNewMarkDrag(event, track) {
   }
 
   const originFrame = frameFromClientX(event.clientX, track);
-  state.errorMarks.push({body_part: partId, start_frame: originFrame, end_frame: originFrame, causes: []});
+  state.errorMarks.push({body_part: partId, start_frame: originFrame, end_frame: originFrame, causes: [], note: ""});
   const index = state.errorMarks.length - 1;
+  state.errorMarkingNoErrorsConfirmed = false;
   video.currentTime = Math.max(0, originFrame / fps);
   updateErrorMarkingFrameIndicator();
   renderErrorMarkingTimeline();
@@ -598,6 +649,7 @@ function openErrorMarkPopup(index) {
   $("error-mark-dialog-title").textContent = bodyPartLabel(mark.body_part);
   $("error-mark-dialog-frames").textContent = `frames ${mark.start_frame}–${mark.end_frame}`;
   renderErrorMarkDialogCauses(mark);
+  $("error-mark-dialog-note").value = mark.note || "";
   $("error-mark-dialog").showModal();
   captureErrorMarkPreview(mark).catch(() => {});
 }
@@ -609,7 +661,6 @@ function renderErrorMarkingTask(task, judgment) {
   $("mark-unclear").hidden = true;
 
   $("error-marking-category-badge").textContent = TRIAGE_CATEGORY_LABELS[task.category] || task.category || "";
-  populateBodyPartSelect();
 
   const video = errorMarkingVideo();
   video.pause();
@@ -618,13 +669,11 @@ function renderErrorMarkingTask(task, judgment) {
   video.ontimeupdate = updateErrorMarkingFrameIndicator;
   video.onloadedmetadata = () => { updateErrorMarkingFrameIndicator(); renderErrorMarkingTimeline(); };
 
-  state.pendingMark = null;
   const response = judgment?.error_marking_response || {};
-  state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], ...mark}));
+  state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], note: "", ...mark}));
+  state.errorMarkingNoErrorsConfirmed = false;
   renderErrorMarkingTimeline();
-  updateErrorMarkingPendingUI();
   updateErrorMarkingFrameIndicator();
-  $("error-marking-none-found").checked = Boolean(response.no_errors_found);
   $("error-marking-note").value = response.note || "";
   $("error-marking-note").oninput = () => scheduleSave("started");
 }
@@ -632,7 +681,7 @@ function renderErrorMarkingTask(task, judgment) {
 function errorMarkingResponsePayload() {
   return {
     marks: state.errorMarks,
-    no_errors_found: $("error-marking-none-found").checked,
+    no_errors_found: state.errorMarks.length === 0 && Boolean(state.errorMarkingNoErrorsConfirmed),
     note: $("error-marking-note").value.trim(),
   };
 }
@@ -1004,11 +1053,12 @@ function lockInteraction(locked) {
   $("workspace").querySelectorAll("button, select, input, textarea").forEach((element) => { element.disabled = locked; });
   $("ground-truth-canvas").style.pointerEvents = locked ? "none" : "auto";
   // Unlocking re-enables every control indiscriminately; task screens with a
-  // control that should stay conditionally disabled (e.g. "Mark end here"
-  // before a pending mark exists) must re-apply their own disabled state.
+  // control that should stay conditionally disabled (the per-body-part "+"
+  // buttons when the current frame is already covered) must re-apply their
+  // own disabled state.
   if (!locked) {
     const task = state.data?.tasks?.[state.taskIndex];
-    if (task && isErrorMarkingTask(task)) updateErrorMarkingPendingUI();
+    if (task && isErrorMarkingTask(task)) updateTimelineAddButtons();
   }
 }
 async function navigateTo(targetIndex) {
@@ -1048,6 +1098,11 @@ if (rememberedToken || rememberedAnnotator) {
 }
 if (rememberedToken && rememberedAnnotator) loadState();
 document.querySelectorAll(".actions button[data-status]").forEach((button) => button.onclick = async () => {
+  const task = state.data?.tasks?.[state.taskIndex];
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarks.length) {
+    if (!confirm("No errors were marked for this clip. Complete it as “no errors observed”?")) return;
+    state.errorMarkingNoErrorsConfirmed = true;
+  }
   lockInteraction(true);
   try {
     if (!(await flushPendingSave())) return;
@@ -1069,22 +1124,11 @@ $("error-marking-step-back-10").onclick = () => stepErrorMarkingVideo(-10);
 $("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
 $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
 $("error-marking-step-forward-10").onclick = () => stepErrorMarkingVideo(10);
-$("error-marking-mark-start").onclick = () => {
-  state.pendingMark = {body_part: $("error-marking-body-part-select").value, start_frame: errorMarkingCurrentFrame()};
-  updateErrorMarkingPendingUI();
-};
-$("error-marking-mark-end").onclick = () => {
-  if (!state.pendingMark) return;
-  const end = errorMarkingCurrentFrame();
-  const start = Math.min(state.pendingMark.start_frame, end), finish = Math.max(state.pendingMark.start_frame, end);
-  state.errorMarks.push({body_part: state.pendingMark.body_part, start_frame: start, end_frame: finish, causes: []});
-  state.pendingMark = null;
-  updateErrorMarkingPendingUI();
-  renderErrorMarkingTimeline();
+$("error-mark-dialog-note").oninput = () => {
+  if (state.activeMarkIndex == null) return;
+  state.errorMarks[state.activeMarkIndex].note = $("error-mark-dialog-note").value;
   scheduleSave("started");
 };
-$("error-marking-cancel-pending").onclick = () => { state.pendingMark = null; updateErrorMarkingPendingUI(); };
-$("error-marking-none-found").onchange = () => scheduleSave("started");
 $("error-mark-dialog-remove").onclick = () => {
   if (state.activeMarkIndex == null) return;
   state.errorMarks.splice(state.activeMarkIndex, 1);

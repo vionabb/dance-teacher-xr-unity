@@ -32,6 +32,7 @@ TEMPORAL_CHOICES = {
 TEMPORAL_CONFIDENCES = {"low", "medium", "high"}
 TRIAGE_VERDICTS = {"fine", "problematic", "cannot_judge"}
 ERROR_MARK_LABEL_MAX_LENGTH = 64
+ERROR_MARK_NOTE_MAX_LENGTH = 500
 # A skeletal error (which body part is inaccurate, over which frames) is
 # recorded separately from its guessed cause(s), so one clip can carry
 # several independently-typed, independently-timed, and possibly-overlapping
@@ -41,11 +42,10 @@ ERROR_MARK_LABEL_MAX_LENGTH = 64
 DEFAULT_ERROR_BODY_PARTS = [
     {"id": "right_arm", "label": "Right arm"},
     {"id": "left_arm", "label": "Left arm"},
-    {"id": "right_hip", "label": "Right hip"},
-    {"id": "left_hip", "label": "Left hip"},
+    {"id": "hips", "label": "Hips"},
     {"id": "right_leg", "label": "Right leg"},
     {"id": "left_leg", "label": "Left leg"},
-    {"id": "torso", "label": "Torso"},
+    {"id": "torso", "label": "Shoulders"},
     {"id": "head", "label": "Head"},
     {"id": "other", "label": "Other"},
 ]
@@ -572,12 +572,18 @@ class AnnotationStore:
                     )
                 if cause not in causes:
                     causes.append(cause)
+            mark_note = str(item.get("note", "")).strip()
+            if len(mark_note) > ERROR_MARK_NOTE_MAX_LENGTH:
+                raise ValueError(
+                    f"each mark note must be at most {ERROR_MARK_NOTE_MAX_LENGTH} characters"
+                )
             marks.append(
                 {
                     "body_part": body_part,
                     "start_frame": start_frame,
                     "end_frame": end_frame,
                     "causes": causes,
+                    "note": mark_note,
                 }
             )
         no_errors_found = bool(value.get("no_errors_found", False))
