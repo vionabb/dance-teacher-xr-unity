@@ -77,3 +77,16 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   data, fix what's fixable, exclude what isn't, before any further
   optimization. Live implementation plan and status:
   [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).
+
+- [Handoff: corpus-wide quality triage + defect localization](2026-08-27-preprocessing-quality-gate-pivot-handoff.md)
+  (living document — status as of 2026-08-30) Compared Claude's judgments
+  against Viona's on the 60-task Stage-1 triage batch: crop alone doesn't
+  predict "problematic," false-tracking only validates when the actual flagged
+  window is shown, ~44% of random controls have undetected defects. Full-corpus
+  analysis of the 8 CHI25 upper-body landmarks found simple framing exclusion
+  would drop ~59% of the corpus (almost entirely hips, not arms) and that
+  MediaPipe's visibility score is trustworthy for wrists but not hips/shoulders.
+  A first test of automatic occlusion-error detection was inconclusive. Built
+  two new annotation-tool task types (`error_marking`, `video_quality_rating`)
+  with pilot batches now in Viona's queue, and fixed a CDN mismatch that had
+  the whole tool rendering unstyled.
