@@ -134,7 +134,7 @@
     <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
-        <p>Mark which body part is inaccurate and for which frames. Click a marked span to set its probable cause; drag its edges to adjust the frames. Ranges from different body parts can overlap.</p>
+        <p>Mark which body part is inaccurate and for which frames using the timeline below, or the frame stepper and buttons for precise placement.</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <span id="error-marking-category-badge" class="badge badge-soft"></span>
@@ -171,12 +171,6 @@
       </fieldset>
 
       <div id="error-marking-timeline" class="mt-3"></div>
-
-      <div class="mt-3 flex items-center justify-between gap-2">
-        <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Marked errors and probable causes</span>
-        <button id="error-marking-manage-causes" class="btn btn-xs btn-ghost" type="button">Edit cause list</button>
-      </div>
-      <ul id="error-marking-list" class="list bg-base-200 rounded-box mt-1"></ul>
 
       <label class="label cursor-pointer justify-start gap-2 mt-3">
         <input id="error-marking-none-found" type="checkbox" class="checkbox checkbox-sm">
@@ -257,10 +251,11 @@
       <figure class="mt-2">
         <canvas id="error-mark-dialog-preview" class="w-full rounded-box bg-base-300" width="320" height="180"></canvas>
       </figure>
-      <div class="mt-3">
+      <div class="mt-3 flex items-center justify-between gap-2">
         <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Probable cause</span>
-        <div id="error-mark-dialog-causes" class="mt-1 flex flex-wrap gap-1"></div>
+        <button id="error-marking-manage-causes" class="btn btn-xs btn-ghost" type="button">Edit cause list</button>
       </div>
+      <div id="error-mark-dialog-causes" class="mt-1 flex flex-wrap gap-1"></div>
       <div class="modal-action">
         <button id="error-mark-dialog-remove" class="btn btn-sm btn-error btn-outline" type="button">Remove mark</button>
         <form method="dialog"><button class="btn btn-sm">Done</button></form>

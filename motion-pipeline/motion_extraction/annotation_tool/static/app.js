@@ -294,7 +294,6 @@ function slugifyErrorListEntry(label) {
 function errorListArray(kind) { return state[ERROR_LIST_STATE_KEYS[kind]]; }
 function labelFor(kind, id) { return (errorListArray(kind).find((item) => item.id === id) || {}).label || id; }
 function bodyPartLabel(id) { return labelFor("body_part", id); }
-function causeLabel(id) { return labelFor("cause", id); }
 
 function populateBodyPartSelect() {
   const select = $("error-marking-body-part-select");
@@ -307,7 +306,11 @@ function saveErrorList(kind, list) {
   state[ERROR_LIST_STATE_KEYS[kind]] = list;
   localStorage.setItem(ERROR_LIST_STORAGE_KEYS[kind], JSON.stringify(list));
   if (kind === "body_part") populateBodyPartSelect();
-  renderErrorMarkingList();
+  const task = state.data?.tasks?.[state.taskIndex];
+  if (task && isErrorMarkingTask(task)) renderErrorMarkingTimeline();
+  if (kind === "cause" && state.activeMarkIndex != null && $("error-mark-dialog").open) {
+    renderErrorMarkDialogCauses(state.errorMarks[state.activeMarkIndex]);
+  }
 }
 
 function openListManager(kind) {
@@ -369,10 +372,25 @@ function updateErrorMarkingPendingUI() {
   }
 }
 
-function bodyPartsWithMarks() {
+const CAUSE_COLOR_PALETTE = ["#e0578c", "#3a8fd9", "#e0a63a", "#5fb87a", "#9366c9", "#e0653a", "#3ab7b0", "#b08c3a"];
+const UNSET_CAUSE_COLOR = "#9aa39e";
+
+function causeColor(causeId) {
+  const index = errorListArray("cause").findIndex((cause) => cause.id === causeId);
+  return CAUSE_COLOR_PALETTE[(index < 0 ? 0 : index) % CAUSE_COLOR_PALETTE.length];
+}
+
+function markBackground(mark) {
+  if (!mark.causes.length) return UNSET_CAUSE_COLOR;
+  if (mark.causes.length === 1) return causeColor(mark.causes[0]);
+  const stripe = 10;
+  const stops = mark.causes.map(causeColor).flatMap((color, index) => [`${color} ${index * stripe}px`, `${color} ${(index + 1) * stripe}px`]);
+  return `repeating-linear-gradient(45deg, ${stops.join(", ")})`;
+}
+
+function timelineRowGroups() {
   const groups = errorListArray("body_part")
-    .map((part) => ({part, indices: state.errorMarks.map((_, index) => index).filter((index) => state.errorMarks[index].body_part === part.id)}))
-    .filter((group) => group.indices.length);
+    .map((part) => ({part, indices: state.errorMarks.map((_, index) => index).filter((index) => state.errorMarks[index].body_part === part.id)}));
   const knownIds = new Set(groups.map((group) => group.part.id));
   [...new Set(state.errorMarks.map((mark) => mark.body_part))].filter((id) => !knownIds.has(id)).forEach((id) => {
     groups.push({part: {id, label: id}, indices: state.errorMarks.map((_, index) => index).filter((index) => state.errorMarks[index].body_part === id)});
@@ -388,7 +406,7 @@ function renderTimelineSegment(index, frameCount) {
   const mark = state.errorMarks[index];
   const left = Math.min((mark.start_frame / frameCount) * 100, 100);
   const width = Math.max(((mark.end_frame - mark.start_frame) / frameCount) * 100, 1.5);
-  return `<div class="timeline-segment" data-mark-index="${index}" style="left:${left}%;width:${width}%" title="${timelineSegmentTitle(mark)}">
+  return `<div class="timeline-segment" data-mark-index="${index}" style="left:${left}%;width:${width}%;background:${markBackground(mark)}" title="${timelineSegmentTitle(mark)}">
     <span class="timeline-handle timeline-handle-start" data-handle="start" data-mark-index="${index}" role="slider" tabindex="0" aria-label="${bodyPartLabel(mark.body_part)} start frame"></span>
     <span class="timeline-handle timeline-handle-end" data-handle="end" data-mark-index="${index}" role="slider" tabindex="0" aria-label="${bodyPartLabel(mark.body_part)} end frame"></span>
   </div>`;
@@ -401,43 +419,57 @@ function updateTimelineSegmentPosition(index) {
   if (!segment) return;
   segment.style.left = `${Math.min((mark.start_frame / frameCount) * 100, 100)}%`;
   segment.style.width = `${Math.max(((mark.end_frame - mark.start_frame) / frameCount) * 100, 1.5)}%`;
+  segment.style.background = markBackground(mark);
   segment.title = timelineSegmentTitle(mark);
+}
+
+function renderErrorMarkingLegend() {
+  const causes = errorListArray("cause");
+  const swatch = (color, label) => `<span class="timeline-legend-item"><span class="timeline-legend-swatch" style="background:${color}"></span>${label}</span>`;
+  return `<div class="timeline-legend">${swatch(UNSET_CAUSE_COLOR, "No cause set")}${causes.map((cause) => swatch(causeColor(cause.id), cause.label)).join("")}</div>`;
 }
 
 function renderErrorMarkingTimeline() {
   const container = $("error-marking-timeline");
-  const groups = bodyPartsWithMarks();
-  if (!groups.length) { container.innerHTML = ""; return; }
+  const groups = timelineRowGroups();
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
-  container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Marked ranges by body part — click a span to set its cause, drag its edges to adjust</div>` +
+  container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Click an empty part of a body part's timeline to add an error there, then drag to set how long it lasts. Click an existing span to set its cause; drag its edges to adjust.</div>` +
     groups.map(({part, indices}) => `
       <div class="timeline-row">
         <span class="timeline-row-label">${part.label}</span>
-        <div class="timeline-row-track">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>
+        <div class="timeline-row-track" data-track-part="${part.id}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>
       </div>`
-    ).join("");
+    ).join("") + renderErrorMarkingLegend();
   attachTimelineHandlers();
 }
 
 function attachTimelineHandlers() {
+  // Delegated to the stable container (not to individual segments/tracks) so
+  // renderErrorMarkingTimeline() can freely replace its children at any time —
+  // mid-drag or otherwise — without ever detaching a listener's own element.
   const container = $("error-marking-timeline");
-  container.querySelectorAll(".timeline-segment").forEach((segment) => {
-    segment.addEventListener("click", (event) => {
-      if (event.target.closest(".timeline-handle")) return;
-      openErrorMarkPopup(Number(segment.dataset.markIndex));
-    });
+  if (container.dataset.handlersAttached) return;
+  container.dataset.handlersAttached = "1";
+  container.addEventListener("click", (event) => {
+    const segment = event.target.closest(".timeline-segment");
+    if (!segment || event.target.closest(".timeline-handle")) return;
+    openErrorMarkPopup(Number(segment.dataset.markIndex));
   });
-  container.querySelectorAll(".timeline-handle").forEach((handle) => {
-    handle.addEventListener("pointerdown", startTimelineHandleDrag);
+  container.addEventListener("pointerdown", (event) => {
+    const handle = event.target.closest(".timeline-handle");
+    if (handle) { startTimelineHandleDrag(event, handle); return; }
+    if (event.target.closest(".timeline-segment")) return;
+    const track = event.target.closest(".timeline-row-track");
+    if (track) startNewMarkDrag(event, track);
   });
 }
 
-function startTimelineHandleDrag(event) {
+function startTimelineHandleDrag(event, handleEl) {
   event.preventDefault();
   event.stopPropagation();
-  const index = Number(event.currentTarget.dataset.markIndex);
-  const edge = event.currentTarget.dataset.handle;
-  const track = event.currentTarget.closest(".timeline-row-track");
+  const index = Number(handleEl.dataset.markIndex);
+  const edge = handleEl.dataset.handle;
+  const track = handleEl.closest(".timeline-row-track");
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
   const fps = errorMarkingFps();
   const video = errorMarkingVideo();
@@ -466,9 +498,57 @@ function startTimelineHandleDrag(event) {
     window.removeEventListener("pointerup", onUp);
     if (dragged) {
       renderErrorMarkingTimeline();
-      renderErrorMarkingList();
       scheduleSave("started");
     }
+  }
+
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp, {once: true});
+}
+
+function startNewMarkDrag(event, track) {
+  event.preventDefault();
+  const partId = track.dataset.trackPart;
+  const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
+  const fps = errorMarkingFps();
+  const video = errorMarkingVideo();
+  video.pause();
+
+  function frameFromClientX(clientX, liveTrack) {
+    const rect = liveTrack.getBoundingClientRect();
+    const fraction = rect.width ? Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1) : 0;
+    return Math.round(fraction * frameCount);
+  }
+
+  const originFrame = frameFromClientX(event.clientX, track);
+  state.errorMarks.push({body_part: partId, start_frame: originFrame, end_frame: originFrame, causes: []});
+  const index = state.errorMarks.length - 1;
+  video.currentTime = Math.max(0, originFrame / fps);
+  updateErrorMarkingFrameIndicator();
+  renderErrorMarkingTimeline();
+  // The row just re-rendered, so re-acquire the (new) track element for this
+  // body part; it stays attached for the rest of this gesture since nothing
+  // else re-renders the timeline until pointerup below.
+  const liveTrack = $("error-marking-timeline").querySelector(`.timeline-row-track[data-track-part="${CSS.escape(partId)}"]`) || track;
+  let dragged = false;
+
+  function onMove(moveEvent) {
+    dragged = true;
+    const frame = frameFromClientX(moveEvent.clientX, liveTrack);
+    const mark = state.errorMarks[index];
+    mark.start_frame = Math.min(originFrame, frame);
+    mark.end_frame = Math.max(originFrame, frame);
+    video.currentTime = Math.max(0, frame / fps);
+    updateErrorMarkingFrameIndicator();
+    updateTimelineSegmentPosition(index);
+  }
+
+  function onUp() {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    renderErrorMarkingTimeline();
+    scheduleSave("started");
+    openErrorMarkPopup(index);
   }
 
   window.addEventListener("pointermove", onMove);
@@ -506,7 +586,7 @@ function renderErrorMarkDialogCauses(mark) {
       const position = mark.causes.indexOf(button.dataset.dialogToggleCause);
       if (position === -1) mark.causes.push(button.dataset.dialogToggleCause); else mark.causes.splice(position, 1);
       renderErrorMarkDialogCauses(mark);
-      renderErrorMarkingList();
+      updateTimelineSegmentPosition(state.activeMarkIndex);
       scheduleSave("started");
     };
   });
@@ -520,31 +600,6 @@ function openErrorMarkPopup(index) {
   renderErrorMarkDialogCauses(mark);
   $("error-mark-dialog").showModal();
   captureErrorMarkPreview(mark).catch(() => {});
-}
-
-function renderErrorMarkingList() {
-  $("error-marking-list").innerHTML = state.errorMarks.length
-    ? state.errorMarks.map((mark, index) => `
-      <li class="list-row items-center gap-2">
-        <span class="badge badge-soft">${bodyPartLabel(mark.body_part)}</span>
-        <span class="font-mono text-sm">frames ${mark.start_frame}–${mark.end_frame}</span>
-        <span class="text-xs text-base-content/60">${mark.causes.length ? mark.causes.map(causeLabel).join(", ") : "cause not set"}</span>
-        <button type="button" class="btn btn-xs btn-ghost" data-set-cause="${index}">Set cause</button>
-        <button type="button" class="btn btn-xs btn-ghost ml-auto" data-remove-mark="${index}">Remove</button>
-      </li>`
-      ).join("")
-    : `<li class="list-row text-sm text-base-content/60">No marks added yet.</li>`;
-  $("error-marking-list").querySelectorAll("[data-remove-mark]").forEach((button) => {
-    button.onclick = () => {
-      state.errorMarks.splice(Number(button.dataset.removeMark), 1);
-      renderErrorMarkingList();
-      renderErrorMarkingTimeline();
-      scheduleSave("started");
-    };
-  });
-  $("error-marking-list").querySelectorAll("[data-set-cause]").forEach((button) => {
-    button.onclick = () => openErrorMarkPopup(Number(button.dataset.setCause));
-  });
 }
 
 function renderErrorMarkingTask(task, judgment) {
@@ -566,7 +621,6 @@ function renderErrorMarkingTask(task, judgment) {
   state.pendingMark = null;
   const response = judgment?.error_marking_response || {};
   state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], ...mark}));
-  renderErrorMarkingList();
   renderErrorMarkingTimeline();
   updateErrorMarkingPendingUI();
   updateErrorMarkingFrameIndicator();
@@ -1026,7 +1080,6 @@ $("error-marking-mark-end").onclick = () => {
   state.errorMarks.push({body_part: state.pendingMark.body_part, start_frame: start, end_frame: finish, causes: []});
   state.pendingMark = null;
   updateErrorMarkingPendingUI();
-  renderErrorMarkingList();
   renderErrorMarkingTimeline();
   scheduleSave("started");
 };
@@ -1037,7 +1090,6 @@ $("error-mark-dialog-remove").onclick = () => {
   state.errorMarks.splice(state.activeMarkIndex, 1);
   state.activeMarkIndex = null;
   $("error-mark-dialog").close();
-  renderErrorMarkingList();
   renderErrorMarkingTimeline();
   scheduleSave("started");
 };
