@@ -7,6 +7,7 @@ const state = {
   temporalPlaybackRate: 1, errorMarks: [],
   errorBodyParts: [], errorCauses: [], editingListKind: "body_part",
   activeMarkIndex: null, errorMarkingNoErrorsConfirmed: false,
+  editingBodyParts: false, addingBodyPartEntry: false,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -455,13 +456,21 @@ function renderErrorMarkingTimeline() {
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
   const currentFrame = errorMarkingCurrentFrame();
   const minTrackWidth = Math.max(1, errorMarkingFrameCount()) * MIN_TIMELINE_PX_PER_FRAME;
+  const editing = state.editingBodyParts;
 
   const leftColHTML = groups.map(({part}) => `
     <div class="timeline-row-header">
       <span class="timeline-row-label">${part.label}</span>
-      <button type="button" class="btn btn-xs btn-circle timeline-add-btn" data-add-part="${part.id}" aria-label="Start a new ${part.label} error at the current frame" title="Start a new ${part.label} error at the current frame" ${frameCoveredForPart(part.id, currentFrame) ? "disabled" : ""}>+</button>
+      ${editing
+        ? `<button type="button" class="btn btn-xs btn-circle btn-ghost text-error timeline-add-btn" data-delete-part="${part.id}" aria-label="Remove ${part.label}" title="Remove ${part.label}">⊖</button>`
+        : `<button type="button" class="btn btn-xs btn-circle timeline-add-btn" data-add-part="${part.id}" aria-label="Start a new ${part.label} error at the current frame" title="Start a new ${part.label} error at the current frame" ${frameCoveredForPart(part.id, currentFrame) ? "disabled" : ""}>+</button>`}
     </div>`
-  ).join("");
+  ).join("") + (editing
+    ? `<div class="timeline-row-header">${state.addingBodyPartEntry
+        ? `<input type="text" id="timeline-add-body-part-input" class="input input-xs timeline-add-input" placeholder="New body part" aria-label="New body part label">`
+        : `<button type="button" id="timeline-add-body-part-btn" class="btn btn-xs btn-circle timeline-add-btn" aria-label="Add a new body part" title="Add a new body part">+</button>`}</div>`
+    : "") +
+    `<button type="button" id="timeline-edit-body-parts-toggle" class="btn btn-xs btn-ghost timeline-edit-toggle" aria-label="${editing ? "Done editing body parts" : "Edit body parts"}" title="${editing ? "Done editing body parts" : "Edit body parts"}">${editing ? "✓ Done" : "✎"}</button>`;
 
   const tracksHTML = groups.map(({part, indices}) =>
     `<div class="timeline-row-track" data-track-part="${part.id}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>`
@@ -473,6 +482,7 @@ function renderErrorMarkingTimeline() {
       <div class="timeline-scroll"><div class="timeline-scroll-inner" style="min-width:${minTrackWidth}px">${tracksHTML}</div></div>
     </div>` + renderErrorMarkingLegend();
   attachTimelineHandlers();
+  if (state.addingBodyPartEntry) $("timeline-add-body-part-input")?.focus();
 }
 
 function addMarkAtCurrentFrame(partId) {
@@ -486,6 +496,19 @@ function addMarkAtCurrentFrame(partId) {
   openErrorMarkPopup(index);
 }
 
+function commitNewBodyPart(rawValue) {
+  if (!state.addingBodyPartEntry) return;
+  state.addingBodyPartEntry = false;
+  const label = rawValue.trim();
+  if (!label) { renderErrorMarkingTimeline(); return; }
+  const list = errorListArray("body_part");
+  const existingIds = new Set(list.map((item) => item.id));
+  let id = slugifyErrorListEntry(label), suffix = 1;
+  while (existingIds.has(id)) { id = `${slugifyErrorListEntry(label)}_${++suffix}`; }
+  list.push({id, label});
+  saveErrorList("body_part", list);
+}
+
 function attachTimelineHandlers() {
   // Delegated to the stable container (not to individual segments/tracks) so
   // renderErrorMarkingTimeline() can freely replace its children at any time —
@@ -494,11 +517,36 @@ function attachTimelineHandlers() {
   if (container.dataset.handlersAttached) return;
   container.dataset.handlersAttached = "1";
   container.addEventListener("click", (event) => {
+    if (event.target.closest("#timeline-edit-body-parts-toggle")) {
+      state.editingBodyParts = !state.editingBodyParts;
+      state.addingBodyPartEntry = false;
+      renderErrorMarkingTimeline();
+      return;
+    }
+    if (event.target.closest("#timeline-add-body-part-btn")) {
+      state.addingBodyPartEntry = true;
+      renderErrorMarkingTimeline();
+      return;
+    }
+    const deleteButton = event.target.closest("[data-delete-part]");
+    if (deleteButton) {
+      saveErrorList("body_part", errorListArray("body_part").filter((item) => item.id !== deleteButton.dataset.deletePart));
+      return;
+    }
     const addButton = event.target.closest("[data-add-part]");
     if (addButton) { if (!addButton.disabled) addMarkAtCurrentFrame(addButton.dataset.addPart); return; }
     const segment = event.target.closest(".timeline-segment");
     if (!segment || event.target.closest(".timeline-handle")) return;
     openErrorMarkPopup(Number(segment.dataset.markIndex));
+  });
+  container.addEventListener("keydown", (event) => {
+    if (event.target.id === "timeline-add-body-part-input" && event.key === "Enter") {
+      event.preventDefault();
+      commitNewBodyPart(event.target.value);
+    }
+  });
+  container.addEventListener("focusout", (event) => {
+    if (event.target.id === "timeline-add-body-part-input") commitNewBodyPart(event.target.value);
   });
   container.addEventListener("pointerdown", (event) => {
     const handle = event.target.closest(".timeline-handle");
@@ -672,6 +720,8 @@ function renderErrorMarkingTask(task, judgment) {
   const response = judgment?.error_marking_response || {};
   state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], note: "", ...mark}));
   state.errorMarkingNoErrorsConfirmed = false;
+  state.editingBodyParts = false;
+  state.addingBodyPartEntry = false;
   renderErrorMarkingTimeline();
   updateErrorMarkingFrameIndicator();
   $("error-marking-note").value = response.note || "";
@@ -1137,7 +1187,6 @@ $("error-mark-dialog-remove").onclick = () => {
   renderErrorMarkingTimeline();
   scheduleSave("started");
 };
-$("error-marking-manage-body-parts").onclick = () => openListManager("body_part");
 $("error-marking-manage-causes").onclick = () => openListManager("cause");
 $("list-manager-add").onclick = () => {
   const input = $("list-manager-new-label");

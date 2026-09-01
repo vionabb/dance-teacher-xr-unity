@@ -93,6 +93,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .timeline-row-header { display: flex; align-items: center; gap: .4rem; height: 1.6rem; }
 .timeline-row-label { flex: 0 0 6.5rem; overflow: hidden; color: var(--muted); font-size: .78rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .timeline-add-btn { flex: 0 0 auto; min-height: 1.6rem; height: 1.6rem; width: 1.6rem; padding: 0; font-size: 1rem; line-height: 1; }
+.timeline-add-input { flex: 0 0 6.5rem; min-height: 1.6rem; height: 1.6rem; font-size: .78rem; }
+.timeline-edit-toggle { width: 100%; min-height: 1.4rem; height: 1.4rem; padding: 0 .4rem; font-size: .7rem; line-height: 1; margin-top: .15rem; }
 /* The timeline needs at least MIN_TIMELINE_PX_PER_FRAME px/frame (set in app.js)
    to stay clickable/draggable on long clips, so the track column scrolls
    horizontally on its own once the frame count outgrows the available width;
