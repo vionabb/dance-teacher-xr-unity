@@ -31,7 +31,7 @@
 		"@supabase/ssr": "^0.10.0",
 		"@supabase/supabase-js": "^2.101.1",
 		"@sveltejs/adapter-vercel": "^6.3.3",
-		"@sveltejs/kit": "^2.55.0",
+		"@sveltejs/kit": "^2.69.1",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/postcss": "^4.2.2",
 		"@tailwindcss/typography": "^0.5.19",
