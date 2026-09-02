@@ -143,13 +143,18 @@
         <video id="error-marking-video" class="w-full rounded-box" controls loop playsinline muted aria-label="Pose-overlay clip for error marking"></video>
       </figure>
 
-      <div class="mt-3 flex flex-wrap items-center justify-center gap-3">
+      <div class="mt-3 flex items-center gap-2">
         <div class="join">
-          <button id="error-marking-step-back-10" class="btn btn-sm join-item" type="button" aria-label="Back 10 frames">−10</button>
-          <button id="error-marking-step-back-1" class="btn btn-sm join-item" type="button" aria-label="Back 1 frame">−1</button>
-          <button id="error-marking-step-forward-1" class="btn btn-sm join-item" type="button" aria-label="Forward 1 frame">+1</button>
-          <button id="error-marking-step-forward-10" class="btn btn-sm join-item" type="button" aria-label="Forward 10 frames">+10</button>
+          <button id="error-marking-step-back-5" class="btn btn-sm join-item" type="button" aria-label="Back 5 frames">‹<sub>5</sub></button>
+          <button id="error-marking-step-back-1" class="btn btn-sm join-item" type="button" aria-label="Back 1 frame">‹</button>
         </div>
+        <input id="error-marking-scrubber" class="range range-sm flex-1" type="range" min="0" max="0" step="1" value="0" aria-label="Frame scrubber">
+        <div class="join">
+          <button id="error-marking-step-forward-1" class="btn btn-sm join-item" type="button" aria-label="Forward 1 frame">›</button>
+          <button id="error-marking-step-forward-5" class="btn btn-sm join-item" type="button" aria-label="Forward 5 frames">›<sub>5</sub></button>
+        </div>
+      </div>
+      <div class="mt-2 flex justify-center">
         <span id="error-marking-frame-indicator" class="badge badge-lg font-mono" aria-live="polite">frame 0 / 0</span>
       </div>
 
