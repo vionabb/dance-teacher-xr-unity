@@ -461,29 +461,39 @@ function renderErrorMarkingTimeline() {
   const minTrackWidth = Math.max(1, errorMarkingFrameCount()) * MIN_TIMELINE_PX_PER_FRAME;
   const editing = state.editingBodyParts;
 
-  const leftColHTML = groups.map(({part}) => `
+  // Row headers and row tracks are separate DOM subtrees (so the track
+  // column alone can scroll horizontally) but must land on the same grid
+  // row line-for-line. grid-rows-subgrid on both makes that alignment the
+  // grid engine's job instead of something two independently-stacked lists
+  // have to be kept in sync by construction.
+  const headerCells = groups.map(({part}) => `
     <div class="timeline-row-header">
       <span class="timeline-row-label">${part.label}</span>
       ${editing
         ? `<button type="button" class="btn btn-xs btn-circle btn-ghost text-error timeline-add-btn" data-delete-part="${part.id}" aria-label="Remove ${part.label}" title="Remove ${part.label}">⊖</button>`
         : `<button type="button" class="btn btn-xs btn-circle timeline-add-btn" data-add-part="${part.id}" aria-label="Start a new ${part.label} error at the current frame" title="Start a new ${part.label} error at the current frame" ${frameCoveredForPart(part.id, currentFrame) ? "disabled" : ""}>+</button>`}
     </div>`
-  ).join("") + (editing
-    ? `<div class="timeline-row-header">${state.addingBodyPartEntry
+  ).join("");
+
+  const trackCells = groups.map(({part, indices}) =>
+    `<div class="timeline-row-track" data-track-part="${part.id}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>`
+  ).join("");
+
+  const footerHTML = (editing
+    ? `<div class="flex items-center">${state.addingBodyPartEntry
         ? `<input type="text" id="timeline-add-body-part-input" class="input input-xs timeline-add-input" placeholder="New body part" aria-label="New body part label">`
         : `<button type="button" id="timeline-add-body-part-btn" class="btn btn-xs btn-circle timeline-add-btn" aria-label="Add a new body part" title="Add a new body part">+</button>`}</div>`
     : "") +
     `<button type="button" id="timeline-edit-body-parts-toggle" class="btn btn-xs btn-ghost timeline-edit-toggle" aria-label="${editing ? "Done editing body parts" : "Edit body parts"}" title="${editing ? "Done editing body parts" : "Edit body parts"}">${editing ? "✓ Done" : "Edit"}</button>`;
 
-  const tracksHTML = groups.map(({part, indices}) =>
-    `<div class="timeline-row-track" data-track-part="${part.id}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>`
-  ).join("");
-
   container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Click + to start a new error at the current frame, or click-drag an empty part of the timeline. Click an existing span to set its cause; drag its edges to adjust.</div>` +
-    `<div class="timeline-grid">
-      <div class="timeline-left-col">${leftColHTML}</div>
-      <div class="timeline-scroll"><div class="timeline-scroll-inner" style="min-width:${minTrackWidth}px">${tracksHTML}</div></div>
-    </div>` + renderErrorMarkingLegend();
+    `<div class="timeline-grid grid gap-x-[.6rem] items-stretch" style="grid-template-columns:auto 1fr;grid-template-rows:repeat(${groups.length},1.6rem);row-gap:.4rem">
+      <div class="timeline-left-col grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length}">${headerCells}</div>
+      <div class="timeline-scroll grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length}">
+        <div class="timeline-scroll-inner grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length};min-width:${minTrackWidth}px">${trackCells}</div>
+      </div>
+    </div>
+    <div class="timeline-footer mt-2 flex items-center gap-2">${footerHTML}</div>` + renderErrorMarkingLegend();
   attachTimelineHandlers();
   if (state.addingBodyPartEntry) $("timeline-add-body-part-input")?.focus();
 }
