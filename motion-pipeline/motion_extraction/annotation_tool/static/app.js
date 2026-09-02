@@ -378,7 +378,10 @@ function updateTimelineAddButtons() {
 
 function updateErrorMarkingFrameIndicator() {
   const total = errorMarkingFrameCount();
-  $("error-marking-frame-indicator").textContent = `frame ${errorMarkingCurrentFrame()} / ${Math.max(total - 1, 0)}`;
+  const frame = errorMarkingCurrentFrame();
+  $("error-marking-frame-indicator").textContent = `frame ${frame} / ${Math.max(total - 1, 0)}`;
+  const scrubber = $("error-marking-scrubber");
+  if (document.activeElement !== scrubber) scrubber.value = frame;
   updateTimelineAddButtons();
 }
 
@@ -715,7 +718,11 @@ function renderErrorMarkingTask(task, judgment) {
   video.src = `/artifacts/${task.source_artifact}`;
   video.load();
   video.ontimeupdate = updateErrorMarkingFrameIndicator;
-  video.onloadedmetadata = () => { updateErrorMarkingFrameIndicator(); renderErrorMarkingTimeline(); };
+  video.onloadedmetadata = () => {
+    $("error-marking-scrubber").max = Math.max(errorMarkingFrameCount() - 1, 0);
+    updateErrorMarkingFrameIndicator();
+    renderErrorMarkingTimeline();
+  };
 
   const response = judgment?.error_marking_response || {};
   state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], note: "", ...mark}));
@@ -1170,10 +1177,16 @@ document.querySelectorAll(".actions button[data-status]").forEach((button) => bu
     lockInteraction(false);
   }
 });
-$("error-marking-step-back-10").onclick = () => stepErrorMarkingVideo(-10);
+$("error-marking-step-back-5").onclick = () => stepErrorMarkingVideo(-5);
 $("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
 $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
-$("error-marking-step-forward-10").onclick = () => stepErrorMarkingVideo(10);
+$("error-marking-step-forward-5").onclick = () => stepErrorMarkingVideo(5);
+$("error-marking-scrubber").oninput = () => {
+  const video = errorMarkingVideo(), fps = errorMarkingFps();
+  video.pause();
+  video.currentTime = Number($("error-marking-scrubber").value) / fps;
+  updateErrorMarkingFrameIndicator();
+};
 $("error-mark-dialog-note").oninput = () => {
   if (state.activeMarkIndex == null) return;
   state.errorMarks[state.activeMarkIndex].note = $("error-mark-dialog-note").value;
