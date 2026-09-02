@@ -79,7 +79,7 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).
 
 - [Handoff: corpus-wide quality triage + defect localization](2026-08-27-preprocessing-quality-gate-pivot-handoff.md)
-  (living document — status as of 2026-08-31) Compared Claude's judgments
+  (living document — status as of 2026-09-02) Compared Claude's judgments
   against Viona's on the 60-task Stage-1 triage batch: crop alone doesn't
   predict "problematic," false-tracking only validates when the actual flagged
   window is shown, ~44% of random controls have undetected defects. Full-corpus
@@ -87,11 +87,17 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   would drop ~59% of the corpus (almost entirely hips, not arms) and that
   MediaPipe's visibility score is trustworthy for wrists but not hips/shoulders.
   A first test of automatic occlusion-error detection was inconclusive. Built
-  an `error_marking` annotation task type (body-part-and-range marks with
-  separately-attributed probable causes) and a `video_quality_rating` type,
-  with pilot batches in Viona's queue; migrated the rest of the annotation
-  tool's custom-styled pickers to daisyUI and fixed a CDN mismatch that had
-  the whole tool rendering unstyled. Built a reusable, re-runnable corpus-wide
-  frame-quality map (one pixel-row per participant clip, white/yellow/red by
-  frame, grouped by dance): first run is 63.9% white / 28.5% yellow / 7.6% red
-  frame-weighted, with 17 of 1,756 clips more than half red.
+  `error_marking` (body-part-and-range marks with separately-attributed
+  probable causes) and `video_quality_rating` annotation task types, migrated
+  the tool's pickers to daisyUI, and built a reusable corpus-wide frame-quality
+  map (63.9% white / 28.5% yellow / 7.6% red frame-weighted, 17 of 1,756 clips
+  more than half red). `error_marking`'s screen then went through a full
+  timeline-driven UI redesign (per-body-part rows shown up front, click/drag/+
+  to create a mark, click-to-set-cause popup with a preview frame and a
+  per-mark note, color-by-cause with a legend, horizontal scroll for long
+  clips, inline body-part list editing) across five more commits, driven by
+  Viona's own live iteration against the running server. **Currently blocked**:
+  Viona's progress is split across two annotator logins (`vioina`, a typo with
+  her real 60/60 triage completions, vs. `viona`, the correct spelling with
+  only 4/60 plus in-progress `error_marking` work) — unresolved, needs her
+  decision before further review continues under either.
