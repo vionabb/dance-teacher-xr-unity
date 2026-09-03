@@ -143,10 +143,12 @@ def _oob_severity(raw: pd.DataFrame, width: float, height: float, n_frames: int)
     return severity
 
 
-def collect_clip_data(data_root: Path, max_clips: int | None) -> list[dict[str, t.Any]]:
+def collect_clip_data(
+    data_root: Path, corpora: t.Sequence[str], max_clips: int | None
+) -> list[dict[str, t.Any]]:
     """First pass: load pose + compute the oob severity and raw suspicion score per clip."""
 
-    targets = build_extraction_targets(data_root, ["chi25_study1", "chi25_study2"])
+    targets = build_extraction_targets(data_root, corpora)
     if max_clips is not None:
         targets = targets[:max_clips]
 
@@ -298,6 +300,17 @@ def main(argv: t.Sequence[str] | None = None) -> None:
     parser.add_argument("--data-root", type=Path, default=default_data_root().parent)
     parser.add_argument("--output-root", type=Path, default=None)
     parser.add_argument("--max-clips", type=int, default=None, help="Limit clips processed (debugging).")
+    parser.add_argument(
+        "--corpora",
+        nargs="+",
+        choices=["reference", "chi25_study1", "chi25_study2"],
+        default=["chi25_study1", "chi25_study2"],
+        help="Which corpora to include (default: study1+study2, matching prior runs -- "
+        "add 'reference' to also map the reference tutorial clips). Reference filenames "
+        "don't follow the participant userstudyN-<dance>-<condition> naming convention, "
+        "so parse_dance() can't identify their dance and they land in the 'Other / "
+        "unparsed' group rather than under a named dance.",
+    )
     args = parser.parse_args(argv)
 
     output_root = args.output_root or Path(
@@ -306,7 +319,7 @@ def main(argv: t.Sequence[str] | None = None) -> None:
     output_root.mkdir(parents=True, exist_ok=True)
 
     print("Pass 1/2: loading pose data and computing per-frame signals...")
-    collected = collect_clip_data(args.data_root, args.max_clips)
+    collected = collect_clip_data(args.data_root, args.corpora, args.max_clips)
     print(f"Loaded {len(collected)} clips with usable pose data.")
 
     print("Pass 2/2: applying corpus-wide thresholds and classifying...")
@@ -321,6 +334,7 @@ def main(argv: t.Sequence[str] | None = None) -> None:
 
     provenance = {
         "created_utc": datetime.now(timezone.utc).isoformat(),
+        "corpora": list(args.corpora),
         "clip_count": len(rows),
         "arm_landmarks": ARM_LANDMARKS,
         "vis_high_threshold": VIS_HIGH_THRESHOLD,
