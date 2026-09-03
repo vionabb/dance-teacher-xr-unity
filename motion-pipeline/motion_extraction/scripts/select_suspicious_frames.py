@@ -24,6 +24,44 @@ from dance_teacher_pose import PoseDataType, get_pose_data_schema, preprocess_po
 from motion_extraction.scripts.run_preprocessing_experiment import _visible_roots
 
 
+def landmark_velocity_and_visibility(
+    raw: pd.DataFrame, clean: pd.DataFrame, roots: list[str]
+) -> tuple[np.ndarray, np.ndarray]:
+    """Per-frame, per-landmark torso-normalized velocity and detector-reported visibility.
+
+    This is the shared primitive behind every "is this tracking implausible?"
+    heuristic in the repo -- this module's own continuous per-frame suspicion
+    score (below), ``compute_automatic_quality_signals.py``'s binary
+    ``false_tracking_signal``, and ``render_corpus_frame_quality_map.py``'s
+    frame-quality classification. Before 2026-09-03 each of those recomputed
+    frame-to-frame velocity independently (identical math, three call sites)
+    and could in principle drift apart if only one was ever touched; they now
+    all route through this one function so a future change to *how* velocity
+    or visibility is computed only has to happen once. What each caller does
+    with the result (a continuous score vs. a hard threshold flag vs. a
+    corpus-percentile-based severity tier) legitimately still differs by
+    purpose and is not unified here.
+
+    Returns ``(velocity_by_frame, visibility_by_frame)``, each shape
+    ``(len(clean), len(roots))``. ``velocity_by_frame[0]`` is always 0 (no
+    prior frame to diff against). ``visibility_by_frame`` is ``NaN`` for a
+    landmark/frame with no ``<root>_vis`` column in ``raw``.
+    """
+
+    fields = get_pose_data_schema(PoseDataType.pose2d).coordinate_fields
+    frame_count = len(clean)
+    velocity_by_frame = np.zeros((frame_count, len(roots)))
+    visibility_by_frame = np.full((frame_count, len(roots)), np.nan)
+    for index, root in enumerate(roots):
+        values = clean[[f"{root}_{field}" for field in fields]].to_numpy(dtype=float)
+        velocity = np.linalg.norm(np.diff(values, axis=0), axis=1)
+        velocity_by_frame[1:, index] = np.nan_to_num(velocity, nan=0.0)
+        vis_col = f"{root}_vis"
+        if vis_col in raw.columns:
+            visibility_by_frame[:, index] = raw[vis_col].to_numpy(dtype=float)
+    return velocity_by_frame, visibility_by_frame
+
+
 def per_frame_suspicion(
     raw: pd.DataFrame, clean: pd.DataFrame, *, roots: list[str] | None = None
 ) -> pd.DataFrame:
@@ -48,15 +86,7 @@ def per_frame_suspicion(
     roots = roots if roots is not None else _visible_roots(clean, fields)
     frame_count = len(clean)
 
-    velocity_by_frame = np.zeros((frame_count, len(roots)))
-    visibility_by_frame = np.full((frame_count, len(roots)), np.nan)
-    for index, root in enumerate(roots):
-        values = clean[[f"{root}_{field}" for field in fields]].to_numpy(dtype=float)
-        velocity = np.linalg.norm(np.diff(values, axis=0), axis=1)
-        velocity_by_frame[1:, index] = np.nan_to_num(velocity, nan=0.0)
-        vis_col = f"{root}_vis"
-        if vis_col in raw.columns:
-            visibility_by_frame[:, index] = raw[vis_col].to_numpy(dtype=float)
+    velocity_by_frame, visibility_by_frame = landmark_velocity_and_visibility(raw, clean, roots)
 
     max_velocity = np.nanmax(velocity_by_frame, axis=1)
     min_visibility = np.nanmin(visibility_by_frame, axis=1)
