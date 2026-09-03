@@ -376,6 +376,16 @@ function updateTimelineAddButtons() {
   });
 }
 
+function timelinePlayheadLeftPercent() {
+  const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
+  return Math.min((errorMarkingCurrentFrame() / frameCount) * 100, 100);
+}
+
+function updateTimelinePlayhead() {
+  const playhead = $("error-marking-timeline").querySelector(".timeline-playhead");
+  if (playhead) playhead.style.left = `${timelinePlayheadLeftPercent()}%`;
+}
+
 function updateErrorMarkingFrameIndicator() {
   const total = errorMarkingFrameCount();
   const frame = errorMarkingCurrentFrame();
@@ -383,6 +393,7 @@ function updateErrorMarkingFrameIndicator() {
   const scrubber = $("error-marking-scrubber");
   if (document.activeElement !== scrubber) scrubber.value = frame;
   updateTimelineAddButtons();
+  updateTimelinePlayhead();
 }
 
 function stepErrorMarkingVideo(deltaFrames) {
@@ -490,7 +501,7 @@ function renderErrorMarkingTimeline() {
     `<div class="timeline-grid grid gap-x-[.6rem] items-stretch" style="grid-template-columns:auto 1fr;grid-template-rows:repeat(${groups.length},1.6rem);row-gap:.4rem">
       <div class="timeline-left-col grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length}">${headerCells}</div>
       <div class="timeline-scroll grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length}">
-        <div class="timeline-scroll-inner grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length};min-width:${minTrackWidth}px">${trackCells}</div>
+        <div class="timeline-scroll-inner grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length};min-width:${minTrackWidth}px">${trackCells}<div class="timeline-playhead" style="left:${timelinePlayheadLeftPercent()}%"></div></div>
       </div>
     </div>
     <div class="timeline-footer mt-2 flex items-center gap-2">${footerHTML}</div>` + renderErrorMarkingLegend();
