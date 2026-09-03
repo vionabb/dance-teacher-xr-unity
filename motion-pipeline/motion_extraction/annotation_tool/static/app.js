@@ -10,6 +10,7 @@ const state = {
   editingBodyParts: false, addingBodyPartEntry: false,
   errorMarkingLandmarks: null, errorMarkingLandmarksTaskId: null,
   skeletonDragLandmark: null, skeletonDragPosition: null, selectedSkeletonLandmark: null,
+  errorMarkingFrame: 0,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -408,7 +409,22 @@ function renderListManager() {
 function errorMarkingVideo() { return $("error-marking-video"); }
 function errorMarkingFps() { return Number(state.data.tasks[state.taskIndex].fps) || 30; }
 function errorMarkingFrameCount() { return Number(state.data.tasks[state.taskIndex].frame_count) || 0; }
-function errorMarkingCurrentFrame() { return Math.round(errorMarkingVideo().currentTime * errorMarkingFps()); }
+// Seeking to exactly frame/fps lands right on the boundary between that
+// frame and the previous one; the browser's own frame timestamps (from its
+// container time base) don't line up with our fps assumption precisely
+// enough to guarantee that boundary rounds the way we want. Landing at the
+// frame's midpoint instead keeps currentTime safely away from both
+// neighboring boundaries.
+function frameToTime(frame) { return (frame + 0.5) / errorMarkingFps(); }
+// state.errorMarkingFrame, not a live read of video.currentTime -- setting
+// currentTime is asynchronous in every browser (not just Safari), so a
+// fresh read of it shortly after assigning it is not reliably caught up
+// yet. Every call site that performs a deliberate seek sets this directly
+// (setErrorMarkingFrame()) instead of relying on reading currentTime back;
+// video.ontimeupdate reconciles it from the confirmed, actually-decoded
+// position for playback or any settling this missed.
+function errorMarkingCurrentFrame() { return state.errorMarkingFrame; }
+function setErrorMarkingFrame(frame) { state.errorMarkingFrame = frame; }
 
 function markForPartAtFrame(partId, frame) {
   return state.errorMarks.find((mark) => mark.body_part === partId && frame >= mark.start_frame && frame <= mark.end_frame) || null;
@@ -452,40 +468,49 @@ function ensureMarkAtFrame(bodyPart, frame) {
   return mark;
 }
 
-function updateTimelineAddButtons() {
-  const frame = errorMarkingCurrentFrame();
+function updateTimelineAddButtons(frame = errorMarkingCurrentFrame()) {
   $("error-marking-timeline").querySelectorAll("[data-add-part]").forEach((button) => {
     button.disabled = frameCoveredForPart(button.dataset.addPart, frame);
   });
 }
 
-function timelinePlayheadLeftPercent() {
+function timelinePlayheadLeftPercent(frame = errorMarkingCurrentFrame()) {
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
-  return Math.min((errorMarkingCurrentFrame() / frameCount) * 100, 100);
+  return Math.min((frame / frameCount) * 100, 100);
 }
 
-function updateTimelinePlayhead() {
+function updateTimelinePlayhead(frame = errorMarkingCurrentFrame()) {
   const playhead = $("error-marking-timeline").querySelector(".timeline-playhead");
-  if (playhead) playhead.style.left = `${timelinePlayheadLeftPercent()}%`;
+  if (playhead) playhead.style.left = `${timelinePlayheadLeftPercent(frame)}%`;
 }
 
-function updateErrorMarkingFrameIndicator() {
+// Takes the frame explicitly (rather than always re-deriving it from
+// video.currentTime) so a caller that just performed a deliberate seek can
+// pass the frame it asked for directly. Reading currentTime back
+// synchronously right after assigning it is not reliably up to date across
+// browsers (most visibly on Safari), which showed up as the skeleton
+// overlay briefly -- or, on a slow decode, not so briefly -- rendering a
+// neighboring frame's positions against the frame actually on screen.
+// video.ontimeupdate still calls this with no argument for playback/settled
+// updates where there's no "just asked for" frame to hand it.
+function updateErrorMarkingFrameIndicator(frame = errorMarkingCurrentFrame()) {
   const total = errorMarkingFrameCount();
-  const frame = errorMarkingCurrentFrame();
   $("error-marking-frame-indicator").textContent = `frame ${frame} / ${Math.max(total - 1, 0)}`;
   const scrubber = $("error-marking-scrubber");
   if (document.activeElement !== scrubber) scrubber.value = frame;
-  updateTimelineAddButtons();
-  updateTimelinePlayhead();
-  renderSkeletonOverlay();
+  updateTimelineAddButtons(frame);
+  updateTimelinePlayhead(frame);
+  renderSkeletonOverlay(frame);
 }
 
 function stepErrorMarkingVideo(deltaFrames) {
-  const video = errorMarkingVideo(), fps = errorMarkingFps(), frameCount = errorMarkingFrameCount();
-  const maxTime = frameCount ? (frameCount - 1) / fps : (video.duration || 0);
+  const video = errorMarkingVideo(), frameCount = errorMarkingFrameCount();
+  const maxFrame = Math.max(frameCount - 1, 0);
   video.pause();
-  video.currentTime = Math.max(0, Math.min(maxTime, video.currentTime + deltaFrames / fps));
-  updateErrorMarkingFrameIndicator();
+  const targetFrame = Math.max(0, Math.min(maxFrame, errorMarkingCurrentFrame() + deltaFrames));
+  setErrorMarkingFrame(targetFrame);
+  video.currentTime = frameToTime(targetFrame);
+  updateErrorMarkingFrameIndicator(targetFrame);
 }
 
 const CAUSE_COLOR_PALETTE = ["#e0578c", "#3a8fd9", "#e0a63a", "#5fb87a", "#9366c9", "#e0653a", "#3ab7b0", "#b08c3a"];
@@ -678,7 +703,6 @@ function startTimelineHandleDrag(event, handleEl) {
   const edge = handleEl.dataset.handle;
   const track = handleEl.closest(".timeline-row-track");
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
-  const fps = errorMarkingFps();
   const video = errorMarkingVideo();
   video.pause();
   let dragged = false;
@@ -695,8 +719,9 @@ function startTimelineHandleDrag(event, handleEl) {
     const mark = state.errorMarks[index];
     if (edge === "start") mark.start_frame = Math.min(frame, mark.end_frame);
     else mark.end_frame = Math.max(frame, mark.start_frame);
-    video.currentTime = Math.max(0, frame / fps);
-    updateErrorMarkingFrameIndicator();
+    setErrorMarkingFrame(frame);
+    video.currentTime = frameToTime(frame);
+    updateErrorMarkingFrameIndicator(frame);
     updateTimelineSegmentPosition(index);
   }
 
@@ -722,7 +747,6 @@ function startNewMarkDrag(event, track) {
   event.preventDefault();
   const partId = track.dataset.trackPart;
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
-  const fps = errorMarkingFps();
   const video = errorMarkingVideo();
   video.pause();
 
@@ -736,8 +760,9 @@ function startNewMarkDrag(event, track) {
   state.errorMarks.push({body_part: partId, start_frame: originFrame, end_frame: originFrame, causes: [], note: "", positions: {}});
   const index = state.errorMarks.length - 1;
   state.errorMarkingNoErrorsConfirmed = false;
-  video.currentTime = Math.max(0, originFrame / fps);
-  updateErrorMarkingFrameIndicator();
+  setErrorMarkingFrame(originFrame);
+  video.currentTime = frameToTime(originFrame);
+  updateErrorMarkingFrameIndicator(originFrame);
   renderErrorMarkingTimeline();
   // The row just re-rendered, so re-acquire the (new) track element for this
   // body part; it stays attached for the rest of this gesture since nothing
@@ -751,8 +776,9 @@ function startNewMarkDrag(event, track) {
     const mark = state.errorMarks[index];
     mark.start_frame = Math.min(originFrame, frame);
     mark.end_frame = Math.max(originFrame, frame);
-    video.currentTime = Math.max(0, frame / fps);
-    updateErrorMarkingFrameIndicator();
+    setErrorMarkingFrame(frame);
+    video.currentTime = frameToTime(frame);
+    updateErrorMarkingFrameIndicator(frame);
     updateTimelineSegmentPosition(index);
   }
 
@@ -783,7 +809,7 @@ async function captureErrorMarkPreview(mark) {
   const video = errorMarkingVideo(), canvas = $("error-mark-dialog-preview");
   const ctx = canvas.getContext("2d");
   const originalTime = video.currentTime;
-  await seekVideoTo(video, midFrame(mark) / errorMarkingFps());
+  await seekVideoTo(video, frameToTime(midFrame(mark)));
   canvas.width = video.videoWidth || 320;
   canvas.height = video.videoHeight || 180;
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -862,13 +888,12 @@ function skeletonFrameLandmarks(frame) {
   return effective;
 }
 
-function renderSkeletonOverlay() {
+function renderSkeletonOverlay(frame = errorMarkingCurrentFrame()) {
   const svg = $("error-marking-overlay");
   const data = state.errorMarkingLandmarks;
   if (!svg || !data) { if (svg) svg.innerHTML = ""; return; }
   const {width, height} = data.source_dimensions;
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  const frame = errorMarkingCurrentFrame();
   const points = skeletonFrameLandmarks(frame);
   const clampX = (x) => Math.min(Math.max(x, -width * .3), width * 1.3);
   const clampY = (y) => Math.min(Math.max(y, -height * .3), height * 1.3);
@@ -979,7 +1004,10 @@ function renderErrorMarkingTask(task, judgment) {
   video.pause();
   video.src = `/artifacts/${task.source_artifact}`;
   video.load();
-  video.ontimeupdate = updateErrorMarkingFrameIndicator;
+  video.ontimeupdate = () => {
+    setErrorMarkingFrame(Math.floor(video.currentTime * errorMarkingFps()));
+    updateErrorMarkingFrameIndicator();
+  };
   video.onloadedmetadata = () => {
     $("error-marking-scrubber").max = Math.max(errorMarkingFrameCount() - 1, 0);
     updateErrorMarkingFrameIndicator();
@@ -994,12 +1022,18 @@ function renderErrorMarkingTask(task, judgment) {
   state.selectedSkeletonLandmark = null;
   state.skeletonDragLandmark = null;
   state.skeletonDragPosition = null;
+  setErrorMarkingFrame(0);
+  // Called before the renders below (not after) so its synchronous prefix --
+  // clearing state.errorMarkingLandmarks and updating
+  // state.errorMarkingLandmarksTaskId -- has already run by the time they
+  // read it; otherwise a moment of the *previous* task's overlay could
+  // render against this task's now-reset frame indicator.
+  loadErrorMarkingLandmarks(task);
+  attachSkeletonOverlayHandlers();
   renderErrorMarkingTimeline();
   updateErrorMarkingFrameIndicator();
   $("error-marking-note").value = response.note || "";
   $("error-marking-note").oninput = () => scheduleSave("started");
-  loadErrorMarkingLandmarks(task);
-  attachSkeletonOverlayHandlers();
 }
 
 function errorMarkingResponsePayload() {
@@ -1449,10 +1483,11 @@ $("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
 $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
 $("error-marking-step-forward-5").onclick = () => stepErrorMarkingVideo(5);
 $("error-marking-scrubber").oninput = () => {
-  const video = errorMarkingVideo(), fps = errorMarkingFps();
-  video.pause();
-  video.currentTime = Number($("error-marking-scrubber").value) / fps;
-  updateErrorMarkingFrameIndicator();
+  const frame = Number($("error-marking-scrubber").value);
+  errorMarkingVideo().pause();
+  setErrorMarkingFrame(frame);
+  errorMarkingVideo().currentTime = frameToTime(frame);
+  updateErrorMarkingFrameIndicator(frame);
 };
 $("error-mark-dialog-note").oninput = () => {
   if (state.activeMarkIndex == null) return;

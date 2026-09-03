@@ -343,7 +343,48 @@ def test_dragging_a_skeleton_landmark_records_a_corrected_position_and_a_mark(pa
         _stop_server(server, thread)
 
 
+def test_seeking_to_every_frame_round_trips_to_the_exact_frame(page, tmp_path: Path) -> None:
+    # Regression test for two compounding bugs, both invisible before the
+    # skeleton overlay needed the reported frame to exactly match the
+    # video's actually-decoded content: (1) seeking to exactly frame/fps
+    # lands right on the boundary between that frame and its neighbor,
+    # which the browser's own frame timestamps don't always round the way
+    # assumed -- fixed by seeking to each frame's midpoint (frameToTime()).
+    # (2) video.currentTime assignment is asynchronous in every browser, so
+    # a *fresh* read of it shortly after assigning -- as errorMarkingCurrentFrame()
+    # used to do -- is not reliably caught up yet, even once the on-screen
+    # frame label already shows the right number from an explicitly-passed
+    # frame. Fixed by tracking the intended/confirmed frame as state
+    # (state.errorMarkingFrame / setErrorMarkingFrame()) instead of
+    # re-deriving it from currentTime at arbitrary call sites.
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        expect(page.locator(".skeleton-landmark").first).to_be_visible(timeout=5000)
+
+        for frame in range(ERROR_MARKING_FRAME_COUNT):
+            page.evaluate(
+                "(frame) => {"
+                " const scrubber = document.getElementById('error-marking-scrubber');"
+                " scrubber.value = String(frame);"
+                " scrubber.dispatchEvent(new Event('input', {bubbles: true}));"
+                "}",
+                frame,
+            )
+            expect(page.locator("#error-marking-frame-indicator")).to_contain_text(f"frame {frame} /")
+            reported = page.evaluate("() => errorMarkingCurrentFrame()")
+            assert reported == frame, f"seeking to frame {frame} reported back frame {reported}"
+    finally:
+        _stop_server(server, thread)
+
+
 def test_clicking_an_adjacent_frames_landmark_extends_the_existing_mark(page, tmp_path: Path) -> None:
+    # Also exercises the async-currentTime bug above end to end: stepping
+    # forward then immediately clicking the landmark used to read back the
+    # frame startSkeletonLandmarkDrag() computed independently from
+    # video.currentTime, which could still be lagging even though the frame
+    # label had already updated -- landing the click's mark back on frame 0.
     server, store, thread = _start_error_marking_server(tmp_path)
     try:
         _log_in(page, f"http://127.0.0.1:{server.server_port}")

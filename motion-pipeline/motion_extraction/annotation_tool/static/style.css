@@ -101,6 +101,17 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .skeleton-landmark:hover { filter: brightness(1.15); }
 .skeleton-landmark-selected { stroke: #ffffff; stroke-width: 2.5; }
 .skeleton-edge { stroke-width: 3; stroke-linecap: round; }
+/* Safari was wrapping each ‹/›5 pair onto two lines instead of keeping them
+   side by side: the "5" was a <sub> element, whose UA-default vertical-align
+   and font-size (spec-defined but not fully consistent across engines)
+   could grow a button's rendered content taller than its btn-sm height,
+   which combined with Safari's own flexbox sizing of .join to wrap the
+   group. An explicit span with fixed sizing (instead of <sub>) plus
+   flex-wrap: nowrap on the group removes both the ambiguity and the
+   possibility of wrapping. */
+.step-buttons-join { display: inline-flex; flex-wrap: nowrap; }
+.step-buttons-join .btn { flex: 0 0 auto; }
+.step-frame-count { font-size: .65em; vertical-align: baseline; margin-left: .05em; }
 .timeline-scrubber { -webkit-appearance: none; appearance: none; width: 100%; height: 1.2rem; background: transparent; border: none; outline: none; cursor: pointer; }
 .timeline-scrubber:focus { outline: none; }
 .timeline-scrubber::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 999px; }
