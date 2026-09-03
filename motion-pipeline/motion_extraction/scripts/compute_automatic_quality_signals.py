@@ -34,6 +34,7 @@ from motion_extraction.scripts.run_preprocessing_experiment import (
     _direct_quality_summary,
     _visible_roots,
 )
+from motion_extraction.scripts.select_suspicious_frames import landmark_velocity_and_visibility
 
 CROP_LANDMARKS = ("LEFT_HIP", "RIGHT_HIP", "LEFT_SHOULDER", "RIGHT_SHOULDER")
 
@@ -190,6 +191,14 @@ def false_tracking_signal(
     annotation notes -- not a validated detector. Report the continuous
     fraction/run-length so a human reviewer can judge the threshold, rather
     than baking in a pass/fail cutoff here.
+
+    Shares its underlying velocity/visibility computation with
+    ``select_suspicious_frames.py``'s ``per_frame_suspicion`` and
+    ``render_corpus_frame_quality_map.py``'s classification via
+    ``landmark_velocity_and_visibility`` (see that function's docstring) --
+    this function still applies its own fixed-threshold, all-visible-landmark,
+    binary-flag policy on top, which is a deliberately different aggregation
+    from those two, not an oversight.
     """
 
     fields = get_pose_data_schema(PoseDataType.pose2d).coordinate_fields
@@ -197,16 +206,17 @@ def false_tracking_signal(
     frame_count = len(clean)
     flagged = np.zeros(frame_count, dtype=bool)
     contributing_landmarks = 0
-    for root in roots:
-        vis_col = f"{root}_vis"
-        if vis_col not in raw.columns or frame_count < 2:
-            continue
-        values = clean[[f"{root}_{field}" for field in fields]].to_numpy(dtype=float)
-        velocity = np.linalg.norm(np.diff(values, axis=0), axis=1)
-        low_visibility = raw[vis_col].to_numpy(dtype=float)[1:] < visibility_threshold
-        implausible = np.isfinite(velocity) & (velocity > velocity_threshold) & low_visibility
-        flagged[1:] |= implausible
-        contributing_landmarks += 1
+    if frame_count >= 2 and roots:
+        velocity_by_frame, visibility_by_frame = landmark_velocity_and_visibility(raw, clean, roots)
+        for index, root in enumerate(roots):
+            vis_col = f"{root}_vis"
+            if vis_col not in raw.columns:
+                continue
+            velocity = velocity_by_frame[1:, index]
+            low_visibility = visibility_by_frame[1:, index] < visibility_threshold
+            implausible = np.isfinite(velocity) & (velocity > velocity_threshold) & low_visibility
+            flagged[1:] |= implausible
+            contributing_landmarks += 1
     if contributing_landmarks == 0:
         return {
             "false_tracking_candidate_fraction": float("nan"),
