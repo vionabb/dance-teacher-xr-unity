@@ -136,8 +136,9 @@
         <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
         <p>Mark which landmark is inaccurate and for which frames using the timeline below, or click/drag a point directly on the skeleton. Step to a frame, then click a landmark's + (or click/drag the point on the video) to start an error there.</p>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <span id="error-marking-category-badge" class="badge badge-soft"></span>
+        <span id="error-marking-frame-indicator" class="badge badge-lg font-mono" aria-live="polite">frame 0 / 0</span>
       </div>
       <figure class="mt-2">
         <div id="error-marking-video-wrap" class="error-marking-video-wrap">
@@ -147,18 +148,15 @@
       </figure>
 
       <div class="mt-3 flex items-center gap-2">
-        <div class="join">
-          <button id="error-marking-step-back-5" class="btn btn-sm join-item" type="button" aria-label="Back 5 frames">‹<sub>5</sub></button>
+        <div class="join step-buttons-join">
+          <button id="error-marking-step-back-5" class="btn btn-sm join-item" type="button" aria-label="Back 5 frames">‹<span class="step-frame-count">5</span></button>
           <button id="error-marking-step-back-1" class="btn btn-sm join-item" type="button" aria-label="Back 1 frame">‹</button>
         </div>
         <input id="error-marking-scrubber" class="timeline-scrubber flex-1" type="range" min="0" max="0" step="1" value="0" aria-label="Frame scrubber">
-        <div class="join">
+        <div class="join step-buttons-join">
           <button id="error-marking-step-forward-1" class="btn btn-sm join-item" type="button" aria-label="Forward 1 frame">›</button>
-          <button id="error-marking-step-forward-5" class="btn btn-sm join-item" type="button" aria-label="Forward 5 frames">›<sub>5</sub></button>
+          <button id="error-marking-step-forward-5" class="btn btn-sm join-item" type="button" aria-label="Forward 5 frames">›<span class="step-frame-count">5</span></button>
         </div>
-      </div>
-      <div class="mt-2 flex justify-center">
-        <span id="error-marking-frame-indicator" class="badge badge-lg font-mono" aria-live="polite">frame 0 / 0</span>
       </div>
 
       <div id="error-marking-timeline" class="mt-3"></div>
