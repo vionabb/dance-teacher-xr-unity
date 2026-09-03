@@ -134,13 +134,16 @@
     <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
-        <p>Mark which body part is inaccurate and for which frames using the timeline below. Step to a frame, then click that body part's + to start an error there.</p>
+        <p>Mark which landmark is inaccurate and for which frames using the timeline below, or click/drag a point directly on the skeleton. Step to a frame, then click a landmark's + (or click/drag the point on the video) to start an error there.</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <span id="error-marking-category-badge" class="badge badge-soft"></span>
       </div>
       <figure class="mt-2">
-        <video id="error-marking-video" class="w-full rounded-box" loop playsinline muted aria-label="Pose-overlay clip for error marking"></video>
+        <div id="error-marking-video-wrap" class="error-marking-video-wrap">
+          <video id="error-marking-video" class="w-full rounded-box" loop playsinline muted aria-label="Pose-overlay clip for error marking"></video>
+          <svg id="error-marking-overlay" class="error-marking-overlay" aria-hidden="true"></svg>
+        </div>
       </figure>
 
       <div class="mt-3 flex items-center gap-2">

@@ -88,6 +88,19 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .status-unjudged { color: #777; }.status-completed { color: #16745f; }.status-skipped { color: #9a6500; }.status-unclear { color: #7b4594; }
 
 #error-marking-video { display: block; max-height: 32vh; margin: 0 auto; background: #111817; border-radius: .75rem; object-fit: contain; }
+/* The wrap is sized entirely by the video (its only in-flow child), so the
+   overlay -- absolutely positioned to fill the wrap -- lands on exactly the
+   video element's own box. Both then independently letterbox their content
+   to fit that box (the video via object-fit: contain, the overlay via its
+   viewBox/preserveAspectRatio, set to the same source-frame dimensions in
+   app.js), so the two letterbox identically and the overlay's points land
+   on the source-pixel coordinates they actually represent. */
+.error-marking-video-wrap { position: relative; width: 100%; }
+.error-marking-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.skeleton-landmark { pointer-events: auto; cursor: pointer; touch-action: none; stroke: #10201d; stroke-width: 1.5; }
+.skeleton-landmark:hover { filter: brightness(1.15); }
+.skeleton-landmark-selected { stroke: #ffffff; stroke-width: 2.5; }
+.skeleton-edge { stroke-width: 3; stroke-linecap: round; }
 .timeline-scrubber { -webkit-appearance: none; appearance: none; width: 100%; height: 1.2rem; background: transparent; border: none; outline: none; cursor: pointer; }
 .timeline-scrubber:focus { outline: none; }
 .timeline-scrubber::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 999px; }

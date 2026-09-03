@@ -8,6 +8,8 @@ const state = {
   errorBodyParts: [], errorCauses: [], editingListKind: "body_part",
   activeMarkIndex: null, errorMarkingNoErrorsConfirmed: false,
   editingBodyParts: false, addingBodyPartEntry: false,
+  errorMarkingLandmarks: null, errorMarkingLandmarksTaskId: null,
+  skeletonDragLandmark: null, skeletonDragPosition: null, selectedSkeletonLandmark: null,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -257,20 +259,24 @@ const ERROR_LIST_STATE_KEYS = {body_part: "errorBodyParts", cause: "errorCauses"
 const ERROR_LIST_SERVER_KEYS = {body_part: "error_mark_body_part_defaults", cause: "error_mark_cause_defaults"};
 const FALLBACK_ERROR_LISTS = {
   body_part: [
-    {id: "right_arm", label: "Right arm"},
-    {id: "left_arm", label: "Left arm"},
-    {id: "hips", label: "Hips"},
-    {id: "right_leg", label: "Right leg"},
-    {id: "left_leg", label: "Left leg"},
-    {id: "torso", label: "Shoulders"},
-    {id: "head", label: "Head"},
-    {id: "other", label: "Other"},
+    {id: "LEFT_SHOULDER", label: "Left shoulder"},
+    {id: "RIGHT_SHOULDER", label: "Right shoulder"},
+    {id: "LEFT_ELBOW", label: "Left elbow"},
+    {id: "RIGHT_ELBOW", label: "Right elbow"},
+    {id: "LEFT_WRIST", label: "Left wrist"},
+    {id: "RIGHT_WRIST", label: "Right wrist"},
+    {id: "LEFT_HIP", label: "Left hip"},
+    {id: "RIGHT_HIP", label: "Right hip"},
+    {id: "LEFT_KNEE", label: "Left knee"},
+    {id: "RIGHT_KNEE", label: "Right knee"},
+    {id: "LEFT_ANKLE", label: "Left ankle"},
+    {id: "RIGHT_ANKLE", label: "Right ankle"},
   ],
   cause: [
     {id: "occlusion", label: "Occlusion (limb crosses/hides behind body)"},
-    {id: "out_of_frame", label: "Out of frame"},
-    {id: "missing_tracking", label: "Missing / lost tracking"},
-    {id: "other", label: "Other"},
+    {id: "motion_blur", label: "Motion blur"},
+    {id: "background_confusion", label: "Background confusion"},
+    {id: "suboptimal_clothing", label: "Suboptimal clothing"},
   ],
 };
 
@@ -279,12 +285,30 @@ function defaultErrorList(kind) {
   return source.map((item) => ({...item}));
 }
 
-// One-time forward-migration for a device's already-persisted body-part list:
-// merges a still-default "Right hip"/"Left hip" pair into one "Hips" entry,
-// and renames a still-default "Torso" label to "Shoulders" (same id, so any
-// already-submitted marks tagged with it keep displaying correctly under the
-// new label). Only touches entries an annotator hasn't already customized
-// away from the shipped defaults.
+// Both migrations below only replace a device's already-persisted list when
+// it's still exactly a prior shipped default, wholesale -- never touching
+// anything an annotator has renamed, added, or removed (they can always
+// update by hand via the list's Edit toggle instead).
+
+// 2026-08/09: merges a still-default "Right hip"/"Left hip" pair into one
+// "Hips" entry, renames a still-default "Torso" label to "Shoulders", and
+// (2026-09-03) replaces the whole coarse-region vocabulary with individual
+// landmarks matching what the skeleton overlay actually tracks and draws --
+// a region id like "right_arm" doesn't map onto one landmark (it covered
+// the shoulder, elbow, and wrist together), so this is a wholesale swap
+// rather than a per-entry rename. Already-submitted marks keep their old
+// ids and keep displaying either way (see timelineRowGroups()).
+const LEGACY_COARSE_BODY_PARTS = [
+  {id: "right_arm", label: "Right arm"},
+  {id: "left_arm", label: "Left arm"},
+  {id: "hips", label: "Hips"},
+  {id: "right_leg", label: "Right leg"},
+  {id: "left_leg", label: "Left leg"},
+  {id: "torso", label: "Shoulders"},
+  {id: "head", label: "Head"},
+  {id: "other", label: "Other"},
+];
+
 function migrateBodyPartDefaults(list) {
   const torso = list.find((item) => item.id === "torso");
   if (torso && torso.label === "Torso") torso.label = "Shoulders";
@@ -295,15 +319,36 @@ function migrateBodyPartDefaults(list) {
     rightHip.label = "Hips";
     list.splice(list.indexOf(leftHip), 1);
   }
-  return list;
+  const stillAllCoarseDefaults = LEGACY_COARSE_BODY_PARTS.every((legacy) =>
+    list.some((item) => item.id === legacy.id && item.label === legacy.label));
+  return stillAllCoarseDefaults ? defaultErrorList("body_part") : list;
+}
+
+// 2026-09-03: simplified the cause vocabulary to four causes tied to
+// recording conditions rather than tracking-specific jargon. Any cause an
+// annotator already added on top of the old defaults (not one of the four
+// below) is preserved and carried over onto the new list.
+const LEGACY_CAUSES = [
+  {id: "occlusion", label: "Occlusion (limb crosses/hides behind body)"},
+  {id: "out_of_frame", label: "Out of frame"},
+  {id: "missing_tracking", label: "Missing / lost tracking"},
+  {id: "other", label: "Other"},
+];
+
+function migrateCauseDefaults(list) {
+  const stillAllLegacyDefaults = LEGACY_CAUSES.every((legacy) =>
+    list.some((item) => item.id === legacy.id && item.label === legacy.label));
+  if (!stillAllLegacyDefaults) return list;
+  const customized = list.filter((item) =>
+    !LEGACY_CAUSES.some((legacy) => legacy.id === item.id && legacy.label === item.label));
+  return [...defaultErrorList("cause"), ...customized];
 }
 
 function loadErrorList(kind) {
   try {
     const stored = JSON.parse(localStorage.getItem(ERROR_LIST_STORAGE_KEYS[kind]) || "null");
     if (Array.isArray(stored) && stored.length) {
-      if (kind !== "body_part") return stored;
-      const migrated = migrateBodyPartDefaults(stored);
+      const migrated = kind === "body_part" ? migrateBodyPartDefaults(stored) : migrateCauseDefaults(stored);
       localStorage.setItem(ERROR_LIST_STORAGE_KEYS[kind], JSON.stringify(migrated));
       return migrated;
     }
@@ -365,8 +410,46 @@ function errorMarkingFps() { return Number(state.data.tasks[state.taskIndex].fps
 function errorMarkingFrameCount() { return Number(state.data.tasks[state.taskIndex].frame_count) || 0; }
 function errorMarkingCurrentFrame() { return Math.round(errorMarkingVideo().currentTime * errorMarkingFps()); }
 
+function markForPartAtFrame(partId, frame) {
+  return state.errorMarks.find((mark) => mark.body_part === partId && frame >= mark.start_frame && frame <= mark.end_frame) || null;
+}
+
 function frameCoveredForPart(partId, frame) {
-  return state.errorMarks.some((mark) => mark.body_part === partId && frame >= mark.start_frame && frame <= mark.end_frame);
+  return markForPartAtFrame(partId, frame) !== null;
+}
+
+// Creates a mark covering just `frame` for `bodyPart`, unless one already
+// exists there -- in which case an existing mark ending at frame-1 and/or
+// starting at frame+1 is extended (and the two merged, if both exist)
+// instead of a new, separately-tracked mark being created. Shared by the
+// timeline's per-row + button and by clicking/dragging a landmark on the
+// skeleton overlay, so both paths produce the same, minimally-fragmented
+// set of marks.
+function ensureMarkAtFrame(bodyPart, frame) {
+  const existing = markForPartAtFrame(bodyPart, frame);
+  if (existing) return existing;
+  const before = state.errorMarks.find((mark) => mark.body_part === bodyPart && mark.end_frame === frame - 1);
+  const after = state.errorMarks.find((mark) => mark.body_part === bodyPart && mark.start_frame === frame + 1);
+  let mark;
+  if (before && after) {
+    before.end_frame = after.end_frame;
+    before.causes = [...new Set([...before.causes, ...after.causes])];
+    before.positions = {...after.positions, ...before.positions};
+    if (!before.note && after.note) before.note = after.note;
+    state.errorMarks.splice(state.errorMarks.indexOf(after), 1);
+    mark = before;
+  } else if (before) {
+    before.end_frame = frame;
+    mark = before;
+  } else if (after) {
+    after.start_frame = frame;
+    mark = after;
+  } else {
+    mark = {body_part: bodyPart, start_frame: frame, end_frame: frame, causes: [], note: "", positions: {}};
+    state.errorMarks.push(mark);
+  }
+  state.errorMarkingNoErrorsConfirmed = false;
+  return mark;
 }
 
 function updateTimelineAddButtons() {
@@ -394,6 +477,7 @@ function updateErrorMarkingFrameIndicator() {
   if (document.activeElement !== scrubber) scrubber.value = frame;
   updateTimelineAddButtons();
   updateTimelinePlayhead();
+  renderSkeletonOverlay();
 }
 
 function stepErrorMarkingVideo(deltaFrames) {
@@ -418,6 +502,14 @@ function markBackground(mark) {
   const stripe = 10;
   const stops = mark.causes.map(causeColor).flatMap((color, index) => [`${color} ${index * stripe}px`, `${color} ${(index + 1) * stripe}px`]);
   return `repeating-linear-gradient(45deg, ${stops.join(", ")})`;
+}
+
+// A solid-color equivalent of markBackground(), for SVG fill/stroke
+// attributes (which can't take a CSS gradient like a multi-cause mark's
+// timeline color): the first attributed cause's color stands in for all of
+// them, which the mark's own popup still shows in full.
+function markPointColor(mark) {
+  return mark.causes.length ? causeColor(mark.causes[0]) : UNSET_CAUSE_COLOR;
 }
 
 function timelineRowGroups() {
@@ -512,12 +604,10 @@ function renderErrorMarkingTimeline() {
 function addMarkAtCurrentFrame(partId) {
   const frame = errorMarkingCurrentFrame();
   if (frameCoveredForPart(partId, frame)) return;
-  state.errorMarks.push({body_part: partId, start_frame: frame, end_frame: frame, causes: [], note: ""});
-  const index = state.errorMarks.length - 1;
-  state.errorMarkingNoErrorsConfirmed = false;
+  const mark = ensureMarkAtFrame(partId, frame);
   renderErrorMarkingTimeline();
   scheduleSave("started");
-  openErrorMarkPopup(index);
+  openErrorMarkPopup(state.errorMarks.indexOf(mark));
 }
 
 function commitNewBodyPart(rawValue) {
@@ -643,7 +733,7 @@ function startNewMarkDrag(event, track) {
   }
 
   const originFrame = frameFromClientX(event.clientX, track);
-  state.errorMarks.push({body_part: partId, start_frame: originFrame, end_frame: originFrame, causes: [], note: ""});
+  state.errorMarks.push({body_part: partId, start_frame: originFrame, end_frame: originFrame, causes: [], note: "", positions: {}});
   const index = state.errorMarks.length - 1;
   state.errorMarkingNoErrorsConfirmed = false;
   video.currentTime = Math.max(0, originFrame / fps);
@@ -710,6 +800,7 @@ function renderErrorMarkDialogCauses(mark) {
       if (position === -1) mark.causes.push(button.dataset.dialogToggleCause); else mark.causes.splice(position, 1);
       renderErrorMarkDialogCauses(mark);
       updateTimelineSegmentPosition(state.activeMarkIndex);
+      renderSkeletonOverlay();
       scheduleSave("started");
     };
   });
@@ -724,6 +815,156 @@ function openErrorMarkPopup(index) {
   $("error-mark-dialog-note").value = mark.note || "";
   $("error-mark-dialog").showModal();
   captureErrorMarkPreview(mark).catch(() => {});
+}
+
+// --- Skeleton overlay (error-marking screen) ------------------------------
+//
+// Draws the tracked landmarks over #error-marking-video at the frame the
+// video is currently on, color-coded to match the timeline legend, and lets
+// the annotator click or drag a landmark directly instead of only using the
+// timeline's + buttons. A click creates/extends a mark for that landmark at
+// that frame (via ensureMarkAtFrame, same merge-adjacent-marks behavior as
+// the timeline); a drag does the same AND records the dragged-to position
+// as that mark's corrected position for that one frame, leaving every other
+// frame in the mark's range to fall back to the tracked position. This is
+// the same interaction split the (single-frame) skeleton editor uses --
+// tap opens the detail popup, drag corrects a position -- adapted to a
+// per-frame video instead of one static image.
+
+async function loadErrorMarkingLandmarks(task) {
+  if (state.errorMarkingLandmarksTaskId === task.task_id) { renderSkeletonOverlay(); return; }
+  state.errorMarkingLandmarks = null;
+  state.errorMarkingLandmarksTaskId = task.task_id;
+  if (!task.landmarks_artifact) { renderSkeletonOverlay(); return; }
+  try {
+    const response = await authenticatedFetch(`/artifacts/${task.landmarks_artifact}`);
+    const data = await responseJson(response);
+    if (state.data.tasks[state.taskIndex]?.task_id === task.task_id) state.errorMarkingLandmarks = data;
+  } catch (error) { /* no overlay for this clip; video still works on its own */ }
+  renderSkeletonOverlay();
+}
+
+// The tracked position for a landmark at a frame, overridden by that
+// landmark's own mark's corrected position for that exact frame (if any),
+// and by an in-progress drag's live position for the current frame.
+function skeletonFrameLandmarks(frame) {
+  const data = state.errorMarkingLandmarks;
+  if (!data || !data.frames[frame]) return {};
+  const effective = {...data.frames[frame]};
+  state.errorMarks.forEach((mark) => {
+    if (frame < mark.start_frame || frame > mark.end_frame) return;
+    const corrected = mark.positions && mark.positions[String(frame)];
+    if (corrected) effective[mark.body_part] = corrected;
+  });
+  if (state.skeletonDragLandmark && state.skeletonDragPosition && frame === errorMarkingCurrentFrame()) {
+    effective[state.skeletonDragLandmark] = state.skeletonDragPosition;
+  }
+  return effective;
+}
+
+function renderSkeletonOverlay() {
+  const svg = $("error-marking-overlay");
+  const data = state.errorMarkingLandmarks;
+  if (!svg || !data) { if (svg) svg.innerHTML = ""; return; }
+  const {width, height} = data.source_dimensions;
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  const frame = errorMarkingCurrentFrame();
+  const points = skeletonFrameLandmarks(frame);
+  const clampX = (x) => Math.min(Math.max(x, -width * .3), width * 1.3);
+  const clampY = (y) => Math.min(Math.max(y, -height * .3), height * 1.3);
+
+  const edgesHTML = (data.pose_edges || []).map(([a, b]) => {
+    const pa = points[a], pb = points[b];
+    if (!pa || !pb) return "";
+    const markA = markForPartAtFrame(a, frame), markB = markForPartAtFrame(b, frame);
+    const color = markA ? markPointColor(markA) : markB ? markPointColor(markB) : "rgba(255,255,255,.4)";
+    return `<line class="skeleton-edge" x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}" stroke="${color}"></line>`;
+  }).join("");
+
+  const pointsHTML = (data.landmarks || []).map((landmark) => {
+    const point = points[landmark];
+    if (!point) return "";
+    const mark = markForPartAtFrame(landmark, frame);
+    const selected = state.selectedSkeletonLandmark === landmark || state.skeletonDragLandmark === landmark;
+    const color = mark ? markPointColor(mark) : "rgba(255,255,255,.55)";
+    return `<circle class="skeleton-landmark${selected ? " skeleton-landmark-selected" : ""}" data-landmark="${landmark}"` +
+      ` cx="${clampX(point[0])}" cy="${clampY(point[1])}" r="${mark ? 11 : 8}" fill="${color}"></circle>`;
+  }).join("");
+
+  svg.innerHTML = `<g>${edgesHTML}</g><g>${pointsHTML}</g>`;
+}
+
+// Inverts the same uniform "meet" (contain) fit the SVG's own
+// viewBox/preserveAspectRatio does when its element box's aspect ratio
+// doesn't match its content's, so a pointer position lands on the same
+// content-space point the browser is rendering there -- not distorted by
+// treating the letterboxed element box as if it mapped 1:1 onto the source
+// frame.
+function svgToContentPoint(svg, clientX, clientY, width, height) {
+  const rect = svg.getBoundingClientRect();
+  const scale = rect.width && rect.height ? Math.min(rect.width / width, rect.height / height) : 1;
+  const offsetX = (rect.width - width * scale) / 2;
+  const offsetY = (rect.height - height * scale) / 2;
+  return {x: (clientX - rect.left - offsetX) / (scale || 1), y: (clientY - rect.top - offsetY) / (scale || 1)};
+}
+
+const SKELETON_DRAG_THRESHOLD = 3;
+
+function startSkeletonLandmarkDrag(event, landmark) {
+  event.preventDefault();
+  const svg = $("error-marking-overlay");
+  const data = state.errorMarkingLandmarks;
+  const {width, height} = data.source_dimensions;
+  const frame = errorMarkingCurrentFrame();
+  const startPoint = skeletonFrameLandmarks(frame)[landmark];
+  const video = errorMarkingVideo();
+  video.pause();
+  const pointerId = event.pointerId;
+  svg.setPointerCapture?.(pointerId);
+  state.selectedSkeletonLandmark = landmark;
+  let moved = false;
+
+  function onMove(moveEvent) {
+    if (moveEvent.pointerId !== pointerId) return;
+    const point = svgToContentPoint(svg, moveEvent.clientX, moveEvent.clientY, width, height);
+    if (!moved && startPoint && Math.hypot(point.x - startPoint[0], point.y - startPoint[1]) <= SKELETON_DRAG_THRESHOLD) return;
+    moved = true;
+    state.skeletonDragLandmark = landmark;
+    state.skeletonDragPosition = [point.x, point.y];
+    renderSkeletonOverlay();
+  }
+
+  function onUp(upEvent) {
+    if (upEvent.pointerId !== pointerId) return;
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    svg.releasePointerCapture?.(pointerId);
+    const mark = ensureMarkAtFrame(landmark, frame);
+    if (moved && state.skeletonDragPosition) {
+      mark.positions = mark.positions || {};
+      mark.positions[String(frame)] = state.skeletonDragPosition;
+    }
+    state.skeletonDragLandmark = null;
+    state.skeletonDragPosition = null;
+    renderErrorMarkingTimeline();
+    renderSkeletonOverlay();
+    scheduleSave("started");
+    if (!moved) openErrorMarkPopup(state.errorMarks.indexOf(mark));
+  }
+
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+}
+
+function attachSkeletonOverlayHandlers() {
+  const svg = $("error-marking-overlay");
+  if (!svg || svg.dataset.handlersAttached) return;
+  svg.dataset.handlersAttached = "1";
+  svg.addEventListener("pointerdown", (event) => {
+    const circle = event.target.closest(".skeleton-landmark");
+    if (!circle || !state.errorMarkingLandmarks) return;
+    startSkeletonLandmarkDrag(event, circle.dataset.landmark);
+  });
 }
 
 function renderErrorMarkingTask(task, judgment) {
@@ -746,14 +987,19 @@ function renderErrorMarkingTask(task, judgment) {
   };
 
   const response = judgment?.error_marking_response || {};
-  state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], note: "", ...mark}));
+  state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], note: "", positions: {}, ...mark}));
   state.errorMarkingNoErrorsConfirmed = false;
   state.editingBodyParts = false;
   state.addingBodyPartEntry = false;
+  state.selectedSkeletonLandmark = null;
+  state.skeletonDragLandmark = null;
+  state.skeletonDragPosition = null;
   renderErrorMarkingTimeline();
   updateErrorMarkingFrameIndicator();
   $("error-marking-note").value = response.note || "";
   $("error-marking-note").oninput = () => scheduleSave("started");
+  loadErrorMarkingLandmarks(task);
+  attachSkeletonOverlayHandlers();
 }
 
 function errorMarkingResponsePayload() {

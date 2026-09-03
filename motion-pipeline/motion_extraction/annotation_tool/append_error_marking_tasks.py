@@ -79,12 +79,32 @@ def main() -> None:
     parser.add_argument(
         "--task-ids", nargs="+", required=True, help="quality_triage task_ids to build error_marking tasks from"
     )
+    parser.add_argument(
+        "--signals-csv",
+        type=Path,
+        help=(
+            "automatic_quality_signals.csv this batch was selected from. When given, also "
+            "attaches per-frame landmark pixel positions to each new task (see "
+            "attach_error_marking_landmarks.py) so the error-marking UI's skeleton overlay "
+            "has real coordinates from the start."
+        ),
+    )
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     result = append_error_marking_tasks(manifest, args.manifest.parent, args.task_ids)
     args.output_manifest.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     added = sum(1 for task in result["tasks"] if task.get("task_type") == "error_marking")
     print(f"Wrote {added} error_marking tasks to {args.output_manifest}")
+
+    if args.signals_csv:
+        from motion_extraction.annotation_tool.attach_error_marking_landmarks import attach_landmarks
+
+        summary, skipped = attach_landmarks(args.output_manifest, args.signals_csv, args.manifest.parent)
+        print(f"Attached landmarks to {summary['written']} of them.")
+        if skipped:
+            print(f"Skipped {len(skipped)}:")
+            for line in skipped:
+                print(f"  {line}")
 
 
 if __name__ == "__main__":

@@ -837,6 +837,199 @@ def test_triage_response_is_rejected_on_a_non_triage_task(tmp_path: Path) -> Non
         )
 
 
+def _error_marking_manifest() -> dict:
+    return {
+        "schema_version": "1.0",
+        "experiment_id": "error-marking-test",
+        "task_type": "error_marking",
+        "tasks": [
+            {
+                "task_id": "error-marking-1",
+                "case_id": "error-marking-1",
+                "priority": 1,
+                "task_type": "error_marking",
+                "category": "roughness",
+                "source_artifact": "error-marking-1/clip.mp4",
+                "fps": 30.0,
+                "frame_count": 90,
+                "landmarks_artifact": "error-marking-1/landmarks.json",
+                "source_dimensions": {"width": 640, "height": 360},
+            }
+        ],
+    }
+
+
+def test_error_marking_marks_are_typed_append_only_and_exported(tmp_path: Path) -> None:
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
+    first = store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "error-marking-1",
+            "status": "started",
+            "error_marking_response": {
+                "marks": [
+                    {
+                        "body_part": "LEFT_WRIST",
+                        "start_frame": 10,
+                        "end_frame": 14,
+                        "causes": ["occlusion"],
+                        "note": "wrist drifts behind hip",
+                        "positions": {"12": [201.5, 88.0]},
+                    }
+                ],
+                "no_errors_found": False,
+                "note": "",
+            },
+        }
+    )
+    second = store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "error-marking-1",
+            "status": "completed",
+            "error_marking_response": {
+                "marks": [
+                    {
+                        "body_part": "LEFT_WRIST",
+                        "start_frame": 10,
+                        "end_frame": 15,
+                        "causes": ["occlusion", "motion_blur"],
+                        "note": "wrist drifts behind hip",
+                        "positions": {"12": [201.5, 88.0], "15": [210.0, 90.25]},
+                    }
+                ],
+                "no_errors_found": False,
+                "note": "otherwise clean",
+            },
+        }
+    )
+    assert second["revision_id"] > first["revision_id"]
+    latest = store.state("reviewer")["latest_judgments"]["error-marking-1"]
+    assert latest["error_marking_response"]["marks"][0]["positions"] == {
+        "12": [201.5, 88.0],
+        "15": [210.0, 90.25],
+    }
+    rows = store.export_rows()
+    assert len(rows) == 2
+    exported = json.loads(rows[1]["error_marking_response_json"])
+    assert exported["marks"][0]["end_frame"] == 15
+    assert exported["marks"][0]["positions"]["15"] == [210.0, 90.25]
+
+
+def test_completed_error_marking_requires_marks_or_no_errors_found(tmp_path: Path) -> None:
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
+    with pytest.raises(ValueError, match="requires marks, or no_errors_found"):
+        store.append(
+            {
+                "annotator": "reviewer",
+                "task_id": "error-marking-1",
+                "status": "completed",
+                "error_marking_response": {"marks": [], "no_errors_found": False, "note": ""},
+            }
+        )
+    store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "error-marking-1",
+            "status": "completed",
+            "error_marking_response": {"marks": [], "no_errors_found": True, "note": "clean pass"},
+        }
+    )
+
+
+def test_error_marking_mark_position_must_fall_within_its_own_frame_range(tmp_path: Path) -> None:
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
+    with pytest.raises(ValueError, match="within the mark's own range"):
+        store.append(
+            {
+                "annotator": "reviewer",
+                "task_id": "error-marking-1",
+                "status": "started",
+                "error_marking_response": {
+                    "marks": [
+                        {
+                            "body_part": "LEFT_WRIST",
+                            "start_frame": 10,
+                            "end_frame": 12,
+                            "causes": [],
+                            "note": "",
+                            "positions": {"20": [1.0, 2.0]},
+                        }
+                    ],
+                    "no_errors_found": False,
+                    "note": "",
+                },
+            }
+        )
+
+
+def test_error_marking_mark_position_must_be_a_finite_xy_pair(tmp_path: Path) -> None:
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
+    for bad_positions in [
+        {"10": [1.0]},
+        {"10": "not-a-point"},
+        {"10": [float("nan"), 1.0]},
+        {"not-a-frame": [1.0, 2.0]},
+    ]:
+        with pytest.raises(ValueError):
+            store.append(
+                {
+                    "annotator": "reviewer",
+                    "task_id": "error-marking-1",
+                    "status": "started",
+                    "error_marking_response": {
+                        "marks": [
+                            {
+                                "body_part": "LEFT_WRIST",
+                                "start_frame": 10,
+                                "end_frame": 12,
+                                "causes": [],
+                                "note": "",
+                                "positions": bad_positions,
+                            }
+                        ],
+                        "no_errors_found": False,
+                        "note": "",
+                    },
+                }
+            )
+
+
+def test_error_marking_response_is_rejected_on_a_non_error_marking_task(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="only valid"):
+        AnnotationStore(tmp_path / "skeleton.sqlite3", _manifest()).append(
+            {
+                "annotator": "reviewer",
+                "task_id": "task-high",
+                "status": "started",
+                "error_marking_response": {"marks": [], "no_errors_found": True, "note": ""},
+            }
+        )
+
+
+def test_error_mark_body_part_defaults_are_the_tracked_landmark_names() -> None:
+    from motion_extraction.annotation_tool.server import DEFAULT_ERROR_BODY_PARTS
+    from motion_extraction.scripts.run_preprocessing_experiment import POSE_EDGES
+
+    tracked_landmarks = {item for edge in POSE_EDGES for item in edge}
+    assert {item["id"] for item in DEFAULT_ERROR_BODY_PARTS} == tracked_landmarks
+
+
+def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    assert 'id="error-marking-overlay"' in html
+    assert 'id="error-marking-video-wrap"' in html
+    js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    for symbol in [
+        "function ensureMarkAtFrame(",
+        "function renderSkeletonOverlay(",
+        "function startSkeletonLandmarkDrag(",
+        "function svgToContentPoint(",
+        "function attachSkeletonOverlayHandlers(",
+    ]:
+        assert symbol in js
+
+
 def test_mp4_serving_supports_mime_type_and_single_byte_ranges(tmp_path: Path) -> None:
     experiment = tmp_path / "experiment"
     media = experiment / "media"

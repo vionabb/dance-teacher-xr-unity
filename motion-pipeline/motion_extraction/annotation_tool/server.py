@@ -20,7 +20,7 @@ import typing as t
 from urllib.parse import parse_qs, urlparse
 
 
-SCHEMA_VERSION = "3.5"
+SCHEMA_VERSION = "3.6"
 STATUSES = {"started", "completed", "unclear", "skipped"}
 TEMPORAL_CHOICES = {
     "A",
@@ -33,27 +33,38 @@ TEMPORAL_CONFIDENCES = {"low", "medium", "high"}
 TRIAGE_VERDICTS = {"fine", "problematic", "cannot_judge"}
 ERROR_MARK_LABEL_MAX_LENGTH = 64
 ERROR_MARK_NOTE_MAX_LENGTH = 500
-# A skeletal error (which body part is inaccurate, over which frames) is
+# A skeletal error (which landmark is inaccurate, over which frames) is
 # recorded separately from its guessed cause(s), so one clip can carry
 # several independently-typed, independently-timed, and possibly-overlapping
-# errors -- e.g. a right-arm inaccuracy across frames 1-14, an inaccurate hip
-# location at just frame 10, and something else across frames 12-16 -- and a
-# single marked error can be attributed to more than one probable cause.
+# errors -- e.g. a right-wrist inaccuracy across frames 1-14, an inaccurate
+# hip location at just frame 10, and something else across frames 12-16 --
+# and a single marked error can be attributed to more than one probable
+# cause. `body_part` ids are deliberately the same uppercase landmark names
+# the skeleton-overlay artifact (`landmarks_artifact`) uses as its per-frame
+# position keys, so a mark can address a landmark's tracked position with no
+# translation step; a mark whose body_part is anything else (e.g. an older
+# coarse-region id like "left_arm", or a fully custom one an annotator
+# typed) simply isn't drawable on the overlay and falls back to a plain
+# timeline row -- see `timelineRowGroups()` in app.js.
 DEFAULT_ERROR_BODY_PARTS = [
-    {"id": "right_arm", "label": "Right arm"},
-    {"id": "left_arm", "label": "Left arm"},
-    {"id": "hips", "label": "Hips"},
-    {"id": "right_leg", "label": "Right leg"},
-    {"id": "left_leg", "label": "Left leg"},
-    {"id": "torso", "label": "Shoulders"},
-    {"id": "head", "label": "Head"},
-    {"id": "other", "label": "Other"},
+    {"id": "LEFT_SHOULDER", "label": "Left shoulder"},
+    {"id": "RIGHT_SHOULDER", "label": "Right shoulder"},
+    {"id": "LEFT_ELBOW", "label": "Left elbow"},
+    {"id": "RIGHT_ELBOW", "label": "Right elbow"},
+    {"id": "LEFT_WRIST", "label": "Left wrist"},
+    {"id": "RIGHT_WRIST", "label": "Right wrist"},
+    {"id": "LEFT_HIP", "label": "Left hip"},
+    {"id": "RIGHT_HIP", "label": "Right hip"},
+    {"id": "LEFT_KNEE", "label": "Left knee"},
+    {"id": "RIGHT_KNEE", "label": "Right knee"},
+    {"id": "LEFT_ANKLE", "label": "Left ankle"},
+    {"id": "RIGHT_ANKLE", "label": "Right ankle"},
 ]
 DEFAULT_ERROR_CAUSES = [
     {"id": "occlusion", "label": "Occlusion (limb crosses/hides behind body)"},
-    {"id": "out_of_frame", "label": "Out of frame"},
-    {"id": "missing_tracking", "label": "Missing / lost tracking"},
-    {"id": "other", "label": "Other"},
+    {"id": "motion_blur", "label": "Motion blur"},
+    {"id": "background_confusion", "label": "Background confusion"},
+    {"id": "suboptimal_clothing", "label": "Suboptimal clothing"},
 ]
 LIGHTING_RATINGS = {"good", "moderate", "poor"}
 CLOTHING_RATINGS = {"well_suited", "moderate", "poorly_suited"}
@@ -519,6 +530,44 @@ class AnnotationStore:
         return {"verdict": verdict, "note": note}
 
     @staticmethod
+    def _validate_mark_positions(
+        value: t.Any, start_frame: int, end_frame: int
+    ) -> dict[str, list[float]]:
+        """Validate a mark's sparse per-frame corrected-landmark-position map.
+
+        Recorded only for frames the annotator actually dragged the landmark
+        on while adjusting the skeleton overlay -- most frames in a mark's
+        range have no entry and fall back to the tracked position. Each
+        entry's frame must fall inside the mark's own [start_frame,
+        end_frame] range.
+        """
+
+        if not isinstance(value, dict):
+            raise ValueError("mark positions must be an object")
+        positions: dict[str, list[float]] = {}
+        for raw_frame, raw_point in value.items():
+            try:
+                frame = int(raw_frame)
+            except (TypeError, ValueError) as error:
+                raise ValueError("mark position keys must be frame numbers") from error
+            if frame < start_frame or frame > end_frame:
+                raise ValueError("mark position frame must fall within the mark's own range")
+            if (
+                not isinstance(raw_point, (list, tuple))
+                or len(raw_point) != 2
+                or any(isinstance(coordinate, bool) for coordinate in raw_point)
+            ):
+                raise ValueError("each mark position must be an [x, y] pair")
+            try:
+                x, y = float(raw_point[0]), float(raw_point[1])
+            except (TypeError, ValueError) as error:
+                raise ValueError("each mark position must be an [x, y] pair of numbers") from error
+            if not (math.isfinite(x) and math.isfinite(y)):
+                raise ValueError("mark positions must be finite")
+            positions[str(frame)] = [x, y]
+        return positions
+
+    @staticmethod
     def _validate_error_marking_response(
         value: t.Any, task_type: str, status: str
     ) -> dict[str, t.Any]:
@@ -577,6 +626,9 @@ class AnnotationStore:
                 raise ValueError(
                     f"each mark note must be at most {ERROR_MARK_NOTE_MAX_LENGTH} characters"
                 )
+            positions = AnnotationStore._validate_mark_positions(
+                item.get("positions", {}), start_frame, end_frame
+            )
             marks.append(
                 {
                     "body_part": body_part,
@@ -584,6 +636,7 @@ class AnnotationStore:
                     "end_frame": end_frame,
                     "causes": causes,
                     "note": mark_note,
+                    "positions": positions,
                 }
             )
         no_errors_found = bool(value.get("no_errors_found", False))
