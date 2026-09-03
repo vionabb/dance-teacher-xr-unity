@@ -79,25 +79,15 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).
 
 - [Handoff: corpus-wide quality triage + defect localization](2026-08-27-preprocessing-quality-gate-pivot-handoff.md)
-  (living document — status as of 2026-09-02) Compared Claude's judgments
-  against Viona's on the 60-task Stage-1 triage batch: crop alone doesn't
-  predict "problematic," false-tracking only validates when the actual flagged
-  window is shown, ~44% of random controls have undetected defects. Full-corpus
-  analysis of the 8 CHI25 upper-body landmarks found simple framing exclusion
-  would drop ~59% of the corpus (almost entirely hips, not arms) and that
-  MediaPipe's visibility score is trustworthy for wrists but not hips/shoulders.
-  A first test of automatic occlusion-error detection was inconclusive. Built
-  `error_marking` (body-part-and-range marks with separately-attributed
-  probable causes) and `video_quality_rating` annotation task types, migrated
-  the tool's pickers to daisyUI, and built a reusable corpus-wide frame-quality
-  map (63.9% white / 28.5% yellow / 7.6% red frame-weighted, 17 of 1,756 clips
-  more than half red). `error_marking`'s screen then went through a full
-  timeline-driven UI redesign (per-body-part rows shown up front, click/drag/+
-  to create a mark, click-to-set-cause popup with a preview frame and a
-  per-mark note, color-by-cause with a legend, horizontal scroll for long
-  clips, inline body-part list editing) across five more commits, driven by
-  Viona's own live iteration against the running server. **Currently blocked**:
-  Viona's progress is split across two annotator logins (`vioina`, a typo with
-  her real 60/60 triage completions, vs. `viona`, the correct spelling with
-  only 4/60 plus in-progress `error_marking` work) — unresolved, needs her
-  decision before further review continues under either.
+  (living document — status as of 2026-09-03) Full-corpus pose extraction
+  (1,808/1,808 clips) is done. `quality_triage` review is 60/60 complete (an
+  annotator-identity split found 2026-09-01 was resolved 2026-09-02).
+  `error_marking` and `video_quality_rating` annotation task types exist and
+  are in progress (1/17 and 0/20 respectively); the `error_marking` screen has
+  a fully timeline-driven UI (per-body-part rows, click/drag/+ to mark, a
+  click-to-set-cause popup, color-by-cause, a playhead and frame scrubber) but
+  zero automated test coverage. The corpus-wide frame-quality map now also
+  covers the reference corpus. Two sessions are concurrently active on the
+  branch as of 2026-09-03: one on Safari/CSS-grid fixes, another building an
+  interactive skeleton-overlay feature (click/drag mark creation,
+  drag-to-correct landmark position, per-landmark body parts).
