@@ -47,6 +47,8 @@ Commit at phase or milestone boundaries, not only once at the end: each commit s
 
 Open a pull request rather than pushing directly to `main` for anything beyond a trivial doc fix, and never push or merge without the user's explicit go-ahead — creating a branch or worktree and committing to it locally does not by itself authorize publishing it.
 
+That said, on an existing feature/worktree branch that is already pushed to origin (i.e. not `main`, and not the act of opening a new PR), commit and push routine incremental updates — including lab-log handoff-document updates — automatically, without pausing to ask each time; this is how sessions on this repo actually operate in practice. This does not change the rule above: opening a PR, merging, or pushing to `main` for the first time still always requires the user's explicit go-ahead.
+
 When a piece of work is expected to span multiple sessions, record its state in a lab-log handoff document (see [lab-log/README.md](lab-log/README.md)'s "Handoff documents" section) so a future session — potentially on a different machine, in a different worktree — can resume it without re-deriving context from scratch.
 
 ## Experimental research loops

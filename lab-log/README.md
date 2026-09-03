@@ -83,6 +83,29 @@ picks up work described in a handoff document must update its status before
 ending, per the "Session handoff" convention in the top-level
 [AGENTS.md](../AGENTS.md).
 
+**Keep it short.** A handoff document is oriented at *current state*, not a
+research diary — it should stay readable in one sitting regardless of how many
+sessions have touched it. When rewriting it, prune narrative walkthroughs,
+superseded findings, and completed-phase blow-by-blow once their outcome is
+captured elsewhere (a commit, a settled decision, or the dated entry it
+accompanies) — don't let it grow by accretion across sessions. Keep only what
+a fresh session actually needs: current status, what's still open, decisions
+already settled that shouldn't be re-litigated, and the concrete next action.
+Point to `git log` (or `git log -p -- <path>` for a specific past version) for
+anything cut, rather than leaving it in place "just in case."
+
+**Update and commit it automatically, without asking each time.** Before
+ending a session that touched work a handoff document describes, rewrite the
+relevant sections and commit that update yourself — this is exactly the kind
+of small, low-risk, already-on-an-existing-branch change covered by the
+commit-cadence guidance in [AGENTS.md](../AGENTS.md). Don't wait for the user
+to ask for a handoff-doc update or a commit of it.
+
+**If another session may be working the same branch or worktree**, treat the
+document as shared state: check recent commits before rewriting, and
+reconcile with what the other session already wrote rather than silently
+overwriting a section it just changed.
+
 ---
 
 ## Index page
