@@ -840,6 +840,7 @@ function openErrorMarkPopup(index) {
   renderErrorMarkDialogCauses(mark);
   $("error-mark-dialog-note").value = mark.note || "";
   $("error-mark-dialog").showModal();
+  renderErrorMarkDialogOverlay();
   captureErrorMarkPreview(mark).catch(() => {});
 }
 
@@ -888,12 +889,12 @@ function skeletonFrameLandmarks(frame) {
   return effective;
 }
 
-function renderSkeletonOverlay(frame = errorMarkingCurrentFrame()) {
-  const svg = $("error-marking-overlay");
-  const data = state.errorMarkingLandmarks;
-  if (!svg || !data) { if (svg) svg.innerHTML = ""; return; }
+// Builds the skeleton overlay markup for one frame, shared by the live
+// video overlay and the mark-detail dialog's read-only preview. `highlight`
+// forces a specific landmark to render selected regardless of hover/drag
+// state -- used by the dialog to call out the landmark a mark is about.
+function skeletonOverlayMarkup(data, frame, highlight = null) {
   const {width, height} = data.source_dimensions;
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   const points = skeletonFrameLandmarks(frame);
   const clampX = (x) => Math.min(Math.max(x, -width * .3), width * 1.3);
   const clampY = (y) => Math.min(Math.max(y, -height * .3), height * 1.3);
@@ -910,13 +911,39 @@ function renderSkeletonOverlay(frame = errorMarkingCurrentFrame()) {
     const point = points[landmark];
     if (!point) return "";
     const mark = markForPartAtFrame(landmark, frame);
-    const selected = state.selectedSkeletonLandmark === landmark || state.skeletonDragLandmark === landmark;
+    const selected = highlight ? landmark === highlight : (state.selectedSkeletonLandmark === landmark || state.skeletonDragLandmark === landmark);
     const color = mark ? markPointColor(mark) : "rgba(255,255,255,.55)";
     return `<circle class="skeleton-landmark${selected ? " skeleton-landmark-selected" : ""}" data-landmark="${landmark}"` +
       ` cx="${clampX(point[0])}" cy="${clampY(point[1])}" r="${mark ? 11 : 8}" fill="${color}"></circle>`;
   }).join("");
 
-  svg.innerHTML = `<g>${edgesHTML}</g><g>${pointsHTML}</g>`;
+  return {width, height, innerHTML: `<g>${edgesHTML}</g><g>${pointsHTML}</g>`};
+}
+
+function renderSkeletonOverlay(frame = errorMarkingCurrentFrame()) {
+  const svg = $("error-marking-overlay");
+  const data = state.errorMarkingLandmarks;
+  if (!svg || !data) { if (svg) svg.innerHTML = ""; return; }
+  const {width, height, innerHTML} = skeletonOverlayMarkup(data, frame);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.innerHTML = innerHTML;
+  renderErrorMarkDialogOverlay();
+}
+
+// Renders the same corrected skeleton onto the mark-detail dialog, at that
+// mark's own middle frame, with its body-part landmark highlighted -- so
+// attributing a cause can be cross-checked against where the tracking
+// actually was (and any per-frame drag correction already recorded) without
+// leaving the popup. A no-op while the dialog is closed or has no active mark.
+function renderErrorMarkDialogOverlay() {
+  const svg = $("error-mark-dialog-overlay");
+  const data = state.errorMarkingLandmarks;
+  const mark = state.activeMarkIndex != null ? state.errorMarks[state.activeMarkIndex] : null;
+  if (!svg || !$("error-mark-dialog").open || !mark) { if (svg) svg.innerHTML = ""; return; }
+  if (!data) { svg.innerHTML = ""; return; }
+  const {width, height, innerHTML} = skeletonOverlayMarkup(data, midFrame(mark), mark.body_part);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.innerHTML = innerHTML;
 }
 
 // Inverts the same uniform "meet" (contain) fit the SVG's own
