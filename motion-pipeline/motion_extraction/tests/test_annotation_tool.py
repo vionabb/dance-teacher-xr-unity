@@ -1030,6 +1030,28 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
         assert symbol in js
 
 
+def test_error_mark_dialog_shows_corrected_skeleton_with_highlighted_landmark() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    dialog_start = html.index('id="error-mark-dialog"')
+    dialog_html = html[dialog_start : html.index("</dialog>", dialog_start)]
+    assert 'id="error-mark-dialog-overlay"' in dialog_html
+    assert 'class="error-marking-overlay"' in dialog_html
+
+    css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
+    assert "#error-mark-dialog-overlay .skeleton-landmark" in css
+    assert "pointer-events: none" in css.split("#error-mark-dialog-overlay .skeleton-landmark", 1)[1].split("}", 1)[0]
+
+    js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    assert "function renderErrorMarkDialogOverlay(" in js
+    assert "function skeletonOverlayMarkup(" in js
+    # The dialog highlights the mark's own body part/landmark, not
+    # whatever's hovered/dragged on the live overlay.
+    dialog_render = js[js.index("function renderErrorMarkDialogOverlay(") : js.index("\n}", js.index("function renderErrorMarkDialogOverlay("))]
+    assert "mark.body_part" in dialog_render
+    open_popup = js[js.index("function openErrorMarkPopup(") : js.index("\n}", js.index("function openErrorMarkPopup("))]
+    assert "renderErrorMarkDialogOverlay()" in open_popup
+
+
 def test_mp4_serving_supports_mime_type_and_single_byte_ranges(tmp_path: Path) -> None:
     experiment = tmp_path / "experiment"
     media = experiment / "media"

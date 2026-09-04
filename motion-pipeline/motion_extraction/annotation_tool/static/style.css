@@ -101,6 +101,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .skeleton-landmark:hover { filter: brightness(1.15); }
 .skeleton-landmark-selected { stroke: #ffffff; stroke-width: 2.5; }
 .skeleton-edge { stroke-width: 3; stroke-linecap: round; }
+/* The dialog's overlay is read-only (a corrected-position preview, not a
+   second place to drag from) -- disable the landmark circles' own
+   pointer-events/cursor from .skeleton-landmark above. */
+#error-mark-dialog-overlay .skeleton-landmark { pointer-events: none; cursor: default; }
 /* Safari was wrapping each ‹/›5 pair onto two lines instead of keeping them
    side by side: the "5" was a <sub> element, whose UA-default vertical-align
    and font-size (spec-defined but not fully consistent across engines)
