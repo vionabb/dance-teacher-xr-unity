@@ -33,17 +33,11 @@ artifacts: []
 
 ## How to resume
 
-**Server**: check first (`lsof -iTCP:8765 -sTCP:LISTEN`) before starting a new one — as of 2026-09-05 it's bound to the LAN (`--host 192.168.1.21`, phone access, see README's "Phone on the local network") with an access code chosen at that restart (not recorded here — see README's "keep it private"; Viona has it), pointed at `temp/experiments/20260828-quality-triage-batch-v1` / `data/human-annotations/quality-triage/annotations.sqlite3`. A restart is only required again after a future change to `server.py` or the manifest (static JS/HTML/CSS changes, like the 2026-09-04 frame-accuracy fix and the 2026-09-04 dialog-overlay addition, serve live on the next page load with no restart) or to switch back to localhost-only. To restart: stop it (Ctrl-C, or `kill` its PID) and start with the exact same command below (pick a fresh access code, or drop `--host`/`--access-token` for localhost-only) to resume — autosave/resume means nothing is lost:
-```
-cd motion-pipeline && ACCESS_CODE="<pick one>" uv run python -m motion_extraction.annotation_tool.server \
-  --experiment-root temp/experiments/20260828-quality-triage-batch-v1 \
-  --database data/human-annotations/quality-triage/annotations.sqlite3 \
-  --host 192.168.1.21 --port 8765 --access-token "$ACCESS_CODE"
-```
+**Runtime status (2026-09-05)**: the branch now uses the original checkout, the former linked worktree has been removed, and the annotation server is stopped. Before removal, the ignored annotation database and experiment artifacts were migrated and verified; the database passed its integrity check and a byte-identical backup was retained locally. Locate these ignored runtime files locally before restarting, and do not record machine-specific paths, network details, access codes, or other secrets in this handoff.
 
-**Worktree data gotcha**: `data/reference_motions/{videos,pose-raw}` and `data/participant_motions` are gitignored and not shared between a worktree and the primary checkout. This worktree already has them symlinked back to the primary checkout — if a fresh worktree needs them, symlink rather than re-staging ~4.5GB. Never `git add -A`/`git add .` here: git doesn't treat a symlink-to-a-directory as ignored, so a broad add would stage a machine-local absolute path.
+**Future-worktree data gotcha**: ignored research data and generated experiment outputs are not shared automatically between checkouts. Before removing a future worktree, inventory and migrate its unique ignored files. Avoid broad Git staging in a worktree containing dataset symlinks, because those symlinks can be staged even when their target directories are ignored.
 
-**Regenerate a fresh/larger triage batch**: `uv run python -m motion_extraction.annotation_tool.generate_quality_triage_tasks --signals-csv temp/experiments/20260828-quality-signals-canonical-sweep/automatic_quality_signals.csv --output-root temp/experiments/<new-name> --per-signal-count N --control-count N`. Append more `error_marking`/`video_quality_rating` tasks to the existing manifest with `append_error_marking_tasks.py` / `append_video_quality_rating_tasks.py` — pass `append_error_marking_tasks.py` the same `--signals-csv` too so the new tasks get `landmarks_artifact` attached automatically instead of needing a separate `attach_error_marking_landmarks.py` pass.
+Use the existing task-generation and landmark-attachment scripts when expanding the annotation batch; inspect their current help and launch examples for arguments rather than preserving machine-local invocations here.
 
 ## `error_marking` / `video_quality_rating` schema
 
