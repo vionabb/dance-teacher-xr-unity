@@ -10,7 +10,8 @@ const state = {
   editingBodyParts: false, addingBodyPartEntry: false,
   errorMarkingLandmarks: null, errorMarkingLandmarksTaskId: null,
   skeletonDragLandmark: null, skeletonDragPosition: null, selectedSkeletonLandmark: null,
-  errorMarkingFrame: 0,
+  errorMarkingFrame: 0, errorMarkingReplayHandle: null, errorMarkingReviewReplayHandle: null,
+  errorMarkingDirty: false,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -120,7 +121,7 @@ function isTriageTask(task) { return task.task_type === "quality_triage"; }
 function isErrorMarkingTask(task) { return task.task_type === "error_marking"; }
 function isQualityRatingTask(task) { return task.task_type === "video_quality_rating"; }
 const ALL_SCREEN_IDS = ["skeleton-screen", "annotation-screen", "temporal-screen", "triage-screen", "error-marking-screen", "quality-rating-screen"];
-function hideAllScreens() { ALL_SCREEN_IDS.forEach((id) => { $(id).hidden = true; }); }
+function hideAllScreens() { stopErrorMarkingReplay(); ALL_SCREEN_IDS.forEach((id) => { $(id).hidden = true; }); }
 
 function temporalVideos() {
   return [...document.querySelectorAll("#temporal-screen video")];
@@ -504,6 +505,7 @@ function updateErrorMarkingFrameIndicator(frame = errorMarkingCurrentFrame()) {
 }
 
 function stepErrorMarkingVideo(deltaFrames) {
+  stopErrorMarkingReplay();
   const video = errorMarkingVideo(), frameCount = errorMarkingFrameCount();
   const maxFrame = Math.max(frameCount - 1, 0);
   video.pause();
@@ -511,6 +513,73 @@ function stepErrorMarkingVideo(deltaFrames) {
   setErrorMarkingFrame(targetFrame);
   video.currentTime = frameToTime(targetFrame);
   updateErrorMarkingFrameIndicator(targetFrame);
+}
+
+// Steps a video through every frame of the current error_marking task at a
+// fixed real-time rate, holding each frame long enough to actually see it --
+// deliberately not native playbackRate, which can't reliably hold on
+// discrete frames at these speeds across browsers. `onFrame` updates
+// whatever overlay/UI is paired with `video` (the live screen's timeline
+// and skeleton overlay, or the review dialog's own overlay). Returns a
+// handle whose stop() cancels the remaining steps; callers own tearing it
+// down (on manual interaction, task change, or dialog close).
+function startFrameReplay(video, onFrame, fps) {
+  video.pause();
+  const maxFrame = Math.max(errorMarkingFrameCount() - 1, 0);
+  let frame = 0;
+  const showFrame = () => { video.currentTime = frameToTime(frame); onFrame(frame); };
+  showFrame();
+  const timer = setInterval(() => {
+    if (frame >= maxFrame) { clearInterval(timer); return; }
+    frame += 1;
+    showFrame();
+  }, 1000 / fps);
+  return {stop: () => clearInterval(timer)};
+}
+
+function stopErrorMarkingReplay() {
+  if (state.errorMarkingReplayHandle) { state.errorMarkingReplayHandle.stop(); state.errorMarkingReplayHandle = null; }
+}
+
+function replayErrorMarking(fps) {
+  stopErrorMarkingReplay();
+  state.errorMarkingReplayHandle = startFrameReplay(errorMarkingVideo(), (frame) => {
+    setErrorMarkingFrame(frame);
+    updateErrorMarkingFrameIndicator(frame);
+  }, fps);
+}
+
+function stopErrorMarkingReviewReplay() {
+  if (state.errorMarkingReviewReplayHandle) { state.errorMarkingReviewReplayHandle.stop(); state.errorMarkingReviewReplayHandle = null; }
+}
+
+function replayErrorMarkingReview(fps) {
+  stopErrorMarkingReviewReplay();
+  $("error-marking-review-status").textContent = `Replaying at ${fps} fps…`;
+  state.errorMarkingReviewReplayHandle = startFrameReplay($("error-marking-review-video"), (frame) => {
+    renderOverlayInto($("error-marking-review-overlay"), state.errorMarkingLandmarks, frame);
+  }, fps);
+}
+
+// Shown when "Done annotating" is clicked on an error_marking task with
+// unreviewed changes (see scheduleSave()'s errorMarkingDirty tracking).
+// Reuses the current task's already-loaded landmarks data but plays a
+// second, independent <video> so the live screen's own video/scrubber are
+// untouched underneath -- closing without completing leaves everything
+// exactly as it was.
+function openErrorMarkingReviewDialog() {
+  const task = state.data.tasks[state.taskIndex];
+  const video = $("error-marking-review-video");
+  video.src = `/artifacts/${task.source_artifact}`;
+  video.load();
+  video.onloadeddata = () => replayErrorMarkingReview(4);
+  $("error-marking-review-dialog").showModal();
+  state.errorMarkingDirty = false;
+}
+
+function closeErrorMarkingReviewDialog() {
+  stopErrorMarkingReviewReplay();
+  $("error-marking-review-dialog").close();
 }
 
 const CAUSE_COLOR_PALETTE = ["#e0578c", "#3a8fd9", "#e0a63a", "#5fb87a", "#9366c9", "#e0653a", "#3ab7b0", "#b08c3a"];
@@ -703,6 +772,7 @@ function startTimelineHandleDrag(event, handleEl) {
   const edge = handleEl.dataset.handle;
   const track = handleEl.closest(".timeline-row-track");
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
+  stopErrorMarkingReplay();
   const video = errorMarkingVideo();
   video.pause();
   let dragged = false;
@@ -747,6 +817,7 @@ function startNewMarkDrag(event, track) {
   event.preventDefault();
   const partId = track.dataset.trackPart;
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
+  stopErrorMarkingReplay();
   const video = errorMarkingVideo();
   video.pause();
 
@@ -833,6 +904,7 @@ function renderErrorMarkDialogCauses(mark) {
 }
 
 function openErrorMarkPopup(index) {
+  stopErrorMarkingReplay();
   state.activeMarkIndex = index;
   const mark = state.errorMarks[index];
   $("error-mark-dialog-title").textContent = bodyPartLabel(mark.body_part);
@@ -920,13 +992,19 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
   return {width, height, innerHTML: `<g>${edgesHTML}</g><g>${pointsHTML}</g>`};
 }
 
-function renderSkeletonOverlay(frame = errorMarkingCurrentFrame()) {
-  const svg = $("error-marking-overlay");
-  const data = state.errorMarkingLandmarks;
-  if (!svg || !data) { if (svg) svg.innerHTML = ""; return; }
-  const {width, height, innerHTML} = skeletonOverlayMarkup(data, frame);
+// Shared by every skeleton-overlay surface (the live timeline view, the
+// mark-detail dialog's static preview, and the review dialog's replay) --
+// each just points this at its own <svg> and frame source.
+function renderOverlayInto(svg, data, frame, highlight = null) {
+  if (!svg) return;
+  if (!data) { svg.innerHTML = ""; return; }
+  const {width, height, innerHTML} = skeletonOverlayMarkup(data, frame, highlight);
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.innerHTML = innerHTML;
+}
+
+function renderSkeletonOverlay(frame = errorMarkingCurrentFrame()) {
+  renderOverlayInto($("error-marking-overlay"), state.errorMarkingLandmarks, frame);
   renderErrorMarkDialogOverlay();
 }
 
@@ -937,13 +1015,9 @@ function renderSkeletonOverlay(frame = errorMarkingCurrentFrame()) {
 // leaving the popup. A no-op while the dialog is closed or has no active mark.
 function renderErrorMarkDialogOverlay() {
   const svg = $("error-mark-dialog-overlay");
-  const data = state.errorMarkingLandmarks;
   const mark = state.activeMarkIndex != null ? state.errorMarks[state.activeMarkIndex] : null;
   if (!svg || !$("error-mark-dialog").open || !mark) { if (svg) svg.innerHTML = ""; return; }
-  if (!data) { svg.innerHTML = ""; return; }
-  const {width, height, innerHTML} = skeletonOverlayMarkup(data, midFrame(mark), mark.body_part);
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.innerHTML = innerHTML;
+  renderOverlayInto(svg, state.errorMarkingLandmarks, midFrame(mark), mark.body_part);
 }
 
 // Inverts the same uniform "meet" (contain) fit the SVG's own
@@ -969,6 +1043,7 @@ function startSkeletonLandmarkDrag(event, landmark) {
   const {width, height} = data.source_dimensions;
   const frame = errorMarkingCurrentFrame();
   const startPoint = skeletonFrameLandmarks(frame)[landmark];
+  stopErrorMarkingReplay();
   const video = errorMarkingVideo();
   video.pause();
   const pointerId = event.pointerId;
@@ -1044,6 +1119,7 @@ function renderErrorMarkingTask(task, judgment) {
   const response = judgment?.error_marking_response || {};
   state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], note: "", positions: {}, ...mark}));
   state.errorMarkingNoErrorsConfirmed = false;
+  state.errorMarkingDirty = false;
   state.editingBodyParts = false;
   state.addingBodyPartEntry = false;
   state.selectedSkeletonLandmark = null;
@@ -1417,7 +1493,11 @@ function payload(status) {
   const sourceEvidence = sourceEvidencePayload();
   return {annotator: state.annotator, task_id: task.task_id, status, tier_assignments: {}, notes: $("frame-note").value.trim(), tags: [], overlay_tags: {}, overlay_notes: {}, source_evidence_quality: sourceEvidence.quality, source_evidence_factors: sourceEvidence.factors, ground_truth_landmarks: state.groundTruth, initial_ground_truth_landmarks: state.initialGroundTruth, initial_landmark_sources: state.initialLandmarkSources, landmark_interactions: state.landmarkInteractions, ground_truth_initial_profile: state.initialProfile};
 }
-function scheduleSave(status) { clearTimeout(state.timer); state.pendingStatus = status; $("save-state").textContent = "unsaved…"; state.timer = setTimeout(() => save(status), 500); }
+function scheduleSave(status) {
+  const task = state.data?.tasks?.[state.taskIndex];
+  if (task && isErrorMarkingTask(task)) state.errorMarkingDirty = true;
+  clearTimeout(state.timer); state.pendingStatus = status; $("save-state").textContent = "unsaved…"; state.timer = setTimeout(() => save(status), 500);
+}
 async function save(status) {
   clearTimeout(state.timer); state.timer = null; state.pendingStatus = null; const submission = payload(status); const previous = state.savePromise || Promise.resolve(true);
   const request = previous.then(async () => { try { const response = await authenticatedFetch("/api/judgments", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(submission)}); const result = await responseJson(response); $("save-state").textContent = `saved revision ${result.revision_id}`; return true; } catch (error) { $("save-state").textContent = "save failed"; alert(`Save failed: ${error.message || error}`); return false; } });
@@ -1488,10 +1568,21 @@ document.querySelectorAll(".actions button[data-status]").forEach((button) => bu
     if (!confirm("No errors were marked for this clip. Complete it as “no errors observed”?")) return;
     state.errorMarkingNoErrorsConfirmed = true;
   }
+  // Gate completion on a replay review only when there's something new to
+  // look at -- state.errorMarkingDirty tracks edits since the last time this
+  // dialog was shown (see scheduleSave() and openErrorMarkingReviewDialog()),
+  // not just since the task loaded.
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && state.errorMarkingDirty) {
+    openErrorMarkingReviewDialog();
+    return;
+  }
+  await submitStatusAndAdvance(button.dataset.status);
+});
+async function submitStatusAndAdvance(status) {
   lockInteraction(true);
   try {
     if (!(await flushPendingSave())) return;
-    const saved = await save(button.dataset.status);
+    const saved = await save(status);
     if (saved) {
       await refresh(false);
       if (state.taskIndex < state.data.tasks.length - 1) state.taskIndex++;
@@ -1504,12 +1595,23 @@ document.querySelectorAll(".actions button[data-status]").forEach((button) => bu
   } finally {
     lockInteraction(false);
   }
-});
+}
+$("error-marking-review-replay").onclick = () => replayErrorMarkingReview(4);
+$("error-marking-review-replay-slow").onclick = () => replayErrorMarkingReview(2);
+$("error-marking-review-edit").onclick = () => closeErrorMarkingReviewDialog();
+$("error-marking-review-looks-good").onclick = async () => {
+  closeErrorMarkingReviewDialog();
+  await submitStatusAndAdvance("completed");
+};
+$("error-marking-review-dialog").addEventListener("close", stopErrorMarkingReviewReplay);
 $("error-marking-step-back-5").onclick = () => stepErrorMarkingVideo(-5);
 $("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
 $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
 $("error-marking-step-forward-5").onclick = () => stepErrorMarkingVideo(5);
+$("error-marking-replay").onclick = () => replayErrorMarking(4);
+$("error-marking-replay-slow").onclick = () => replayErrorMarking(2);
 $("error-marking-scrubber").oninput = () => {
+  stopErrorMarkingReplay();
   const frame = Number($("error-marking-scrubber").value);
   errorMarkingVideo().pause();
   setErrorMarkingFrame(frame);

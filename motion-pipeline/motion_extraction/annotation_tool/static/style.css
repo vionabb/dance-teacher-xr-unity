@@ -38,6 +38,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .section-heading p { max-width: 32rem; margin: .15rem 0 0; color: var(--muted); font-size: .9rem; }
 .step-badge { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: .5rem; background: #d9f4ec; color: var(--teal-dark); font-size: .7rem; font-weight: 800; }
 .section-heading.compact { margin-bottom: .75rem; }
+/* Collapsed by default on every screen size -- the instructions are one-time
+   reading, not something worth permanent screen space from once an
+   annotator knows the task, especially on a small canvas-first mobile
+   layout. */
+.instructions-details summary { display: inline-flex; align-items: center; gap: .3rem; margin-top: .15rem; color: var(--teal-dark); font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; list-style: none; cursor: pointer; }
+.instructions-details summary::-webkit-details-marker { display: none; }
+.instructions-details summary::before { content: "▸"; font-size: .65em; }
+.instructions-details[open] summary::before { content: "▾"; }
 .frame-note-panel { display: grid; gap: .55rem; }
 .frame-note-panel h2, .frame-note-panel fieldset { margin: 0; }
 .editor-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
@@ -155,6 +163,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .timeline-legend-item { display: inline-flex; align-items: center; gap: .35rem; color: var(--muted); font-size: .75rem; }
 .timeline-legend-swatch { display: inline-block; width: .85rem; height: .85rem; border: 1px solid #00000014; border-radius: .25rem; }
 #error-mark-dialog-preview { display: block; width: 100%; height: auto; }
+#error-marking-review-video { display: block; width: 100%; max-height: 55vh; margin: 0 auto; background: #111817; border-radius: .75rem; object-fit: contain; }
+.error-marking-review-box { display: flex; flex-direction: column; }
 
 @media (max-width: 800px) {
   header { flex-wrap: wrap; gap: .5rem; padding: .65rem; }
@@ -179,7 +189,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   .section-heading p { margin: .65rem 0 0 2.25rem; }
   .initialization-controls > * { flex: 1 1 100%; }
   .initialization-controls select, .initialization-controls button { width: 100%; }
-  #editor-viewport { max-height: 70vh; }
+  /* The skeleton-adjustment canvas is the entire task on this screen, so on
+     a small viewport let it dominate -- everything else here (Reset,
+     landmark panel, the fixed action bar) is already sized to sit below/on
+     top of it without needing much of its own vertical budget. */
+  #editor-viewport { max-height: 82vh; }
   .editor-tools button { flex: 1 1 auto; }
   .landmark-row { grid-template-columns: 1fr; gap: .15rem; padding: .6rem 0; font-size: 1rem; }
   .landmark-row select { width: 100%; }
@@ -187,6 +201,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   .temporal-source video { max-height: 45vh; }
   .temporal-controls .btn { flex: 1 1 auto; }
   #temporal-choice-options, #temporal-confidence > div { display: grid; grid-template-columns: 1fr; }
-  #error-marking-video { max-height: 26vh; }
+  /* Same reasoning as #editor-viewport above -- the video+skeleton overlay
+     is the primary interaction surface (tap/drag a landmark directly, or
+     use the frame-step controls right below it); the timeline further down
+     still works, it just no longer has to fit above the fold too. */
+  #error-marking-video { max-height: 58vh; }
   .timeline-row-label { flex-basis: 4.5rem; font-size: .72rem; }
+  .error-marking-review-box { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+  .error-marking-review-box figure { flex: 1 1 auto; display: flex; min-height: 0; }
+  .error-marking-review-box .error-marking-video-wrap { flex: 1 1 auto; min-height: 0; }
+  #error-marking-review-video { max-height: none; width: 100%; height: 100%; }
 }
