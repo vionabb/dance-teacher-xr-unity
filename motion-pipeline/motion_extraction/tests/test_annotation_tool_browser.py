@@ -425,15 +425,27 @@ def test_replay_button_becomes_pause_and_freezes_the_current_frame(page, tmp_pat
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
         expect(page.locator("#error-marking-screen")).to_be_visible()
 
+        page.locator("#error-marking-scrubber").evaluate(
+            """(scrubber) => {
+                scrubber.value = '2';
+                scrubber.dispatchEvent(new Event('input', {bubbles: true}));
+            }"""
+        )
         replay = page.locator("#error-marking-replay")
         replay.click()
         expect(replay).to_have_text("⏸ Pause")
+        expect(page.locator("#error-marking-frame-indicator")).to_contain_text("frame 3", timeout=1500)
         replay.click()
         expect(replay).to_have_text("▶ Replay")
 
         paused_frame = page.evaluate("() => errorMarkingCurrentFrame()")
         page.wait_for_timeout(400)
         assert page.evaluate("() => errorMarkingCurrentFrame()") == paused_frame
+
+        replay.click()
+        expect(replay).to_have_text("⏸ Pause")
+        assert page.evaluate("() => errorMarkingCurrentFrame()") == paused_frame
+        replay.click()
     finally:
         _stop_server(server, thread)
 

@@ -10,7 +10,8 @@ const state = {
   editingBodyParts: false, addingBodyPartEntry: false,
   errorMarkingLandmarks: null, errorMarkingLandmarksTaskId: null,
   skeletonDragLandmark: null, skeletonDragPosition: null, selectedSkeletonLandmark: null,
-  errorMarkingFrame: 0, errorMarkingReplayHandle: null, errorMarkingReviewReplayHandle: null,
+  errorMarkingFrame: 0, errorMarkingReviewFrame: 0,
+  errorMarkingReplayHandle: null, errorMarkingReviewReplayHandle: null,
   errorMarkingDirty: false,
 };
 const $ = (id) => document.getElementById(id);
@@ -523,10 +524,10 @@ function stepErrorMarkingVideo(deltaFrames) {
 // and skeleton overlay, or the review dialog's own overlay). Returns a
 // handle whose stop() cancels the remaining steps; callers own tearing it
 // down (on manual interaction, task change, or dialog close).
-function startFrameReplay(video, onFrame, fps, onFinish = () => {}) {
+function startFrameReplay(video, onFrame, fps, startFrame = 0, onFinish = () => {}) {
   video.pause();
   const maxFrame = Math.max(errorMarkingFrameCount() - 1, 0);
-  let frame = 0;
+  let frame = Math.max(0, Math.min(startFrame, maxFrame));
   let stopped = false;
   const showFrame = () => { video.currentTime = frameToTime(frame); onFrame(frame); };
   showFrame();
@@ -564,13 +565,15 @@ function stopErrorMarkingReplay() {
   setErrorMarkingReplayPlaying(false);
 }
 
-function replayErrorMarking(fps) {
+function replayErrorMarking() {
   stopErrorMarkingReplay();
+  const maxFrame = Math.max(errorMarkingFrameCount() - 1, 0);
+  const startFrame = errorMarkingCurrentFrame() >= maxFrame ? 0 : errorMarkingCurrentFrame();
   setErrorMarkingReplayPlaying(true);
   state.errorMarkingReplayHandle = startFrameReplay(errorMarkingVideo(), (frame) => {
     setErrorMarkingFrame(frame);
     updateErrorMarkingFrameIndicator(frame);
-  }, fps, () => {
+  }, 2, startFrame, () => {
     state.errorMarkingReplayHandle = null;
     setErrorMarkingReplayPlaying(false);
   });
@@ -581,13 +584,16 @@ function stopErrorMarkingReviewReplay() {
   setErrorMarkingReviewReplayPlaying(false);
 }
 
-function replayErrorMarkingReview(fps) {
+function replayErrorMarkingReview() {
   stopErrorMarkingReviewReplay();
-  $("error-marking-review-status").textContent = `Replaying at ${fps} fps…`;
+  const maxFrame = Math.max(errorMarkingFrameCount() - 1, 0);
+  const startFrame = state.errorMarkingReviewFrame >= maxFrame ? 0 : state.errorMarkingReviewFrame;
+  $("error-marking-review-status").textContent = "Replaying at 2 fps…";
   setErrorMarkingReviewReplayPlaying(true);
   state.errorMarkingReviewReplayHandle = startFrameReplay($("error-marking-review-video"), (frame) => {
+    state.errorMarkingReviewFrame = frame;
     renderOverlayInto($("error-marking-review-overlay"), state.errorMarkingLandmarks, frame);
-  }, fps, () => {
+  }, 2, startFrame, () => {
     state.errorMarkingReviewReplayHandle = null;
     setErrorMarkingReviewReplayPlaying(false);
     $("error-marking-review-status").textContent = "Replay complete.";
@@ -603,9 +609,10 @@ function replayErrorMarkingReview(fps) {
 function openErrorMarkingReviewDialog() {
   const task = state.data.tasks[state.taskIndex];
   const video = $("error-marking-review-video");
+  state.errorMarkingReviewFrame = 0;
   video.src = `/artifacts/${task.source_artifact}`;
   video.load();
-  video.onloadeddata = () => replayErrorMarkingReview(4);
+  video.onloadeddata = replayErrorMarkingReview;
   $("error-marking-review-dialog").showModal();
   state.errorMarkingDirty = false;
 }
@@ -1658,9 +1665,8 @@ $("error-marking-review-replay").onclick = () => {
   if (state.errorMarkingReviewReplayHandle) {
     stopErrorMarkingReviewReplay();
     $("error-marking-review-status").textContent = "Paused.";
-  } else replayErrorMarkingReview(4);
+  } else replayErrorMarkingReview();
 };
-$("error-marking-review-replay-slow").onclick = () => replayErrorMarkingReview(2);
 $("error-marking-review-edit").onclick = () => closeErrorMarkingReviewDialog();
 $("error-marking-review-looks-good").onclick = async () => {
   closeErrorMarkingReviewDialog();
@@ -1673,9 +1679,8 @@ $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
 $("error-marking-step-forward-5").onclick = () => stepErrorMarkingVideo(5);
 $("error-marking-replay").onclick = () => {
   if (state.errorMarkingReplayHandle) stopErrorMarkingReplay();
-  else replayErrorMarking(4);
+  else replayErrorMarking();
 };
-$("error-marking-replay-slow").onclick = () => replayErrorMarking(2);
 $("error-marking-scrubber").oninput = () => {
   stopErrorMarkingReplay();
   const frame = Number($("error-marking-scrubber").value);
