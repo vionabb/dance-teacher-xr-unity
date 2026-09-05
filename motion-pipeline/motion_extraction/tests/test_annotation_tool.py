@@ -1069,7 +1069,8 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
     js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert 'id="error-marking-replay"' in html
-    assert 'id="error-marking-replay-slow"' in html
+    assert 'id="error-marking-replay-slow"' not in html
+    assert 'id="error-marking-review-replay-slow"' not in html
     for symbol in [
         "function startFrameReplay(",
         "function replayErrorMarking(",
@@ -1078,8 +1079,12 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
         "function setErrorMarkingReviewReplayPlaying(",
     ]:
         assert symbol in js
-    assert "replayErrorMarking(4)" in js
-    assert "replayErrorMarking(2)" in js
+    assert "function replayErrorMarking()" in js
+    assert "}, 2, startFrame," in js
+    replay_button = html.index('id="error-marking-replay"')
+    controls_start = html.rindex('<div class="mt-3 flex items-center gap-2">', 0, replay_button)
+    assert replay_button < html.index("</div>", replay_button)
+    assert controls_start < replay_button
     # Manual interaction (stepping, scrubbing, dragging a mark or a
     # landmark) must cancel any running replay rather than fight it for
     # video.currentTime.
