@@ -79,15 +79,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).
 
 - [Handoff: corpus-wide quality triage + defect localization](2026-08-27-preprocessing-quality-gate-pivot-handoff.md)
-  (living document — status as of 2026-09-03) Full-corpus pose extraction
-  (1,808/1,808 clips) is done. `quality_triage` review is 60/60 complete (an
-  annotator-identity split found 2026-09-01 was resolved 2026-09-02).
-  `error_marking` and `video_quality_rating` annotation task types exist and
-  are in progress (1/17 and 0/20 respectively); the `error_marking` screen has
-  a fully timeline-driven UI (per-body-part rows, click/drag/+ to mark, a
-  click-to-set-cause popup, color-by-cause, a playhead and frame scrubber) but
-  zero automated test coverage. The corpus-wide frame-quality map now also
-  covers the reference corpus. Two sessions are concurrently active on the
-  branch as of 2026-09-03: one on Safari/CSS-grid fixes, another building an
-  interactive skeleton-overlay feature (click/drag mark creation,
-  drag-to-correct landmark position, per-landmark body parts).
+  (living document — status as of 2026-09-05) Full-corpus pose extraction and
+  `quality_triage` are complete; `error_marking` and `video_quality_rating` are
+  in progress (1/17 and 0/20). The tested annotation UI now combines a
+  frame-accurate interactive skeleton, timeline editing, pausable replay, and
+  a replay-before-completion review gate.

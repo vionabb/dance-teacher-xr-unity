@@ -417,3 +417,74 @@ def test_clicking_an_adjacent_frames_landmark_extends_the_existing_mark(page, tm
         assert marks[0]["end_frame"] == 1
     finally:
         _stop_server(server, thread)
+
+
+def test_replay_button_becomes_pause_and_freezes_the_current_frame(page, tmp_path: Path) -> None:
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+
+        replay = page.locator("#error-marking-replay")
+        replay.click()
+        expect(replay).to_have_text("⏸ Pause")
+        replay.click()
+        expect(replay).to_have_text("▶ Replay")
+
+        paused_frame = page.evaluate("() => errorMarkingCurrentFrame()")
+        page.wait_for_timeout(400)
+        assert page.evaluate("() => errorMarkingCurrentFrame()") == paused_frame
+    finally:
+        _stop_server(server, thread)
+
+
+def test_resizing_a_mark_next_to_another_merges_and_preserves_details(page, tmp_path: Path) -> None:
+    server, store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        expect(page.locator(".skeleton-landmark").first).to_be_visible(timeout=5000)
+        page.evaluate(
+            """() => {
+                state.errorMarks = [
+                  {body_part: 'LEFT_WRIST', start_frame: 0, end_frame: 1,
+                   causes: ['motion_blur'], note: 'first', positions: {'0': [100, 75]}},
+                  {body_part: 'LEFT_WRIST', start_frame: 3, end_frame: 3,
+                   causes: ['occlusion'], note: 'second', positions: {'3': [102, 76]}},
+                ];
+                renderErrorMarkingTimeline();
+            }"""
+        )
+        page.locator(
+            '.timeline-segment[data-mark-index="0"] .timeline-handle-end'
+        ).scroll_into_view_if_needed()
+
+        geometry = page.evaluate(
+            """(frameCount) => {
+                const track = document.querySelector('.timeline-row-track[data-track-part="LEFT_WRIST"]');
+                const handle = document.querySelector('.timeline-segment[data-mark-index="0"] .timeline-handle-end');
+                const trackRect = track.getBoundingClientRect();
+                const handleRect = handle.getBoundingClientRect();
+                return {
+                  startX: handleRect.left + handleRect.width / 2,
+                  y: handleRect.top + handleRect.height / 2,
+                  targetX: trackRect.left + 2 * trackRect.width / (frameCount - 1),
+                };
+            }""",
+            ERROR_MARKING_FRAME_COUNT,
+        )
+        page.mouse.move(geometry["startX"], geometry["y"])
+        page.mouse.down()
+        page.mouse.move(geometry["targetX"], geometry["y"])
+        page.mouse.up()
+
+        expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
+        marks = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]["marks"]
+        assert len(marks) == 1
+        assert marks[0]["start_frame"] == 0
+        assert marks[0]["end_frame"] == 3
+        assert set(marks[0]["causes"]) == {"motion_blur", "occlusion"}
+        assert marks[0]["positions"] == {"0": [100, 75], "3": [102, 76]}
+        assert marks[0]["note"] == "first\nsecond"
+    finally:
+        _stop_server(server, thread)
