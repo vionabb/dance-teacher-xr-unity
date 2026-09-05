@@ -1074,6 +1074,8 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
         "function startFrameReplay(",
         "function replayErrorMarking(",
         "function stopErrorMarkingReplay(",
+        "function setErrorMarkingReplayPlaying(",
+        "function setErrorMarkingReviewReplayPlaying(",
     ]:
         assert symbol in js
     assert "replayErrorMarking(4)" in js
@@ -1082,6 +1084,33 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     # landmark) must cancel any running replay rather than fight it for
     # video.currentTime.
     assert "stopErrorMarkingReplay();" in js[js.index("function stepErrorMarkingVideo(") :].split("\n}", 1)[0]
+    assert 'button.textContent = playing ? "⏸ Pause" : "▶ Replay"' in js
+    assert "if (state.errorMarkingReplayHandle) stopErrorMarkingReplay();" in js
+    assert "if (state.errorMarkingReviewReplayHandle)" in js
+
+
+def test_resizing_or_drawing_touching_error_marks_merges_them() -> None:
+    js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    assert "function mergeTouchingErrorMarks(" in js
+    merge_function = js[
+        js.index("function mergeTouchingErrorMarks(") : js.index(
+            "\n}", js.index("function mergeTouchingErrorMarks(")
+        )
+    ]
+    assert "candidate.body_part === mark.body_part" in merge_function
+    assert "candidate.start_frame <= mark.end_frame + 1" in merge_function
+    assert "candidate.end_frame >= mark.start_frame - 1" in merge_function
+
+    resize_handler = js[
+        js.index("function startTimelineHandleDrag(") : js.index(
+            "function startNewMarkDrag("
+        )
+    ]
+    new_mark_handler = js[
+        js.index("function startNewMarkDrag(") : js.index("function midFrame(")
+    ]
+    assert "mergeTouchingErrorMarks(state.errorMarks[index]);" in resize_handler
+    assert "mergeTouchingErrorMarks(state.errorMarks[index]);" in new_mark_handler
 
 
 def test_completion_is_relabeled_and_gated_on_reviewing_dirty_error_marks() -> None:

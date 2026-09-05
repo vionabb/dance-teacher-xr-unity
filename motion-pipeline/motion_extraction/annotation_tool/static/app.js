@@ -523,42 +523,75 @@ function stepErrorMarkingVideo(deltaFrames) {
 // and skeleton overlay, or the review dialog's own overlay). Returns a
 // handle whose stop() cancels the remaining steps; callers own tearing it
 // down (on manual interaction, task change, or dialog close).
-function startFrameReplay(video, onFrame, fps) {
+function startFrameReplay(video, onFrame, fps, onFinish = () => {}) {
   video.pause();
   const maxFrame = Math.max(errorMarkingFrameCount() - 1, 0);
   let frame = 0;
+  let stopped = false;
   const showFrame = () => { video.currentTime = frameToTime(frame); onFrame(frame); };
   showFrame();
   const timer = setInterval(() => {
-    if (frame >= maxFrame) { clearInterval(timer); return; }
+    if (frame >= maxFrame) {
+      clearInterval(timer);
+      stopped = true;
+      onFinish();
+      return;
+    }
     frame += 1;
     showFrame();
   }, 1000 / fps);
-  return {stop: () => clearInterval(timer)};
+  return {stop: () => {
+    if (stopped) return;
+    stopped = true;
+    clearInterval(timer);
+  }};
+}
+
+function setErrorMarkingReplayPlaying(playing) {
+  const button = $("error-marking-replay");
+  button.textContent = playing ? "⏸ Pause" : "▶ Replay";
+  button.setAttribute("aria-pressed", String(playing));
+}
+
+function setErrorMarkingReviewReplayPlaying(playing) {
+  const button = $("error-marking-review-replay");
+  button.textContent = playing ? "⏸ Pause" : "▶ Replay";
+  button.setAttribute("aria-pressed", String(playing));
 }
 
 function stopErrorMarkingReplay() {
   if (state.errorMarkingReplayHandle) { state.errorMarkingReplayHandle.stop(); state.errorMarkingReplayHandle = null; }
+  setErrorMarkingReplayPlaying(false);
 }
 
 function replayErrorMarking(fps) {
   stopErrorMarkingReplay();
+  setErrorMarkingReplayPlaying(true);
   state.errorMarkingReplayHandle = startFrameReplay(errorMarkingVideo(), (frame) => {
     setErrorMarkingFrame(frame);
     updateErrorMarkingFrameIndicator(frame);
-  }, fps);
+  }, fps, () => {
+    state.errorMarkingReplayHandle = null;
+    setErrorMarkingReplayPlaying(false);
+  });
 }
 
 function stopErrorMarkingReviewReplay() {
   if (state.errorMarkingReviewReplayHandle) { state.errorMarkingReviewReplayHandle.stop(); state.errorMarkingReviewReplayHandle = null; }
+  setErrorMarkingReviewReplayPlaying(false);
 }
 
 function replayErrorMarkingReview(fps) {
   stopErrorMarkingReviewReplay();
   $("error-marking-review-status").textContent = `Replaying at ${fps} fps…`;
+  setErrorMarkingReviewReplayPlaying(true);
   state.errorMarkingReviewReplayHandle = startFrameReplay($("error-marking-review-video"), (frame) => {
     renderOverlayInto($("error-marking-review-overlay"), state.errorMarkingLandmarks, frame);
-  }, fps);
+  }, fps, () => {
+    state.errorMarkingReviewReplayHandle = null;
+    setErrorMarkingReviewReplayPlaying(false);
+    $("error-marking-review-status").textContent = "Replay complete.";
+  });
 }
 
 // Shown when "Done annotating" is clicked on an error_marking task with
@@ -704,6 +737,29 @@ function addMarkAtCurrentFrame(partId) {
   openErrorMarkPopup(state.errorMarks.indexOf(mark));
 }
 
+// Coalesces overlapping or consecutive spans for one body part. The mark
+// being resized/created remains the surviving object so any caller holding
+// it can still find and open it after the array shrinks. Causes and corrected
+// positions are combined, while distinct notes are retained on separate lines.
+function mergeTouchingErrorMarks(mark) {
+  if (!mark) return null;
+  let other;
+  while ((other = state.errorMarks.find((candidate) =>
+    candidate !== mark &&
+    candidate.body_part === mark.body_part &&
+    candidate.start_frame <= mark.end_frame + 1 &&
+    candidate.end_frame >= mark.start_frame - 1))) {
+    mark.start_frame = Math.min(mark.start_frame, other.start_frame);
+    mark.end_frame = Math.max(mark.end_frame, other.end_frame);
+    mark.causes = [...new Set([...(mark.causes || []), ...(other.causes || [])])];
+    mark.positions = {...(other.positions || {}), ...(mark.positions || {})};
+    const notes = [mark.note, other.note].filter((note, index, values) => note && values.indexOf(note) === index);
+    mark.note = notes.join("\n");
+    state.errorMarks.splice(state.errorMarks.indexOf(other), 1);
+  }
+  return mark;
+}
+
 function commitNewBodyPart(rawValue) {
   if (!state.addingBodyPartEntry) return;
   state.addingBodyPartEntry = false;
@@ -799,6 +855,7 @@ function startTimelineHandleDrag(event, handleEl) {
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
     if (dragged) {
+      mergeTouchingErrorMarks(state.errorMarks[index]);
       renderErrorMarkingTimeline();
       scheduleSave("started");
     } else {
@@ -856,9 +913,10 @@ function startNewMarkDrag(event, track) {
   function onUp() {
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
+    const mark = mergeTouchingErrorMarks(state.errorMarks[index]);
     renderErrorMarkingTimeline();
     scheduleSave("started");
-    openErrorMarkPopup(index);
+    openErrorMarkPopup(state.errorMarks.indexOf(mark));
   }
 
   window.addEventListener("pointermove", onMove);
@@ -1596,7 +1654,12 @@ async function submitStatusAndAdvance(status) {
     lockInteraction(false);
   }
 }
-$("error-marking-review-replay").onclick = () => replayErrorMarkingReview(4);
+$("error-marking-review-replay").onclick = () => {
+  if (state.errorMarkingReviewReplayHandle) {
+    stopErrorMarkingReviewReplay();
+    $("error-marking-review-status").textContent = "Paused.";
+  } else replayErrorMarkingReview(4);
+};
 $("error-marking-review-replay-slow").onclick = () => replayErrorMarkingReview(2);
 $("error-marking-review-edit").onclick = () => closeErrorMarkingReviewDialog();
 $("error-marking-review-looks-good").onclick = async () => {
@@ -1608,7 +1671,10 @@ $("error-marking-step-back-5").onclick = () => stepErrorMarkingVideo(-5);
 $("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
 $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
 $("error-marking-step-forward-5").onclick = () => stepErrorMarkingVideo(5);
-$("error-marking-replay").onclick = () => replayErrorMarking(4);
+$("error-marking-replay").onclick = () => {
+  if (state.errorMarkingReplayHandle) stopErrorMarkingReplay();
+  else replayErrorMarking(4);
+};
 $("error-marking-replay-slow").onclick = () => replayErrorMarking(2);
 $("error-marking-scrubber").oninput = () => {
   stopErrorMarkingReplay();
