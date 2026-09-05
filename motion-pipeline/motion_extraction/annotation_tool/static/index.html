@@ -42,7 +42,7 @@
     <section id="skeleton-screen" class="card card-border bg-base-100 p-4 shadow-sm">
       <div class="section-heading">
         <div><span class="step-badge">01</span><h2>Align the skeleton</h2></div>
-        <p>Drag landmarks onto the person. Tap a landmark to set its occlusion.</p>
+        <details class="instructions-details"><summary>Instructions</summary><p>Drag landmarks onto the person. Tap a landmark to set its occlusion.</p></details>
       </div>
       <div class="editor-layout">
         <aside id="landmark-panel" class="card card-border self-center p-4" aria-labelledby="landmark-dialog-title">
@@ -55,7 +55,7 @@
     </section>
 
     <section id="annotation-screen" class="card card-border bg-base-100 p-4 shadow-sm">
-      <div class="section-heading compact"><div><span class="step-badge">02</span><h2>Describe the frame</h2></div><p>Record how much of the source evidence you can trust.</p></div>
+      <div class="section-heading compact"><div><span class="step-badge">02</span><h2>Describe the frame</h2></div><details class="instructions-details"><summary>Instructions</summary><p>Record how much of the source evidence you can trust.</p></details></div>
       <fieldset id="source-evidence-quality" class="fieldset"><legend class="fieldset-legend">How clear is this frame?</legend><div id="source-evidence-quality-options"></div></fieldset>
       <fieldset id="source-evidence-factors" class="fieldset"><legend class="fieldset-legend">What makes it difficult? <span>(optional)</span></legend><div id="source-evidence-factor-options"></div></fieldset>
       <label class="note-field" for="frame-note">Note (optional)<textarea id="frame-note" class="textarea" placeholder="Anything useful about this frame"></textarea></label>
@@ -64,7 +64,7 @@
     <section id="temporal-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Compare motion over time</h2></div>
-        <p>Watch the source and all three anonymized pose overlays. Choose the overlay that best follows the source motion.</p>
+        <details class="instructions-details"><summary>Instructions</summary><p>Watch the source and all three anonymized pose overlays. Choose the overlay that best follows the source motion.</p></details>
       </div>
       <div class="temporal-source">
         <h3>Source motion</h3>
@@ -108,7 +108,7 @@
     <section id="triage-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Quick quality check</h2></div>
-        <p>The pose overlay is burned in. Does the pose estimation look fine, or is something wrong?</p>
+        <details class="instructions-details"><summary>Instructions</summary><p>The pose overlay is burned in. Does the pose estimation look fine, or is something wrong?</p></details>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <span id="triage-category-badge" class="badge badge-soft"></span>
@@ -134,7 +134,7 @@
     <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
-        <p>Mark which landmark is inaccurate and for which frames using the timeline below, or click/drag a point directly on the skeleton. Step to a frame, then click a landmark's + (or click/drag the point on the video) to start an error there.</p>
+        <details class="instructions-details"><summary>Instructions</summary><p>Mark which landmark is inaccurate and for which frames using the timeline below, or click/drag a point directly on the skeleton. Step to a frame, then click a landmark's + (or click/drag the point on the video) to start an error there.</p></details>
       </div>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <span id="error-marking-category-badge" class="badge badge-soft"></span>
@@ -159,6 +159,11 @@
         </div>
       </div>
 
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <button id="error-marking-replay" class="btn btn-sm" type="button">▶ Replay</button>
+        <button id="error-marking-replay-slow" class="btn btn-sm btn-ghost" type="button">Replay slower</button>
+      </div>
+
       <div id="error-marking-timeline" class="mt-3"></div>
 
       <fieldset class="fieldset mt-3">
@@ -170,7 +175,7 @@
     <section id="quality-rating-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Video quality rating</h2></div>
-        <p>Rate the source video itself (lighting and clothing), not the pose tracking output.</p>
+        <details class="instructions-details"><summary>Instructions</summary><p>Rate the source video itself (lighting and clothing), not the pose tracking output.</p></details>
       </div>
       <figure class="mt-2">
         <img id="quality-rating-image" class="w-full rounded-box object-contain" alt="Representative frame of the source video">
@@ -200,7 +205,7 @@
     <section id="actions" data-actions class="actions fixed inset-x-0 bottom-0 z-[100] flex min-h-16 flex-wrap items-center justify-center gap-2 border-t border-base-300 bg-base-100/95 p-3 shadow-[0_-6px_24px_rgba(22,51,46,.12)] backdrop-blur">
       <button id="previous-case" class="btn btn-ghost" type="button">← Previous case</button>
       <button id="mark-unclear" class="btn btn-warning btn-outline" data-status="unclear" type="button">Mark unclear</button>
-      <button id="complete-case" class="btn btn-success" data-status="completed" type="button">Complete case</button>
+      <button id="complete-case" class="btn btn-success" data-status="completed" type="button">Done annotating</button>
     </section>
   </main>
 
@@ -249,6 +254,30 @@
       <div class="modal-action">
         <button id="error-mark-dialog-remove" class="btn btn-sm btn-error btn-outline" type="button">Remove mark</button>
         <form method="dialog"><button class="btn btn-sm">Done</button></form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <dialog id="error-marking-review-dialog" class="modal">
+    <div class="modal-box max-w-2xl error-marking-review-box">
+      <h3 class="text-lg font-bold">Review your marks</h3>
+      <p id="error-marking-review-status" class="mt-0.5 text-sm text-base-content/70" aria-live="polite">Replaying…</p>
+      <figure class="mt-2">
+        <div class="error-marking-video-wrap">
+          <video id="error-marking-review-video" class="w-full rounded-box" playsinline muted aria-label="Replay of the annotated clip"></video>
+          <svg id="error-marking-review-overlay" class="error-marking-overlay" aria-hidden="true"></svg>
+        </div>
+      </figure>
+      <div class="modal-action flex-wrap justify-between">
+        <div class="flex gap-2">
+          <button id="error-marking-review-replay" class="btn btn-sm" type="button">▶ Replay</button>
+          <button id="error-marking-review-replay-slow" class="btn btn-sm btn-ghost" type="button">Replay slower</button>
+        </div>
+        <div class="flex gap-2">
+          <button id="error-marking-review-edit" class="btn btn-sm btn-outline" type="button">Edit annotations</button>
+          <button id="error-marking-review-looks-good" class="btn btn-sm btn-success" type="button">Looks good</button>
+        </div>
       </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>close</button></form>

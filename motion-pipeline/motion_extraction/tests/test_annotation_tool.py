@@ -152,7 +152,10 @@ def test_annotation_ui_declares_single_pointer_drag_and_native_page_pan() -> Non
     # The header user-menu dropdown no longer uses details/summary -- daisyUI v5
     # dropdowns use the popover API instead (see the "no legacy dropdown-content"
     # assertion in test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker).
-    assert "<summary" not in html
+    # (Collapsible per-screen task instructions elsewhere in the page do use
+    # <details>/<summary> deliberately -- see the instructions-details test.)
+    header_html = html[: html.index("</header>")]
+    assert "<summary" not in header_html
     assert 'popovertarget="user-menu-popover"' in html
     assert "function nearestLandmark(point, radius)" in javascript
     assert "const nearest = nearestLandmark(point, hitRadius)" in javascript
@@ -1050,6 +1053,76 @@ def test_error_mark_dialog_shows_corrected_skeleton_with_highlighted_landmark() 
     assert "mark.body_part" in dialog_render
     open_popup = js[js.index("function openErrorMarkPopup(") : js.index("\n}", js.index("function openErrorMarkPopup("))]
     assert "renderErrorMarkDialogOverlay()" in open_popup
+
+
+def test_task_instructions_are_collapsible_on_every_screen() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
+    # One per task screen: skeleton, describe-the-frame, temporal comparison,
+    # triage, error marking, and quality rating.
+    assert html.count('<details class="instructions-details">') == 6
+    assert html.count("<summary>Instructions</summary>") == 6
+    assert ".instructions-details summary" in css
+
+
+def test_error_marking_has_in_screen_replay_controls() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    assert 'id="error-marking-replay"' in html
+    assert 'id="error-marking-replay-slow"' in html
+    for symbol in [
+        "function startFrameReplay(",
+        "function replayErrorMarking(",
+        "function stopErrorMarkingReplay(",
+    ]:
+        assert symbol in js
+    assert "replayErrorMarking(4)" in js
+    assert "replayErrorMarking(2)" in js
+    # Manual interaction (stepping, scrubbing, dragging a mark or a
+    # landmark) must cancel any running replay rather than fight it for
+    # video.currentTime.
+    assert "stopErrorMarkingReplay();" in js[js.index("function stepErrorMarkingVideo(") :].split("\n}", 1)[0]
+
+
+def test_completion_is_relabeled_and_gated_on_reviewing_dirty_error_marks() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+
+    complete_button_start = html.index('id="complete-case"')
+    complete_button = html[complete_button_start : html.index("</button>", complete_button_start)]
+    assert "Done annotating" in complete_button
+    assert "Complete case" not in complete_button
+
+    assert 'id="error-marking-review-dialog"' in html
+    assert 'id="error-marking-review-video"' in html
+    assert 'id="error-marking-review-overlay"' in html
+    assert 'id="error-marking-review-edit"' in html
+    assert 'id="error-marking-review-looks-good"' in html
+
+    assert "state.errorMarkingDirty = true" in js
+    assert "state.errorMarkingDirty = false" in js
+    assert "function openErrorMarkingReviewDialog(" in js
+    assert "function submitStatusAndAdvance(" in js
+    # Only a dirty error_marking completion is gated behind the review
+    # dialog -- every other advance (other statuses, other task types, or an
+    # already-reviewed error_marking task) goes straight to submission.
+    handler_start = js.index('document.querySelectorAll(".actions button[data-status]")')
+    handler = js[handler_start : js.index("\n});", handler_start)]
+    assert "isErrorMarkingTask(task) && state.errorMarkingDirty" in handler
+    assert "openErrorMarkingReviewDialog();" in handler
+    assert "await submitStatusAndAdvance(button.dataset.status);" in handler
+    # "Looks good" is the only path in the dialog that actually completes
+    # the case; "Edit annotations" (and backdrop/Esc, via the dialog's own
+    # close listener) just stop the replay and leave the case untouched.
+    assert 'submitStatusAndAdvance("completed")' in js.split('$("error-marking-review-looks-good").onclick', 1)[1].split("};", 1)[0]
+
+
+def test_mobile_media_query_enlarges_the_skeleton_adjustment_canvases() -> None:
+    css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
+    mobile_css = css[css.index("@media (max-width: 800px)") :]
+    assert "#editor-viewport { max-height: 82vh; }" in mobile_css
+    assert "#error-marking-video { max-height: 58vh; }" in mobile_css
+    assert "error-marking-review-box" in mobile_css
 
 
 def test_mp4_serving_supports_mime_type_and_single_byte_ranges(tmp_path: Path) -> None:
