@@ -1086,6 +1086,7 @@ def test_skeleton_overlay_colors_by_move_and_cause_and_ghosts_the_original_posit
         javascript.index("const TRACKED_SKELETON_COLOR") : javascript.index("function landmarkMovedAtFrame(")
     ]
     assert 'const TRACKED_SKELETON_COLOR = "#c6eb28";' in constants
+    assert 'const SKELETON_ADJACENT_GHOST_COLOR = "#5da9e9";' in constants
 
     helper = "\n".join(
         [
@@ -1191,6 +1192,8 @@ console.log(JSON.stringify({{
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert ".skeleton-edge-cause-halo { stroke-width: 9;" in css
     assert ".skeleton-landmark-cause-halo { opacity: .72;" in css
+    assert ".skeleton-adjacent-edge-ghost { stroke-width: 2.5;" in css
+    assert ".skeleton-adjacent-landmark-ghost { stroke-width: 2.5;" in css
 
 
 def test_task_instructions_are_collapsible_on_every_screen() -> None:
