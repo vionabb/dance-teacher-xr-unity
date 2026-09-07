@@ -83,7 +83,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   `quality_triage` are complete; `error_marking` and `video_quality_rating` are
   in progress (1/17 and 0/20). The live `error_marking` batch now uses clean
   clips with a client-painted, correction-aware yellow skeleton (cause-colored
-  halos, gray original-position ghosts, a faint blue previous-frame drag guide,
-  and an alignment-preserving out-of-frame interaction buffer), taller below-canvas integrated playback with
-  flush single-border controls and forward/backwards play, immediate repaint after mark removal, and
-  remembered-user auto-load; the existing annotation database remains intact.
+  halos, gray original-position ghosts, persistent faint blue previous-frame correction guides,
+  and an alignment-preserving out-of-frame interaction buffer, both ghost layers suppressed during
+  playback), taller below-canvas integrated playback with flush single-border controls, forward/backwards
+  play, a 2/4/8fps and 0.5x/1x speed selector, a frame scrubber sized and scrolled in lockstep with the
+  timeline tracks beneath it, a frame counter floating over the canvas, immediate repaint after mark
+  removal, and remembered-user auto-load; the existing annotation database remains intact.

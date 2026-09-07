@@ -103,6 +103,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
    both layers retain the same centered "contain" fit at every viewport size. */
 .error-marking-video-wrap { position: relative; width: 100%; }
 .error-marking-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.error-marking-frame-indicator { position: absolute; top: .5rem; right: .5rem; z-index: 6; pointer-events: none; }
 /* The playback controls read as part of the video component itself -- one
    continuous dark surface with the video's own letterbox color, not a
    separate button cluster below it -- so the player owns the rounding
@@ -114,6 +115,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .error-marking-controls-bar .btn { margin: 0; color: #f3f1eb; border: 0; border-radius: 0; }
 .error-marking-controls-bar .btn + .btn { border-left: 1px solid #ffffff3d; }
 .error-marking-controls-bar .btn:hover { background: #ffffff1f; }
+.error-marking-fps-select { margin: 0; color: #f3f1eb; background: transparent; border: 0; border-left: 1px solid #ffffff3d; border-radius: 0; }
+.error-marking-fps-select:focus, .error-marking-fps-select:focus-within { outline: none; }
 .skeleton-landmark { pointer-events: auto; cursor: pointer; touch-action: none; stroke: #10201d; stroke-width: 1.5; }
 .skeleton-landmark:hover { filter: brightness(1.15); }
 .skeleton-landmark-selected { stroke: #ffffff; stroke-width: 2.5; }
@@ -122,8 +125,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
    so it adds meaning without breaking the skeleton's visual continuity. */
 .skeleton-edge-cause-halo { stroke-width: 9; stroke-linecap: round; opacity: .72; pointer-events: none; }
 .skeleton-landmark-cause-halo { opacity: .72; pointer-events: none; }
-/* During a drag, show the dragged landmark and its incident bones from the
-   previous frame as faint blue temporal guides for correcting jitter. */
+/* For a corrected landmark, retain its previous-frame position and incident
+   bones as faint blue temporal guides for correcting jitter. */
 .skeleton-previous-frame-edge-ghost { stroke-width: 2.5; stroke-linecap: round; opacity: .45; pointer-events: none; }
 .skeleton-previous-frame-landmark-ghost { stroke-width: 2.5; opacity: .55; pointer-events: none; }
 /* A moved landmark's own original (pre-correction) position, kept visible

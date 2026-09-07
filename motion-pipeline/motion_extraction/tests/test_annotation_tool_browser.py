@@ -422,7 +422,7 @@ def test_buffered_canvas_stays_aligned_and_allows_out_of_frame_drag(page, tmp_pa
         _stop_server(server, thread)
 
 
-def test_dragging_a_landmark_shows_only_the_previous_frame_ghost(page, tmp_path: Path) -> None:
+def test_adjusted_landmark_keeps_only_the_previous_frame_ghost_after_drag(page, tmp_path: Path) -> None:
     server, _store, thread = _start_error_marking_server(tmp_path)
     try:
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
@@ -464,8 +464,9 @@ def test_dragging_a_landmark_shows_only_the_previous_frame_ghost(page, tmp_path:
         expect(previous_edges.first).to_have_attribute("stroke", "#5da9e9")
 
         page.mouse.up()
-        expect(previous_point).to_have_count(0)
-        expect(previous_edges).to_have_count(0)
+        expect(previous_point).to_have_count(1)
+        expect(previous_edges).to_have_count(1)
+        expect(previous_point).to_have_attribute("cx", "90")
     finally:
         _stop_server(server, thread)
 
@@ -699,6 +700,59 @@ def test_backwards_replay_button_becomes_pause_and_freezes_the_current_frame(pag
         paused_frame = page.evaluate("() => errorMarkingCurrentFrame()")
         page.wait_for_timeout(400)
         assert page.evaluate("() => errorMarkingCurrentFrame()") == paused_frame
+    finally:
+        _stop_server(server, thread)
+
+
+def test_playback_hides_correction_ghosts_and_shows_only_the_adjusted_skeleton(page, tmp_path: Path) -> None:
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        expect(page.locator('.skeleton-landmark[data-landmark="LEFT_WRIST"]')).to_be_visible(timeout=5000)
+
+        corrected = (WRIST_POINT[0] + 25.0, WRIST_POINT[1] + 15.0)
+        page.evaluate(
+            """(corrected) => {
+                state.errorMarks = [{
+                  body_part: 'LEFT_WRIST', start_frame: 1, end_frame: 3,
+                  causes: ['motion_blur'], note: '',
+                  positions: {'1': corrected, '2': corrected, '3': corrected},
+                }];
+                renderErrorMarkingTimeline();
+                renderSkeletonOverlay();
+            }""",
+            list(corrected),
+        )
+        page.locator("#error-marking-scrubber").evaluate(
+            """(scrubber) => {
+                scrubber.value = '2';
+                scrubber.dispatchEvent(new Event('input', {bubbles: true}));
+            }"""
+        )
+
+        live_overlay = page.locator("#error-marking-overlay")
+        expect(live_overlay.locator(".skeleton-landmark-ghost")).to_have_count(1)
+        expect(live_overlay.locator(".skeleton-previous-frame-landmark-ghost")).to_have_count(1)
+        expect(live_overlay.locator(".skeleton-previous-frame-edge-ghost")).to_have_count(1)
+        expect(live_overlay.locator(".skeleton-landmark-cause-halo")).to_have_count(1)
+
+        replay = page.locator("#error-marking-replay")
+        replay.click()
+        expect(live_overlay.locator(".skeleton-landmark-ghost")).to_have_count(0)
+        expect(live_overlay.locator(".skeleton-previous-frame-landmark-ghost")).to_have_count(0)
+        expect(live_overlay.locator(".skeleton-previous-frame-edge-ghost")).to_have_count(0)
+        expect(live_overlay.locator(".skeleton-landmark-cause-halo")).to_have_count(1)
+        replay.click()
+
+        backwards = page.locator("#error-marking-replay-backwards")
+        backwards.click()
+        expect(live_overlay.locator(".skeleton-landmark-ghost")).to_have_count(0)
+        expect(live_overlay.locator(".skeleton-previous-frame-landmark-ghost")).to_have_count(0)
+        backwards.click()
+
+        expect(live_overlay.locator(".skeleton-landmark-ghost")).to_have_count(1)
+        expect(live_overlay.locator(".skeleton-previous-frame-landmark-ghost")).to_have_count(1)
     finally:
         _stop_server(server, thread)
 
