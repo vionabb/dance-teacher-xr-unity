@@ -1057,10 +1057,10 @@ function landmarkChangedAtFrame(original, effective, landmark, frame) {
   return !!(from && to && Math.hypot(to[0] - from[0], to[1] - from[1]) >= SKELETON_GHOST_MIN_DISTANCE);
 }
 
-// A landmark/segment reads as flagged (cause-colored) only once it has
-// actually changed from the video *and* been given a cause; anything else
-// -- untouched, dragged back to its original position, or moved but not yet
-// attributed to a cause -- stays the tracked color.
+// A landmark/segment gets a cause-colored halo only once it has actually
+// changed from the video *and* been given a cause. The skeleton itself stays
+// yellow throughout, so the cause is an annotation around the pose rather
+// than a replacement for its normal structural color.
 function skeletonLandmarkCauseColor(landmark, frame, changed) {
   if (!changed) return null;
   const mark = markForPartAtFrame(landmark, frame);
@@ -1098,8 +1098,10 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
   const edgesHTML = (data.pose_edges || []).map(([a, b]) => {
     const pa = points[a], pb = points[b];
     if (!pa || !pb) return "";
-    const color = skeletonLandmarkCauseColor(a, frame, changed[a]) || skeletonLandmarkCauseColor(b, frame, changed[b]) || TRACKED_SKELETON_COLOR;
-    return `<line class="skeleton-edge" x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}" stroke="${color}"></line>`;
+    const causeHalo = skeletonLandmarkCauseColor(a, frame, changed[a]) || skeletonLandmarkCauseColor(b, frame, changed[b]);
+    const geometry = `x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}"`;
+    return `${causeHalo ? `<line class="skeleton-edge-cause-halo" ${geometry} stroke="${causeHalo}"></line>` : ""}` +
+      `<line class="skeleton-edge" ${geometry} stroke="${TRACKED_SKELETON_COLOR}"></line>`;
   }).join("");
 
   const pointsHTML = (data.landmarks || []).map((landmark) => {
@@ -1107,9 +1109,11 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
     if (!point) return "";
     const mark = markForPartAtFrame(landmark, frame);
     const selected = highlight ? landmark === highlight : (state.selectedSkeletonLandmark === landmark || state.skeletonDragLandmark === landmark);
-    const color = skeletonLandmarkCauseColor(landmark, frame, changed[landmark]) || TRACKED_SKELETON_COLOR;
-    return `<circle class="skeleton-landmark${selected ? " skeleton-landmark-selected" : ""}" data-landmark="${landmark}"` +
-      ` cx="${clampX(point[0])}" cy="${clampY(point[1])}" r="${mark ? 11 : 8}" fill="${color}"></circle>`;
+    const causeHalo = skeletonLandmarkCauseColor(landmark, frame, changed[landmark]);
+    const position = `cx="${clampX(point[0])}" cy="${clampY(point[1])}"`;
+    return `${causeHalo ? `<circle class="skeleton-landmark-cause-halo" ${position} r="${mark ? 15 : 12}" fill="${causeHalo}"></circle>` : ""}` +
+      `<circle class="skeleton-landmark${selected ? " skeleton-landmark-selected" : ""}" data-landmark="${landmark}"` +
+      ` ${position} r="${mark ? 11 : 8}" fill="${TRACKED_SKELETON_COLOR}"></circle>`;
   }).join("");
 
   return {width, height, innerHTML: `<g>${ghostEdgesHTML}</g><g>${ghostPointsHTML}</g><g>${edgesHTML}</g><g>${pointsHTML}</g>`};

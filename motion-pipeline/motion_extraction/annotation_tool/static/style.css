@@ -95,7 +95,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .landmark-row { cursor: pointer; }
 .status-unjudged { color: #777; }.status-completed { color: #16745f; }.status-skipped { color: #9a6500; }.status-unclear { color: #7b4594; }
 
-#error-marking-video { display: block; max-height: 32vh; margin: 0 auto; background: #111817; object-fit: contain; }
+#error-marking-video { display: block; max-height: calc(32vh + 2.75rem); margin: 0 auto; background: #111817; object-fit: contain; }
 /* The wrap is sized entirely by the video (its only in-flow child), so the
    overlay -- absolutely positioned to fill the wrap -- lands on exactly the
    video element's own box. Both then independently letterbox their content
@@ -111,13 +111,19 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
    (clipping its square-cornered video and flush controls bar into it)
    instead of the video rounding its own corners. */
 .error-marking-player { display: flex; flex-direction: column; width: 100%; margin: 0; overflow: hidden; border-radius: .75rem; background: #111817; }
-.error-marking-controls-bar { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 100%; gap: .5rem; padding: .4rem; border-top: 1px solid #ffffff1f; }
-.error-marking-controls-bar .btn { color: #f3f1eb; border-color: #ffffff3d; }
+.error-marking-controls-bar { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 100%; gap: 0; padding: 0; border-top: 1px solid #ffffff1f; }
+.error-marking-controls-bar .step-buttons-join { display: flex; overflow: hidden; border: 1px solid #ffffff3d; border-radius: .5rem; }
+.error-marking-controls-bar .btn { margin: 0; color: #f3f1eb; border: 0; border-radius: 0; }
+.error-marking-controls-bar .btn + .btn { border-left: 1px solid #ffffff3d; }
 .error-marking-controls-bar .btn:hover { background: #ffffff1f; }
 .skeleton-landmark { pointer-events: auto; cursor: pointer; touch-action: none; stroke: #10201d; stroke-width: 1.5; }
 .skeleton-landmark:hover { filter: brightness(1.15); }
 .skeleton-landmark-selected { stroke: #ffffff; stroke-width: 2.5; }
 .skeleton-edge { stroke-width: 3; stroke-linecap: round; }
+/* Cause attribution is a colored halo behind the consistently yellow pose,
+   so it adds meaning without breaking the skeleton's visual continuity. */
+.skeleton-edge-cause-halo { stroke-width: 9; stroke-linecap: round; opacity: .72; pointer-events: none; }
+.skeleton-landmark-cause-halo { opacity: .72; pointer-events: none; }
 /* A moved landmark's own original (pre-correction) position, kept visible
    underneath the corrected skeleton as a "ghost" of the estimate it
    replaced. Never interactive -- it's a stale position, not a second place
@@ -220,7 +226,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
      is the primary interaction surface (tap/drag a landmark directly, or
      use the frame-step controls right below it); the timeline further down
      still works, it just no longer has to fit above the fold too. */
-  #error-marking-video { max-height: 58vh; }
+  #error-marking-video { max-height: calc(58vh + 2.75rem); }
   .timeline-row-label { flex-basis: 4.5rem; font-size: .72rem; }
   .error-marking-review-box { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
   .error-marking-review-box figure { flex: 1 1 auto; display: flex; min-height: 0; }
