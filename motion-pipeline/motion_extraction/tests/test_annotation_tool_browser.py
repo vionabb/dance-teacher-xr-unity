@@ -343,6 +343,67 @@ def test_dragging_a_skeleton_landmark_records_a_corrected_position_and_a_mark(pa
         _stop_server(server, thread)
 
 
+def test_removing_a_current_frame_mark_immediately_restores_the_tracked_skeleton(page, tmp_path: Path) -> None:
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        expect(page.locator('.skeleton-landmark[data-landmark="LEFT_WRIST"]')).to_be_visible(timeout=5000)
+
+        corrected = (WRIST_POINT[0] + 25.0, WRIST_POINT[1] + 15.0)
+        page.evaluate(
+            """(corrected) => {
+                state.errorMarks = [{
+                  body_part: 'LEFT_WRIST', start_frame: 0, end_frame: 2,
+                  causes: ['motion_blur'], note: '', positions: {'0': corrected},
+                }];
+                renderErrorMarkingTimeline();
+                renderSkeletonOverlay();
+                openErrorMarkPopup(0);
+            }""",
+            list(corrected),
+        )
+        live_overlay = page.locator("#error-marking-overlay")
+        wrist = live_overlay.locator('.skeleton-landmark[data-landmark="LEFT_WRIST"]')
+        expect(wrist).to_have_attribute("cx", str(int(corrected[0])))
+        expect(live_overlay.locator(".skeleton-landmark-ghost")).to_have_count(1)
+
+        page.click("#error-mark-dialog-remove")
+
+        expect(page.locator("#error-mark-dialog")).to_be_hidden()
+        expect(wrist).to_have_attribute("cx", str(int(WRIST_POINT[0])))
+        expect(wrist).to_have_attribute("cy", str(int(WRIST_POINT[1])))
+        expect(live_overlay.locator(".skeleton-landmark-ghost")).to_have_count(0)
+    finally:
+        _stop_server(server, thread)
+
+
+def test_playback_controls_form_a_footer_below_the_video_canvas(page, tmp_path: Path) -> None:
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        expect(page.locator(".skeleton-landmark").first).to_be_visible(timeout=5000)
+
+        geometry = page.evaluate(
+            """() => {
+                const player = document.querySelector('.error-marking-player').getBoundingClientRect();
+                const canvas = document.getElementById('error-marking-video-wrap').getBoundingClientRect();
+                const controls = document.querySelector('.error-marking-controls-bar').getBoundingClientRect();
+                return {
+                  player: {left: player.left, right: player.right},
+                  canvas: {left: canvas.left, right: canvas.right, bottom: canvas.bottom},
+                  controls: {left: controls.left, right: controls.right, top: controls.top},
+                };
+            }"""
+        )
+        assert geometry["controls"]["top"] >= geometry["canvas"]["bottom"] - 1
+        assert geometry["controls"]["left"] == pytest.approx(geometry["player"]["left"], abs=1)
+        assert geometry["controls"]["right"] == pytest.approx(geometry["player"]["right"], abs=1)
+    finally:
+        _stop_server(server, thread)
+
+
 def test_seeking_to_every_frame_round_trips_to_the_exact_frame(page, tmp_path: Path) -> None:
     # Regression test for two compounding bugs, both invisible before the
     # skeleton overlay needed the reported frame to exactly match the

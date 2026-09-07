@@ -83,5 +83,6 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   `quality_triage` are complete; `error_marking` and `video_quality_rating` are
   in progress (1/17 and 0/20). The live `error_marking` batch now uses clean
   clips with a client-painted, correction-aware skeleton (cause colors plus
-  gray original-position ghosts), integrated playback, and remembered-user
-  auto-load; the existing annotation database remains intact.
+  gray original-position ghosts), below-canvas integrated playback, immediate
+  repaint after mark removal, and remembered-user auto-load; the existing
+  annotation database remains intact.

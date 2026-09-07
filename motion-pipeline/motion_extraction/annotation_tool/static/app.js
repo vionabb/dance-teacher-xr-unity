@@ -1771,6 +1771,10 @@ $("error-mark-dialog-remove").onclick = () => {
   state.activeMarkIndex = null;
   $("error-mark-dialog").close();
   renderErrorMarkingTimeline();
+  // The removed mark may own the corrected position shown at the current
+  // frame. Repaint immediately so that point, its connected segments, and
+  // the original-position ghost all return to their unmarked state.
+  renderSkeletonOverlay();
   scheduleSave("started");
 };
 $("error-marking-manage-causes").onclick = () => openListManager("cause");
