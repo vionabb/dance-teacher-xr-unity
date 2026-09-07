@@ -1228,6 +1228,7 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
 def test_error_marking_scrubber_sits_above_video_and_playback_controls_are_grouped() -> None:
     html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
     js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     screen_start = html.index('id="error-marking-screen"')
     screen_end = html.index('id="quality-rating-screen"', screen_start)
     screen = html[screen_start:screen_end]
@@ -1254,6 +1255,12 @@ def test_error_marking_scrubber_sits_above_video_and_playback_controls_are_group
     positions = [screen.index(f'id="{element_id}"') for element_id in order_ids]
     assert positions == sorted(positions)
     assert 'aria-label="Skip to beginning"' in screen
+    # Explicit column layout prevents browser/component-library figure
+    # styles from placing the control bar beside the video. The figure's
+    # shared dark surface and clipping still integrate it visually.
+    assert ".error-marking-player { display: flex; flex-direction: column; width: 100%;" in css
+    assert ".error-marking-controls-bar { display: flex; flex: 0 0 auto;" in css
+    assert "width: 100%;" in css[css.index(".error-marking-controls-bar") :].split("}", 1)[0]
 
     assert "$(\"error-marking-skip-start\").onclick" in js
     skip_handler = js[
@@ -1264,6 +1271,17 @@ def test_error_marking_scrubber_sits_above_video_and_playback_controls_are_group
     assert "stopErrorMarkingReplay();" in skip_handler
     assert "setErrorMarkingFrame(0);" in skip_handler
     assert "updateErrorMarkingFrameIndicator(0);" in skip_handler
+
+
+def test_removing_a_mark_rerenders_the_current_skeleton_overlay() -> None:
+    js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    handler_start = js.index('$("error-mark-dialog-remove").onclick')
+    handler = js[handler_start : js.index("};", handler_start)]
+
+    assert "state.errorMarks.splice(state.activeMarkIndex, 1);" in handler
+    assert "renderErrorMarkingTimeline();" in handler
+    assert "renderSkeletonOverlay();" in handler
+    assert handler.index("renderSkeletonOverlay();") < handler.index('scheduleSave("started");')
 
 
 def test_resizing_or_drawing_touching_error_marks_merges_them() -> None:

@@ -110,8 +110,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
    separate button cluster below it -- so the player owns the rounding
    (clipping its square-cornered video and flush controls bar into it)
    instead of the video rounding its own corners. */
-.error-marking-player { margin: 0; overflow: hidden; border-radius: .75rem; background: #111817; }
-.error-marking-controls-bar { display: flex; align-items: center; justify-content: center; gap: .5rem; padding: .4rem; border-top: 1px solid #ffffff1f; }
+.error-marking-player { display: flex; flex-direction: column; width: 100%; margin: 0; overflow: hidden; border-radius: .75rem; background: #111817; }
+.error-marking-controls-bar { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 100%; gap: .5rem; padding: .4rem; border-top: 1px solid #ffffff1f; }
 .error-marking-controls-bar .btn { color: #f3f1eb; border-color: #ffffff3d; }
 .error-marking-controls-bar .btn:hover { background: #ffffff1f; }
 .skeleton-landmark { pointer-events: auto; cursor: pointer; touch-action: none; stroke: #10201d; stroke-width: 1.5; }
