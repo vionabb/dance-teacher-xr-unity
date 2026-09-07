@@ -1033,6 +1033,7 @@ def test_error_mark_body_part_defaults_are_the_tracked_landmark_names() -> None:
 
 def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract() -> None:
     html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert 'id="error-marking-overlay"' in html
     assert 'id="error-marking-video-wrap"' in html
     js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
@@ -1044,6 +1045,12 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
         "function attachSkeletonOverlayHandlers(",
     ]:
         assert symbol in js
+    assert "const ERROR_MARKING_CANVAS_BUFFER_RATIO = .08;" in js
+    assert "width + 2 * bufferX" in js
+    assert "height + 2 * bufferY" in js
+    assert "const viewBox = svg.viewBox.baseVal;" in js
+    assert "1 / (1 + 2 * ERROR_MARKING_CANVAS_BUFFER_RATIO)" in js
+    assert "transform-origin: center;" in css
 
 
 def test_error_mark_dialog_shows_corrected_skeleton_with_highlighted_landmark() -> None:

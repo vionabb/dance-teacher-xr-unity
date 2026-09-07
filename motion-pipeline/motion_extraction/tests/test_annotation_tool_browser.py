@@ -266,16 +266,24 @@ def _start_error_marking_server(tmp_path: Path):
 def _svg_client_point(svg_rect: dict, width: int, height: int, x: float, y: float) -> tuple[float, float]:
     # The inverse of the "meet" fit svgToContentPoint() in app.js undoes --
     # mirrored here so the test can click/drag a known content-space point.
-    scale = min(svg_rect["width"] / width, svg_rect["height"] / height)
-    offset_x = (svg_rect["width"] - width * scale) / 2
-    offset_y = (svg_rect["height"] - height * scale) / 2
-    return svg_rect["left"] + offset_x + x * scale, svg_rect["top"] + offset_y + y * scale
+    view_box = svg_rect["viewBox"]
+    scale = min(svg_rect["width"] / view_box["width"], svg_rect["height"] / view_box["height"])
+    offset_x = (svg_rect["width"] - view_box["width"] * scale) / 2
+    offset_y = (svg_rect["height"] - view_box["height"] * scale) / 2
+    return (
+        svg_rect["left"] + offset_x + (x - view_box["x"]) * scale,
+        svg_rect["top"] + offset_y + (y - view_box["y"]) * scale,
+    )
 
 
 def _overlay_rect(page) -> dict:
     return page.evaluate(
-        "() => { const r = document.getElementById('error-marking-overlay').getBoundingClientRect();"
-        " return {left: r.left, top: r.top, width: r.width, height: r.height}; }"
+        """() => {
+            const svg = document.getElementById('error-marking-overlay');
+            const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+            return {left: r.left, top: r.top, width: r.width, height: r.height,
+                    viewBox: {x: vb.x, y: vb.y, width: vb.width, height: vb.height}};
+        }"""
     )
 
 
@@ -339,6 +347,77 @@ def test_dragging_a_skeleton_landmark_records_a_corrected_position_and_a_mark(pa
         position = mark["positions"]["0"]
         assert position[0] == pytest.approx(target[0], abs=2)
         assert position[1] == pytest.approx(target[1], abs=2)
+    finally:
+        _stop_server(server, thread)
+
+
+def test_buffered_canvas_stays_aligned_and_allows_out_of_frame_drag(page, tmp_path: Path) -> None:
+    server, store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        expect(page.locator('.skeleton-landmark[data-landmark="LEFT_WRIST"]')).to_be_visible(timeout=5000)
+        page.wait_for_function("document.getElementById('error-marking-video').videoWidth > 0")
+
+        rect = _overlay_rect(page)
+        assert rect["viewBox"] == pytest.approx(
+            {"x": -16, "y": -12, "width": 232, "height": 174}, abs=0.01
+        )
+
+        # The source-image corners mapped through the expanded SVG viewBox
+        # must still land on the actual displayed video pixels exactly.
+        video_content = page.evaluate(
+            """() => {
+                const video = document.getElementById('error-marking-video');
+                const r = video.getBoundingClientRect();
+                const aspect = video.videoWidth / video.videoHeight;
+                let width = r.width, height = width / aspect;
+                if (height > r.height) { height = r.height; width = height * aspect; }
+                return {
+                  left: r.left + (r.width - width) / 2,
+                  top: r.top + (r.height - height) / 2,
+                  right: r.left + (r.width + width) / 2,
+                  bottom: r.top + (r.height + height) / 2,
+                };
+            }"""
+        )
+        source_top_left = _svg_client_point(
+            rect, ERROR_MARKING_SOURCE_WIDTH, ERROR_MARKING_SOURCE_HEIGHT, 0, 0
+        )
+        source_bottom_right = _svg_client_point(
+            rect, ERROR_MARKING_SOURCE_WIDTH, ERROR_MARKING_SOURCE_HEIGHT,
+            ERROR_MARKING_SOURCE_WIDTH, ERROR_MARKING_SOURCE_HEIGHT,
+        )
+        assert source_top_left == pytest.approx((video_content["left"], video_content["top"]), abs=1)
+        assert source_bottom_right == pytest.approx((video_content["right"], video_content["bottom"]), abs=1)
+
+        # Put the tracked point just outside the source frame but within the
+        # new buffer, then grab it there and drag it back into the picture.
+        out_of_frame = (-8.0, WRIST_POINT[1])
+        target = (8.0, WRIST_POINT[1])
+        page.evaluate(
+            """(point) => {
+                state.errorMarkingLandmarks.frames[0].LEFT_WRIST = point;
+                renderSkeletonOverlay(0);
+            }""",
+            list(out_of_frame),
+        )
+        wrist = page.locator('.skeleton-landmark[data-landmark="LEFT_WRIST"]')
+        expect(wrist).to_be_visible()
+        start_x, start_y = _svg_client_point(
+            rect, ERROR_MARKING_SOURCE_WIDTH, ERROR_MARKING_SOURCE_HEIGHT, *out_of_frame
+        )
+        end_x, end_y = _svg_client_point(
+            rect, ERROR_MARKING_SOURCE_WIDTH, ERROR_MARKING_SOURCE_HEIGHT, *target
+        )
+        page.mouse.move(start_x, start_y)
+        page.mouse.down()
+        page.mouse.move(end_x, end_y)
+        page.mouse.up()
+
+        expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
+        marks = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]["marks"]
+        assert marks[0]["positions"]["0"] == pytest.approx(list(target), abs=2)
     finally:
         _stop_server(server, thread)
 
