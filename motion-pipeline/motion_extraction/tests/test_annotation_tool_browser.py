@@ -534,7 +534,7 @@ def test_replay_button_becomes_pause_and_freezes_the_current_frame(page, tmp_pat
         expect(replay).to_have_text("⏸ Pause")
         expect(page.locator("#error-marking-frame-indicator")).to_contain_text("frame 3", timeout=1500)
         replay.click()
-        expect(replay).to_have_text("▶ Replay")
+        expect(replay).to_have_text("▶ Play")
 
         paused_frame = page.evaluate("() => errorMarkingCurrentFrame()")
         page.wait_for_timeout(400)
@@ -544,6 +544,34 @@ def test_replay_button_becomes_pause_and_freezes_the_current_frame(page, tmp_pat
         expect(replay).to_have_text("⏸ Pause")
         assert page.evaluate("() => errorMarkingCurrentFrame()") == paused_frame
         replay.click()
+    finally:
+        _stop_server(server, thread)
+
+
+def test_backwards_replay_button_becomes_pause_and_freezes_the_current_frame(page, tmp_path: Path) -> None:
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+
+        page.locator("#error-marking-scrubber").evaluate(
+            """(scrubber) => {
+                scrubber.value = '3';
+                scrubber.dispatchEvent(new Event('input', {bubbles: true}));
+            }"""
+        )
+        backwards = page.locator("#error-marking-replay-backwards")
+        backwards.click()
+        expect(backwards).to_have_text("⏸ Pause")
+        expect(backwards).to_have_attribute("aria-label", "Pause backwards playback")
+        expect(page.locator("#error-marking-frame-indicator")).to_contain_text("frame 2", timeout=1500)
+        backwards.click()
+        expect(backwards).to_have_text("◀ Backwards")
+        expect(backwards).to_have_attribute("aria-label", "Play backwards")
+
+        paused_frame = page.evaluate("() => errorMarkingCurrentFrame()")
+        page.wait_for_timeout(400)
+        assert page.evaluate("() => errorMarkingCurrentFrame()") == paused_frame
     finally:
         _stop_server(server, thread)
 

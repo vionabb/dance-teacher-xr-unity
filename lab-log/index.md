@@ -84,5 +84,5 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   in progress (1/17 and 0/20). The live `error_marking` batch now uses clean
   clips with a client-painted, correction-aware yellow skeleton (cause-colored
   halos plus gray original-position ghosts), taller below-canvas integrated playback with
-  flush single-border controls, immediate repaint after mark removal, and
+  flush single-border controls and forward/backwards play, immediate repaint after mark removal, and
   remembered-user auto-load; the existing annotation database remains intact.

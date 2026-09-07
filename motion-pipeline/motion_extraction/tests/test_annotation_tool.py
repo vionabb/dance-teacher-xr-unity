@@ -1207,13 +1207,16 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
     js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert 'id="error-marking-replay"' in html
+    assert 'id="error-marking-replay-backwards"' in html
     assert 'id="error-marking-replay-slow"' not in html
     assert 'id="error-marking-review-replay-slow"' not in html
     for symbol in [
         "function startFrameReplay(",
         "function replayErrorMarking(",
+        "function replayErrorMarkingBackwards(",
         "function stopErrorMarkingReplay(",
         "function setErrorMarkingReplayPlaying(",
+        "function setErrorMarkingReplayBackwardsPlaying(",
         "function setErrorMarkingReviewReplayPlaying(",
     ]:
         assert symbol in js
@@ -1228,7 +1231,11 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     # video.currentTime.
     assert "stopErrorMarkingReplay();" in js[js.index("function stepErrorMarkingVideo(") :].split("\n}", 1)[0]
     assert 'button.textContent = playing ? "⏸ Pause" : "▶ Play"' in js
-    assert "if (state.errorMarkingReplayHandle) stopErrorMarkingReplay();" in js
+    assert 'button.textContent = playing ? "⏸ Pause" : "◀ Backwards"' in js
+    assert "state.errorMarkingReplayDirection = -1;" in js
+    assert "}, -1);" in js
+    assert "state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === 1" in js
+    assert "state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === -1" in js
     assert "if (state.errorMarkingReviewReplayHandle)" in js
 
 
@@ -1254,6 +1261,7 @@ def test_error_marking_scrubber_sits_above_video_and_playback_controls_are_group
         "error-marking-skip-start",
         "error-marking-step-back-5",
         "error-marking-step-back-1",
+        "error-marking-replay-backwards",
         "error-marking-replay",
         "error-marking-step-forward-1",
         "error-marking-step-forward-5",
