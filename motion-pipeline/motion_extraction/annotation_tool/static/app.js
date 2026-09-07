@@ -11,7 +11,8 @@ const state = {
   errorMarkingLandmarks: null, errorMarkingLandmarksTaskId: null,
   skeletonDragLandmark: null, skeletonDragPosition: null, selectedSkeletonLandmark: null,
   errorMarkingFrame: 0, errorMarkingReviewFrame: 0,
-  errorMarkingReplayHandle: null, errorMarkingReviewReplayHandle: null,
+  errorMarkingReplayHandle: null, errorMarkingReplayDirection: null,
+  errorMarkingReviewReplayHandle: null,
   errorMarkingDirty: false,
 };
 const $ = (id) => document.getElementById(id);
@@ -519,12 +520,13 @@ function stepErrorMarkingVideo(deltaFrames) {
 // Steps a video through every frame of the current error_marking task at a
 // fixed real-time rate, holding each frame long enough to actually see it --
 // deliberately not native playbackRate, which can't reliably hold on
-// discrete frames at these speeds across browsers. `onFrame` updates
+// discrete frames at these speeds across browsers. `direction` selects
+// forward (1) or backwards (-1) traversal. `onFrame` updates
 // whatever overlay/UI is paired with `video` (the live screen's timeline
 // and skeleton overlay, or the review dialog's own overlay). Returns a
 // handle whose stop() cancels the remaining steps; callers own tearing it
 // down (on manual interaction, task change, or dialog close).
-function startFrameReplay(video, onFrame, fps, startFrame = 0, onFinish = () => {}) {
+function startFrameReplay(video, onFrame, fps, startFrame = 0, onFinish = () => {}, direction = 1) {
   video.pause();
   const maxFrame = Math.max(errorMarkingFrameCount() - 1, 0);
   let frame = Math.max(0, Math.min(startFrame, maxFrame));
@@ -532,13 +534,13 @@ function startFrameReplay(video, onFrame, fps, startFrame = 0, onFinish = () => 
   const showFrame = () => { video.currentTime = frameToTime(frame); onFrame(frame); };
   showFrame();
   const timer = setInterval(() => {
-    if (frame >= maxFrame) {
+    if ((direction > 0 && frame >= maxFrame) || (direction < 0 && frame <= 0)) {
       clearInterval(timer);
       stopped = true;
       onFinish();
       return;
     }
-    frame += 1;
+    frame += direction;
     showFrame();
   }, 1000 / fps);
   return {stop: () => {
@@ -554,6 +556,13 @@ function setErrorMarkingReplayPlaying(playing) {
   button.setAttribute("aria-pressed", String(playing));
 }
 
+function setErrorMarkingReplayBackwardsPlaying(playing) {
+  const button = $("error-marking-replay-backwards");
+  button.textContent = playing ? "⏸ Pause" : "◀ Backwards";
+  button.setAttribute("aria-label", playing ? "Pause backwards playback" : "Play backwards");
+  button.setAttribute("aria-pressed", String(playing));
+}
+
 function setErrorMarkingReviewReplayPlaying(playing) {
   const button = $("error-marking-review-replay");
   button.textContent = playing ? "⏸ Pause" : "▶ Replay";
@@ -562,21 +571,41 @@ function setErrorMarkingReviewReplayPlaying(playing) {
 
 function stopErrorMarkingReplay() {
   if (state.errorMarkingReplayHandle) { state.errorMarkingReplayHandle.stop(); state.errorMarkingReplayHandle = null; }
+  state.errorMarkingReplayDirection = null;
   setErrorMarkingReplayPlaying(false);
+  setErrorMarkingReplayBackwardsPlaying(false);
 }
 
 function replayErrorMarking() {
   stopErrorMarkingReplay();
   const maxFrame = Math.max(errorMarkingFrameCount() - 1, 0);
   const startFrame = errorMarkingCurrentFrame() >= maxFrame ? 0 : errorMarkingCurrentFrame();
+  state.errorMarkingReplayDirection = 1;
   setErrorMarkingReplayPlaying(true);
   state.errorMarkingReplayHandle = startFrameReplay(errorMarkingVideo(), (frame) => {
     setErrorMarkingFrame(frame);
     updateErrorMarkingFrameIndicator(frame);
   }, 2, startFrame, () => {
     state.errorMarkingReplayHandle = null;
+    state.errorMarkingReplayDirection = null;
     setErrorMarkingReplayPlaying(false);
   });
+}
+
+function replayErrorMarkingBackwards() {
+  stopErrorMarkingReplay();
+  const maxFrame = Math.max(errorMarkingFrameCount() - 1, 0);
+  const startFrame = errorMarkingCurrentFrame() <= 0 ? maxFrame : errorMarkingCurrentFrame();
+  state.errorMarkingReplayDirection = -1;
+  setErrorMarkingReplayBackwardsPlaying(true);
+  state.errorMarkingReplayHandle = startFrameReplay(errorMarkingVideo(), (frame) => {
+    setErrorMarkingFrame(frame);
+    updateErrorMarkingFrameIndicator(frame);
+  }, 2, startFrame, () => {
+    state.errorMarkingReplayHandle = null;
+    state.errorMarkingReplayDirection = null;
+    setErrorMarkingReplayBackwardsPlaying(false);
+  }, -1);
 }
 
 function stopErrorMarkingReviewReplay() {
@@ -1753,8 +1782,12 @@ $("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
 $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
 $("error-marking-step-forward-5").onclick = () => stepErrorMarkingVideo(5);
 $("error-marking-replay").onclick = () => {
-  if (state.errorMarkingReplayHandle) stopErrorMarkingReplay();
+  if (state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === 1) stopErrorMarkingReplay();
   else replayErrorMarking();
+};
+$("error-marking-replay-backwards").onclick = () => {
+  if (state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === -1) stopErrorMarkingReplay();
+  else replayErrorMarkingBackwards();
 };
 $("error-marking-scrubber").oninput = () => {
   stopErrorMarkingReplay();
