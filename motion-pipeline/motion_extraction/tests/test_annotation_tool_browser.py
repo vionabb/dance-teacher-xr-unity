@@ -343,7 +343,7 @@ def test_dragging_a_skeleton_landmark_records_a_corrected_position_and_a_mark(pa
         _stop_server(server, thread)
 
 
-def test_dragging_a_landmark_shows_previous_and_next_frame_ghosts(page, tmp_path: Path) -> None:
+def test_dragging_a_landmark_shows_only_the_previous_frame_ghost(page, tmp_path: Path) -> None:
     server, _store, thread = _start_error_marking_server(tmp_path)
     try:
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
@@ -376,17 +376,17 @@ def test_dragging_a_landmark_shows_previous_and_next_frame_ghosts(page, tmp_path
         page.mouse.move(end_x, end_y)
 
         overlay = page.locator("#error-marking-overlay")
-        adjacent_points = overlay.locator(".skeleton-adjacent-landmark-ghost")
-        adjacent_edges = overlay.locator(".skeleton-adjacent-edge-ghost")
-        expect(adjacent_points).to_have_count(2)
-        expect(adjacent_edges).to_have_count(2)
-        expect(overlay.locator('.skeleton-adjacent-landmark-ghost[data-frame-offset="-1"]')).to_have_attribute("cx", "90")
-        expect(overlay.locator('.skeleton-adjacent-landmark-ghost[data-frame-offset="1"]')).to_have_attribute("cx", "110")
-        expect(adjacent_edges.first).to_have_attribute("stroke", "#5da9e9")
+        previous_point = overlay.locator(".skeleton-previous-frame-landmark-ghost")
+        previous_edges = overlay.locator(".skeleton-previous-frame-edge-ghost")
+        expect(previous_point).to_have_count(1)
+        expect(previous_edges).to_have_count(1)
+        expect(previous_point).to_have_attribute("cx", "90")
+        expect(previous_point).not_to_have_attribute("cx", "110")
+        expect(previous_edges.first).to_have_attribute("stroke", "#5da9e9")
 
         page.mouse.up()
-        expect(adjacent_points).to_have_count(0)
-        expect(adjacent_edges).to_have_count(0)
+        expect(previous_point).to_have_count(0)
+        expect(previous_edges).to_have_count(0)
     finally:
         _stop_server(server, thread)
 

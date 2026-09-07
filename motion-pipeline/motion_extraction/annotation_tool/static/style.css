@@ -125,9 +125,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .skeleton-edge-cause-halo { stroke-width: 9; stroke-linecap: round; opacity: .72; pointer-events: none; }
 .skeleton-landmark-cause-halo { opacity: .72; pointer-events: none; }
 /* During a drag, show the dragged landmark and its incident bones from the
-   neighboring frames as faint blue temporal guides for correcting jitter. */
-.skeleton-adjacent-edge-ghost { stroke-width: 2.5; stroke-linecap: round; opacity: .45; pointer-events: none; }
-.skeleton-adjacent-landmark-ghost { stroke-width: 2.5; opacity: .55; pointer-events: none; }
+   previous frame as faint blue temporal guides for correcting jitter. */
+.skeleton-previous-frame-edge-ghost { stroke-width: 2.5; stroke-linecap: round; opacity: .45; pointer-events: none; }
+.skeleton-previous-frame-landmark-ghost { stroke-width: 2.5; opacity: .55; pointer-events: none; }
 /* A moved landmark's own original (pre-correction) position, kept visible
    underneath the corrected skeleton as a "ghost" of the estimate it
    replaced. Never interactive -- it's a stale position, not a second place
