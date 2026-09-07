@@ -343,6 +343,54 @@ def test_dragging_a_skeleton_landmark_records_a_corrected_position_and_a_mark(pa
         _stop_server(server, thread)
 
 
+def test_dragging_a_landmark_shows_previous_and_next_frame_ghosts(page, tmp_path: Path) -> None:
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        expect(page.locator('.skeleton-landmark[data-landmark="LEFT_WRIST"]')).to_be_visible(timeout=5000)
+
+        page.evaluate(
+            """() => {
+                state.errorMarkingLandmarks.frames[1].LEFT_WRIST = [90, 70];
+                state.errorMarkingLandmarks.frames[3].LEFT_WRIST = [110, 80];
+            }"""
+        )
+        page.locator("#error-marking-scrubber").evaluate(
+            """(scrubber) => {
+                scrubber.value = '2';
+                scrubber.dispatchEvent(new Event('input', {bubbles: true}));
+            }"""
+        )
+        rect = _overlay_rect(page)
+        start_x, start_y = _svg_client_point(
+            rect, ERROR_MARKING_SOURCE_WIDTH, ERROR_MARKING_SOURCE_HEIGHT, *WRIST_POINT
+        )
+        end_x, end_y = _svg_client_point(
+            rect, ERROR_MARKING_SOURCE_WIDTH, ERROR_MARKING_SOURCE_HEIGHT,
+            WRIST_POINT[0] + 25, WRIST_POINT[1] + 15,
+        )
+
+        page.mouse.move(start_x, start_y)
+        page.mouse.down()
+        page.mouse.move(end_x, end_y)
+
+        overlay = page.locator("#error-marking-overlay")
+        adjacent_points = overlay.locator(".skeleton-adjacent-landmark-ghost")
+        adjacent_edges = overlay.locator(".skeleton-adjacent-edge-ghost")
+        expect(adjacent_points).to_have_count(2)
+        expect(adjacent_edges).to_have_count(2)
+        expect(overlay.locator('.skeleton-adjacent-landmark-ghost[data-frame-offset="-1"]')).to_have_attribute("cx", "90")
+        expect(overlay.locator('.skeleton-adjacent-landmark-ghost[data-frame-offset="1"]')).to_have_attribute("cx", "110")
+        expect(adjacent_edges.first).to_have_attribute("stroke", "#5da9e9")
+
+        page.mouse.up()
+        expect(adjacent_points).to_have_count(0)
+        expect(adjacent_edges).to_have_count(0)
+    finally:
+        _stop_server(server, thread)
+
+
 def test_removing_a_current_frame_mark_immediately_restores_the_tracked_skeleton(page, tmp_path: Path) -> None:
     server, _store, thread = _start_error_marking_server(tmp_path)
     try:

@@ -1066,6 +1066,11 @@ const TRACKED_SKELETON_COLOR = "#c6eb28";
 // replaced -- distinct from CAUSE_COLOR_PALETTE/UNSET_CAUSE_COLOR, which
 // color a *mark*, not a specific stale position.
 const SKELETON_GHOST_COLOR = "rgba(154,163,158,.75)";
+// While a landmark is actively being dragged, its effective positions and
+// incident segments in the immediately adjacent frames provide temporal
+// context for spotting/correcting jitter. Blue distinguishes these neighbors
+// from the gray pre-correction ghost at the current frame.
+const SKELETON_ADJACENT_GHOST_COLOR = "#5da9e9";
 // Ghosting a correction that landed within a fraction of a pixel of the
 // original would just double-draw the same point/line.
 const SKELETON_GHOST_MIN_DISTANCE = .5;
@@ -1113,6 +1118,26 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
     ])
   );
 
+  let adjacentGhostEdgesHTML = "", adjacentGhostPointsHTML = "";
+  const draggedLandmark = state.skeletonDragLandmark;
+  if (draggedLandmark && state.skeletonDragPosition && frame === errorMarkingCurrentFrame()) {
+    [-1, 1].forEach((frameOffset) => {
+      const adjacentPoints = skeletonFrameLandmarks(frame + frameOffset);
+      const adjacentPoint = adjacentPoints[draggedLandmark];
+      if (!adjacentPoint) return;
+      adjacentGhostPointsHTML += `<circle class="skeleton-adjacent-landmark-ghost" data-frame-offset="${frameOffset}"` +
+        ` cx="${clampX(adjacentPoint[0])}" cy="${clampY(adjacentPoint[1])}" r="8" fill="none" stroke="${SKELETON_ADJACENT_GHOST_COLOR}"></circle>`;
+      adjacentGhostEdgesHTML += (data.pose_edges || []).map(([a, b]) => {
+        if (a !== draggedLandmark && b !== draggedLandmark) return "";
+        const pa = adjacentPoints[a], pb = adjacentPoints[b];
+        if (!pa || !pb) return "";
+        return `<line class="skeleton-adjacent-edge-ghost" data-frame-offset="${frameOffset}"` +
+          ` x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}"` +
+          ` stroke="${SKELETON_ADJACENT_GHOST_COLOR}"></line>`;
+      }).join("");
+    });
+  }
+
   const ghostEdgesHTML = (data.pose_edges || []).map(([a, b]) => {
     if (!changed[a] && !changed[b]) return "";
     const pa = original[a], pb = original[b];
@@ -1145,7 +1170,7 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
       ` ${position} r="${mark ? 11 : 8}" fill="${TRACKED_SKELETON_COLOR}"></circle>`;
   }).join("");
 
-  return {width, height, innerHTML: `<g>${ghostEdgesHTML}</g><g>${ghostPointsHTML}</g><g>${edgesHTML}</g><g>${pointsHTML}</g>`};
+  return {width, height, innerHTML: `<g>${adjacentGhostEdgesHTML}${ghostEdgesHTML}</g><g>${adjacentGhostPointsHTML}${ghostPointsHTML}</g><g>${edgesHTML}</g><g>${pointsHTML}</g>`};
 }
 
 // Shared by every skeleton-overlay surface (the live timeline view, the
