@@ -1072,9 +1072,9 @@ def test_skeleton_overlay_colors_by_move_and_cause_and_ghosts_the_original_posit
     # The error-marking video no longer has a pose burned into its pixels
     # (attach_error_marking_landmarks.py renders a clean clip instead), so
     # this overlay is the *only* skeleton drawing an annotator sees, and its
-    # color rule has to carry real meaning: tracked/yellow unless a
-    # landmark's position was actually corrected *and* given a cause, with a
-    # gray ghost of the pre-correction position left behind for comparison.
+    # color rule has to carry real meaning: the pose stays yellow, while a
+    # landmark corrected *and* given a cause gains a cause-colored halo, with
+    # a gray ghost of the pre-correction position left behind for comparison.
     javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
 
     def extract_function(name: str) -> str:
@@ -1169,13 +1169,17 @@ console.log(JSON.stringify({{
     assert 'cx="300" cy="305"' not in ghost_points_html  # RIGHT_WRIST's corrected position isn't ghosted
     assert ghost_edges_html.count("<line") == 3  # both LEFT_ELBOW edges, plus RIGHT_ELBOW-RIGHT_WRIST
 
-    # The real (possibly corrected) skeleton: RIGHT_WRIST's cause colors
-    # both its own point and the edge reaching it, LEFT_WRIST's cause never
-    # surfaces (it was never actually moved at this frame), and the
-    # corrected RIGHT_WRIST position -- not its original -- is what's drawn.
+    # The real (possibly corrected) skeleton stays yellow. RIGHT_WRIST's
+    # cause supplies a colored halo behind both its point and incoming edge;
+    # LEFT_WRIST's cause never surfaces because it was not moved at this
+    # frame. The corrected position -- not its original -- is what's drawn.
     assert 'cx="300" cy="305"' in points_html
     assert "CAUSE:occlusion" in points_html
     assert "CAUSE:occlusion" in edges_html
+    assert 'class="skeleton-landmark-cause-halo"' in points_html
+    assert 'class="skeleton-edge-cause-halo"' in edges_html
+    assert 'class="skeleton-landmark" data-landmark="RIGHT_WRIST" cx="300" cy="305" r="11" fill="#c6eb28"' in points_html
+    assert 'class="skeleton-edge" x1="290" y1="200" x2="300" y2="305" stroke="#c6eb28"' in edges_html
     assert "CAUSE:motion_blur" not in points_html
     assert "CAUSE:motion_blur" not in edges_html
     # A saved position equal to the original is still a recorded drag, but
@@ -1184,6 +1188,9 @@ console.log(JSON.stringify({{
     assert 'cx="300" cy="100" r="11" fill="#c6eb28"' in points_html
     assert "CAUSE:background_confusion" not in points_html
     assert "CAUSE:background_confusion" not in edges_html
+    css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
+    assert ".skeleton-edge-cause-halo { stroke-width: 9;" in css
+    assert ".skeleton-landmark-cause-halo { opacity: .72;" in css
 
 
 def test_task_instructions_are_collapsible_on_every_screen() -> None:
@@ -1260,7 +1267,17 @@ def test_error_marking_scrubber_sits_above_video_and_playback_controls_are_group
     # shared dark surface and clipping still integrate it visually.
     assert ".error-marking-player { display: flex; flex-direction: column; width: 100%;" in css
     assert ".error-marking-controls-bar { display: flex; flex: 0 0 auto;" in css
-    assert "width: 100%;" in css[css.index(".error-marking-controls-bar") :].split("}", 1)[0]
+    controls_css = css[css.index(".error-marking-controls-bar") :].split("}", 1)[0]
+    assert "width: 100%;" in controls_css
+    assert "gap: 0;" in controls_css
+    assert "padding: 0;" in controls_css
+    assert ".error-marking-controls-bar .step-buttons-join {" in css
+    assert ".error-marking-controls-bar .btn { margin: 0;" in css
+    assert "border: 0;" in css[css.index(".error-marking-controls-bar .btn {") :].split("}", 1)[0]
+    assert ".error-marking-controls-bar .btn + .btn { border-left: 1px solid" in css
+    assert "#error-marking-video { display: block; max-height: calc(32vh + 2.75rem);" in css
+    mobile_css = css[css.index("@media (max-width: 800px)") :]
+    assert "#error-marking-video { max-height: calc(58vh + 2.75rem); }" in mobile_css
 
     assert "$(\"error-marking-skip-start\").onclick" in js
     skip_handler = js[
@@ -1345,7 +1362,7 @@ def test_mobile_media_query_enlarges_the_skeleton_adjustment_canvases() -> None:
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     mobile_css = css[css.index("@media (max-width: 800px)") :]
     assert "#editor-viewport { max-height: 82vh; }" in mobile_css
-    assert "#error-marking-video { max-height: 58vh; }" in mobile_css
+    assert "#error-marking-video { max-height: calc(58vh + 2.75rem); }" in mobile_css
     assert "error-marking-review-box" in mobile_css
 
 

@@ -82,7 +82,7 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   (living document — status as of 2026-09-07) Full-corpus pose extraction and
   `quality_triage` are complete; `error_marking` and `video_quality_rating` are
   in progress (1/17 and 0/20). The live `error_marking` batch now uses clean
-  clips with a client-painted, correction-aware skeleton (cause colors plus
-  gray original-position ghosts), below-canvas integrated playback, immediate
-  repaint after mark removal, and remembered-user auto-load; the existing
-  annotation database remains intact.
+  clips with a client-painted, correction-aware yellow skeleton (cause-colored
+  halos plus gray original-position ghosts), taller below-canvas integrated playback with
+  flush single-border controls, immediate repaint after mark removal, and
+  remembered-user auto-load; the existing annotation database remains intact.

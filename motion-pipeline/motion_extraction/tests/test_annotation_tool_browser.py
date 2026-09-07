@@ -366,7 +366,11 @@ def test_removing_a_current_frame_mark_immediately_restores_the_tracked_skeleton
         live_overlay = page.locator("#error-marking-overlay")
         wrist = live_overlay.locator('.skeleton-landmark[data-landmark="LEFT_WRIST"]')
         expect(wrist).to_have_attribute("cx", str(int(corrected[0])))
+        expect(wrist).to_have_attribute("fill", "#c6eb28")
         expect(live_overlay.locator(".skeleton-landmark-ghost")).to_have_count(1)
+        expect(live_overlay.locator(".skeleton-landmark-cause-halo")).to_have_attribute("fill", "#3a8fd9")
+        expect(live_overlay.locator(".skeleton-edge")).to_have_attribute("stroke", "#c6eb28")
+        expect(live_overlay.locator(".skeleton-edge-cause-halo")).to_have_attribute("stroke", "#3a8fd9")
 
         page.click("#error-mark-dialog-remove")
 
@@ -374,6 +378,8 @@ def test_removing_a_current_frame_mark_immediately_restores_the_tracked_skeleton
         expect(wrist).to_have_attribute("cx", str(int(WRIST_POINT[0])))
         expect(wrist).to_have_attribute("cy", str(int(WRIST_POINT[1])))
         expect(live_overlay.locator(".skeleton-landmark-ghost")).to_have_count(0)
+        expect(live_overlay.locator(".skeleton-landmark-cause-halo")).to_have_count(0)
+        expect(live_overlay.locator(".skeleton-edge-cause-halo")).to_have_count(0)
     finally:
         _stop_server(server, thread)
 
@@ -390,16 +396,47 @@ def test_playback_controls_form_a_footer_below_the_video_canvas(page, tmp_path: 
                 const player = document.querySelector('.error-marking-player').getBoundingClientRect();
                 const canvas = document.getElementById('error-marking-video-wrap').getBoundingClientRect();
                 const controls = document.querySelector('.error-marking-controls-bar').getBoundingClientRect();
+                const videoStyle = getComputedStyle(document.getElementById('error-marking-video'));
+                const rootStyle = getComputedStyle(document.documentElement);
+                const controlsStyle = getComputedStyle(document.querySelector('.error-marking-controls-bar'));
+                const groupStyle = getComputedStyle(document.querySelector('.error-marking-controls-bar .step-buttons-join'));
+                const buttons = document.querySelectorAll('.error-marking-controls-bar .btn');
+                const firstButtonStyle = getComputedStyle(buttons[0]);
+                const secondButtonStyle = getComputedStyle(buttons[1]);
                 return {
+                  viewportHeight: window.innerHeight,
+                  rootFontSize: parseFloat(rootStyle.fontSize),
+                  videoMaxHeight: parseFloat(videoStyle.maxHeight),
                   player: {left: player.left, right: player.right},
-                  canvas: {left: canvas.left, right: canvas.right, bottom: canvas.bottom},
-                  controls: {left: controls.left, right: controls.right, top: controls.top},
+                  canvas: {left: canvas.left, right: canvas.right, bottom: canvas.bottom, height: canvas.height},
+                  controls: {
+                    left: controls.left, right: controls.right, top: controls.top,
+                    paddingTop: controlsStyle.paddingTop, paddingBottom: controlsStyle.paddingBottom,
+                  },
+                  borders: {
+                    groupLeft: groupStyle.borderLeftWidth,
+                    firstLeft: firstButtonStyle.borderLeftWidth,
+                    firstRight: firstButtonStyle.borderRightWidth,
+                    secondLeft: secondButtonStyle.borderLeftWidth,
+                  },
                 };
             }"""
         )
         assert geometry["controls"]["top"] >= geometry["canvas"]["bottom"] - 1
         assert geometry["controls"]["left"] == pytest.approx(geometry["player"]["left"], abs=1)
         assert geometry["controls"]["right"] == pytest.approx(geometry["player"]["right"], abs=1)
+        assert geometry["videoMaxHeight"] == pytest.approx(
+            geometry["viewportHeight"] * 0.32 + geometry["rootFontSize"] * 2.75,
+            abs=1,
+        )
+        assert geometry["controls"]["paddingTop"] == "0px"
+        assert geometry["controls"]["paddingBottom"] == "0px"
+        assert geometry["borders"] == {
+            "groupLeft": "1px",
+            "firstLeft": "0px",
+            "firstRight": "0px",
+            "secondLeft": "1px",
+        }
     finally:
         _stop_server(server, thread)
 
