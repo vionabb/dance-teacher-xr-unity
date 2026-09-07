@@ -79,8 +79,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).
 
 - [Handoff: corpus-wide quality triage + defect localization](2026-08-27-preprocessing-quality-gate-pivot-handoff.md)
-  (living document — status as of 2026-09-05) Full-corpus pose extraction and
+  (living document — status as of 2026-09-07) Full-corpus pose extraction and
   `quality_triage` are complete; `error_marking` and `video_quality_rating` are
-  in progress (1/17 and 0/20). The tested annotation UI now combines a
-  frame-accurate interactive skeleton, timeline editing, pausable replay, and
-  a replay-before-completion review gate.
+  in progress (1/17 and 0/20). The live `error_marking` batch now uses clean
+  clips with a client-painted, correction-aware skeleton (cause colors plus
+  gray original-position ghosts), integrated playback, and remembered-user
+  auto-load; the existing annotation database remains intact.

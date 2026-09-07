@@ -2,10 +2,30 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from dance_teacher_pose import PoseDataType, preprocess_pose_dataframe
+from motion_extraction.annotation_tool import attach_error_marking_landmarks as attach_module
 from motion_extraction.annotation_tool.attach_error_marking_landmarks import attach_landmarks
 from motion_extraction.scripts.run_preprocessing_experiment import _pose_pixels
+
+
+@pytest.fixture(autouse=True)
+def _fake_clean_clip_renderer(monkeypatch: pytest.MonkeyPatch) -> list[tuple]:
+    # The real renderer shells out to ffmpeg and reads real video frames --
+    # neither is available/needed for these manifest-and-artifact-wiring
+    # tests, so record calls instead (mirrors how test_annotation_tool.py
+    # fakes generate_temporal_comparison_tasks's own _render_unique_media).
+    calls: list[tuple] = []
+
+    def fake_render(video_path, start, end, fps, output_path, ffmpeg):
+        calls.append((video_path, start, end, fps, output_path, ffmpeg))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"fake clip")
+
+    monkeypatch.setattr(attach_module, "_require_encoder", lambda: "ffmpeg")
+    monkeypatch.setattr(attach_module, "_render_clean_clip", fake_render)
+    return calls
 
 
 def _linear_pose(frame_count: int = 30) -> pd.DataFrame:
@@ -74,7 +94,12 @@ def _error_marking_manifest(*, frame_count: int = 30) -> dict:
                 "category": "roughness",
                 "corpus": "test_corpus",
                 "relative_stem": "clip-a",
-                "source_artifact": "error-marking-000/clip.mp4",
+                # error_marking tasks start out borrowing their source
+                # quality_triage task's own (overlay-burned) clip -- exactly
+                # what append_error_marking_tasks.py writes -- until
+                # attach_landmarks() renders and rewires this to a clean clip
+                # of its own.
+                "source_artifact": "quality-triage-000/clip.mp4",
                 "fps": 10.0,
                 "frame_count": frame_count,
             }
@@ -82,7 +107,9 @@ def _error_marking_manifest(*, frame_count: int = 30) -> dict:
     }
 
 
-def test_attach_landmarks_writes_the_exact_window_and_pixels_the_render_step_would_use(tmp_path: Path) -> None:
+def test_attach_landmarks_writes_the_exact_window_and_pixels_the_render_step_would_use(
+    tmp_path: Path, _fake_clean_clip_renderer: list[tuple]
+) -> None:
     pose_path = tmp_path / "pose" / "clip-a.pose2d.raw.csv"
     _write_pose_csv(pose_path)
     signals_csv = _signals_csv(tmp_path, pose_path)
@@ -92,13 +119,16 @@ def test_attach_landmarks_writes_the_exact_window_and_pixels_the_render_step_wou
 
     summary, skipped = attach_landmarks(manifest_path, signals_csv, output_root)
 
-    assert summary == {"written": 1, "already_attached": 0}
+    assert summary == {"written": 1, "clean_clips_written": 1, "already_attached": 0}
     assert skipped == []
 
     manifest = json.loads(manifest_path.read_text())
     task = manifest["tasks"][0]
     assert task["landmarks_artifact"] == "error-marking-000/landmarks.json"
     assert task["source_dimensions"] == {"width": 320, "height": 240}
+    # A clean clip of its own replaces the borrowed quality_triage clip so
+    # the error-marking screen never shows a burned-in overlay.
+    assert task["source_artifact"] == "error-marking-000/clip.mp4"
 
     artifact = json.loads((output_root / "error-marking-000" / "landmarks.json").read_text())
     assert artifact["source_window"] == {"start_frame": 0, "end_frame": 30}
@@ -111,6 +141,11 @@ def test_attach_landmarks_writes_the_exact_window_and_pixels_the_render_step_wou
     expected_frame_5 = _pose_pixels(clean, 5)
     assert artifact["frames"][5]["LEFT_WRIST"] == _rounded_point(expected_frame_5["LEFT_WRIST"])
 
+    assert len(_fake_clean_clip_renderer) == 1
+    video_path, start, end, fps, output_path, ffmpeg = _fake_clean_clip_renderer[0]
+    assert (video_path, start, end, fps, ffmpeg) == (Path("/videos/clip-a.mp4"), 0, 30, 10.0, "ffmpeg")
+    assert output_path == output_root / "error-marking-000" / "clip.mp4"
+
 
 def _rounded_point(point: tuple[float, float]) -> list[float]:
     # attach_landmarks() round-trips coordinates through JSON, so compare as
@@ -118,7 +153,9 @@ def _rounded_point(point: tuple[float, float]) -> list[float]:
     return [round(point[0], 9), round(point[1], 9)]
 
 
-def test_attach_landmarks_is_idempotent_and_skips_already_attached_tasks(tmp_path: Path) -> None:
+def test_attach_landmarks_is_idempotent_and_skips_already_attached_tasks(
+    tmp_path: Path, _fake_clean_clip_renderer: list[tuple]
+) -> None:
     pose_path = tmp_path / "pose" / "clip-a.pose2d.raw.csv"
     _write_pose_csv(pose_path)
     signals_csv = _signals_csv(tmp_path, pose_path)
@@ -128,8 +165,38 @@ def test_attach_landmarks_is_idempotent_and_skips_already_attached_tasks(tmp_pat
     attach_landmarks(manifest_path, signals_csv, tmp_path)
     summary, skipped = attach_landmarks(manifest_path, signals_csv, tmp_path)
 
-    assert summary == {"written": 0, "already_attached": 1}
+    assert summary == {"written": 0, "clean_clips_written": 0, "already_attached": 1}
     assert skipped == []
+    assert len(_fake_clean_clip_renderer) == 1  # only the first run rendered a clip
+
+
+def test_attach_landmarks_backfills_only_the_missing_clean_clip(
+    tmp_path: Path, _fake_clean_clip_renderer: list[tuple]
+) -> None:
+    # A manifest processed by an older version of this script has landmarks
+    # attached but source_artifact still borrowed from quality_triage --
+    # re-running must render just the clean clip, not redo the landmarks.
+    pose_path = tmp_path / "pose" / "clip-a.pose2d.raw.csv"
+    _write_pose_csv(pose_path)
+    signals_csv = _signals_csv(tmp_path, pose_path)
+    manifest = _error_marking_manifest()
+    manifest["tasks"][0]["landmarks_artifact"] = "error-marking-000/landmarks.json"
+    manifest["tasks"][0]["source_dimensions"] = {"width": 320, "height": 240}
+    manifest_path = tmp_path / "annotation_tasks.json"
+    manifest_path.write_text(json.dumps(manifest))
+    # No landmarks.json is written to disk on purpose: if attach_landmarks()
+    # mistakenly decided landmarks still needed writing, it would try to
+    # read pose data that isn't wired up the same way here and this test
+    # would need to know about it -- the summary assertion below is the
+    # actual guard against that.
+
+    summary, skipped = attach_landmarks(manifest_path, signals_csv, tmp_path)
+
+    assert summary == {"written": 0, "clean_clips_written": 1, "already_attached": 0}
+    assert skipped == []
+    result_manifest = json.loads(manifest_path.read_text())
+    assert result_manifest["tasks"][0]["source_artifact"] == "error-marking-000/clip.mp4"
+    assert len(_fake_clean_clip_renderer) == 1
 
 
 def test_attach_landmarks_skips_a_task_whose_recomputed_window_disagrees(tmp_path: Path) -> None:
@@ -143,7 +210,7 @@ def test_attach_landmarks_skips_a_task_whose_recomputed_window_disagrees(tmp_pat
 
     summary, skipped = attach_landmarks(manifest_path, signals_csv, tmp_path)
 
-    assert summary == {"written": 0, "already_attached": 0}
+    assert summary == {"written": 0, "clean_clips_written": 0, "already_attached": 0}
     assert len(skipped) == 1
     assert "recomputed window has 30 frames, task expects 29" in skipped[0]
     manifest = json.loads(manifest_path.read_text())
@@ -161,6 +228,6 @@ def test_attach_landmarks_skips_a_task_with_no_matching_signals_row(tmp_path: Pa
 
     summary, skipped = attach_landmarks(manifest_path, signals_csv, tmp_path)
 
-    assert summary == {"written": 0, "already_attached": 0}
+    assert summary == {"written": 0, "clean_clips_written": 0, "already_attached": 0}
     assert len(skipped) == 1
     assert "no signals row" in skipped[0]
