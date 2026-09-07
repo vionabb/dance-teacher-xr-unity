@@ -550,7 +550,7 @@ function startFrameReplay(video, onFrame, fps, startFrame = 0, onFinish = () => 
 
 function setErrorMarkingReplayPlaying(playing) {
   const button = $("error-marking-replay");
-  button.textContent = playing ? "⏸ Pause" : "▶ Replay";
+  button.textContent = playing ? "⏸ Pause" : "▶ Play";
   button.setAttribute("aria-pressed", String(playing));
 }
 
@@ -1026,6 +1026,47 @@ function skeletonFrameLandmarks(frame) {
   return effective;
 }
 
+// The video no longer has a pose burned into its pixels (see
+// attach_error_marking_landmarks.py) -- this overlay draws the entire
+// skeleton itself every frame, so an untouched, uncorrected landmark still
+// needs a color: the same yellow-green the burned-in overlay used to draw,
+// for visual continuity with what annotators are already used to seeing.
+const TRACKED_SKELETON_COLOR = "#c6eb28";
+// The original (pre-correction) position of a landmark an annotator has
+// moved, rendered as a deemphasized "ghost" of the incorrect estimate it
+// replaced -- distinct from CAUSE_COLOR_PALETTE/UNSET_CAUSE_COLOR, which
+// color a *mark*, not a specific stale position.
+const SKELETON_GHOST_COLOR = "rgba(154,163,158,.75)";
+// Ghosting a correction that landed within a fraction of a pixel of the
+// original would just double-draw the same point/line.
+const SKELETON_GHOST_MIN_DISTANCE = .5;
+
+// True only when `landmark` has an annotator-supplied corrected position at
+// this *exact* frame -- either already saved (mark.positions[frame]) or
+// being actively dragged right now -- not merely covered by a mark's
+// frame span without having been dragged at this particular frame.
+function landmarkMovedAtFrame(landmark, frame) {
+  if (state.skeletonDragLandmark === landmark && state.skeletonDragPosition && frame === errorMarkingCurrentFrame()) return true;
+  const mark = markForPartAtFrame(landmark, frame);
+  return !!(mark && mark.positions && Object.prototype.hasOwnProperty.call(mark.positions, String(frame)));
+}
+
+function landmarkChangedAtFrame(original, effective, landmark, frame) {
+  if (!landmarkMovedAtFrame(landmark, frame)) return false;
+  const from = original[landmark], to = effective[landmark];
+  return !!(from && to && Math.hypot(to[0] - from[0], to[1] - from[1]) >= SKELETON_GHOST_MIN_DISTANCE);
+}
+
+// A landmark/segment reads as flagged (cause-colored) only once it has
+// actually changed from the video *and* been given a cause; anything else
+// -- untouched, dragged back to its original position, or moved but not yet
+// attributed to a cause -- stays the tracked color.
+function skeletonLandmarkCauseColor(landmark, frame, changed) {
+  if (!changed) return null;
+  const mark = markForPartAtFrame(landmark, frame);
+  return mark && mark.causes.length ? causeColor(mark.causes[0]) : null;
+}
+
 // Builds the skeleton overlay markup for one frame, shared by the live
 // video overlay and the mark-detail dialog's read-only preview. `highlight`
 // forces a specific landmark to render selected regardless of hover/drag
@@ -1033,14 +1074,31 @@ function skeletonFrameLandmarks(frame) {
 function skeletonOverlayMarkup(data, frame, highlight = null) {
   const {width, height} = data.source_dimensions;
   const points = skeletonFrameLandmarks(frame);
+  const original = data.frames[frame] || {};
   const clampX = (x) => Math.min(Math.max(x, -width * .3), width * 1.3);
   const clampY = (y) => Math.min(Math.max(y, -height * .3), height * 1.3);
+  const changed = Object.fromEntries(
+    (data.landmarks || []).map((landmark) => [
+      landmark,
+      landmarkChangedAtFrame(original, points, landmark, frame),
+    ])
+  );
+
+  const ghostEdgesHTML = (data.pose_edges || []).map(([a, b]) => {
+    if (!changed[a] && !changed[b]) return "";
+    const pa = original[a], pb = original[b];
+    if (!pa || !pb) return "";
+    return `<line class="skeleton-edge-ghost" x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}" stroke="${SKELETON_GHOST_COLOR}"></line>`;
+  }).join("");
+  const ghostPointsHTML = (data.landmarks || []).filter((landmark) => changed[landmark]).map((landmark) => {
+    const point = original[landmark];
+    return `<circle class="skeleton-landmark-ghost" cx="${clampX(point[0])}" cy="${clampY(point[1])}" r="6" fill="${SKELETON_GHOST_COLOR}"></circle>`;
+  }).join("");
 
   const edgesHTML = (data.pose_edges || []).map(([a, b]) => {
     const pa = points[a], pb = points[b];
     if (!pa || !pb) return "";
-    const markA = markForPartAtFrame(a, frame), markB = markForPartAtFrame(b, frame);
-    const color = markA ? markPointColor(markA) : markB ? markPointColor(markB) : "rgba(255,255,255,.4)";
+    const color = skeletonLandmarkCauseColor(a, frame, changed[a]) || skeletonLandmarkCauseColor(b, frame, changed[b]) || TRACKED_SKELETON_COLOR;
     return `<line class="skeleton-edge" x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}" stroke="${color}"></line>`;
   }).join("");
 
@@ -1049,12 +1107,12 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
     if (!point) return "";
     const mark = markForPartAtFrame(landmark, frame);
     const selected = highlight ? landmark === highlight : (state.selectedSkeletonLandmark === landmark || state.skeletonDragLandmark === landmark);
-    const color = mark ? markPointColor(mark) : "rgba(255,255,255,.55)";
+    const color = skeletonLandmarkCauseColor(landmark, frame, changed[landmark]) || TRACKED_SKELETON_COLOR;
     return `<circle class="skeleton-landmark${selected ? " skeleton-landmark-selected" : ""}" data-landmark="${landmark}"` +
       ` cx="${clampX(point[0])}" cy="${clampY(point[1])}" r="${mark ? 11 : 8}" fill="${color}"></circle>`;
   }).join("");
 
-  return {width, height, innerHTML: `<g>${edgesHTML}</g><g>${pointsHTML}</g>`};
+  return {width, height, innerHTML: `<g>${ghostEdgesHTML}</g><g>${ghostPointsHTML}</g><g>${edgesHTML}</g><g>${pointsHTML}</g>`};
 }
 
 // Shared by every skeleton-overlay surface (the live timeline view, the
@@ -1164,8 +1222,6 @@ function renderErrorMarkingTask(task, judgment) {
   hideAllScreens();
   $("error-marking-screen").hidden = false;
   $("mark-unclear").hidden = true;
-
-  $("error-marking-category-badge").textContent = TRIAGE_CATEGORY_LABELS[task.category] || task.category || "";
 
   const video = errorMarkingVideo();
   video.pause();
@@ -1616,9 +1672,6 @@ $("temporal-speed-half").onclick = () => setTemporalSpeed(.5);
 $("temporal-speed-normal").onclick = () => setTemporalSpeed(1);
 $("previous-case").onclick = () => navigateTo(state.taskIndex - 1);
 $("logout").onclick = async () => { try { await authenticatedFetch("/api/logout", {method: "POST"}); } finally { pauseTemporalVideos(); localStorage.removeItem("annotation-access-token"); localStorage.removeItem("annotation-annotator"); sessionStorage.removeItem("annotation-access-token"); $("access-token").value = ""; $("annotator").value = ""; $("remember-access-token").checked = false; $("workspace").hidden = true; $("login-panel").hidden = false; $("user-menu").hidden = true; $("save-state").textContent = "logged out"; } };
-fetch("/api/access-info").then(responseJson).then((info) => {
-  if (!info.access_token_required) $("access-token-field").hidden = true;
-}).catch(() => {});
 const rememberedToken = localStorage.getItem("annotation-access-token");
 const rememberedAnnotator = localStorage.getItem("annotation-annotator");
 if (rememberedToken) $("access-token").value = rememberedToken;
@@ -1626,7 +1679,17 @@ if (rememberedToken || rememberedAnnotator) {
   if (rememberedAnnotator) $("annotator").value = rememberedAnnotator;
   $("remember-access-token").checked = true;
 }
-if (rememberedToken && rememberedAnnotator) loadState();
+// Auto-load needs to know whether the server actually requires a token
+// before deciding a remembered annotator alone is enough: on a plain local
+// server (no --access-token) there is never a remembered token to check,
+// so gating on "both remembered" left local annotators re-clicking "Load /
+// resume" by hand on every revisit despite "Remember this device".
+fetch("/api/access-info").then(responseJson).then((info) => {
+  if (!info.access_token_required) $("access-token-field").hidden = true;
+  if (rememberedAnnotator && (rememberedToken || !info.access_token_required)) loadState();
+}).catch(() => {
+  if (rememberedToken && rememberedAnnotator) loadState();
+});
 document.querySelectorAll(".actions button[data-status]").forEach((button) => button.onclick = async () => {
   const task = state.data?.tasks?.[state.taskIndex];
   if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarks.length) {
@@ -1673,6 +1736,14 @@ $("error-marking-review-looks-good").onclick = async () => {
   await submitStatusAndAdvance("completed");
 };
 $("error-marking-review-dialog").addEventListener("close", stopErrorMarkingReviewReplay);
+$("error-marking-skip-start").onclick = () => {
+  stopErrorMarkingReplay();
+  const video = errorMarkingVideo();
+  video.pause();
+  setErrorMarkingFrame(0);
+  video.currentTime = frameToTime(0);
+  updateErrorMarkingFrameIndicator(0);
+};
 $("error-marking-step-back-5").onclick = () => stepErrorMarkingVideo(-5);
 $("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
 $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);

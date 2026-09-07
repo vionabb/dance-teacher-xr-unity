@@ -95,7 +95,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .landmark-row { cursor: pointer; }
 .status-unjudged { color: #777; }.status-completed { color: #16745f; }.status-skipped { color: #9a6500; }.status-unclear { color: #7b4594; }
 
-#error-marking-video { display: block; max-height: 32vh; margin: 0 auto; background: #111817; border-radius: .75rem; object-fit: contain; }
+#error-marking-video { display: block; max-height: 32vh; margin: 0 auto; background: #111817; object-fit: contain; }
 /* The wrap is sized entirely by the video (its only in-flow child), so the
    overlay -- absolutely positioned to fill the wrap -- lands on exactly the
    video element's own box. Both then independently letterbox their content
@@ -105,10 +105,25 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
    on the source-pixel coordinates they actually represent. */
 .error-marking-video-wrap { position: relative; width: 100%; }
 .error-marking-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* The playback controls read as part of the video component itself -- one
+   continuous dark surface with the video's own letterbox color, not a
+   separate button cluster below it -- so the player owns the rounding
+   (clipping its square-cornered video and flush controls bar into it)
+   instead of the video rounding its own corners. */
+.error-marking-player { margin: 0; overflow: hidden; border-radius: .75rem; background: #111817; }
+.error-marking-controls-bar { display: flex; align-items: center; justify-content: center; gap: .5rem; padding: .4rem; border-top: 1px solid #ffffff1f; }
+.error-marking-controls-bar .btn { color: #f3f1eb; border-color: #ffffff3d; }
+.error-marking-controls-bar .btn:hover { background: #ffffff1f; }
 .skeleton-landmark { pointer-events: auto; cursor: pointer; touch-action: none; stroke: #10201d; stroke-width: 1.5; }
 .skeleton-landmark:hover { filter: brightness(1.15); }
 .skeleton-landmark-selected { stroke: #ffffff; stroke-width: 2.5; }
 .skeleton-edge { stroke-width: 3; stroke-linecap: round; }
+/* A moved landmark's own original (pre-correction) position, kept visible
+   underneath the corrected skeleton as a "ghost" of the estimate it
+   replaced. Never interactive -- it's a stale position, not a second place
+   to drag from. */
+.skeleton-edge-ghost { stroke-width: 2; stroke-linecap: round; stroke-dasharray: 3 3; pointer-events: none; }
+.skeleton-landmark-ghost { pointer-events: none; }
 /* The dialog's overlay is read-only (a corrected-position preview, not a
    second place to drag from) -- disable the landmark circles' own
    pointer-events/cursor from .skeleton-landmark above. */

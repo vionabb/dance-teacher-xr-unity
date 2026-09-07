@@ -2,8 +2,12 @@
 
 Targets the clip-based quality_triage tasks a human annotator already marked
 "problematic" -- these are exactly the clips known to contain a real error,
-so localizing *where* and *what kind* is immediately useful, and it reuses
-the existing overlay-burned clip.mp4 artifacts (no new rendering needed).
+so localizing *where* and *what kind* is immediately useful. Each new task
+starts out borrowing its source quality_triage task's own clip.mp4 (no new
+rendering needed here); run attach_error_marking_landmarks.py afterward to
+attach per-frame landmark coordinates and rewire source_artifact to a clean
+clip of its own (no overlay burned in -- the error-marking screen paints its
+own editable skeleton instead).
 
 Frame indices recorded by the error_marking UI are local to the displayed
 clip.mp4 (frame 0 = the first frame of that rendered window), not positions
@@ -84,9 +88,9 @@ def main() -> None:
         type=Path,
         help=(
             "automatic_quality_signals.csv this batch was selected from. When given, also "
-            "attaches per-frame landmark pixel positions to each new task (see "
-            "attach_error_marking_landmarks.py) so the error-marking UI's skeleton overlay "
-            "has real coordinates from the start."
+            "attaches per-frame landmark pixel positions and renders a clean clip for each "
+            "new task (see attach_error_marking_landmarks.py), so the error-marking UI can "
+            "paint the only skeleton overlay itself."
         ),
     )
     args = parser.parse_args()
@@ -100,7 +104,10 @@ def main() -> None:
         from motion_extraction.annotation_tool.attach_error_marking_landmarks import attach_landmarks
 
         summary, skipped = attach_landmarks(args.output_manifest, args.signals_csv, args.manifest.parent)
-        print(f"Attached landmarks to {summary['written']} of them.")
+        print(
+            f"Attached landmarks to {summary['written']} and rendered clean clips for "
+            f"{summary['clean_clips_written']} of them."
+        )
         if skipped:
             print(f"Skipped {len(skipped)}:")
             for line in skipped:

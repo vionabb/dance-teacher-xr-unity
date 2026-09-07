@@ -127,7 +127,7 @@ def test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker() -> None:
     assert 'id="complete-case"' in html
     assert 'id="mark-unclear"' in html
     assert 'id="back-to-skeleton"' not in html
-    assert "if (rememberedToken && rememberedAnnotator) loadState();" in (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    assert "if (rememberedAnnotator && (rememberedToken || !info.access_token_required)) loadState();" in (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert '$("previous").onclick' not in (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert ".remember-token { display: inline-flex" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert "padding: 1rem 1rem 5rem" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
@@ -218,8 +218,21 @@ def test_annotation_ui_auto_logs_in_when_both_credentials_are_remembered() -> No
     javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert 'localStorage.getItem("annotation-access-token")' in javascript
     assert 'localStorage.getItem("annotation-annotator")' in javascript
-    assert "if (rememberedToken && rememberedAnnotator) loadState();" in javascript
+    assert "if (rememberedAnnotator && (rememberedToken || !info.access_token_required)) loadState();" in javascript
     assert 'localStorage.setItem("annotation-annotator", state.annotator)' in javascript
+
+
+def test_annotation_ui_auto_logs_in_from_a_remembered_annotator_alone_when_no_token_is_required() -> None:
+    # On a plain local server (no --access-token), there is never a
+    # remembered token to check against -- auto-load must still fire from a
+    # remembered annotator name once /api/access-info confirms no token is
+    # required, rather than silently requiring both forever.
+    javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    auto_load_source = javascript[javascript.index('fetch("/api/access-info")') :]
+    auto_load_source = auto_load_source[: auto_load_source.index("});") + 3]
+    assert "if (!info.access_token_required) $(\"access-token-field\").hidden = true;" in auto_load_source
+    assert "if (rememberedAnnotator && (rememberedToken || !info.access_token_required)) loadState();" in auto_load_source
+    assert "if (rememberedToken && rememberedAnnotator) loadState();" in auto_load_source
 
 
 def test_annotation_action_always_unlocks_controls_after_advance_failure() -> None:
@@ -1055,6 +1068,124 @@ def test_error_mark_dialog_shows_corrected_skeleton_with_highlighted_landmark() 
     assert "renderErrorMarkDialogOverlay()" in open_popup
 
 
+def test_skeleton_overlay_colors_by_move_and_cause_and_ghosts_the_original_position() -> None:
+    # The error-marking video no longer has a pose burned into its pixels
+    # (attach_error_marking_landmarks.py renders a clean clip instead), so
+    # this overlay is the *only* skeleton drawing an annotator sees, and its
+    # color rule has to carry real meaning: tracked/yellow unless a
+    # landmark's position was actually corrected *and* given a cause, with a
+    # gray ghost of the pre-correction position left behind for comparison.
+    javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+
+    def extract_function(name: str) -> str:
+        start = javascript.index(f"function {name}(")
+        end = javascript.index("\n}", start) + 2
+        return javascript[start:end]
+
+    constants = javascript[
+        javascript.index("const TRACKED_SKELETON_COLOR") : javascript.index("function landmarkMovedAtFrame(")
+    ]
+    assert 'const TRACKED_SKELETON_COLOR = "#c6eb28";' in constants
+
+    helper = "\n".join(
+        [
+            "function errorMarkingCurrentFrame() { return state.errorMarkingFrame; }",
+            extract_function("markForPartAtFrame"),
+            extract_function("skeletonFrameLandmarks"),
+            constants,
+            extract_function("landmarkMovedAtFrame"),
+            extract_function("landmarkChangedAtFrame"),
+            extract_function("skeletonLandmarkCauseColor"),
+            extract_function("skeletonOverlayMarkup"),
+        ]
+    )
+
+    script = f"""
+{helper}
+function causeColor(id) {{ return "CAUSE:" + id; }}
+
+const frame = 5;
+state = {{
+  errorMarkingFrame: frame,
+  skeletonDragLandmark: null,
+  skeletonDragPosition: null,
+  selectedSkeletonLandmark: null,
+  errorMarks: [
+    // Covers frame 5 and already has a cause, but was never dragged at
+    // this exact frame -- "unchanged from the original" must still win.
+    {{body_part: "LEFT_WRIST", start_frame: 0, end_frame: 10, causes: ["motion_blur"], positions: {{}}}},
+    // Dragged at frame 5, but no cause attributed yet.
+    {{body_part: "LEFT_ELBOW", start_frame: 0, end_frame: 10, causes: [], positions: {{5: [140, 205]}}}},
+    // Dragged at frame 5 *and* has a cause.
+    {{body_part: "RIGHT_WRIST", start_frame: 0, end_frame: 10, causes: ["occlusion"], positions: {{5: [300, 305]}}}},
+    // Has a saved drag and a cause, but the final point is exactly the
+    // video's original estimate, so it is not actually a correction.
+    {{body_part: "RIGHT_SHOULDER", start_frame: 0, end_frame: 10, causes: ["background_confusion"], positions: {{5: [300, 100]}}}},
+  ],
+}};
+const data = {{
+  source_dimensions: {{width: 640, height: 360}},
+  landmarks: ["LEFT_SHOULDER", "LEFT_ELBOW", "LEFT_WRIST", "RIGHT_SHOULDER", "RIGHT_ELBOW", "RIGHT_WRIST"],
+  pose_edges: [
+    ["LEFT_SHOULDER", "LEFT_ELBOW"], ["LEFT_ELBOW", "LEFT_WRIST"],
+    ["RIGHT_SHOULDER", "RIGHT_ELBOW"], ["RIGHT_ELBOW", "RIGHT_WRIST"],
+  ],
+  frames: {{5: {{
+    LEFT_SHOULDER: [100, 100], LEFT_ELBOW: [120, 200], LEFT_WRIST: [140, 300],
+    RIGHT_SHOULDER: [300, 100], RIGHT_ELBOW: [290, 200], RIGHT_WRIST: [280, 300],
+  }}}},
+}};
+state.errorMarkingLandmarks = data;
+
+console.log(JSON.stringify({{
+  leftWristMoved: landmarkMovedAtFrame("LEFT_WRIST", frame),
+  leftElbowMoved: landmarkMovedAtFrame("LEFT_ELBOW", frame),
+  rightWristMoved: landmarkMovedAtFrame("RIGHT_WRIST", frame),
+  rightShoulderMoved: landmarkMovedAtFrame("RIGHT_SHOULDER", frame),
+  innerHTML: skeletonOverlayMarkup(data, frame).innerHTML,
+}}));
+"""
+    result = subprocess.run(["node", "-e", script], check=False, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+
+    assert payload["leftWristMoved"] is False
+    assert payload["leftElbowMoved"] is True
+    assert payload["rightWristMoved"] is True
+    assert payload["rightShoulderMoved"] is True
+
+    groups = payload["innerHTML"].split("</g><g>")
+    assert len(groups) == 4
+    ghost_edges_html, ghost_points_html, edges_html, points_html = groups
+    ghost_edges_html = ghost_edges_html.removeprefix("<g>")
+    points_html = points_html.removesuffix("</g>")
+
+    # A ghost renders for every moved landmark (cause or not) and every
+    # edge touching one, using the *original* position -- never the
+    # corrected one -- and never for an untouched landmark/edge.
+    assert ghost_points_html.count("<circle") == 2
+    assert 'cx="120" cy="200"' in ghost_points_html  # LEFT_ELBOW's original position
+    assert 'cx="280" cy="300"' in ghost_points_html  # RIGHT_WRIST's original position
+    assert 'cx="300" cy="305"' not in ghost_points_html  # RIGHT_WRIST's corrected position isn't ghosted
+    assert ghost_edges_html.count("<line") == 3  # both LEFT_ELBOW edges, plus RIGHT_ELBOW-RIGHT_WRIST
+
+    # The real (possibly corrected) skeleton: RIGHT_WRIST's cause colors
+    # both its own point and the edge reaching it, LEFT_WRIST's cause never
+    # surfaces (it was never actually moved at this frame), and the
+    # corrected RIGHT_WRIST position -- not its original -- is what's drawn.
+    assert 'cx="300" cy="305"' in points_html
+    assert "CAUSE:occlusion" in points_html
+    assert "CAUSE:occlusion" in edges_html
+    assert "CAUSE:motion_blur" not in points_html
+    assert "CAUSE:motion_blur" not in edges_html
+    # A saved position equal to the original is still a recorded drag, but
+    # not a changed estimate: it stays yellow and produces no gray ghost or
+    # cause-colored point/segment.
+    assert 'cx="300" cy="100" r="11" fill="#c6eb28"' in points_html
+    assert "CAUSE:background_confusion" not in points_html
+    assert "CAUSE:background_confusion" not in edges_html
+
+
 def test_task_instructions_are_collapsible_on_every_screen() -> None:
     html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
@@ -1082,16 +1213,57 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     assert "function replayErrorMarking()" in js
     assert "}, 2, startFrame," in js
     replay_button = html.index('id="error-marking-replay"')
-    controls_start = html.rindex('<div class="mt-3 flex items-center gap-2">', 0, replay_button)
+    controls_start = html.rindex('<div class="error-marking-controls-bar">', 0, replay_button)
     assert replay_button < html.index("</div>", replay_button)
     assert controls_start < replay_button
     # Manual interaction (stepping, scrubbing, dragging a mark or a
     # landmark) must cancel any running replay rather than fight it for
     # video.currentTime.
     assert "stopErrorMarkingReplay();" in js[js.index("function stepErrorMarkingVideo(") :].split("\n}", 1)[0]
-    assert 'button.textContent = playing ? "⏸ Pause" : "▶ Replay"' in js
+    assert 'button.textContent = playing ? "⏸ Pause" : "▶ Play"' in js
     assert "if (state.errorMarkingReplayHandle) stopErrorMarkingReplay();" in js
     assert "if (state.errorMarkingReviewReplayHandle)" in js
+
+
+def test_error_marking_scrubber_sits_above_video_and_playback_controls_are_grouped() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    screen_start = html.index('id="error-marking-screen"')
+    screen_end = html.index('id="quality-rating-screen"', screen_start)
+    screen = html[screen_start:screen_end]
+
+    assert 'id="error-marking-category-badge"' not in screen
+    # A single, visually joined button group -- not the old split
+    # back-controls/forward-controls pair either side of the scrubber.
+    assert screen.count('class="join step-buttons-join"') == 1
+
+    # Scrubber (left of the frame counter) sits above the canvas; the
+    # skip/step/play controls sit below it, in this left-to-right order.
+    order_ids = [
+        "error-marking-scrubber",
+        "error-marking-frame-indicator",
+        "error-marking-video-wrap",
+        "error-marking-skip-start",
+        "error-marking-step-back-5",
+        "error-marking-step-back-1",
+        "error-marking-replay",
+        "error-marking-step-forward-1",
+        "error-marking-step-forward-5",
+        "error-marking-timeline",
+    ]
+    positions = [screen.index(f'id="{element_id}"') for element_id in order_ids]
+    assert positions == sorted(positions)
+    assert 'aria-label="Skip to beginning"' in screen
+
+    assert "$(\"error-marking-skip-start\").onclick" in js
+    skip_handler = js[
+        js.index('$("error-marking-skip-start").onclick') : js.index(
+            "};", js.index('$("error-marking-skip-start").onclick')
+        )
+    ]
+    assert "stopErrorMarkingReplay();" in skip_handler
+    assert "setErrorMarkingFrame(0);" in skip_handler
+    assert "updateErrorMarkingFrameIndicator(0);" in skip_handler
 
 
 def test_resizing_or_drawing_touching_error_marks_merges_them() -> None:
