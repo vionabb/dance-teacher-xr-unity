@@ -433,17 +433,12 @@ function markForPartAtFrame(partId, frame) {
   return state.errorMarks.find((mark) => mark.body_part === partId && frame >= mark.start_frame && frame <= mark.end_frame) || null;
 }
 
-function frameCoveredForPart(partId, frame) {
-  return markForPartAtFrame(partId, frame) !== null;
-}
-
 // Creates a mark covering just `frame` for `bodyPart`, unless one already
 // exists there -- in which case an existing mark ending at frame-1 and/or
 // starting at frame+1 is extended (and the two merged, if both exist)
-// instead of a new, separately-tracked mark being created. Shared by the
-// timeline's per-row + button and by clicking/dragging a landmark on the
-// skeleton overlay, so both paths produce the same, minimally-fragmented
-// set of marks.
+// instead of a new, separately-tracked mark being created. Used when
+// clicking/dragging a landmark on the skeleton overlay creates or extends
+// a mark at the frame it was clicked/dragged on.
 function ensureMarkAtFrame(bodyPart, frame) {
   const existing = markForPartAtFrame(bodyPart, frame);
   if (existing) return existing;
@@ -471,12 +466,6 @@ function ensureMarkAtFrame(bodyPart, frame) {
   return mark;
 }
 
-function updateTimelineAddButtons(frame = errorMarkingCurrentFrame()) {
-  $("error-marking-timeline").querySelectorAll("[data-add-part]").forEach((button) => {
-    button.disabled = frameCoveredForPart(button.dataset.addPart, frame);
-  });
-}
-
 function timelinePlayheadLeftPercent(frame = errorMarkingCurrentFrame()) {
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
   return Math.min((frame / frameCount) * 100, 100);
@@ -500,8 +489,7 @@ function updateErrorMarkingFrameIndicator(frame = errorMarkingCurrentFrame()) {
   const total = errorMarkingFrameCount();
   $("error-marking-frame-indicator").textContent = `frame ${frame} / ${Math.max(total - 1, 0)}`;
   const scrubber = $("error-marking-scrubber");
-  if (document.activeElement !== scrubber) scrubber.value = frame;
-  updateTimelineAddButtons(frame);
+  if (scrubber && document.activeElement !== scrubber) scrubber.value = frame;
   updateTimelinePlayhead(frame);
   renderSkeletonOverlay(frame);
 }
@@ -569,11 +557,24 @@ function setErrorMarkingReviewReplayPlaying(playing) {
   button.setAttribute("aria-pressed", String(playing));
 }
 
+// The dropdown's plain numbers (2/4/8) are a fixed frame-stepping rate in
+// frames/sec, decoupled from the clip's own frame rate -- useful for a
+// quick, deliberately choppy scrub through every frame. A "0.5x"/"1x" value
+// is instead a fraction of the clip's *own* fps (errorMarkingFps()), so it
+// reads as slow motion or true real-time playback rather than a fixed step rate.
+function errorMarkingReplayFps() {
+  const raw = $("error-marking-fps-select").value;
+  if (raw.endsWith("x")) return parseFloat(raw) * errorMarkingFps();
+  return Number(raw);
+}
+
 function stopErrorMarkingReplay() {
+  const wasPlaying = state.errorMarkingReplayDirection != null;
   if (state.errorMarkingReplayHandle) { state.errorMarkingReplayHandle.stop(); state.errorMarkingReplayHandle = null; }
   state.errorMarkingReplayDirection = null;
   setErrorMarkingReplayPlaying(false);
   setErrorMarkingReplayBackwardsPlaying(false);
+  if (wasPlaying) renderSkeletonOverlay();
 }
 
 function replayErrorMarking() {
@@ -585,10 +586,11 @@ function replayErrorMarking() {
   state.errorMarkingReplayHandle = startFrameReplay(errorMarkingVideo(), (frame) => {
     setErrorMarkingFrame(frame);
     updateErrorMarkingFrameIndicator(frame);
-  }, 2, startFrame, () => {
+  }, errorMarkingReplayFps(), startFrame, () => {
     state.errorMarkingReplayHandle = null;
     state.errorMarkingReplayDirection = null;
     setErrorMarkingReplayPlaying(false);
+    renderSkeletonOverlay();
   });
 }
 
@@ -601,10 +603,11 @@ function replayErrorMarkingBackwards() {
   state.errorMarkingReplayHandle = startFrameReplay(errorMarkingVideo(), (frame) => {
     setErrorMarkingFrame(frame);
     updateErrorMarkingFrameIndicator(frame);
-  }, 2, startFrame, () => {
+  }, errorMarkingReplayFps(), startFrame, () => {
     state.errorMarkingReplayHandle = null;
     state.errorMarkingReplayDirection = null;
     setErrorMarkingReplayBackwardsPlaying(false);
+    renderSkeletonOverlay();
   }, -1);
 }
 
@@ -723,23 +726,28 @@ function renderErrorMarkingTimeline() {
   const container = $("error-marking-timeline");
   const groups = timelineRowGroups();
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
-  const currentFrame = errorMarkingCurrentFrame();
   const minTrackWidth = Math.max(1, errorMarkingFrameCount()) * MIN_TIMELINE_PX_PER_FRAME;
   const editing = state.editingBodyParts;
+  const rowCount = groups.length + 1;
 
   // Row headers and row tracks are separate DOM subtrees (so the track
   // column alone can scroll horizontally) but must land on the same grid
   // row line-for-line. grid-rows-subgrid on both makes that alignment the
   // grid engine's job instead of something two independently-stacked lists
-  // have to be kept in sync by construction.
-  const headerCells = groups.map(({part}) => `
+  // have to be kept in sync by construction. Row 1 is reserved for the
+  // frame scrubber (an empty spacer on the header side), so its handle
+  // scrolls and scales in lockstep with the track column beneath it and
+  // lines up with the playhead at the same frame.
+  const headerCells = "<div></div>" + groups.map(({part}) => `
     <div class="timeline-row-header">
       <span class="timeline-row-label">${part.label}</span>
       ${editing
         ? `<button type="button" class="btn btn-xs btn-circle btn-ghost text-error timeline-add-btn" data-delete-part="${part.id}" aria-label="Remove ${part.label}" title="Remove ${part.label}">⊖</button>`
-        : `<button type="button" class="btn btn-xs btn-circle timeline-add-btn" data-add-part="${part.id}" aria-label="Start a new ${part.label} error at the current frame" title="Start a new ${part.label} error at the current frame" ${frameCoveredForPart(part.id, currentFrame) ? "disabled" : ""}>+</button>`}
+        : ""}
     </div>`
   ).join("");
+
+  const scrubberRowHTML = `<input id="error-marking-scrubber" class="timeline-scrubber" type="range" min="0" max="${Math.max(errorMarkingFrameCount() - 1, 0)}" step="1" value="${errorMarkingCurrentFrame()}" aria-label="Frame scrubber">`;
 
   const trackCells = groups.map(({part, indices}) =>
     `<div class="timeline-row-track" data-track-part="${part.id}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>`
@@ -752,25 +760,16 @@ function renderErrorMarkingTimeline() {
     : "") +
     `<button type="button" id="timeline-edit-body-parts-toggle" class="btn btn-xs btn-ghost timeline-edit-toggle" aria-label="${editing ? "Done editing body parts" : "Edit body parts"}" title="${editing ? "Done editing body parts" : "Edit body parts"}">${editing ? "✓ Done" : "Edit"}</button>`;
 
-  container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Click + to start a new error at the current frame, or click-drag an empty part of the timeline. Click an existing span to set its cause; drag its edges to adjust.</div>` +
-    `<div class="timeline-grid grid gap-x-[.6rem] items-stretch" style="grid-template-columns:auto 1fr;grid-template-rows:repeat(${groups.length},1.6rem);row-gap:.4rem">
-      <div class="timeline-left-col grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length}">${headerCells}</div>
-      <div class="timeline-scroll grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length}">
-        <div class="timeline-scroll-inner grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${groups.length};min-width:${minTrackWidth}px">${trackCells}<div class="timeline-playhead" style="left:${timelinePlayheadLeftPercent()}%"></div></div>
+  container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Click-drag an empty part of the timeline to start a new error. Click an existing span to set its cause; drag its edges to adjust.</div>` +
+    `<div class="timeline-grid grid gap-x-[.6rem] items-stretch" style="grid-template-columns:auto 1fr;grid-template-rows:auto repeat(${groups.length},1.6rem);row-gap:.4rem">
+      <div class="timeline-left-col grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount}">${headerCells}</div>
+      <div class="timeline-scroll grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount}">
+        <div class="timeline-scroll-inner grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount};min-width:${minTrackWidth}px">${scrubberRowHTML}${trackCells}<div class="timeline-playhead" style="left:${timelinePlayheadLeftPercent()}%"></div></div>
       </div>
     </div>
     <div class="timeline-footer mt-2 flex items-center gap-2">${footerHTML}</div>` + renderErrorMarkingLegend();
   attachTimelineHandlers();
   if (state.addingBodyPartEntry) $("timeline-add-body-part-input")?.focus();
-}
-
-function addMarkAtCurrentFrame(partId) {
-  const frame = errorMarkingCurrentFrame();
-  if (frameCoveredForPart(partId, frame)) return;
-  const mark = ensureMarkAtFrame(partId, frame);
-  renderErrorMarkingTimeline();
-  scheduleSave("started");
-  openErrorMarkPopup(state.errorMarks.indexOf(mark));
 }
 
 // Coalesces overlapping or consecutive spans for one body part. The mark
@@ -833,11 +832,18 @@ function attachTimelineHandlers() {
       saveErrorList("body_part", errorListArray("body_part").filter((item) => item.id !== deleteButton.dataset.deletePart));
       return;
     }
-    const addButton = event.target.closest("[data-add-part]");
-    if (addButton) { if (!addButton.disabled) addMarkAtCurrentFrame(addButton.dataset.addPart); return; }
     const segment = event.target.closest(".timeline-segment");
     if (!segment || event.target.closest(".timeline-handle")) return;
     openErrorMarkPopup(Number(segment.dataset.markIndex));
+  });
+  container.addEventListener("input", (event) => {
+    if (event.target.id !== "error-marking-scrubber") return;
+    stopErrorMarkingReplay();
+    const frame = Number(event.target.value);
+    errorMarkingVideo().pause();
+    setErrorMarkingFrame(frame);
+    errorMarkingVideo().currentTime = frameToTime(frame);
+    updateErrorMarkingFrameIndicator(frame);
   });
   container.addEventListener("keydown", (event) => {
     if (event.target.id === "timeline-add-body-part-input" && event.key === "Enter") {
@@ -1071,10 +1077,10 @@ const ERROR_MARKING_CANVAS_BUFFER_RATIO = .08;
 // replaced -- distinct from CAUSE_COLOR_PALETTE/UNSET_CAUSE_COLOR, which
 // color a *mark*, not a specific stale position.
 const SKELETON_GHOST_COLOR = "rgba(154,163,158,.75)";
-// While a landmark is actively being dragged, its effective position and
-// incident segments in the previous frame provide temporal context for
-// spotting/correcting jitter. Blue distinguishes this temporal guide from
-// the gray pre-correction ghost at the current frame.
+// A corrected landmark's effective position and incident segments in the
+// previous frame provide temporal context for spotting/correcting jitter.
+// The guide appears during the drag and persists with the saved correction;
+// blue distinguishes it from the gray pre-correction ghost at this frame.
 const SKELETON_PREVIOUS_FRAME_GHOST_COLOR = "#5da9e9";
 // Ghosting a correction that landed within a fraction of a pixel of the
 // original would just double-draw the same point/line.
@@ -1123,32 +1129,32 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
     ])
   );
 
-  let previousFrameGhostEdgesHTML = "", previousFrameGhostPointHTML = "";
-  const draggedLandmark = state.skeletonDragLandmark;
-  if (draggedLandmark && state.skeletonDragPosition && frame === errorMarkingCurrentFrame()) {
-    const previousPoints = skeletonFrameLandmarks(frame - 1);
-    const previousPoint = previousPoints[draggedLandmark];
-    if (previousPoint) {
-      previousFrameGhostPointHTML = `<circle class="skeleton-previous-frame-landmark-ghost"` +
-        ` cx="${clampX(previousPoint[0])}" cy="${clampY(previousPoint[1])}" r="8" fill="none" stroke="${SKELETON_PREVIOUS_FRAME_GHOST_COLOR}"></circle>`;
-      previousFrameGhostEdgesHTML = (data.pose_edges || []).map(([a, b]) => {
-        if (a !== draggedLandmark && b !== draggedLandmark) return "";
-        const pa = previousPoints[a], pb = previousPoints[b];
-        if (!pa || !pb) return "";
-        return `<line class="skeleton-previous-frame-edge-ghost"` +
-          ` x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}"` +
-          ` stroke="${SKELETON_PREVIOUS_FRAME_GHOST_COLOR}"></line>`;
-      }).join("");
-    }
-  }
+  // Playback should read as one clean moving pose. Comparison layers return
+  // immediately on pause/finish, but remain hidden in either play direction.
+  const showCorrectionGhosts = state.errorMarkingReplayDirection == null;
+  const previousPoints = showCorrectionGhosts ? skeletonFrameLandmarks(frame - 1) : {};
+  const guidedLandmarks = new Set((data.landmarks || []).filter((landmark) => changed[landmark] && previousPoints[landmark]));
+  const previousFrameGhostPointHTML = [...guidedLandmarks].map((landmark) => {
+    const point = previousPoints[landmark];
+    return `<circle class="skeleton-previous-frame-landmark-ghost" data-landmark="${landmark}"` +
+      ` cx="${clampX(point[0])}" cy="${clampY(point[1])}" r="8" fill="none" stroke="${SKELETON_PREVIOUS_FRAME_GHOST_COLOR}"></circle>`;
+  }).join("");
+  const previousFrameGhostEdgesHTML = (data.pose_edges || []).map(([a, b]) => {
+    if (!guidedLandmarks.has(a) && !guidedLandmarks.has(b)) return "";
+    const pa = previousPoints[a], pb = previousPoints[b];
+    if (!pa || !pb) return "";
+    return `<line class="skeleton-previous-frame-edge-ghost"` +
+      ` x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}"` +
+      ` stroke="${SKELETON_PREVIOUS_FRAME_GHOST_COLOR}"></line>`;
+  }).join("");
 
   const ghostEdgesHTML = (data.pose_edges || []).map(([a, b]) => {
-    if (!changed[a] && !changed[b]) return "";
+    if (!showCorrectionGhosts || (!changed[a] && !changed[b])) return "";
     const pa = original[a], pb = original[b];
     if (!pa || !pb) return "";
     return `<line class="skeleton-edge-ghost" x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}" stroke="${SKELETON_GHOST_COLOR}"></line>`;
   }).join("");
-  const ghostPointsHTML = (data.landmarks || []).filter((landmark) => changed[landmark]).map((landmark) => {
+  const ghostPointsHTML = (data.landmarks || []).filter((landmark) => showCorrectionGhosts && changed[landmark]).map((landmark) => {
     const point = original[landmark];
     return `<circle class="skeleton-landmark-ghost" cx="${clampX(point[0])}" cy="${clampY(point[1])}" r="6" fill="${SKELETON_GHOST_COLOR}"></circle>`;
   }).join("");
@@ -1299,7 +1305,6 @@ function renderErrorMarkingTask(task, judgment) {
     updateErrorMarkingFrameIndicator();
   };
   video.onloadedmetadata = () => {
-    $("error-marking-scrubber").max = Math.max(errorMarkingFrameCount() - 1, 0);
     updateErrorMarkingFrameIndicator();
     renderErrorMarkingTimeline();
   };
@@ -1705,14 +1710,6 @@ async function downloadExport(format) {
 function lockInteraction(locked) {
   $("workspace").querySelectorAll("button, select, input, textarea").forEach((element) => { element.disabled = locked; });
   $("ground-truth-canvas").style.pointerEvents = locked ? "none" : "auto";
-  // Unlocking re-enables every control indiscriminately; task screens with a
-  // control that should stay conditionally disabled (the per-body-part "+"
-  // buttons when the current frame is already covered) must re-apply their
-  // own disabled state.
-  if (!locked) {
-    const task = state.data?.tasks?.[state.taskIndex];
-    if (task && isErrorMarkingTask(task)) updateTimelineAddButtons();
-  }
 }
 async function navigateTo(targetIndex) {
   lockInteraction(true);
@@ -1823,13 +1820,10 @@ $("error-marking-replay-backwards").onclick = () => {
   if (state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === -1) stopErrorMarkingReplay();
   else replayErrorMarkingBackwards();
 };
-$("error-marking-scrubber").oninput = () => {
-  stopErrorMarkingReplay();
-  const frame = Number($("error-marking-scrubber").value);
-  errorMarkingVideo().pause();
-  setErrorMarkingFrame(frame);
-  errorMarkingVideo().currentTime = frameToTime(frame);
-  updateErrorMarkingFrameIndicator(frame);
+$("error-marking-fps-select").onchange = () => {
+  const direction = state.errorMarkingReplayDirection;
+  if (direction === 1) replayErrorMarking();
+  else if (direction === -1) replayErrorMarkingBackwards();
 };
 $("error-mark-dialog-note").oninput = () => {
   if (state.activeMarkIndex == null) return;

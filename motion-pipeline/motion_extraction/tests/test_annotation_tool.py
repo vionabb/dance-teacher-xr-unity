@@ -1249,7 +1249,7 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     assert "if (state.errorMarkingReviewReplayHandle)" in js
 
 
-def test_error_marking_scrubber_sits_above_video_and_playback_controls_are_grouped() -> None:
+def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_are_grouped() -> None:
     html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
     js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
@@ -1262,16 +1262,21 @@ def test_error_marking_scrubber_sits_above_video_and_playback_controls_are_group
     # back-controls/forward-controls pair either side of the scrubber.
     assert screen.count('class="join step-buttons-join"') == 1
 
-    # Scrubber (left of the frame counter) sits above the canvas; the
-    # skip/step/play controls sit below it, in this left-to-right order.
+    # The frame counter floats over the canvas rather than sitting in a row
+    # above it, so it comes after the video/overlay in the video-wrap; the
+    # skip/step/fps/play controls sit below the player, in this order. The
+    # frame scrubber itself now lives inside the dynamically-rendered
+    # timeline (see renderErrorMarkingTimeline() in app.js) so its handle
+    # scrolls and scales in lockstep with the track column beneath it,
+    # rather than in this static markup.
     order_ids = [
-        "error-marking-scrubber",
-        "error-marking-frame-indicator",
         "error-marking-video-wrap",
+        "error-marking-frame-indicator",
         "error-marking-skip-start",
         "error-marking-step-back-5",
         "error-marking-step-back-1",
         "error-marking-replay-backwards",
+        "error-marking-fps-select",
         "error-marking-replay",
         "error-marking-step-forward-1",
         "error-marking-step-forward-5",
@@ -1280,6 +1285,7 @@ def test_error_marking_scrubber_sits_above_video_and_playback_controls_are_group
     positions = [screen.index(f'id="{element_id}"') for element_id in order_ids]
     assert positions == sorted(positions)
     assert 'aria-label="Skip to beginning"' in screen
+    assert ".error-marking-frame-indicator { position: absolute;" in css
     # Explicit column layout prevents browser/component-library figure
     # styles from placing the control bar beside the video. The figure's
     # shared dark surface and clipping still integrate it visually.

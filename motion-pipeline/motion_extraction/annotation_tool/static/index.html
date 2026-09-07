@@ -134,16 +134,13 @@
     <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
-        <details class="instructions-details"><summary>Instructions</summary><p>Mark which landmark is inaccurate and for which frames using the timeline below, or click/drag a point directly on the skeleton. Step to a frame, then click a landmark's + (or click/drag the point on the video) to start an error there.</p></details>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <input id="error-marking-scrubber" class="timeline-scrubber flex-1" type="range" min="0" max="0" step="1" value="0" aria-label="Frame scrubber">
-        <span id="error-marking-frame-indicator" class="badge badge-lg font-mono" aria-live="polite">frame 0 / 0</span>
+        <details class="instructions-details"><summary>Instructions</summary><p>Mark which landmark is inaccurate and for which frames using the timeline below, or click/drag a point directly on the skeleton.</p></details>
       </div>
       <figure class="mt-2 error-marking-player">
         <div id="error-marking-video-wrap" class="error-marking-video-wrap">
           <video id="error-marking-video" class="w-full" loop playsinline muted aria-label="Pose-overlay clip for error marking"></video>
           <svg id="error-marking-overlay" class="error-marking-overlay" aria-hidden="true"></svg>
+          <span id="error-marking-frame-indicator" class="badge badge-lg font-mono error-marking-frame-indicator" aria-live="polite">frame 0 / 0</span>
         </div>
         <div class="error-marking-controls-bar">
           <div class="join step-buttons-join">
@@ -151,6 +148,13 @@
             <button id="error-marking-step-back-5" class="btn btn-sm btn-ghost join-item" type="button" aria-label="Back 5 frames">‹<span class="step-frame-count">5</span></button>
             <button id="error-marking-step-back-1" class="btn btn-sm btn-ghost join-item" type="button" aria-label="Back 1 frame">‹</button>
             <button id="error-marking-replay-backwards" class="btn btn-sm btn-ghost join-item" type="button" aria-label="Play backwards">◀ Backwards</button>
+            <select id="error-marking-fps-select" class="select select-sm join-item error-marking-fps-select" aria-label="Playback speed">
+              <option value="2" selected>2</option>
+              <option value="4">4</option>
+              <option value="8">8</option>
+              <option value="0.5x">0.5x</option>
+              <option value="1x">1x</option>
+            </select>
             <button id="error-marking-replay" class="btn btn-sm btn-ghost join-item" type="button">▶ Play</button>
             <button id="error-marking-step-forward-1" class="btn btn-sm btn-ghost join-item" type="button" aria-label="Forward 1 frame">›</button>
             <button id="error-marking-step-forward-5" class="btn btn-sm btn-ghost join-item" type="button" aria-label="Forward 5 frames">›<span class="step-frame-count">5</span></button>
