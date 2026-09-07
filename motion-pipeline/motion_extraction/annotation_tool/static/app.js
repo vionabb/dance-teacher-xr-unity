@@ -1061,6 +1061,11 @@ function skeletonFrameLandmarks(frame) {
 // needs a color: the same yellow-green the burned-in overlay used to draw,
 // for visual continuity with what annotators are already used to seeing.
 const TRACKED_SKELETON_COLOR = "#c6eb28";
+// Reserve 8% of each source dimension on every side of the live video. The
+// video is scaled by the reciprocal factor while the SVG viewBox expands by
+// this amount, keeping source coordinates aligned exactly and making modestly
+// out-of-frame estimates visible and draggable.
+const ERROR_MARKING_CANVAS_BUFFER_RATIO = .08;
 // The original (pre-correction) position of a landmark an annotator has
 // moved, rendered as a deemphasized "ghost" of the incorrect estimate it
 // replaced -- distinct from CAUSE_COLOR_PALETTE/UNSET_CAUSE_COLOR, which
@@ -1179,7 +1184,9 @@ function renderOverlayInto(svg, data, frame, highlight = null) {
   if (!svg) return;
   if (!data) { svg.innerHTML = ""; return; }
   const {width, height, innerHTML} = skeletonOverlayMarkup(data, frame, highlight);
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  const bufferRatio = svg.id === "error-marking-overlay" ? ERROR_MARKING_CANVAS_BUFFER_RATIO : 0;
+  const bufferX = width * bufferRatio, bufferY = height * bufferRatio;
+  svg.setAttribute("viewBox", `${-bufferX} ${-bufferY} ${width + 2 * bufferX} ${height + 2 * bufferY}`);
   svg.innerHTML = innerHTML;
 }
 
@@ -1200,18 +1207,21 @@ function renderErrorMarkDialogOverlay() {
   renderOverlayInto(svg, state.errorMarkingLandmarks, midFrame(mark), mark.body_part);
 }
 
-// Inverts the same uniform "meet" (contain) fit the SVG's own
-// viewBox/preserveAspectRatio does when its element box's aspect ratio
-// doesn't match its content's, so a pointer position lands on the same
-// content-space point the browser is rendering there -- not distorted by
-// treating the letterboxed element box as if it mapped 1:1 onto the source
-// frame.
-function svgToContentPoint(svg, clientX, clientY, width, height) {
+// Inverts the SVG's uniform "meet" (contain) fit, including its live viewBox
+// buffer, so a pointer position lands on the same source-space coordinate the
+// browser is rendering. Reading the actual viewBox also keeps this correct for
+// unbuffered dialog/review overlays.
+function svgToContentPoint(svg, clientX, clientY) {
   const rect = svg.getBoundingClientRect();
-  const scale = rect.width && rect.height ? Math.min(rect.width / width, rect.height / height) : 1;
-  const offsetX = (rect.width - width * scale) / 2;
-  const offsetY = (rect.height - height * scale) / 2;
-  return {x: (clientX - rect.left - offsetX) / (scale || 1), y: (clientY - rect.top - offsetY) / (scale || 1)};
+  const viewBox = svg.viewBox.baseVal;
+  const scale = rect.width && rect.height && viewBox.width && viewBox.height
+    ? Math.min(rect.width / viewBox.width, rect.height / viewBox.height) : 1;
+  const offsetX = (rect.width - viewBox.width * scale) / 2;
+  const offsetY = (rect.height - viewBox.height * scale) / 2;
+  return {
+    x: viewBox.x + (clientX - rect.left - offsetX) / (scale || 1),
+    y: viewBox.y + (clientY - rect.top - offsetY) / (scale || 1),
+  };
 }
 
 const SKELETON_DRAG_THRESHOLD = 3;
@@ -1220,7 +1230,6 @@ function startSkeletonLandmarkDrag(event, landmark) {
   event.preventDefault();
   const svg = $("error-marking-overlay");
   const data = state.errorMarkingLandmarks;
-  const {width, height} = data.source_dimensions;
   const frame = errorMarkingCurrentFrame();
   const startPoint = skeletonFrameLandmarks(frame)[landmark];
   stopErrorMarkingReplay();
@@ -1233,7 +1242,7 @@ function startSkeletonLandmarkDrag(event, landmark) {
 
   function onMove(moveEvent) {
     if (moveEvent.pointerId !== pointerId) return;
-    const point = svgToContentPoint(svg, moveEvent.clientX, moveEvent.clientY, width, height);
+    const point = svgToContentPoint(svg, moveEvent.clientX, moveEvent.clientY);
     if (!moved && startPoint && Math.hypot(point.x - startPoint[0], point.y - startPoint[1]) <= SKELETON_DRAG_THRESHOLD) return;
     moved = true;
     state.skeletonDragLandmark = landmark;
@@ -1282,6 +1291,7 @@ function renderErrorMarkingTask(task, judgment) {
 
   const video = errorMarkingVideo();
   video.pause();
+  video.style.transform = `scale(${1 / (1 + 2 * ERROR_MARKING_CANVAS_BUFFER_RATIO)})`;
   video.src = `/artifacts/${task.source_artifact}`;
   video.load();
   video.ontimeupdate = () => {
