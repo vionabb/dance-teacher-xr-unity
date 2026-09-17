@@ -362,8 +362,12 @@ def test_video_unusable_disposition_persists_its_reason(page, tmp_path: Path) ->
         expect(page.locator("#error-marking-screen")).to_be_visible()
         page.locator("#error-marking-video-unusable-control").click()
         reason = page.locator("#error-marking-video-unusable-reason")
+        note = page.locator("#error-marking-note")
         expect(reason).to_be_visible()
         reason.fill("The tracking is detached from the dancer for the entire clip.")
+        expect(note).to_have_value("The tracking is detached from the dancer for the entire clip.")
+        note.fill("The clip is consistently detached from the dancer.")
+        expect(reason).to_have_value("The clip is consistently detached from the dancer.")
 
         expect(page.locator("#error-marking-screen")).to_have_class(
             re.compile(r"video-marked-unusable")
@@ -371,7 +375,8 @@ def test_video_unusable_disposition_persists_its_reason(page, tmp_path: Path) ->
         expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
         response = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]
         assert response["video_unusable"] is True
-        assert response["video_unusable_reason"] == "The tracking is detached from the dancer for the entire clip."
+        assert response["video_unusable_reason"] == "The clip is consistently detached from the dancer."
+        assert response["note"] == response["video_unusable_reason"]
     finally:
         _stop_server(server, thread)
 

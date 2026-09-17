@@ -537,6 +537,16 @@ function updateVideoUnusableControls() {
   }
 }
 
+function syncErrorMarkingNote(event) {
+  const value = event.target.value;
+  state.errorMarkingVideoUnusableReason = value;
+  const reasonField = $("error-marking-video-unusable-reason");
+  const noteField = $("error-marking-note");
+  if (reasonField && reasonField.value !== value) reasonField.value = value;
+  if (noteField && noteField.value !== value) noteField.value = value;
+  scheduleSave("started");
+}
+
 function toggleVideoUnusable() {
   state.errorMarkingVideoUnusable = $("error-marking-video-unusable").checked;
   state.errorMarkingNoErrorsConfirmed = false;
@@ -1484,7 +1494,7 @@ function renderErrorMarkingTask(task, judgment) {
     .sort((a, b) => a - b);
   state.errorMarkingAutoBadFrames = [];
   state.errorMarkingVideoUnusable = Boolean(response.video_unusable);
-  state.errorMarkingVideoUnusableReason = response.video_unusable_reason || "";
+  state.errorMarkingVideoUnusableReason = response.note || response.video_unusable_reason || "";
   state.errorMarkingNoErrorsConfirmed = Boolean(response.no_errors_found);
   state.errorMarkingDirty = false;
   state.editingBodyParts = false;
@@ -1503,20 +1513,21 @@ function renderErrorMarkingTask(task, judgment) {
   renderErrorMarkingTimeline();
   updateErrorMarkingFrameIndicator();
   updateVideoUnusableControls();
-  $("error-marking-note").value = response.note || "";
-  $("error-marking-note").oninput = () => scheduleSave("started");
+  $("error-marking-note").value = state.errorMarkingVideoUnusableReason;
+  $("error-marking-note").oninput = syncErrorMarkingNote;
 }
 
 function errorMarkingResponsePayload() {
   const badFrames = allBadFrameNumbers();
   const videoUnusable = state.errorMarkingVideoUnusable;
+  const note = $("error-marking-note").value.trim();
   return {
     marks: videoUnusable ? [] : state.errorMarks,
     bad_frames: videoUnusable ? [] : badFrames,
     video_unusable: videoUnusable,
-    video_unusable_reason: videoUnusable ? state.errorMarkingVideoUnusableReason.trim() : "",
+    video_unusable_reason: videoUnusable ? note : "",
     no_errors_found: !videoUnusable && state.errorMarks.length === 0 && badFrames.length === 0 && Boolean(state.errorMarkingNoErrorsConfirmed),
-    note: $("error-marking-note").value.trim(),
+    note,
   };
 }
 
@@ -1980,10 +1991,7 @@ fetch("/api/access-info").then(responseJson).then((info) => {
 });
 $("error-marking-toggle-bad-frame").onclick = () => toggleBadFrame();
 $("error-marking-video-unusable").onchange = toggleVideoUnusable;
-$("error-marking-video-unusable-reason").oninput = (event) => {
-  state.errorMarkingVideoUnusableReason = event.target.value;
-  scheduleSave("started");
-};
+$("error-marking-video-unusable-reason").oninput = syncErrorMarkingNote;
 document.querySelectorAll(".actions button[data-status]").forEach((button) => button.onclick = async () => {
   const task = state.data?.tasks?.[state.taskIndex];
   if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && state.errorMarkingVideoUnusable && !state.errorMarkingVideoUnusableReason.trim()) {
@@ -2055,7 +2063,16 @@ $("error-marking-replay-backwards").onclick = () => {
   if (state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === -1) stopErrorMarkingReplay();
   else replayErrorMarkingBackwards();
 };
-$("error-marking-fps-select").onchange = () => {
+const errorMarkingFpsSelect = $("error-marking-fps-select");
+errorMarkingFpsSelect.onpointerdown = () => errorMarkingFpsSelect.classList.add("fps-select-open");
+errorMarkingFpsSelect.onkeydown = (event) => {
+  if ([" ", "ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"].includes(event.key)) {
+    errorMarkingFpsSelect.classList.add("fps-select-open");
+  }
+};
+errorMarkingFpsSelect.onblur = () => errorMarkingFpsSelect.classList.remove("fps-select-open");
+errorMarkingFpsSelect.onchange = () => {
+  errorMarkingFpsSelect.classList.remove("fps-select-open");
   const direction = state.errorMarkingReplayDirection;
   if (direction === 1) replayErrorMarking();
   else if (direction === -1) replayErrorMarkingBackwards();
