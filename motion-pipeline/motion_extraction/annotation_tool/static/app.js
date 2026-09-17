@@ -554,16 +554,6 @@ function refreshAutomaticBadFrames(data, task) {
 
 function updateVideoUnusableControls() {
   const unusable = state.errorMarkingVideoUnusable;
-  const checkbox = $("error-marking-video-unusable");
-  if (checkbox) checkbox.checked = unusable;
-  const control = $("error-marking-video-unusable-control");
-  if (control) {
-    control.setAttribute("aria-pressed", String(unusable));
-    control.classList.toggle("btn-outline", !unusable);
-    control.title = unusable ? "Unmark the video as unusable." : "Mark the entire video as unusable.";
-  }
-  const controlLabel = $("error-marking-video-unusable-label");
-  if (controlLabel) controlLabel.textContent = unusable ? "Unmark entire video" : "Mark entire video unusable";
   const reasonField = $("error-marking-video-unusable-reason");
   if (reasonField) reasonField.value = state.errorMarkingVideoUnusableReason;
   const reasonWrap = $("error-marking-video-unusable-reason-wrap");
@@ -588,23 +578,6 @@ function syncErrorMarkingNote(event) {
   const noteField = $("error-marking-note");
   if (reasonField && reasonField.value !== value) reasonField.value = value;
   if (noteField && noteField.value !== value) noteField.value = value;
-  scheduleSave("started");
-}
-
-function toggleVideoUnusable() {
-  state.errorMarkingVideoUnusable = $("error-marking-video-unusable").checked;
-  state.errorMarkingVideoUsabilityRating = state.errorMarkingVideoUnusable
-    ? "unusable"
-    : state.errorMarkingVideoUsabilityRating === "unusable" ? "" : state.errorMarkingVideoUsabilityRating;
-  state.errorMarkingNoErrorsConfirmed = false;
-  if (state.errorMarkingVideoUnusable) {
-    state.editingBodyParts = false;
-    $("error-mark-dialog")?.close();
-    state.activeMarkIndex = null;
-  }
-  updateVideoUnusableControls();
-  renderErrorMarkingTimeline();
-  renderSkeletonOverlay();
   scheduleSave("started");
 }
 
@@ -2105,7 +2078,6 @@ frameUsabilityToggle.onclick = (event) => {
     else markFrameUsable();
   }
 };
-$("error-marking-video-unusable").onchange = toggleVideoUnusable;
 $("error-marking-video-unusable-reason").oninput = syncErrorMarkingNote;
 document.querySelectorAll('input[name="error-marking-usability-rating"]').forEach((input) => {
   input.onchange = (event) => setErrorMarkingVideoUsabilityRating(event.target.value);

@@ -328,6 +328,24 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
         expect(usable).to_have_class(re.compile(r"frame-usability-option-active"))
         expect(unusable).not_to_have_class(re.compile(r"frame-usability-option-active"))
 
+        def toggle_centers() -> dict[str, float]:
+            return page.evaluate(
+                """() => {
+                    const center = (selector) => {
+                        const rect = document.querySelector(selector).getBoundingClientRect();
+                        return rect.left + rect.width / 2;
+                    };
+                    return {
+                        handle: center('.frame-usability-handle'),
+                        usable: center('#error-marking-mark-frame-usable'),
+                        unusable: center('#error-marking-mark-frame-unusable'),
+                    };
+                }"""
+            )
+
+        centers = toggle_centers()
+        assert centers["handle"] == pytest.approx(centers["usable"], abs=2)
+
         unusable.click()
         unusable.click()
 
@@ -335,6 +353,9 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
         expect(toggle).to_have_attribute("data-frame-state", "unusable")
         expect(unusable).to_have_class(re.compile(r"frame-usability-option-active"))
         expect(usable).not_to_have_class(re.compile(r"frame-usability-option-active"))
+        page.wait_for_timeout(220)
+        centers = toggle_centers()
+        assert centers["handle"] == pytest.approx(centers["unusable"], abs=2)
         expect(page.locator("#error-marking-bad-frame-badge")).to_be_visible()
         expect(page.locator(".skeleton-edge").first).to_have_attribute("stroke", "#b3261e")
         expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
@@ -348,6 +369,9 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
         expect(toggle).to_have_attribute("data-frame-state", "usable")
         expect(usable).to_have_class(re.compile(r"frame-usability-option-active"))
         expect(unusable).not_to_have_class(re.compile(r"frame-usability-option-active"))
+        page.wait_for_timeout(220)
+        centers = toggle_centers()
+        assert centers["handle"] == pytest.approx(centers["usable"], abs=2)
         response = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]
         assert response["bad_frames"] == []
         assert response["usable_frames"] == [0]
@@ -388,7 +412,7 @@ def test_video_unusable_disposition_persists_its_reason(page, tmp_path: Path) ->
     try:
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
         expect(page.locator("#error-marking-screen")).to_be_visible()
-        page.locator("#error-marking-video-unusable-control").click()
+        page.locator('input[name="error-marking-usability-rating"][value="unusable"]').check()
         reason = page.locator("#error-marking-video-unusable-reason")
         note = page.locator("#error-marking-note")
         expect(reason).to_be_visible()
@@ -414,7 +438,7 @@ def test_video_unusable_allows_frame_flags_but_blocks_joint_marks(page, tmp_path
     try:
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
         expect(page.locator("#error-marking-screen")).to_be_visible()
-        page.locator("#error-marking-video-unusable-control").click()
+        page.locator('input[name="error-marking-usability-rating"][value="unusable"]').check()
 
         rating = page.locator('input[name="error-marking-usability-rating"][value="unusable"]')
         expect(rating).to_be_checked()
