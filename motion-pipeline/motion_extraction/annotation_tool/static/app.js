@@ -491,7 +491,7 @@ function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
 function saveBadFrameState(frame = errorMarkingCurrentFrame()) {
   state.errorMarkingNoErrorsConfirmed = false;
   updateBadFrameControls(frame);
-  scheduleSave("started");
+  scheduleSave("started", 100);
   if (state.errorMarkingVisualRefreshHandle) clearTimeout(state.errorMarkingVisualRefreshHandle);
   state.errorMarkingVisualRefreshHandle = setTimeout(() => {
     state.errorMarkingVisualRefreshHandle = null;
@@ -2015,10 +2015,10 @@ function payload(status) {
   const sourceEvidence = sourceEvidencePayload();
   return {annotator: state.annotator, task_id: task.task_id, status, tier_assignments: {}, notes: $("frame-note").value.trim(), tags: [], overlay_tags: {}, overlay_notes: {}, source_evidence_quality: sourceEvidence.quality, source_evidence_factors: sourceEvidence.factors, ground_truth_landmarks: state.groundTruth, initial_ground_truth_landmarks: state.initialGroundTruth, initial_landmark_sources: state.initialLandmarkSources, landmark_interactions: state.landmarkInteractions, ground_truth_initial_profile: state.initialProfile};
 }
-function scheduleSave(status) {
+function scheduleSave(status, delayMs = 500) {
   const task = state.data?.tasks?.[state.taskIndex];
   if (task && isErrorMarkingTask(task)) state.errorMarkingDirty = true;
-  clearTimeout(state.timer); state.pendingStatus = status; $("save-state").textContent = "unsaved…"; state.timer = setTimeout(() => save(status), 500);
+  clearTimeout(state.timer); state.pendingStatus = status; $("save-state").textContent = "unsaved…"; state.timer = setTimeout(() => save(status), delayMs);
 }
 async function save(status) {
   clearTimeout(state.timer); state.timer = null; state.pendingStatus = null; const submission = payload(status); const previous = state.savePromise || Promise.resolve(true);
@@ -2085,7 +2085,16 @@ fetch("/api/access-info").then(responseJson).then((info) => {
   if (rememberedToken && rememberedAnnotator) loadState();
 });
 const frameUsabilityToggle = $("error-marking-frame-usability-toggle");
+function flashFrameUsabilityToggle() {
+  if (!frameUsabilityToggle?.animate) return;
+  frameUsabilityToggle.getAnimations().forEach((animation) => animation.cancel());
+  frameUsabilityToggle.animate(
+    [{transform: "scale(1)"}, {transform: "scale(.97)"}, {transform: "scale(1)"}],
+    {duration: 160, easing: "ease-out"},
+  );
+}
 frameUsabilityToggle.onclick = (event) => {
+  flashFrameUsabilityToggle();
   const button = event.target.closest?.("button");
   if (button?.id === "error-marking-mark-frame-usable") markFrameUsable();
   else if (button?.id === "error-marking-mark-frame-unusable") markFrameUnusable();
