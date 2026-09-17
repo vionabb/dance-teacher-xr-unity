@@ -321,17 +321,28 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
     try:
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
         expect(page.locator("#error-marking-screen")).to_be_visible()
-        toggle = page.locator("#error-marking-toggle-bad-frame")
-        expect(toggle).to_have_text("Mark current frame unusable")
+        usable = page.locator("#error-marking-mark-frame-usable")
+        unusable = page.locator("#error-marking-mark-frame-unusable")
+        expect(usable).to_have_text("Mark frame usable")
+        expect(unusable).to_have_text("Mark frame unusable")
 
-        toggle.click()
+        unusable.click()
+        unusable.click()
 
-        expect(toggle).to_have_text("Unmark this frame")
+        expect(unusable).to_have_attribute("aria-pressed", "true")
         expect(page.locator("#error-marking-bad-frame-badge")).to_be_visible()
         expect(page.locator(".skeleton-edge").first).to_have_attribute("stroke", "#b3261e")
         expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
         response = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]
         assert response["bad_frames"] == [0]
+
+        usable.click()
+        usable.click()
+        page.evaluate("() => flushPendingSave()")
+        expect(usable).to_have_attribute("aria-pressed", "true")
+        response = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]
+        assert response["bad_frames"] == []
+        assert response["usable_frames"] == [0]
     finally:
         _stop_server(server, thread)
 
@@ -358,6 +369,8 @@ def test_missing_tracking_frame_is_auto_marked_and_grouped_on_timeline(page, tmp
         page.locator(".timeline-bad-frame-auto").click()
         expect(page.locator(".timeline-bad-frame-auto")).to_have_count(0)
         expect(page.locator(".timeline-bad-frame").first).to_have_attribute("title", re.compile(r"marked manually"))
+        page.evaluate("() => { setErrorMarkingFrame(2); updateBadFrameControls(2); renderSkeletonOverlay(2); }")
+        expect(page.locator("#error-marking-no-pose-badge")).to_be_visible()
     finally:
         _stop_server(server, thread)
 
@@ -397,10 +410,10 @@ def test_video_unusable_allows_frame_flags_but_blocks_joint_marks(page, tmp_path
 
         rating = page.locator('input[name="error-marking-usability-rating"][value="unusable"]')
         expect(rating).to_be_checked()
-        expect(page.locator("#error-marking-toggle-bad-frame")).to_be_enabled()
+        expect(page.locator("#error-marking-mark-frame-unusable")).to_be_enabled()
         expect(page.locator('[data-track-part="LEFT_WRIST"]')).to_have_attribute("aria-disabled", "true")
 
-        page.locator("#error-marking-toggle-bad-frame").click()
+        page.locator("#error-marking-mark-frame-unusable").click()
         page.locator(".skeleton-landmark").first.click()
         expect(page.locator("#error-mark-dialog")).not_to_be_visible()
         expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)

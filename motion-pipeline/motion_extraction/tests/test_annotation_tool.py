@@ -967,6 +967,7 @@ def test_error_marking_bad_frames_are_sorted_validated_and_can_complete_alone(tm
             "error_marking_response": {
                 "marks": [],
                 "bad_frames": [14, 3, 14, 1],
+                "usable_frames": [8, 8],
                 "video_usability_rating": "correctable",
                 "no_errors_found": False,
                 "note": "Tracking is unusable in these frames.",
@@ -975,6 +976,7 @@ def test_error_marking_bad_frames_are_sorted_validated_and_can_complete_alone(tm
     )
     response = store.state("reviewer")["latest_judgments"]["error-marking-1"]["error_marking_response"]
     assert response["bad_frames"] == [1, 3, 14]
+    assert response["usable_frames"] == [8]
     assert saved["status"] == "completed"
 
     with pytest.raises(ValueError, match="outside the task's frame range"):
@@ -1167,8 +1169,10 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert 'id="error-marking-overlay"' in html
     assert 'id="error-marking-video-wrap"' in html
-    assert 'id="error-marking-toggle-bad-frame"' in html
+    assert 'id="error-marking-mark-frame-usable"' in html
+    assert 'id="error-marking-mark-frame-unusable"' in html
     assert 'id="error-marking-bad-frame-badge"' in html
+    assert 'id="error-marking-no-pose-badge"' in html
     assert 'id="error-marking-video-unusable"' in html
     assert 'id="error-marking-video-unusable-reason"' in html
     assert 'id="error-marking-video-unusable-control"' in html
@@ -1192,6 +1196,9 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
         "function svgToContentPoint(",
         "function attachSkeletonOverlayHandlers(",
         "function toggleBadFrame(",
+        "function markFrameUsable(",
+        "function markFrameUnusable(",
+        "function frameHasSkeleton(",
         "function missingTrackingFrames(",
         "function toggleVideoUnusable(",
         "function setErrorMarkingVideoUsabilityRating(",
@@ -1199,6 +1206,7 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
         "if (isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return [];",
         "video_usability_rating: state.errorMarkingVideoUsabilityRating",
         "bad_frames: badFrames",
+        "usable_frames: state.errorMarkingUsableFrames",
         "video_unusable_reason: videoUnusable ? note : \"\"",
     ]:
         assert symbol in js
@@ -1211,6 +1219,7 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert ".timeline-bad-frame-track" in css
     assert ".timeline-bad-frame-auto" in css
     assert ".video-marked-unusable .timeline-joint-track-disabled" in css
+    assert ".error-marking-no-pose-badge" in css
     assert "Automatic: missing tracking" in js
 
 
@@ -1383,6 +1392,7 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     assert 'id="error-marking-replay"' in html
     assert 'id="error-marking-replay-backwards"' in html
     assert '<option value="1">1 fps</option>' in html
+    assert '<option value="1.5">1.5 fps</option>' in html
     assert '<option value="2" selected>2 fps</option>' in html
     assert '<option value="4">4 fps</option>' in html
     assert '<option value="8">8 fps</option>' in html

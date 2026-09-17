@@ -578,6 +578,7 @@ class AnnotationStore:
         empty: dict[str, t.Any] = {
             "marks": [],
             "bad_frames": [],
+            "usable_frames": [],
             "video_unusable": False,
             "video_unusable_reason": "",
             "video_usability_rating": "",
@@ -613,6 +614,22 @@ class AnnotationStore:
             if frame not in bad_frames:
                 bad_frames.append(frame)
         bad_frames.sort()
+        raw_usable_frames = value.get("usable_frames", [])
+        if not isinstance(raw_usable_frames, list):
+            raise ValueError("error_marking_response usable_frames must be an array")
+        usable_frames: list[int] = []
+        for raw_frame in raw_usable_frames:
+            if isinstance(raw_frame, bool):
+                raise ValueError("usable frame numbers must be integers")
+            try:
+                frame = int(raw_frame)
+            except (TypeError, ValueError) as error:
+                raise ValueError("usable frame numbers must be integers") from error
+            if frame < 0 or (frame_count is not None and frame >= frame_count):
+                raise ValueError("usable frame number is outside the task's frame range")
+            if frame not in usable_frames:
+                usable_frames.append(frame)
+        usable_frames.sort()
         video_unusable = value.get("video_unusable", False)
         if not isinstance(video_unusable, bool):
             raise ValueError("video_unusable must be a boolean")
@@ -700,9 +717,9 @@ class AnnotationStore:
                     raise ValueError(
                         "video_unusable cannot be combined with landmark marks or no_errors_found"
                     )
-            elif not marks and not bad_frames and not no_errors_found:
+            elif not marks and not bad_frames and not usable_frames and not no_errors_found:
                 raise ValueError(
-                    "completed error_marking requires marks, bad frames, video_unusable, or no_errors_found checked"
+                    "completed error_marking requires marks, frame usability flags, video_unusable, or no_errors_found checked"
                 )
             if not video_unusable and (marks or bad_frames) and no_errors_found:
                 raise ValueError(
@@ -711,6 +728,7 @@ class AnnotationStore:
         return {
             "marks": marks,
             "bad_frames": bad_frames,
+            "usable_frames": usable_frames,
             "video_unusable": video_unusable,
             "video_unusable_reason": video_unusable_reason if video_unusable else "",
             "video_usability_rating": video_usability_rating,
