@@ -170,13 +170,12 @@
       <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
         <div class="error-marking-disposition-controls">
           <span class="frame-usability-label">Frame</span>
-          <div id="error-marking-frame-usability-toggle" class="frame-usability-toggle" data-frame-state="usable" role="group" aria-label="Frame usability">
-            <span class="frame-usability-handle" aria-hidden="true"></span>
-            <button id="error-marking-mark-frame-unusable" class="frame-usability-option frame-usability-unusable" type="button" aria-label="Mark frame unusable" aria-pressed="false">
+          <div id="error-marking-frame-usability-toggle" class="segmented-control frame-usability-toggle" data-control="frame-usability" data-state="usable" role="radiogroup" aria-label="Frame usability">
+            <span class="segmented-control-handle" aria-hidden="true"></span>
+            <button id="error-marking-mark-frame-unusable" class="segmented-control-option frame-usability-option frame-usability-unusable" data-segment-value="unusable" type="button" role="radio" aria-label="Mark frame unusable" aria-checked="false" tabindex="-1">
               <span aria-hidden="true">×</span><span class="sr-only">Mark frame unusable</span>
             </button>
-            <span class="frame-usability-divider" aria-hidden="true"></span>
-            <button id="error-marking-mark-frame-usable" class="frame-usability-option frame-usability-usable" type="button" aria-label="Mark frame usable" aria-pressed="false">
+            <button id="error-marking-mark-frame-usable" class="segmented-control-option frame-usability-option frame-usability-usable" data-segment-value="usable" type="button" role="radio" aria-label="Mark frame usable" aria-checked="false" tabindex="0">
               <span aria-hidden="true">✓</span><span class="sr-only">Mark frame usable</span>
             </button>
           </div>
@@ -191,28 +190,24 @@
         <legend class="sr-only">Overall video usability (required)</legend>
         <div class="video-usability-control-row">
           <span class="frame-usability-label">Video</span>
-          <div id="error-marking-usability-toggle" class="video-usability-toggle" data-video-state="" role="radiogroup" aria-label="Overall video usability">
-            <span class="video-usability-handle" aria-hidden="true"></span>
-            <label class="video-usability-option video-usability-unusable" title="Unusable — exclude the whole video.">
-              <input type="radio" name="error-marking-usability-rating" value="unusable" aria-label="Unusable">
+          <div id="error-marking-usability-toggle" class="segmented-control video-usability-toggle" data-control="video-usability" data-state="" role="radiogroup" aria-label="Overall video usability">
+            <span class="segmented-control-handle" aria-hidden="true"></span>
+            <button class="segmented-control-option video-usability-option video-usability-unusable" data-segment-value="unusable" type="button" role="radio" aria-label="Unusable" aria-checked="false" tabindex="0" title="Unusable — exclude the whole video.">
               <span class="video-usability-symbol" aria-hidden="true">×</span>
               <span class="sr-only">Unusable. Exclude the whole video.</span>
-            </label>
-            <label class="video-usability-option video-usability-marginal" title="Marginal — usable only with substantial caveats.">
-              <input type="radio" name="error-marking-usability-rating" value="marginal" aria-label="Marginal">
+            </button>
+            <button class="segmented-control-option video-usability-option video-usability-marginal" data-segment-value="marginal" type="button" role="radio" aria-label="Marginal" aria-checked="false" tabindex="-1" title="Marginal — usable only with substantial caveats.">
               <span class="video-usability-symbol" aria-hidden="true">×<sub>?</sub></span>
               <span class="sr-only">Marginal. Usable only with substantial caveats.</span>
-            </label>
-            <label class="video-usability-option video-usability-correctable" title="Correctable — repair or discount localized problems.">
-              <input type="radio" name="error-marking-usability-rating" value="correctable" aria-label="Correctable">
+            </button>
+            <button class="segmented-control-option video-usability-option video-usability-correctable" data-segment-value="correctable" type="button" role="radio" aria-label="Correctable" aria-checked="false" tabindex="-1" title="Correctable — repair or discount localized problems.">
               <span class="video-usability-symbol" aria-hidden="true">✓<sub>?</sub></span>
               <span class="sr-only">Correctable. Repair or discount localized problems.</span>
-            </label>
-            <label class="video-usability-option video-usability-perfect" title="Perfect — no meaningful quality concerns.">
-              <input type="radio" name="error-marking-usability-rating" value="perfect" aria-label="Perfect">
+            </button>
+            <button class="segmented-control-option video-usability-option video-usability-perfect" data-segment-value="perfect" type="button" role="radio" aria-label="Perfect" aria-checked="false" tabindex="-1" title="Perfect — no meaningful quality concerns.">
               <span class="video-usability-symbol" aria-hidden="true">✓</span>
               <span class="sr-only">Perfect. No meaningful quality concerns.</span>
-            </label>
+            </button>
           </div>
         </div>
         <p id="error-marking-usability-description" class="sr-only" aria-live="polite"></p>

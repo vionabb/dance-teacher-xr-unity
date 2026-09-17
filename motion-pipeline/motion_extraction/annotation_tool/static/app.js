@@ -20,6 +20,77 @@ const state = {
 };
 const $ = (id) => document.getElementById(id);
 
+// Both usability widgets use the same segmented-control contract. Keep the
+// state-to-visual mapping here so the DOM has one source of truth (`data-state`)
+// and the click/keyboard paths cannot drift apart.
+const SEGMENTED_CONTROL_STATE_META = {
+  "frame-usability": {
+    unusable: {fill: "var(--fill-selected-unusable)"},
+    usable: {fill: "var(--fill-selected-usable)"},
+  },
+  "video-usability": {
+    unusable: {fill: "var(--fill-selected-unusable)"},
+    marginal: {fill: "var(--fill-selected-marginal)"},
+    correctable: {fill: "var(--fill-selected-correctable)"},
+    perfect: {fill: "var(--fill-selected-perfect)"},
+  },
+};
+
+function segmentedControlOptions(control) {
+  return [...control.querySelectorAll(".segmented-control-option")];
+}
+
+function setSegmentedControlState(control, stateValue) {
+  if (!control) return;
+  const options = segmentedControlOptions(control);
+  const activeIndex = options.findIndex((option) => option.dataset.segmentValue === stateValue);
+  const meta = SEGMENTED_CONTROL_STATE_META[control.dataset.control]?.[stateValue];
+  control.dataset.state = stateValue || "";
+  control.style.setProperty("--segment-index", String(Math.max(activeIndex, 0)));
+  control.style.setProperty("--selected-fill", meta?.fill || "transparent");
+  options.forEach((option, index) => {
+    const active = index === activeIndex;
+    option.setAttribute("aria-checked", String(active));
+    option.tabIndex = active || (activeIndex < 0 && index === 0) ? 0 : -1;
+  });
+}
+
+function selectSegmentedControlOption(control, stateValue) {
+  if (!control || !segmentedControlOptions(control).some((option) => option.dataset.segmentValue === stateValue)) return;
+  if (control.dataset.control === "frame-usability") {
+    flashFrameUsabilityToggle();
+    if (stateValue === "usable") markFrameUsable(); else markFrameUnusable();
+  } else if (control.dataset.control === "video-usability") {
+    setErrorMarkingVideoUsabilityRating(stateValue);
+  }
+}
+
+function attachSegmentedControlHandlers() {
+  document.querySelectorAll(".segmented-control").forEach((control) => {
+    setSegmentedControlState(control, control.dataset.state || "");
+    control.addEventListener("click", (event) => {
+      const option = event.target.closest(".segmented-control-option");
+      if (option && control.contains(option)) selectSegmentedControlOption(control, option.dataset.segmentValue);
+    });
+    control.addEventListener("keydown", (event) => {
+      const option = event.target.closest(".segmented-control-option");
+      if (!option || !control.contains(option)) return;
+      const options = segmentedControlOptions(control);
+      const currentIndex = options.indexOf(option);
+      let nextIndex = currentIndex;
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (currentIndex + 1) % options.length;
+      else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (currentIndex - 1 + options.length) % options.length;
+      else if (event.key === "Home") nextIndex = 0;
+      else if (event.key === "End") nextIndex = options.length - 1;
+      else return;
+      event.preventDefault();
+      const next = options[nextIndex];
+      selectSegmentedControlOption(control, next.dataset.segmentValue);
+      next.focus();
+    });
+  });
+}
+
 function accessToken() { return sessionStorage.getItem("annotation-access-token") || localStorage.getItem("annotation-access-token") || ""; }
 function authenticatedFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
@@ -464,22 +535,18 @@ function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
   const manuallyConfirmed = state.errorMarkingBadFrames.includes(frame);
   const explicitlyUsable = state.errorMarkingUsableFrames.includes(frame);
   const toggle = $("error-marking-frame-usability-toggle");
-  if (toggle) toggle.dataset.frameState = bad ? "unusable" : "usable";
+  setSegmentedControlState(toggle, bad ? "unusable" : "usable");
   const usableButton = $("error-marking-mark-frame-usable");
   if (usableButton) {
-    usableButton.setAttribute("aria-pressed", String(!bad));
     usableButton.title = automatic && explicitlyUsable
       ? "Manually override the automatic unusable-frame signal."
       : "Record that the current frame is usable.";
-    usableButton.classList.toggle("frame-usability-option-active", !bad);
   }
   const unusableButton = $("error-marking-mark-frame-unusable");
   if (unusableButton) {
-    unusableButton.setAttribute("aria-pressed", String(bad));
     unusableButton.title = automatic && !manuallyConfirmed
       ? "Missing tracking marked this frame automatically. Click to confirm it manually."
       : "Record that the current frame is unusable.";
-    unusableButton.classList.toggle("frame-usability-option-active", bad);
   }
   const badge = $("error-marking-bad-frame-badge");
   if (badge) badge.hidden = !bad;
@@ -564,11 +631,8 @@ function updateVideoUnusableControls() {
   if (unusableButton) unusableButton.disabled = false;
   const usableButton = $("error-marking-mark-frame-usable");
   if (usableButton) usableButton.disabled = false;
-  document.querySelectorAll('input[name="error-marking-usability-rating"]').forEach((input) => {
-    input.checked = input.value === state.errorMarkingVideoUsabilityRating;
-  });
   const usabilityToggle = $("error-marking-usability-toggle");
-  if (usabilityToggle) usabilityToggle.dataset.videoState = state.errorMarkingVideoUsabilityRating || "";
+  setSegmentedControlState(usabilityToggle, state.errorMarkingVideoUsabilityRating || "");
   const descriptions = {
     unusable: "Exclude the whole video.",
     marginal: "Usable only with substantial caveats.",
@@ -2076,22 +2140,8 @@ function flashFrameUsabilityToggle() {
     {duration: 160, easing: "ease-out"},
   );
 }
-frameUsabilityToggle.onclick = (event) => {
-  flashFrameUsabilityToggle();
-  const button = event.target.closest?.("button");
-  if (button?.id === "error-marking-mark-frame-usable") markFrameUsable();
-  else if (button?.id === "error-marking-mark-frame-unusable") markFrameUnusable();
-  else {
-    const bounds = frameUsabilityToggle.getBoundingClientRect();
-    const midpoint = bounds.left + bounds.width / 2;
-    if (event.clientX < midpoint) markFrameUnusable();
-    else markFrameUsable();
-  }
-};
+attachSegmentedControlHandlers();
 $("error-marking-video-unusable-reason").oninput = syncErrorMarkingNote;
-document.querySelectorAll('input[name="error-marking-usability-rating"]').forEach((input) => {
-  input.onchange = (event) => setErrorMarkingVideoUsabilityRating(event.target.value);
-});
 document.querySelectorAll(".actions button[data-status]").forEach((button) => button.onclick = async () => {
   const task = state.data?.tasks?.[state.taskIndex];
   if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && state.errorMarkingVideoUnusable && !state.errorMarkingVideoUnusableReason.trim()) {
