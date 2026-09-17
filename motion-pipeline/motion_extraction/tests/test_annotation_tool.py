@@ -1223,6 +1223,9 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert "1 / (1 + 2 * ERROR_MARKING_CANVAS_BUFFER_RATIO)" in js
     assert "transform-origin: center;" in css
     assert ".timeline-bad-frame-track" in css
+    assert ".timeline-bad-frame-track { overflow: hidden;" in css
+    assert ".timeline-bad-frame { position: absolute;" in css
+    assert "min-height: 0; height: auto;" in css
     assert ".timeline-bad-frame-auto" in css
     assert ".video-marked-unusable .timeline-joint-track-disabled" in css
     assert ".error-marking-no-pose-badge" in css
