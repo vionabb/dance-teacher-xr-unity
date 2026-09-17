@@ -189,12 +189,30 @@
 
       <fieldset id="error-marking-usability-rating" class="fieldset mt-3">
         <legend class="fieldset-legend">Overall video usability <span class="text-error">Required</span></legend>
-        <div class="error-marking-usability-options">
-          <label class="label cursor-pointer"><input class="radio radio-error" type="radio" name="error-marking-usability-rating" value="unusable"> <span><strong>Unusable</strong><small>Exclude the whole video.</small></span></label>
-          <label class="label cursor-pointer"><input class="radio" type="radio" name="error-marking-usability-rating" value="marginal"> <span><strong>Marginal</strong><small>Usable only with substantial caveats.</small></span></label>
-          <label class="label cursor-pointer"><input class="radio radio-warning" type="radio" name="error-marking-usability-rating" value="correctable"> <span><strong>Correctable</strong><small>Repair or discount localized problems.</small></span></label>
-          <label class="label cursor-pointer"><input class="radio radio-success" type="radio" name="error-marking-usability-rating" value="perfect"> <span><strong>Perfect</strong><small>No meaningful quality concerns.</small></span></label>
+        <div id="error-marking-usability-toggle" class="video-usability-toggle" data-video-state="" role="radiogroup" aria-label="Overall video usability">
+          <span class="video-usability-handle" aria-hidden="true"></span>
+          <label class="video-usability-option video-usability-unusable" title="Unusable — exclude the whole video.">
+            <input type="radio" name="error-marking-usability-rating" value="unusable" aria-label="Unusable">
+            <span class="video-usability-symbol" aria-hidden="true">×</span>
+            <span class="sr-only">Unusable. Exclude the whole video.</span>
+          </label>
+          <label class="video-usability-option video-usability-marginal" title="Marginal — usable only with substantial caveats.">
+            <input type="radio" name="error-marking-usability-rating" value="marginal" aria-label="Marginal">
+            <span class="video-usability-symbol" aria-hidden="true">×<sub>?</sub></span>
+            <span class="sr-only">Marginal. Usable only with substantial caveats.</span>
+          </label>
+          <label class="video-usability-option video-usability-correctable" title="Correctable — repair or discount localized problems.">
+            <input type="radio" name="error-marking-usability-rating" value="correctable" aria-label="Correctable">
+            <span class="video-usability-symbol" aria-hidden="true">✓<sub>?</sub></span>
+            <span class="sr-only">Correctable. Repair or discount localized problems.</span>
+          </label>
+          <label class="video-usability-option video-usability-perfect" title="Perfect — no meaningful quality concerns.">
+            <input type="radio" name="error-marking-usability-rating" value="perfect" aria-label="Perfect">
+            <span class="video-usability-symbol" aria-hidden="true">✓</span>
+            <span class="sr-only">Perfect. No meaningful quality concerns.</span>
+          </label>
         </div>
+        <p id="error-marking-usability-description" class="video-usability-description" aria-live="polite"></p>
       </fieldset>
 
       <div id="error-marking-timeline" class="mt-3"></div>
