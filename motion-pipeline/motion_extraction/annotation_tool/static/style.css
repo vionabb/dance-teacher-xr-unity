@@ -107,6 +107,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .error-marking-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .error-marking-frame-indicator { position: absolute; top: .5rem; right: .5rem; z-index: 6; pointer-events: none; }
 .error-marking-bad-frame-badge { position: absolute; top: .5rem; left: .5rem; z-index: 6; pointer-events: none; }
+.error-marking-no-pose-badge { position: absolute; top: 50%; left: 50%; z-index: 5; transform: translate(-50%, -50%); padding: .7rem 1.1rem; color: #fff; background: #b3261ecc; border: 1px solid #f5b6b1; font-size: 1rem; font-weight: 750; letter-spacing: .04em; pointer-events: none; }
 #error-marking-video-wrap.frame-marked-bad { outline: 3px solid #b3261e; outline-offset: -3px; }
 #error-marking-screen.video-marked-unusable #error-marking-timeline { opacity: .5; pointer-events: none; }
 #error-marking-screen.video-marked-unusable .error-marking-overlay { pointer-events: none; }

@@ -144,6 +144,7 @@
           <svg id="error-marking-overlay" class="error-marking-overlay" aria-hidden="true"></svg>
           <span id="error-marking-frame-indicator" class="badge badge-lg font-mono error-marking-frame-indicator" aria-live="polite">frame 0 / 0</span>
           <span id="error-marking-bad-frame-badge" class="badge badge-error error-marking-bad-frame-badge" hidden>unusable frame</span>
+          <span id="error-marking-no-pose-badge" class="badge error-marking-no-pose-badge" hidden>no pose detected</span>
         </div>
         <div class="error-marking-controls-bar">
           <div class="join step-buttons-join">
@@ -153,6 +154,7 @@
             <button id="error-marking-replay-backwards" class="btn btn-sm btn-ghost join-item" type="button" aria-label="Play backwards">◀ Backwards</button>
             <select id="error-marking-fps-select" class="select select-sm join-item error-marking-fps-select" aria-label="Playback speed">
               <option value="1">1 fps</option>
+              <option value="1.5">1.5 fps</option>
               <option value="2" selected>2 fps</option>
               <option value="4">4 fps</option>
               <option value="8">8 fps</option>
@@ -167,7 +169,8 @@
       </figure>
       <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
         <div class="error-marking-disposition-controls">
-          <button id="error-marking-toggle-bad-frame" class="btn btn-sm btn-error btn-outline" type="button" aria-pressed="false">Mark current frame unusable</button>
+          <button id="error-marking-mark-frame-usable" class="btn btn-sm btn-success btn-outline" type="button" aria-pressed="false">Mark frame usable</button>
+          <button id="error-marking-mark-frame-unusable" class="btn btn-sm btn-error btn-outline" type="button" aria-pressed="false">Mark frame unusable</button>
           <label id="error-marking-video-unusable-control" class="btn btn-sm btn-error btn-outline cursor-pointer">
             <input id="error-marking-video-unusable" class="sr-only" type="checkbox">
             <span id="error-marking-video-unusable-label">Mark entire video unusable</span>

@@ -5,7 +5,7 @@ const state = {
   sourceObjectUrl: null, dragLandmark: null, dragStart: null, dragMoved: false,
   activePointers: new Map(), selectedLandmark: null, screen: "skeleton",
   canvasPanX: 0, canvasPanY: 0, panStart: null,
-  temporalPlaybackRate: 1, errorMarks: [], errorMarkingBadFrames: [], errorMarkingAutoBadFrames: [],
+  temporalPlaybackRate: 1, errorMarks: [], errorMarkingBadFrames: [], errorMarkingUsableFrames: [], errorMarkingAutoBadFrames: [],
   errorBodyParts: [], errorCauses: [], editingListKind: "body_part",
   activeMarkIndex: null, errorMarkingNoErrorsConfirmed: false,
   errorMarkingVideoUnusable: false, errorMarkingVideoUnusableReason: "", errorMarkingVideoUsabilityRating: "",
@@ -443,41 +443,49 @@ function errorMarkingCurrentFrame() { return state.errorMarkingFrame; }
 function setErrorMarkingFrame(frame) { state.errorMarkingFrame = frame; }
 
 function allBadFrameNumbers() {
-  return [...new Set([...state.errorMarkingBadFrames, ...state.errorMarkingAutoBadFrames])].sort((a, b) => a - b);
+  const explicitlyUsable = new Set(state.errorMarkingUsableFrames);
+  return [...new Set([...state.errorMarkingBadFrames, ...state.errorMarkingAutoBadFrames])]
+    .filter((frame) => !explicitlyUsable.has(frame))
+    .sort((a, b) => a - b);
 }
 
 function isBadFrame(frame = errorMarkingCurrentFrame()) {
   return allBadFrameNumbers().includes(frame);
 }
 
+function frameHasSkeleton(frame = errorMarkingCurrentFrame()) {
+  return Boolean(state.errorMarkingLandmarks && Object.keys(skeletonFrameLandmarks(frame)).length);
+}
+
 function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
   const bad = isBadFrame(frame);
   const automatic = state.errorMarkingAutoBadFrames.includes(frame);
   const manuallyConfirmed = state.errorMarkingBadFrames.includes(frame);
-  const toggle = $("error-marking-toggle-bad-frame");
-  if (toggle) {
-    toggle.textContent = automatic && !manuallyConfirmed
-      ? "Confirm unusable frame"
-      : bad ? "Unmark this frame" : "Mark current frame unusable";
-    toggle.setAttribute("aria-pressed", String(manuallyConfirmed));
-    toggle.disabled = false;
-    toggle.title = automatic && !manuallyConfirmed
+  const explicitlyUsable = state.errorMarkingUsableFrames.includes(frame);
+  const usableButton = $("error-marking-mark-frame-usable");
+  if (usableButton) {
+    usableButton.setAttribute("aria-pressed", String(!bad));
+    usableButton.title = automatic && explicitlyUsable
+      ? "Manually override the automatic unusable-frame signal."
+      : "Record that the current frame is usable.";
+    usableButton.classList.toggle("btn-outline", bad);
+  }
+  const unusableButton = $("error-marking-mark-frame-unusable");
+  if (unusableButton) {
+    unusableButton.setAttribute("aria-pressed", String(bad));
+    unusableButton.title = automatic && !manuallyConfirmed
       ? "Missing tracking marked this frame automatically. Click to confirm it manually."
-      : "Mark or unmark the current frame as unusable.";
-    toggle.classList.toggle("btn-error", manuallyConfirmed);
-    toggle.classList.toggle("btn-outline", !bad);
+      : "Record that the current frame is unusable.";
+    unusableButton.classList.toggle("btn-outline", !bad);
   }
   const badge = $("error-marking-bad-frame-badge");
   if (badge) badge.hidden = !bad;
+  const noPoseBadge = $("error-marking-no-pose-badge");
+  if (noPoseBadge) noPoseBadge.hidden = !bad || frameHasSkeleton(frame);
   $("error-marking-video-wrap")?.classList.toggle("frame-marked-bad", bad);
 }
 
-function toggleBadFrame(frame = errorMarkingCurrentFrame()) {
-  if (state.errorMarkingBadFrames.includes(frame)) {
-    state.errorMarkingBadFrames = state.errorMarkingBadFrames.filter((candidate) => candidate !== frame);
-  } else {
-    state.errorMarkingBadFrames = [...state.errorMarkingBadFrames, frame].sort((a, b) => a - b);
-  }
+function saveBadFrameState(frame = errorMarkingCurrentFrame()) {
   state.errorMarkingNoErrorsConfirmed = false;
   updateBadFrameControls(frame);
   renderErrorMarkingTimeline();
@@ -485,17 +493,30 @@ function toggleBadFrame(frame = errorMarkingCurrentFrame()) {
   scheduleSave("started");
 }
 
+function markFrameUsable(frame = errorMarkingCurrentFrame()) {
+  state.errorMarkingBadFrames = state.errorMarkingBadFrames.filter((candidate) => candidate !== frame);
+  if (!state.errorMarkingUsableFrames.includes(frame)) state.errorMarkingUsableFrames.push(frame);
+  state.errorMarkingUsableFrames.sort((a, b) => a - b);
+  saveBadFrameState(frame);
+}
+
+function markFrameUnusable(frame = errorMarkingCurrentFrame()) {
+  state.errorMarkingUsableFrames = state.errorMarkingUsableFrames.filter((candidate) => candidate !== frame);
+  if (!state.errorMarkingBadFrames.includes(frame)) state.errorMarkingBadFrames.push(frame);
+  state.errorMarkingBadFrames.sort((a, b) => a - b);
+  saveBadFrameState(frame);
+}
+
+function toggleBadFrame(frame = errorMarkingCurrentFrame()) {
+  if (state.errorMarkingBadFrames.includes(frame)) markFrameUsable(frame);
+  else markFrameUnusable(frame);
+}
+
 function toggleBadFrameRange(start, end) {
   const frames = Array.from({length: end - start + 1}, (_, index) => start + index);
   const allManuallyConfirmed = frames.every((frame) => state.errorMarkingBadFrames.includes(frame));
-  state.errorMarkingBadFrames = allManuallyConfirmed
-    ? state.errorMarkingBadFrames.filter((frame) => frame < start || frame > end)
-    : [...new Set([...state.errorMarkingBadFrames, ...frames])].sort((a, b) => a - b);
-  state.errorMarkingNoErrorsConfirmed = false;
-  renderErrorMarkingTimeline();
-  updateBadFrameControls();
-  renderSkeletonOverlay();
-  scheduleSave("started");
+  if (allManuallyConfirmed) frames.forEach((frame) => markFrameUsable(frame));
+  else frames.forEach((frame) => markFrameUnusable(frame));
 }
 
 function hasFiniteTrackingPoint(point) {
@@ -541,8 +562,10 @@ function updateVideoUnusableControls() {
   if (reasonWrap) reasonWrap.hidden = !unusable;
   const screen = $("error-marking-screen");
   if (screen) screen.classList.toggle("video-marked-unusable", unusable);
-  const frameToggle = $("error-marking-toggle-bad-frame");
-  if (frameToggle) frameToggle.disabled = state.errorMarkingAutoBadFrames.includes(errorMarkingCurrentFrame());
+  const unusableButton = $("error-marking-mark-frame-unusable");
+  if (unusableButton) unusableButton.disabled = false;
+  const usableButton = $("error-marking-mark-frame-usable");
+  if (usableButton) usableButton.disabled = false;
   document.querySelectorAll('input[name="error-marking-usability-rating"]').forEach((input) => {
     input.checked = input.value === state.errorMarkingVideoUsabilityRating;
   });
@@ -1547,6 +1570,9 @@ function renderErrorMarkingTask(task, judgment) {
   state.errorMarkingBadFrames = [...new Set((response.bad_frames || []).map(Number))]
     .filter((frame) => Number.isInteger(frame) && frame >= 0)
     .sort((a, b) => a - b);
+  state.errorMarkingUsableFrames = [...new Set((response.usable_frames || []).map(Number))]
+    .filter((frame) => Number.isInteger(frame) && frame >= 0)
+    .sort((a, b) => a - b);
   state.errorMarkingAutoBadFrames = [];
   state.errorMarkingVideoUnusable = Boolean(response.video_unusable);
   state.errorMarkingVideoUsabilityRating = response.video_usability_rating || (state.errorMarkingVideoUnusable ? "unusable" : "");
@@ -1580,6 +1606,7 @@ function errorMarkingResponsePayload() {
   return {
     marks: videoUnusable ? [] : state.errorMarks,
     bad_frames: badFrames,
+    usable_frames: state.errorMarkingUsableFrames,
     video_unusable: videoUnusable,
     video_unusable_reason: videoUnusable ? note : "",
     video_usability_rating: state.errorMarkingVideoUsabilityRating,
@@ -1953,7 +1980,7 @@ function payload(status) {
     if (status === "completed" && errorMarkingResponse.video_unusable && !errorMarkingResponse.video_unusable_reason) {
       throw new Error("Explain why this entire video is too flawed to annotate.");
     }
-    if (status === "completed" && !errorMarkingResponse.video_unusable && !errorMarkingResponse.marks.length && !errorMarkingResponse.bad_frames.length && !errorMarkingResponse.no_errors_found) {
+    if (status === "completed" && !errorMarkingResponse.video_unusable && !errorMarkingResponse.marks.length && !errorMarkingResponse.bad_frames.length && !errorMarkingResponse.usable_frames.length && !errorMarkingResponse.no_errors_found) {
       throw new Error('Add at least one error mark, flag an unusable frame, mark the video as too flawed, or check "No errors observed in this clip."');
     }
     return {
@@ -2049,7 +2076,8 @@ fetch("/api/access-info").then(responseJson).then((info) => {
 }).catch(() => {
   if (rememberedToken && rememberedAnnotator) loadState();
 });
-$("error-marking-toggle-bad-frame").onclick = () => toggleBadFrame();
+$("error-marking-mark-frame-usable").onclick = () => markFrameUsable();
+$("error-marking-mark-frame-unusable").onclick = () => markFrameUnusable();
 $("error-marking-video-unusable").onchange = toggleVideoUnusable;
 $("error-marking-video-unusable-reason").oninput = syncErrorMarkingNote;
 document.querySelectorAll('input[name="error-marking-usability-rating"]').forEach((input) => {
@@ -2067,7 +2095,7 @@ document.querySelectorAll(".actions button[data-status]").forEach((button) => bu
     $("error-marking-usability-rating")?.scrollIntoView({behavior: "smooth", block: "center"});
     return;
   }
-  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarkingVideoUnusable && !state.errorMarks.length && !allBadFrameNumbers().length) {
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarkingVideoUnusable && !state.errorMarks.length && !allBadFrameNumbers().length && !state.errorMarkingUsableFrames.length) {
     if (!confirm("No errors or unusable frames were marked for this clip. Complete it as “no errors observed”?")) return;
     state.errorMarkingNoErrorsConfirmed = true;
   }
