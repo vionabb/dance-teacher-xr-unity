@@ -567,6 +567,16 @@ function updateVideoUnusableControls() {
   document.querySelectorAll('input[name="error-marking-usability-rating"]').forEach((input) => {
     input.checked = input.value === state.errorMarkingVideoUsabilityRating;
   });
+  const usabilityToggle = $("error-marking-usability-toggle");
+  if (usabilityToggle) usabilityToggle.dataset.videoState = state.errorMarkingVideoUsabilityRating || "";
+  const descriptions = {
+    unusable: "Exclude the whole video.",
+    marginal: "Usable only with substantial caveats.",
+    correctable: "Repair or discount localized problems.",
+    perfect: "No meaningful quality concerns.",
+  };
+  const description = $("error-marking-usability-description");
+  if (description) description.textContent = descriptions[state.errorMarkingVideoUsabilityRating] || "Choose a rating for this video.";
   const timeline = $("error-marking-timeline");
   if (timeline) timeline.classList.toggle("joint-marking-disabled", unusable);
 }
