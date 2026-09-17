@@ -1201,6 +1201,8 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
         "function toggleBadFrame(",
         "function markFrameUsable(",
         "function markFrameUnusable(",
+        "const frameUsabilityToggle = $(\"error-marking-frame-usability-toggle\");",
+        "state.errorMarkingVisualRefreshHandle = setTimeout(() => {",
         "function frameHasSkeleton(",
         "function missingTrackingFrames(",
         "function toggleVideoUnusable(",
