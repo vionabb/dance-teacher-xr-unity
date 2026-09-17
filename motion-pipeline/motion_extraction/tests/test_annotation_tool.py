@@ -1146,6 +1146,8 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert "1 / (1 + 2 * ERROR_MARKING_CANVAS_BUFFER_RATIO)" in js
     assert "transform-origin: center;" in css
     assert ".timeline-bad-frame-track" in css
+    assert ".timeline-bad-frame-auto" in css
+    assert "Automatic: missing tracking" in js
 
 
 def test_error_mark_dialog_shows_corrected_skeleton_with_highlighted_landmark() -> None:
@@ -1313,6 +1315,7 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert 'id="error-marking-replay"' in html
     assert 'id="error-marking-replay-backwards"' in html
+    assert '<option value="1">1 fps</option>' in html
     assert 'id="error-marking-replay-slow"' not in html
     assert 'id="error-marking-review-replay-slow"' not in html
     for symbol in [
