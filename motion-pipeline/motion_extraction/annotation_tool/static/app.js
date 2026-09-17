@@ -462,13 +462,15 @@ function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
   const automatic = state.errorMarkingAutoBadFrames.includes(frame);
   const manuallyConfirmed = state.errorMarkingBadFrames.includes(frame);
   const explicitlyUsable = state.errorMarkingUsableFrames.includes(frame);
+  const toggle = $("error-marking-frame-usability-toggle");
+  if (toggle) toggle.dataset.frameState = bad ? "unusable" : "usable";
   const usableButton = $("error-marking-mark-frame-usable");
   if (usableButton) {
     usableButton.setAttribute("aria-pressed", String(!bad));
     usableButton.title = automatic && explicitlyUsable
       ? "Manually override the automatic unusable-frame signal."
       : "Record that the current frame is usable.";
-    usableButton.classList.toggle("btn-outline", bad);
+    usableButton.classList.toggle("frame-usability-option-active", !bad);
   }
   const unusableButton = $("error-marking-mark-frame-unusable");
   if (unusableButton) {
@@ -476,7 +478,7 @@ function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
     unusableButton.title = automatic && !manuallyConfirmed
       ? "Missing tracking marked this frame automatically. Click to confirm it manually."
       : "Record that the current frame is unusable.";
-    unusableButton.classList.toggle("btn-outline", !bad);
+    unusableButton.classList.toggle("frame-usability-option-active", bad);
   }
   const badge = $("error-marking-bad-frame-badge");
   if (badge) badge.hidden = !bad;
