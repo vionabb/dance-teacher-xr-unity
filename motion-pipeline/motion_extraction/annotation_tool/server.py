@@ -263,7 +263,7 @@ class AnnotationStore:
             payload.get("triage_response", {}), task_type, status
         )
         error_marking_response = self._validate_error_marking_response(
-            payload.get("error_marking_response", {}), task_type, status
+            payload.get("error_marking_response", {}), task_type, status, task
         )
         quality_rating_response = self._validate_quality_rating_response(
             payload.get("quality_rating_response", {}), task_type, status
@@ -569,11 +569,18 @@ class AnnotationStore:
 
     @staticmethod
     def _validate_error_marking_response(
-        value: t.Any, task_type: str, status: str
+        value: t.Any, task_type: str, status: str, task: dict[str, t.Any] | None = None
     ) -> dict[str, t.Any]:
         """Validate the response fields used only by error_marking tasks."""
 
-        empty: dict[str, t.Any] = {"marks": [], "no_errors_found": False, "note": ""}
+        empty: dict[str, t.Any] = {
+            "marks": [],
+            "bad_frames": [],
+            "video_unusable": False,
+            "video_unusable_reason": "",
+            "no_errors_found": False,
+            "note": "",
+        }
         if task_type != "error_marking":
             if value not in ({}, None):
                 raise ValueError(
@@ -582,6 +589,35 @@ class AnnotationStore:
             return empty
         if not isinstance(value, dict):
             raise ValueError("error_marking_response must be an object")
+        raw_bad_frames = value.get("bad_frames", [])
+        if not isinstance(raw_bad_frames, list):
+            raise ValueError("error_marking_response bad_frames must be an array")
+        frame_count = None if task is None else task.get("frame_count")
+        try:
+            frame_count = int(frame_count) if frame_count is not None else None
+        except (TypeError, ValueError) as error:
+            raise ValueError("error-marking task frame_count must be an integer") from error
+        bad_frames: list[int] = []
+        for raw_frame in raw_bad_frames:
+            if isinstance(raw_frame, bool):
+                raise ValueError("bad frame numbers must be integers")
+            try:
+                frame = int(raw_frame)
+            except (TypeError, ValueError) as error:
+                raise ValueError("bad frame numbers must be integers") from error
+            if frame < 0 or (frame_count is not None and frame >= frame_count):
+                raise ValueError("bad frame number is outside the task's frame range")
+            if frame not in bad_frames:
+                bad_frames.append(frame)
+        bad_frames.sort()
+        video_unusable = value.get("video_unusable", False)
+        if not isinstance(video_unusable, bool):
+            raise ValueError("video_unusable must be a boolean")
+        video_unusable_reason = str(value.get("video_unusable_reason", "")).strip()
+        if len(video_unusable_reason) > ERROR_MARK_NOTE_MAX_LENGTH:
+            raise ValueError(
+                f"video_unusable_reason must be at most {ERROR_MARK_NOTE_MAX_LENGTH} characters"
+            )
         raw_marks = value.get("marks", [])
         if not isinstance(raw_marks, list):
             raise ValueError("error_marking_response marks must be an array")
@@ -642,13 +678,29 @@ class AnnotationStore:
         no_errors_found = bool(value.get("no_errors_found", False))
         note = str(value.get("note", "")).strip()
         if status == "completed":
-            if not marks and not no_errors_found:
+            if video_unusable:
+                if not video_unusable_reason:
+                    raise ValueError("video_unusable requires a reason")
+                if marks or bad_frames or no_errors_found:
+                    raise ValueError(
+                        "video_unusable cannot be combined with landmark marks, bad frames, or no_errors_found"
+                    )
+            elif not marks and not bad_frames and not no_errors_found:
                 raise ValueError(
-                    "completed error_marking requires marks, or no_errors_found checked"
+                    "completed error_marking requires marks, bad frames, video_unusable, or no_errors_found checked"
                 )
-            if marks and no_errors_found:
-                raise ValueError("no_errors_found must not be set when marks are present")
-        return {"marks": marks, "no_errors_found": no_errors_found, "note": note}
+            if not video_unusable and (marks or bad_frames) and no_errors_found:
+                raise ValueError(
+                    "no_errors_found must not be set when marks or bad frames are present"
+                )
+        return {
+            "marks": marks,
+            "bad_frames": bad_frames,
+            "video_unusable": video_unusable,
+            "video_unusable_reason": video_unusable_reason if video_unusable else "",
+            "no_errors_found": no_errors_found,
+            "note": note,
+        }
 
     @staticmethod
     def _validate_quality_rating_response(

@@ -52,15 +52,16 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .initialization-controls { display: flex; gap: .6rem; align-items: end; flex-wrap: wrap; }
 .initialization-controls label { display: grid; gap: .25rem; }
 .editor-layout { display: flex; align-items: stretch; justify-content: center; gap: 1rem; }
-#landmark-panel { flex: 0 0 11rem; align-self: center; padding: .9rem; color: var(--ink); }
+#landmark-panel { position: fixed; inset: auto 1rem 5.25rem auto; width: min(18rem, calc(100vw - 2rem)); margin: 0; padding: .9rem; color: var(--ink); border-color: var(--line); box-shadow: 0 .8rem 2.5rem #16332e33; }
 #landmark-panel h3 { margin: .2rem 0 .8rem; font-size: 1rem; text-transform: capitalize; }
 #landmark-panel fieldset { margin: 0; padding: .55rem; border: 1px solid var(--line); border-radius: .65rem; }
 #landmark-panel legend { padding: 0 .2rem; color: var(--muted); font-size: .75rem; font-weight: 700; }
-#ground-truth-canvas { display: block; max-width: 100%; max-height: min(70vh, calc(100vh - 15rem)); width: auto; height: auto; background: #111817; border-radius: 8px; cursor: crosshair; touch-action: auto; }
-#editor-viewport { position: relative; display: flex; justify-content: center; width: fit-content; max-width: 100%; margin: auto; overflow: visible; border-radius: .75rem; background: #172321; box-shadow: inset 0 0 0 1px #ffffff12; }
+#ground-truth-canvas { display: block; max-width: 100%; max-height: min(70vh, calc(100vh - 15rem)); width: auto; height: auto; background: #111817; border-radius: 8px; cursor: crosshair; touch-action: none; transform-origin: center; }
+#editor-viewport { position: relative; display: flex; justify-content: center; width: fit-content; max-width: 100%; margin: auto; overflow: hidden; border-radius: .75rem; background: #172321; box-shadow: inset 0 0 0 1px #ffffff12; }
 #reset-skeleton { position: absolute; top: .5rem; right: .5rem; z-index: 2; min-height: 36px; padding: .35rem .65rem; color: white; background: #24544b; border: 1px solid #9dd8c8; opacity: 1; }
 .editor-tools { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin: .7rem 0; }
 .editor-tools button { min-height: 44px; }
+.editor-gesture-help { margin: .8rem 0 0; color: var(--muted); font-size: .9rem; }
 .small { color: #65716e; font-size: .86rem; }
 .landmark-row { display: grid; grid-template-columns: 1fr minmax(145px, auto); gap: .5rem; align-items: center; padding: .35rem 0; border-top: 1px solid #edf0ee; font-size: .82rem; }
 .landmark-row span { text-transform: lowercase; }
@@ -71,14 +72,15 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .frame-note-panel legend { font-weight: 650; padding: 0 .25rem; }
 .note-field { display: block; font-size: .9rem; }
 
-.actions { position: fixed; inset: auto 0 0; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: .65rem; min-height: 4.5rem; margin: 0; padding: .75rem max(1rem, calc((100vw - 760px) / 2)); background: #fffffff7; border-top: 1px solid #cbdad5; z-index: 100; box-shadow: 0 -6px 24px #16332e1c; backdrop-filter: blur(14px); }
-.actions button { min-height: 3rem; padding: .65rem 1rem; border-radius: .65rem; font-size: .95rem; font-weight: 750; line-height: 1.15; white-space: nowrap; }
-.actions button[data-status="completed"] { min-width: 9.5rem; color: white; background: #08745f; border-color: #08745f; text-shadow: 0 1px 1px #06453666; }
+.actions { position: fixed; inset: auto 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; min-height: 4.5rem; margin: 0; padding: .75rem max(1rem, calc((100vw - 760px) / 2)); background: #fffffff7; border-top: 1px solid #cbdad5; z-index: 100; box-shadow: 0 -6px 24px #16332e1c; backdrop-filter: blur(14px); }
+.actions button { min-width: 0; min-height: 3rem; padding: .65rem .5rem; border-radius: .65rem; font-size: .95rem; font-weight: 750; line-height: 1.15; white-space: nowrap; }
+.actions button[data-status="completed"] { color: white; background: #08745f; border-color: #08745f; text-shadow: 0 1px 1px #06453666; }
 .actions .btn-ghost { color: #173c37; background: #e7efec; border: 1px solid #bfd0ca; }
 .actions .btn-warning.btn-outline { color: #6c4b00; background: #fff8e1; border-color: #d39b00; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .actions button[hidden] { display: none; }
 .workflow-next { display: block; margin: 1rem 0 0 auto; background: #16745f; color: white; border: 0; font-weight: 700; }
+.workflow-back { display: block; margin: 1rem 0 0; }
 .workflow-screen[hidden] { display: none; }
 #temporal-screen[hidden] { display: none; }
 .temporal-source { max-width: 56rem; margin: 0 auto 1rem; }
@@ -104,6 +106,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .error-marking-video-wrap { position: relative; width: 100%; }
 .error-marking-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .error-marking-frame-indicator { position: absolute; top: .5rem; right: .5rem; z-index: 6; pointer-events: none; }
+.error-marking-bad-frame-badge { position: absolute; top: .5rem; left: .5rem; z-index: 6; pointer-events: none; }
+#error-marking-video-wrap.frame-marked-bad { outline: 3px solid #b3261e; outline-offset: -3px; }
+#error-marking-screen.video-marked-unusable #error-marking-timeline { opacity: .5; pointer-events: none; }
+#error-marking-screen.video-marked-unusable .error-marking-overlay { pointer-events: none; }
+.error-marking-video-disposition { border: 1px solid var(--line); border-radius: .5rem; padding: .35rem .75rem .65rem; background: #fff8f7; }
 /* The playback controls read as part of the video component itself -- one
    continuous dark surface with the video's own letterbox color, not a
    separate button cluster below it -- so the player owns the rounding
@@ -179,6 +186,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .timeline-scroll-inner { position: relative; width: 100%; }
 .timeline-playhead { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; margin-left: -1px; background: var(--ink); box-shadow: 0 0 0 1px #ffffffb0; pointer-events: none; z-index: 5; }
 .timeline-row-track { position: relative; height: 1.6rem; background: #e2e9e6; border-radius: .4rem; cursor: crosshair; touch-action: none; }
+.timeline-bad-frame-track { background: #fbe4e2; cursor: pointer; }
+.timeline-bad-frame { position: absolute; top: .15rem; bottom: .15rem; min-width: 1.5%; padding: 0; background: #b3261e; border: 0; border-radius: .25rem; cursor: pointer; box-shadow: inset 0 0 0 1px #7a1a15; }
+.timeline-bad-frame-auto { background: #a5221b; }
+.timeline-bad-frame:hover, .timeline-bad-frame-current { filter: brightness(1.1); box-shadow: inset 0 0 0 2px #5f1210; }
 .timeline-segment { position: absolute; top: 0; bottom: 0; min-width: 1.5%; border-radius: .35rem; cursor: pointer; box-shadow: inset 0 0 0 1px #00000022; }
 .timeline-segment:hover { filter: brightness(1.08); }
 .timeline-handle { position: absolute; top: -.15rem; bottom: -.15rem; width: .85rem; cursor: ew-resize; touch-action: none; }
@@ -206,11 +217,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   .progress-card.card { align-items: stretch; flex-direction: column; gap: .65rem; height: auto; }
   .progress select { width: 100%; min-width: 0; }
   .case-picker { width: 100%; max-width: none; }
-  .actions { gap: .25rem; }
-  .actions button { flex: 1 1 auto; padding-left: .45rem; padding-right: .45rem; }
+  .actions { gap: .25rem; padding-left: .5rem; padding-right: .5rem; }
+  .actions button { padding-left: .3rem; padding-right: .3rem; }
   .editor-heading { display: block; }
   .editor-layout { display: grid; gap: .75rem; }
-  #landmark-panel { order: 2; width: min(100%, 22rem); margin: 0 auto; }
+  #landmark-panel { inset: auto .5rem 5rem auto; width: min(20rem, calc(100vw - 1rem)); }
   .section-heading { display: block; }
   .section-heading p { margin: .65rem 0 0 2.25rem; }
   .initialization-controls > * { flex: 1 1 100%; }

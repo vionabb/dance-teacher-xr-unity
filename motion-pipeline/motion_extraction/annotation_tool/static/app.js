@@ -4,9 +4,11 @@ const state = {
   initialGroundTruth: {}, initialLandmarkSources: {}, landmarkInteractions: {}, sourceImage: null,
   sourceObjectUrl: null, dragLandmark: null, dragStart: null, dragMoved: false,
   activePointers: new Map(), selectedLandmark: null, screen: "skeleton",
-  temporalPlaybackRate: 1, errorMarks: [],
+  canvasPanX: 0, canvasPanY: 0, panStart: null,
+  temporalPlaybackRate: 1, errorMarks: [], errorMarkingBadFrames: [], errorMarkingAutoBadFrames: [],
   errorBodyParts: [], errorCauses: [], editingListKind: "body_part",
   activeMarkIndex: null, errorMarkingNoErrorsConfirmed: false,
+  errorMarkingVideoUnusable: false, errorMarkingVideoUnusableReason: "",
   editingBodyParts: false, addingBodyPartEntry: false,
   errorMarkingLandmarks: null, errorMarkingLandmarksTaskId: null,
   skeletonDragLandmark: null, skeletonDragPosition: null, selectedSkeletonLandmark: null,
@@ -38,7 +40,7 @@ function openLandmarkDialog(landmark) {
     drawEditor(); scheduleSave("started");
     openLandmarkDialog(landmark);
   });
-  // Keep the editor interactive so another landmark can be selected directly.
+  $("landmark-panel").showPopover?.();
 }
 
 function mostDiscrepantLandmark(task) {
@@ -123,7 +125,15 @@ function isTriageTask(task) { return task.task_type === "quality_triage"; }
 function isErrorMarkingTask(task) { return task.task_type === "error_marking"; }
 function isQualityRatingTask(task) { return task.task_type === "video_quality_rating"; }
 const ALL_SCREEN_IDS = ["skeleton-screen", "annotation-screen", "temporal-screen", "triage-screen", "error-marking-screen", "quality-rating-screen"];
-function hideAllScreens() { stopErrorMarkingReplay(); ALL_SCREEN_IDS.forEach((id) => { $(id).hidden = true; }); }
+function hideAllScreens() { stopErrorMarkingReplay(); ALL_SCREEN_IDS.forEach((id) => { $(id).hidden = true; }); $("actions").hidden = true; }
+
+function showFrameScreen(screen) {
+  const isAnnotation = screen === "annotation";
+  $("skeleton-screen").hidden = isAnnotation;
+  $("annotation-screen").hidden = !isAnnotation;
+  $("actions").hidden = !isAnnotation;
+  if (isAnnotation) window.scrollTo({top: 0, behavior: "smooth"});
+}
 
 function temporalVideos() {
   return [...document.querySelectorAll("#temporal-screen video")];
@@ -176,6 +186,7 @@ function renderTemporalTask(task, judgment) {
   pauseTemporalVideos();
   hideAllScreens();
   $("temporal-screen").hidden = false;
+  $("actions").hidden = false;
   $("mark-unclear").hidden = true;
   const source = $("temporal-source-video");
   source.src = `/artifacts/${task.source_video}`;
@@ -220,6 +231,7 @@ function renderTriageTask(task, judgment) {
   pauseTemporalVideos();
   hideAllScreens();
   $("triage-screen").hidden = false;
+  $("actions").hidden = false;
   $("mark-unclear").hidden = true;
 
   $("triage-category-badge").textContent = TRIAGE_CATEGORY_LABELS[task.category] || task.category;
@@ -429,6 +441,101 @@ function frameToTime(frame) { return (frame + 0.5) / errorMarkingFps(); }
 function errorMarkingCurrentFrame() { return state.errorMarkingFrame; }
 function setErrorMarkingFrame(frame) { state.errorMarkingFrame = frame; }
 
+function allBadFrameNumbers() {
+  return [...new Set([...state.errorMarkingBadFrames, ...state.errorMarkingAutoBadFrames])].sort((a, b) => a - b);
+}
+
+function isBadFrame(frame = errorMarkingCurrentFrame()) {
+  return allBadFrameNumbers().includes(frame);
+}
+
+function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
+  const bad = isBadFrame(frame);
+  const automatic = state.errorMarkingAutoBadFrames.includes(frame);
+  const toggle = $("error-marking-toggle-bad-frame");
+  if (toggle) {
+    toggle.textContent = automatic ? "Missing tracking (automatic)" : bad ? "Unmark this frame" : "Mark current frame unusable";
+    toggle.setAttribute("aria-pressed", String(bad));
+    toggle.disabled = automatic || state.errorMarkingVideoUnusable;
+    toggle.title = automatic ? "This frame has no tracking data and is marked automatically." : state.errorMarkingVideoUnusable ? "Uncheck the video-level disposition to edit individual frames." : "Mark or unmark the current frame as unusable.";
+    toggle.classList.toggle("btn-error", bad);
+    toggle.classList.toggle("btn-outline", !bad);
+  }
+  const badge = $("error-marking-bad-frame-badge");
+  if (badge) badge.hidden = !bad;
+  $("error-marking-video-wrap")?.classList.toggle("frame-marked-bad", bad);
+}
+
+function toggleBadFrame(frame = errorMarkingCurrentFrame()) {
+  if (state.errorMarkingAutoBadFrames.includes(frame)) return;
+  if (isBadFrame(frame)) {
+    state.errorMarkingBadFrames = state.errorMarkingBadFrames.filter((candidate) => candidate !== frame);
+  } else {
+    state.errorMarkingBadFrames = [...state.errorMarkingBadFrames, frame].sort((a, b) => a - b);
+  }
+  state.errorMarkingNoErrorsConfirmed = false;
+  updateBadFrameControls(frame);
+  renderErrorMarkingTimeline();
+  scheduleSave("started");
+}
+
+function toggleBadFrameRange(start, end) {
+  if (Array.from({length: end - start + 1}, (_, index) => state.errorMarkingAutoBadFrames.includes(start + index)).some(Boolean)) return;
+  state.errorMarkingBadFrames = state.errorMarkingBadFrames.filter((frame) => frame < start || frame > end);
+  state.errorMarkingNoErrorsConfirmed = false;
+  renderErrorMarkingTimeline();
+  updateBadFrameControls();
+  scheduleSave("started");
+}
+
+function hasFiniteTrackingPoint(point) {
+  return Array.isArray(point) && point.length >= 2 && Number.isFinite(Number(point[0])) && Number.isFinite(Number(point[1]));
+}
+
+function missingTrackingFrames(data, task) {
+  const frameCount = Number(task?.frame_count) || 0;
+  const landmarks = data?.landmarks || [];
+  const frames = data?.frames || [];
+  const missing = [];
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    const frameData = frames[frame];
+    const names = landmarks.length ? landmarks : Object.keys(frameData || {});
+    const hasTracking = frameData && typeof frameData === "object" && names.some((landmark) => hasFiniteTrackingPoint(frameData[landmark]));
+    if (!hasTracking) missing.push(frame);
+  }
+  return missing;
+}
+
+function refreshAutomaticBadFrames(data, task) {
+  const next = missingTrackingFrames(data, task);
+  const changed = next.length !== state.errorMarkingAutoBadFrames.length || next.some((frame, index) => frame !== state.errorMarkingAutoBadFrames[index]);
+  state.errorMarkingAutoBadFrames = next;
+  return changed;
+}
+
+function updateVideoUnusableControls() {
+  const unusable = state.errorMarkingVideoUnusable;
+  const checkbox = $("error-marking-video-unusable");
+  if (checkbox) checkbox.checked = unusable;
+  const reasonField = $("error-marking-video-unusable-reason");
+  if (reasonField) reasonField.value = state.errorMarkingVideoUnusableReason;
+  const reasonWrap = $("error-marking-video-unusable-reason-wrap");
+  if (reasonWrap) reasonWrap.hidden = !unusable;
+  const screen = $("error-marking-screen");
+  if (screen) screen.classList.toggle("video-marked-unusable", unusable);
+  const frameToggle = $("error-marking-toggle-bad-frame");
+  if (frameToggle && !state.errorMarkingAutoBadFrames.includes(errorMarkingCurrentFrame())) {
+    frameToggle.disabled = unusable;
+  }
+}
+
+function toggleVideoUnusable() {
+  state.errorMarkingVideoUnusable = $("error-marking-video-unusable").checked;
+  state.errorMarkingNoErrorsConfirmed = false;
+  updateVideoUnusableControls();
+  scheduleSave("started");
+}
+
 function markForPartAtFrame(partId, frame) {
   return state.errorMarks.find((mark) => mark.body_part === partId && frame >= mark.start_frame && frame <= mark.end_frame) || null;
 }
@@ -491,6 +598,7 @@ function updateErrorMarkingFrameIndicator(frame = errorMarkingCurrentFrame()) {
   const scrubber = $("error-marking-scrubber");
   if (scrubber && document.activeElement !== scrubber) scrubber.value = frame;
   updateTimelinePlayhead(frame);
+  updateBadFrameControls(frame);
   renderSkeletonOverlay(frame);
 }
 
@@ -641,6 +749,12 @@ function replayErrorMarkingReview() {
 function openErrorMarkingReviewDialog() {
   const task = state.data.tasks[state.taskIndex];
   const video = $("error-marking-review-video");
+  const disposition = $("error-marking-review-disposition");
+  $("error-marking-review-title").textContent = state.errorMarkingVideoUnusable ? "Review video disposition" : "Review your marks";
+  if (disposition) {
+    disposition.hidden = !state.errorMarkingVideoUnusable;
+    disposition.textContent = state.errorMarkingVideoUnusable ? `Video marked too flawed to annotate: ${state.errorMarkingVideoUnusableReason.trim() || "reason not yet provided"}` : "";
+  }
   state.errorMarkingReviewFrame = 0;
   video.src = `/artifacts/${task.source_artifact}`;
   video.load();
@@ -705,6 +819,27 @@ function renderTimelineSegment(index, frameCount) {
   </div>`;
 }
 
+function badFrameRanges() {
+  const frames = allBadFrameNumbers();
+  const ranges = [];
+  frames.forEach((frame) => {
+    const previous = ranges[ranges.length - 1];
+    if (previous && frame <= previous.end + 1) previous.end = frame;
+    else ranges.push({start: frame, end: frame});
+  });
+  return ranges;
+}
+
+function renderBadFrameSegment(range, frameCount) {
+  const left = Math.min((range.start / frameCount) * 100, 100);
+  const width = Math.max(((range.end - range.start + 1) / frameCount) * 100, 1.5);
+  const current = errorMarkingCurrentFrame() >= range.start && errorMarkingCurrentFrame() <= range.end;
+  const automatic = Array.from({length: range.end - range.start + 1}, (_, index) => state.errorMarkingAutoBadFrames.includes(range.start + index)).some(Boolean);
+  const label = range.start === range.end ? `Unusable frame ${range.start}` : `Unusable frames ${range.start} through ${range.end}`;
+  const title = automatic ? `${label} (missing tracking data)` : `${label} (marked manually)`;
+  return `<button type="button" class="timeline-bad-frame${current ? " timeline-bad-frame-current" : ""}${automatic ? " timeline-bad-frame-auto" : ""}" data-bad-frame-start="${range.start}" data-bad-frame-end="${range.end}" style="left:${left}%;width:${width}%" aria-label="${label}" title="${title}"></button>`;
+}
+
 function updateTimelineSegmentPosition(index) {
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
   const mark = state.errorMarks[index];
@@ -728,7 +863,7 @@ function renderErrorMarkingTimeline() {
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
   const minTrackWidth = Math.max(1, errorMarkingFrameCount()) * MIN_TIMELINE_PX_PER_FRAME;
   const editing = state.editingBodyParts;
-  const rowCount = groups.length + 1;
+  const rowCount = groups.length + 2;
 
   // Row headers and row tracks are separate DOM subtrees (so the track
   // column alone can scroll horizontally) but must land on the same grid
@@ -738,7 +873,7 @@ function renderErrorMarkingTimeline() {
   // frame scrubber (an empty spacer on the header side), so its handle
   // scrolls and scales in lockstep with the track column beneath it and
   // lines up with the playhead at the same frame.
-  const headerCells = "<div></div>" + groups.map(({part}) => `
+  const headerCells = "<div></div>" + `<div class="timeline-row-header"><span class="timeline-row-label text-error">Whole frame</span></div>` + groups.map(({part}) => `
     <div class="timeline-row-header">
       <span class="timeline-row-label">${part.label}</span>
       ${editing
@@ -749,7 +884,8 @@ function renderErrorMarkingTimeline() {
 
   const scrubberRowHTML = `<input id="error-marking-scrubber" class="timeline-scrubber" type="range" min="0" max="${Math.max(errorMarkingFrameCount() - 1, 0)}" step="1" value="${errorMarkingCurrentFrame()}" aria-label="Frame scrubber">`;
 
-  const trackCells = groups.map(({part, indices}) =>
+  const badFrameTrack = `<div class="timeline-row-track timeline-bad-frame-track" aria-label="Frames marked unusable">${badFrameRanges().map((range) => renderBadFrameSegment(range, frameCount)).join("")}</div>`;
+  const trackCells = badFrameTrack + groups.map(({part, indices}) =>
     `<div class="timeline-row-track" data-track-part="${part.id}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>`
   ).join("");
 
@@ -760,8 +896,8 @@ function renderErrorMarkingTimeline() {
     : "") +
     `<button type="button" id="timeline-edit-body-parts-toggle" class="btn btn-xs btn-ghost timeline-edit-toggle" aria-label="${editing ? "Done editing body parts" : "Edit body parts"}" title="${editing ? "Done editing body parts" : "Edit body parts"}">${editing ? "✓ Done" : "Edit"}</button>`;
 
-  container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Click-drag an empty part of the timeline to start a new error. Click an existing span to set its cause; drag its edges to adjust.</div>` +
-    `<div class="timeline-grid grid gap-x-[.6rem] items-stretch" style="grid-template-columns:auto 1fr;grid-template-rows:auto repeat(${groups.length},1.6rem);row-gap:.4rem">
+  container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Red frames are unusable as a whole and do not need landmark repair. Click-drag an empty body-part row to start a landmark error; click an existing span to set its cause; drag its edges to adjust.</div>` +
+    `<div class="timeline-grid grid gap-x-[.6rem] items-stretch" style="grid-template-columns:auto 1fr;grid-template-rows:auto repeat(${groups.length + 1},1.6rem);row-gap:.4rem">
       <div class="timeline-left-col grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount}">${headerCells}</div>
       <div class="timeline-scroll grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount}">
         <div class="timeline-scroll-inner grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount};min-width:${minTrackWidth}px">${scrubberRowHTML}${trackCells}<div class="timeline-playhead" style="left:${timelinePlayheadLeftPercent()}%"></div></div>
@@ -832,6 +968,14 @@ function attachTimelineHandlers() {
       saveErrorList("body_part", errorListArray("body_part").filter((item) => item.id !== deleteButton.dataset.deletePart));
       return;
     }
+    const badFrame = event.target.closest("[data-bad-frame-start]");
+    if (badFrame) {
+      const start = Number(badFrame.dataset.badFrameStart);
+      const end = Number(badFrame.dataset.badFrameEnd);
+      if (start === end) toggleBadFrame(start);
+      else toggleBadFrameRange(start, end);
+      return;
+    }
     const segment = event.target.closest(".timeline-segment");
     if (!segment || event.target.closest(".timeline-handle")) return;
     openErrorMarkPopup(Number(segment.dataset.markIndex));
@@ -859,6 +1003,7 @@ function attachTimelineHandlers() {
     if (handle) { startTimelineHandleDrag(event, handle); return; }
     if (event.target.closest(".timeline-segment")) return;
     const track = event.target.closest(".timeline-row-track");
+    if (track?.classList.contains("timeline-bad-frame-track")) return;
     if (track) startNewMarkDrag(event, track);
   });
 }
@@ -1034,11 +1179,25 @@ async function loadErrorMarkingLandmarks(task) {
   if (state.errorMarkingLandmarksTaskId === task.task_id) { renderSkeletonOverlay(); return; }
   state.errorMarkingLandmarks = null;
   state.errorMarkingLandmarksTaskId = task.task_id;
-  if (!task.landmarks_artifact) { renderSkeletonOverlay(); return; }
+  if (!task.landmarks_artifact) {
+    refreshAutomaticBadFrames({frames: []}, task);
+    renderErrorMarkingTimeline();
+    updateErrorMarkingFrameIndicator();
+    scheduleSave("started");
+    renderSkeletonOverlay();
+    return;
+  }
   try {
     const response = await authenticatedFetch(`/artifacts/${task.landmarks_artifact}`);
     const data = await responseJson(response);
-    if (state.data.tasks[state.taskIndex]?.task_id === task.task_id) state.errorMarkingLandmarks = data;
+    if (state.data.tasks[state.taskIndex]?.task_id === task.task_id) {
+      state.errorMarkingLandmarks = data;
+      if (refreshAutomaticBadFrames(data, task)) {
+        renderErrorMarkingTimeline();
+        updateErrorMarkingFrameIndicator();
+        scheduleSave("started");
+      }
+    }
   } catch (error) { /* no overlay for this clip; video still works on its own */ }
   renderSkeletonOverlay();
 }
@@ -1293,6 +1452,7 @@ function renderErrorMarkingTask(task, judgment) {
   pauseTemporalVideos();
   hideAllScreens();
   $("error-marking-screen").hidden = false;
+  $("actions").hidden = false;
   $("mark-unclear").hidden = true;
 
   const video = errorMarkingVideo();
@@ -1311,7 +1471,13 @@ function renderErrorMarkingTask(task, judgment) {
 
   const response = judgment?.error_marking_response || {};
   state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], note: "", positions: {}, ...mark}));
-  state.errorMarkingNoErrorsConfirmed = false;
+  state.errorMarkingBadFrames = [...new Set((response.bad_frames || []).map(Number))]
+    .filter((frame) => Number.isInteger(frame) && frame >= 0)
+    .sort((a, b) => a - b);
+  state.errorMarkingAutoBadFrames = [];
+  state.errorMarkingVideoUnusable = Boolean(response.video_unusable);
+  state.errorMarkingVideoUnusableReason = response.video_unusable_reason || "";
+  state.errorMarkingNoErrorsConfirmed = Boolean(response.no_errors_found);
   state.errorMarkingDirty = false;
   state.editingBodyParts = false;
   state.addingBodyPartEntry = false;
@@ -1328,14 +1494,20 @@ function renderErrorMarkingTask(task, judgment) {
   attachSkeletonOverlayHandlers();
   renderErrorMarkingTimeline();
   updateErrorMarkingFrameIndicator();
+  updateVideoUnusableControls();
   $("error-marking-note").value = response.note || "";
   $("error-marking-note").oninput = () => scheduleSave("started");
 }
 
 function errorMarkingResponsePayload() {
+  const badFrames = allBadFrameNumbers();
+  const videoUnusable = state.errorMarkingVideoUnusable;
   return {
-    marks: state.errorMarks,
-    no_errors_found: state.errorMarks.length === 0 && Boolean(state.errorMarkingNoErrorsConfirmed),
+    marks: videoUnusable ? [] : state.errorMarks,
+    bad_frames: videoUnusable ? [] : badFrames,
+    video_unusable: videoUnusable,
+    video_unusable_reason: videoUnusable ? state.errorMarkingVideoUnusableReason.trim() : "",
+    no_errors_found: !videoUnusable && state.errorMarks.length === 0 && badFrames.length === 0 && Boolean(state.errorMarkingNoErrorsConfirmed),
     note: $("error-marking-note").value.trim(),
   };
 }
@@ -1344,6 +1516,7 @@ function renderQualityRatingTask(task, judgment) {
   pauseTemporalVideos();
   hideAllScreens();
   $("quality-rating-screen").hidden = false;
+  $("actions").hidden = false;
   $("mark-unclear").hidden = true;
 
   $("quality-rating-image").src = `/artifacts/${task.source_artifact}`;
@@ -1476,6 +1649,30 @@ function sourcePoint(event) {
   };
 }
 
+function applyCanvasPan() {
+  const canvas = $("ground-truth-canvas");
+  canvas.style.transform = `translate(${state.canvasPanX}px, ${state.canvasPanY}px)`;
+}
+
+function pointerMidpoint() {
+  const pointers = [...state.activePointers.values()].slice(0, 2);
+  return pointers.length === 2 ? {
+    x: (pointers[0].x + pointers[1].x) / 2,
+    y: (pointers[0].y + pointers[1].y) / 2,
+  } : null;
+}
+
+function cancelLandmarkDrag(restore = false) {
+  if (restore && state.dragLandmark && state.dragStart) {
+    state.groundTruth[state.dragLandmark] = structuredClone(state.dragStart);
+    drawEditor();
+  }
+  state.dragLandmark = null;
+  state.dragStart = null;
+  state.dragPointerId = null;
+  state.dragMoved = false;
+}
+
 function nearestLandmark(point, radius) {
   const nearest = Object.entries(state.groundTruth)
     .map(([name, value]) => [name, Math.hypot(value.x - point.x, value.y - point.y)])
@@ -1528,7 +1725,13 @@ function configureCanvas() {
   const canvas = $("ground-truth-canvas");
   canvas.onpointerdown = (event) => {
     state.activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY});
-    if (state.activePointers.size > 1) return;
+    canvas.setPointerCapture?.(event.pointerId);
+    if (state.activePointers.size > 1) {
+      cancelLandmarkDrag(true);
+      const midpoint = pointerMidpoint();
+      state.panStart = midpoint && {midpoint, x: state.canvasPanX, y: state.canvasPanY};
+      return;
+    }
     const point = sourcePoint(event);
     const rect = canvas.getBoundingClientRect();
     const hitRadius = 24 * Math.max(canvas.width / rect.width, canvas.height / rect.height);
@@ -1545,6 +1748,16 @@ function configureCanvas() {
   };
   canvas.onpointermove = (event) => {
     if (state.activePointers.has(event.pointerId)) state.activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY});
+    if (state.activePointers.size >= 2) {
+      const midpoint = pointerMidpoint();
+      if (!state.panStart && midpoint) state.panStart = {midpoint, x: state.canvasPanX, y: state.canvasPanY};
+      if (state.panStart && midpoint) {
+        state.canvasPanX = state.panStart.x + midpoint.x - state.panStart.midpoint.x;
+        state.canvasPanY = state.panStart.y + midpoint.y - state.panStart.midpoint.y;
+        applyCanvasPan();
+      }
+      return;
+    }
     if (!state.dragLandmark || event.pointerId !== state.dragPointerId || state.activePointers.size !== 1) return;
     state.dragMoved = true;
     const point = sourcePoint(event), geometry = editorGeometry();
@@ -1556,8 +1769,9 @@ function configureCanvas() {
     drawEditor();
   };
   canvas.onpointerup = (event) => {
+    const wasPanning = state.activePointers.size >= 2 || Boolean(state.panStart);
     state.activePointers.delete(event.pointerId);
-    if (state.dragLandmark && event.pointerId === state.dragPointerId) {
+    if (!wasPanning && state.dragLandmark && event.pointerId === state.dragPointerId) {
       const point = state.groundTruth[state.dragLandmark];
       if (Math.hypot(point.x - state.dragStart.x, point.y - state.dragStart.y) > .1) {
         const interaction = state.landmarkInteractions[state.dragLandmark];
@@ -1568,12 +1782,11 @@ function configureCanvas() {
       }
       else if (!state.dragMoved) openLandmarkDialog(state.dragLandmark);
     }
-    if (event.pointerId === state.dragPointerId) {
-      state.dragLandmark = null; state.dragStart = null; state.dragPointerId = null;
-    }
+    if (event.pointerId === state.dragPointerId) cancelLandmarkDrag();
+    if (state.activePointers.size < 2) state.panStart = null;
     canvas.releasePointerCapture?.(event.pointerId);
   };
-  canvas.onpointercancel = (event) => { state.activePointers.delete(event.pointerId); state.dragLandmark = null; state.dragStart = null; state.dragPointerId = null; };
+  canvas.onpointercancel = (event) => { state.activePointers.delete(event.pointerId); cancelLandmarkDrag(); if (state.activePointers.size < 2) state.panStart = null; };
 }
 
 function zoomImage(src, alt) { $("dialog-image").src = src; $("dialog-image").alt = alt; $("image-dialog").showModal(); }
@@ -1581,7 +1794,6 @@ function render() {
   const task = state.data.tasks[state.taskIndex], judgment = latest(task), progress = state.data.progress;
   $("progress").textContent = `${progress.completed} / ${progress.total} Completed`;
   $("task-picker").innerHTML = state.data.tasks.map((item, index) => `<option value="${index}" ${index === state.taskIndex ? "selected" : ""}>Case ${index + 1}: ${taskStatus(item).replace(/^./, (letter) => letter.toUpperCase())}</option>`).join("");
-  $("previous-case").hidden = state.taskIndex === 0;
   if (isTemporalTask(task)) {
     $("triage-screen").hidden = true;
     renderTemporalTask(task, judgment);
@@ -1602,8 +1814,8 @@ function render() {
   }
   pauseTemporalVideos();
   hideAllScreens();
-  $("skeleton-screen").hidden = false;
-  $("annotation-screen").hidden = false;
+  state.canvasPanX = 0; state.canvasPanY = 0; state.panStart = null;
+  applyCanvasPan();
   $("mark-unclear").hidden = false;
   if (!state.selectedLandmark || !state.groundTruth[state.selectedLandmark]) {
     state.selectedLandmark = mostDiscrepantLandmark(task);
@@ -1617,13 +1829,13 @@ function render() {
   state.initialLandmarkSources = judgment?.initial_landmark_sources && Object.keys(judgment.initial_landmark_sources).length ? structuredClone(judgment.initial_landmark_sources) : structuredClone(initialized.sources);
   state.groundTruth = judgment?.ground_truth_landmarks && Object.keys(judgment.ground_truth_landmarks).length ? structuredClone(judgment.ground_truth_landmarks) : structuredClone(generatedInitial);
   state.landmarkInteractions = judgment?.landmark_interactions && Object.keys(judgment.landmark_interactions).length ? structuredClone(judgment.landmark_interactions) : inferredInteractions(state.initialGroundTruth, state.groundTruth);
-  if (state.selectedLandmark) openLandmarkDialog(state.selectedLandmark);
   const canvas = $("ground-truth-canvas"), geometry = editorGeometry();
   canvas.width = geometry.canvasWidth; canvas.height = geometry.canvasHeight;
   loadSourceImage(task);
   $("frame-note").value = judgment?.notes || "";
   $("frame-note").oninput = () => scheduleSave("started");
   renderSourceEvidence(task, judgment);
+  showFrameScreen(state.screen);
 }
 
 function payload(status) {
@@ -1659,8 +1871,11 @@ function payload(status) {
   }
   if (isErrorMarkingTask(task)) {
     const errorMarkingResponse = errorMarkingResponsePayload();
-    if (status === "completed" && !errorMarkingResponse.marks.length && !errorMarkingResponse.no_errors_found) {
-      throw new Error('Add at least one error mark, or check "No errors observed in this clip."');
+    if (status === "completed" && errorMarkingResponse.video_unusable && !errorMarkingResponse.video_unusable_reason) {
+      throw new Error("Explain why this entire video is too flawed to annotate.");
+    }
+    if (status === "completed" && !errorMarkingResponse.video_unusable && !errorMarkingResponse.marks.length && !errorMarkingResponse.bad_frames.length && !errorMarkingResponse.no_errors_found) {
+      throw new Error('Add at least one error mark, flag an unusable frame, mark the video as too flawed, or check "No errors observed in this clip."');
     }
     return {
       annotator: state.annotator,
@@ -1729,12 +1944,13 @@ async function navigateTo(targetIndex) {
 
 $("start").onclick = loadState;
 $("task-picker").onchange = (event) => navigateTo(Number(event.target.value)); $("reset-skeleton").onclick = () => resetSkeleton(true); configureCanvas();
+$("to-annotation").onclick = () => { state.screen = "annotation"; showFrameScreen(state.screen); };
+$("back-to-skeleton").onclick = () => { state.screen = "skeleton"; showFrameScreen(state.screen); };
 $("temporal-play").onclick = () => playTemporalVideos(false);
 $("temporal-pause").onclick = pauseTemporalVideos;
 $("temporal-restart").onclick = () => playTemporalVideos(true);
 $("temporal-speed-half").onclick = () => setTemporalSpeed(.5);
 $("temporal-speed-normal").onclick = () => setTemporalSpeed(1);
-$("previous-case").onclick = () => navigateTo(state.taskIndex - 1);
 $("logout").onclick = async () => { try { await authenticatedFetch("/api/logout", {method: "POST"}); } finally { pauseTemporalVideos(); localStorage.removeItem("annotation-access-token"); localStorage.removeItem("annotation-annotator"); sessionStorage.removeItem("annotation-access-token"); $("access-token").value = ""; $("annotator").value = ""; $("remember-access-token").checked = false; $("workspace").hidden = true; $("login-panel").hidden = false; $("user-menu").hidden = true; $("save-state").textContent = "logged out"; } };
 const rememberedToken = localStorage.getItem("annotation-access-token");
 const rememberedAnnotator = localStorage.getItem("annotation-annotator");
@@ -1754,10 +1970,21 @@ fetch("/api/access-info").then(responseJson).then((info) => {
 }).catch(() => {
   if (rememberedToken && rememberedAnnotator) loadState();
 });
+$("error-marking-toggle-bad-frame").onclick = () => toggleBadFrame();
+$("error-marking-video-unusable").onchange = toggleVideoUnusable;
+$("error-marking-video-unusable-reason").oninput = (event) => {
+  state.errorMarkingVideoUnusableReason = event.target.value;
+  scheduleSave("started");
+};
 document.querySelectorAll(".actions button[data-status]").forEach((button) => button.onclick = async () => {
   const task = state.data?.tasks?.[state.taskIndex];
-  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarks.length) {
-    if (!confirm("No errors were marked for this clip. Complete it as “no errors observed”?")) return;
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && state.errorMarkingVideoUnusable && !state.errorMarkingVideoUnusableReason.trim()) {
+    alert("Explain why this entire video is too flawed to annotate.");
+    $("error-marking-video-unusable-reason")?.focus();
+    return;
+  }
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarkingVideoUnusable && !state.errorMarks.length && !allBadFrameNumbers().length) {
+    if (!confirm("No errors or unusable frames were marked for this clip. Complete it as “no errors observed”?")) return;
     state.errorMarkingNoErrorsConfirmed = true;
   }
   // Gate completion on a replay review only when there's something new to

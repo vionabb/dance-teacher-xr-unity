@@ -9,6 +9,13 @@ overlay review database. Start the local tool with:
   --database data/human-annotations/preprocessing-overlay-quality/annotations.sqlite3
 ```
 
+This database is only for the `20260825-preprocessing-cleanup-v10` overlay
+review manifest. For the later quality-triage batch and its error-marking
+cases, use [the quality-triage database README](../quality-triage/README.md)
+and its separate `quality-triage/annotations.sqlite3` database. The server
+filters history by experiment ID, so mixing these two databases/manifests
+makes existing judgments appear to be missing.
+
 Live SQLite, WAL, and shared-memory files are intentionally ignored by Git.
 They may contain judgments tied to access-controlled participant artifacts.
 Periodically use the tool's JSONL export, verify it is nonempty, and copy the
