@@ -665,7 +665,7 @@ function setErrorMarkingReviewReplayPlaying(playing) {
   button.setAttribute("aria-pressed", String(playing));
 }
 
-// The dropdown's plain numbers (2/4/8) are a fixed frame-stepping rate in
+// The dropdown's plain numbers (1/2/4/8) are a fixed frame-stepping rate in
 // frames/sec, decoupled from the clip's own frame rate -- useful for a
 // quick, deliberately choppy scrub through every frame. A "0.5x"/"1x" value
 // is instead a fraction of the clip's *own* fps (errorMarkingFps()), so it
@@ -821,11 +821,13 @@ function renderTimelineSegment(index, frameCount) {
 
 function badFrameRanges() {
   const frames = allBadFrameNumbers();
+  const automaticFrames = new Set(state.errorMarkingAutoBadFrames);
   const ranges = [];
   frames.forEach((frame) => {
     const previous = ranges[ranges.length - 1];
-    if (previous && frame <= previous.end + 1) previous.end = frame;
-    else ranges.push({start: frame, end: frame});
+    const automatic = automaticFrames.has(frame);
+    if (previous && frame <= previous.end + 1 && previous.automatic === automatic) previous.end = frame;
+    else ranges.push({start: frame, end: frame, automatic});
   });
   return ranges;
 }
@@ -834,10 +836,9 @@ function renderBadFrameSegment(range, frameCount) {
   const left = Math.min((range.start / frameCount) * 100, 100);
   const width = Math.max(((range.end - range.start + 1) / frameCount) * 100, 1.5);
   const current = errorMarkingCurrentFrame() >= range.start && errorMarkingCurrentFrame() <= range.end;
-  const automatic = Array.from({length: range.end - range.start + 1}, (_, index) => state.errorMarkingAutoBadFrames.includes(range.start + index)).some(Boolean);
   const label = range.start === range.end ? `Unusable frame ${range.start}` : `Unusable frames ${range.start} through ${range.end}`;
-  const title = automatic ? `${label} (missing tracking data)` : `${label} (marked manually)`;
-  return `<button type="button" class="timeline-bad-frame${current ? " timeline-bad-frame-current" : ""}${automatic ? " timeline-bad-frame-auto" : ""}" data-bad-frame-start="${range.start}" data-bad-frame-end="${range.end}" style="left:${left}%;width:${width}%" aria-label="${label}" title="${title}"></button>`;
+  const title = range.automatic ? `${label} (missing tracking data)` : `${label} (marked manually)`;
+  return `<button type="button" class="timeline-bad-frame${current ? " timeline-bad-frame-current" : ""}${range.automatic ? " timeline-bad-frame-auto" : ""}" data-bad-frame-start="${range.start}" data-bad-frame-end="${range.end}" style="left:${left}%;width:${width}%" aria-label="${label}" title="${title}"></button>`;
 }
 
 function updateTimelineSegmentPosition(index) {
@@ -854,7 +855,7 @@ function updateTimelineSegmentPosition(index) {
 function renderErrorMarkingLegend() {
   const causes = errorListArray("cause");
   const swatch = (color, label) => `<span class="timeline-legend-item"><span class="timeline-legend-swatch" style="background:${color}"></span>${label}</span>`;
-  return `<div class="timeline-legend">${swatch(UNSET_CAUSE_COLOR, "No cause set")}${causes.map((cause) => swatch(causeColor(cause.id), cause.label)).join("")}</div>`;
+  return `<div class="timeline-legend">${swatch("#b3261e", "Manual whole-frame unusable")}${swatch("#b3261e66", "Automatic: missing tracking")}${swatch(UNSET_CAUSE_COLOR, "No cause set")}${causes.map((cause) => swatch(causeColor(cause.id), cause.label)).join("")}</div>`;
 }
 
 function renderErrorMarkingTimeline() {
