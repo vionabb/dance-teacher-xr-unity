@@ -360,7 +360,7 @@ def test_video_unusable_disposition_persists_its_reason(page, tmp_path: Path) ->
     try:
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
         expect(page.locator("#error-marking-screen")).to_be_visible()
-        page.locator("#error-marking-video-unusable").check()
+        page.locator("#error-marking-video-unusable-control").click()
         reason = page.locator("#error-marking-video-unusable-reason")
         expect(reason).to_be_visible()
         reason.fill("The tracking is detached from the dancer for the entire clip.")
