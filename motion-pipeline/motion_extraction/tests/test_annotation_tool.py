@@ -1186,6 +1186,8 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert 'name="error-marking-usability-rating" value="correctable"' in html
     assert 'name="error-marking-usability-rating" value="perfect"' in html
     assert 'id="error-marking-usability-toggle"' in html
+    assert 'class="video-usability-control-row"' in html
+    assert '>Video</span>' in html
     assert 'class="video-usability-handle"' in html
     assert 'class="video-usability-symbol"' in html
     error_screen_start = html.index('id="error-marking-screen"')
@@ -1512,6 +1514,8 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     assert "left: calc(50% + .5px);" in css
     assert 'data-frame-state="unusable"' in css
     assert ".video-usability-toggle {" in css
+    assert ".video-usability-control-row { display: inline-flex; align-items: stretch;" in css
+    assert "min-height: 2.25rem;" in css[css.index(".video-usability-toggle {"):].split("}", 1)[0]
     assert ".video-usability-toggle[data-video-state=\"perfect\"]" in css
     assert "transition: left .18s ease" in css
     assert "#error-marking-video { display: block; max-height: calc(32vh + 2.75rem);" in css

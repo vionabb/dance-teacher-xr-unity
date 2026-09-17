@@ -146,17 +146,19 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .frame-usability-option.frame-usability-usable.frame-usability-option-active { color: #056b59; }
 .frame-usability-option:not(.frame-usability-option-active) { background: #eef2f1; }
 .frame-usability-divider { align-self: stretch; width: 1px; background: #9eb3ad; }
-.video-usability-toggle { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 3.4rem; overflow: hidden; border: 1px solid #b9cbc5; border-radius: .7rem; background: #fff; }
+.video-usability-fieldset { display: flex; justify-content: center; }
+.video-usability-control-row { display: inline-flex; align-items: stretch; max-width: 100%; }
+.video-usability-toggle { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(15rem, calc(100vw - 7rem)); min-height: 2.25rem; overflow: hidden; border: 1px solid #b9cbc5; border-radius: .5rem; background: #fff; }
 .video-usability-handle { position: absolute; z-index: 0; top: 0; bottom: 0; left: 0; width: 25%; pointer-events: none; transition: left .18s ease, background-color .18s ease; }
 .video-usability-toggle[data-video-state="marginal"] .video-usability-handle { left: 25%; background: #f8c98e; }
 .video-usability-toggle[data-video-state="correctable"] .video-usability-handle { left: 50%; background: #f4df9b; }
 .video-usability-toggle[data-video-state="perfect"] .video-usability-handle { left: 75%; background: #b8e6d8; }
 .video-usability-toggle[data-video-state="unusable"] .video-usability-handle { left: 0; background: #f3b9b5; }
-.video-usability-option { position: relative; z-index: 1; display: grid; place-items: center; min-height: 3.4rem; padding: .35rem .5rem; background: transparent; border: 0; border-right: 1px solid #d8e3df; cursor: pointer; }
+.video-usability-option { position: relative; z-index: 1; display: grid; place-items: center; min-height: 2.25rem; padding: 0 .6rem; background: transparent; border: 0; border-right: 1px solid #d8e3df; cursor: pointer; }
 .video-usability-option:last-of-type { border-right: 0; }
 .video-usability-option:not(:has(input:checked)) { background: #eef2f1; }
 .video-usability-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.video-usability-symbol { color: currentColor; font-size: 1.85rem; font-weight: 850; line-height: 1; }
+.video-usability-symbol { color: currentColor; font-size: 1.35rem; font-weight: 850; line-height: 1; }
 .video-usability-symbol sub { position: relative; top: .25em; margin-left: .04em; font-size: .62em; font-weight: 800; }
 .video-usability-option:focus-within { outline: 3px solid #0d7f68; outline-offset: -3px; }
 .video-usability-option:has(input:checked) { color: #173c37; }
@@ -164,7 +166,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .video-usability-marginal { color: #eb8b2d; }
 .video-usability-correctable { color: #d49a00; }
 .video-usability-perfect { color: #087f68; }
-.video-usability-description { min-height: 1.15rem; margin: .4rem 0 0; color: var(--muted); font-size: .78rem; }
 .video-marked-unusable .timeline-joint-track-disabled { opacity: .48; cursor: not-allowed; pointer-events: none; }
 .video-marked-unusable #error-marking-overlay { cursor: not-allowed; }
 @media (max-width: 800px) { .error-marking-usability-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
