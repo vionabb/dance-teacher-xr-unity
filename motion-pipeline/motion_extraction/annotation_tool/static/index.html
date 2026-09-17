@@ -169,8 +169,17 @@
       </figure>
       <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
         <div class="error-marking-disposition-controls">
-          <button id="error-marking-mark-frame-usable" class="btn btn-sm btn-success btn-outline" type="button" aria-pressed="false">Mark frame usable</button>
-          <button id="error-marking-mark-frame-unusable" class="btn btn-sm btn-error btn-outline" type="button" aria-pressed="false">Mark frame unusable</button>
+          <span class="frame-usability-label">Frame</span>
+          <div id="error-marking-frame-usability-toggle" class="frame-usability-toggle" data-frame-state="usable" role="group" aria-label="Frame usability">
+            <span class="frame-usability-handle" aria-hidden="true"></span>
+            <button id="error-marking-mark-frame-unusable" class="frame-usability-option frame-usability-unusable" type="button" aria-label="Mark frame unusable" aria-pressed="false">
+              <span aria-hidden="true">×</span><span class="sr-only">Mark frame unusable</span>
+            </button>
+            <span class="frame-usability-divider" aria-hidden="true"></span>
+            <button id="error-marking-mark-frame-usable" class="frame-usability-option frame-usability-usable" type="button" aria-label="Mark frame usable" aria-pressed="false">
+              <span aria-hidden="true">✓</span><span class="sr-only">Mark frame usable</span>
+            </button>
+          </div>
           <label id="error-marking-video-unusable-control" class="btn btn-sm btn-error btn-outline cursor-pointer">
             <input id="error-marking-video-unusable" class="sr-only" type="checkbox">
             <span id="error-marking-video-unusable-label">Mark entire video unusable</span>

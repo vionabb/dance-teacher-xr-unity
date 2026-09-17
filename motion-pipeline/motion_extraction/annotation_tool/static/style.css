@@ -134,6 +134,18 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .error-marking-disposition-controls { display: inline-flex; align-items: stretch; overflow: hidden; border: 1px solid #e6c8c6; border-radius: .5rem; }
 .error-marking-disposition-controls > .btn { min-height: 2.25rem; border: 0; border-radius: 0; font-size: .875rem; font-weight: 650; }
 .error-marking-disposition-controls > .btn + .btn { border-left: 1px solid #e6c8c6; }
+.frame-usability-label { display: inline-flex; align-items: center; padding: 0 .7rem; color: var(--muted); font-size: .82rem; font-weight: 750; }
+.frame-usability-toggle { position: relative; display: grid; grid-template-columns: 1fr 1px 1fr; align-items: center; gap: .2rem; min-width: 7.5rem; padding: .2rem; background: #fff; }
+.frame-usability-handle { position: absolute; z-index: 0; top: .2rem; bottom: .2rem; left: .2rem; width: calc(50% - .4rem); border: 1px solid #087f68; border-radius: .35rem; background: #b8e6d8; pointer-events: none; transition: left .18s ease, background-color .18s ease, border-color .18s ease; }
+.frame-usability-toggle[data-frame-state="unusable"] .frame-usability-handle { left: calc(50% + .2rem); border-color: #b3261e; background: #f3b9b5; }
+.frame-usability-option { position: relative; z-index: 1; display: grid; place-items: center; width: 100%; min-height: 1.85rem; padding: 0 .6rem; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: .35rem; font-size: 1.35rem; font-weight: 800; line-height: 1; cursor: pointer; }
+.frame-usability-option:hover { filter: brightness(.97); }
+.frame-usability-option.frame-usability-unusable { color: #b3261e; }
+.frame-usability-option.frame-usability-usable { color: #087f68; }
+.frame-usability-option.frame-usability-unusable.frame-usability-option-active { color: #8d211b; }
+.frame-usability-option.frame-usability-usable.frame-usability-option-active { color: #056b59; }
+.frame-usability-option:not(.frame-usability-option-active) { background: transparent; border-color: currentColor; }
+.frame-usability-divider { align-self: stretch; width: 1px; background: var(--line); }
 .error-marking-usability-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .45rem; }
 .error-marking-usability-options .label { align-items: start; gap: .45rem; min-height: 3.1rem; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: .55rem; background: #fbfdfc; }
 .error-marking-usability-options .label:has(input:checked) { border-color: var(--teal); background: #e9f5f1; box-shadow: inset 0 0 0 1px var(--teal); }
