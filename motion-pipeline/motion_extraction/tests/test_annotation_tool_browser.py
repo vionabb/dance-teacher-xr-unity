@@ -1,6 +1,7 @@
 """Real-Chromium tests for annotation-tool interaction contracts that a
 static source-text assertion cannot verify: canvas pointer-drag coordinate
-transforms, the LAN access-code gate, and narrow-viewport reachability.
+transforms, the LAN access-code gate, segmented-control geometry/state, and
+narrow-viewport reachability.
 
 Opt in with the `browser-tests` dependency group and a one-time browser
 install, then run explicitly (not part of the default test collection):
@@ -171,9 +172,13 @@ def test_narrow_mobile_viewport_keeps_key_controls_reachable(page, tmp_path: Pat
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
         expect(page.locator("#workspace")).to_be_visible()
 
+        expect(page.locator("#to-annotation")).to_be_in_viewport()
+        expect(page.locator("#reset-skeleton")).to_be_in_viewport()
+        expect(page.locator("#landmark-panel")).to_be_in_viewport()
+
+        page.click("#to-annotation")
         expect(page.locator("#complete-case")).to_be_in_viewport()
         expect(page.locator("#mark-unclear")).to_be_in_viewport()
-        expect(page.locator("#landmark-panel")).to_be_in_viewport()
     finally:
         _stop_server(server, thread)
 
@@ -288,6 +293,36 @@ def _overlay_rect(page) -> dict:
     )
 
 
+def _segmented_control_geometry(page, selector: str) -> dict:
+    return page.evaluate(
+        """(selector) => {
+            const control = document.querySelector(selector);
+            const handle = control.querySelector('.segmented-control-handle');
+            const rect = (element) => {
+              const box = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              return {
+                left: box.left, right: box.right, top: box.top, bottom: box.bottom,
+                width: box.width, height: box.height,
+                background: style.backgroundColor, fontSize: style.fontSize,
+                outlineWidth: style.outlineWidth, outlineStyle: style.outlineStyle,
+              };
+            };
+            return {
+              state: control.dataset.state,
+              control: rect(control),
+              handle: {...rect(handle), opacity: getComputedStyle(handle).opacity},
+              options: [...control.querySelectorAll('.segmented-control-option')].map((option) => ({
+                value: option.dataset.segmentValue,
+                checked: option.getAttribute('aria-checked'),
+                ...rect(option),
+              })),
+            };
+        }""",
+        selector,
+    )
+
+
 def test_clicking_a_skeleton_landmark_creates_a_mark_at_the_current_frame(page, tmp_path: Path) -> None:
     server, store, thread = _start_error_marking_server(tmp_path)
     try:
@@ -324,9 +359,9 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
         usable = page.locator("#error-marking-mark-frame-usable")
         unusable = page.locator("#error-marking-mark-frame-unusable")
         toggle = page.locator("#error-marking-frame-usability-toggle")
-        expect(toggle).to_have_attribute("data-frame-state", "usable")
-        expect(usable).to_have_class(re.compile(r"frame-usability-option-active"))
-        expect(unusable).not_to_have_class(re.compile(r"frame-usability-option-active"))
+        expect(toggle).to_have_attribute("data-state", "usable")
+        expect(usable).to_have_attribute("aria-checked", "true")
+        expect(unusable).to_have_attribute("aria-checked", "false")
 
         def toggle_centers() -> dict[str, float]:
             return page.evaluate(
@@ -336,7 +371,7 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
                         return rect.left + rect.width / 2;
                     };
                     return {
-                        handle: center('.frame-usability-handle'),
+                        handle: center('.segmented-control-handle'),
                         usable: center('#error-marking-mark-frame-usable'),
                         unusable: center('#error-marking-mark-frame-unusable'),
                     };
@@ -349,10 +384,10 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
         unusable.click()
         unusable.click()
 
-        expect(unusable).to_have_attribute("aria-pressed", "true")
-        expect(toggle).to_have_attribute("data-frame-state", "unusable")
-        expect(unusable).to_have_class(re.compile(r"frame-usability-option-active"))
-        expect(usable).not_to_have_class(re.compile(r"frame-usability-option-active"))
+        expect(unusable).to_have_attribute("aria-checked", "true")
+        expect(toggle).to_have_attribute("data-state", "unusable")
+        expect(unusable).to_have_attribute("aria-checked", "true")
+        expect(usable).to_have_attribute("aria-checked", "false")
         page.wait_for_timeout(220)
         centers = toggle_centers()
         assert centers["handle"] == pytest.approx(centers["unusable"], abs=2)
@@ -374,16 +409,121 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
         usable.click()
         usable.click()
         page.evaluate("() => flushPendingSave()")
-        expect(usable).to_have_attribute("aria-pressed", "true")
-        expect(toggle).to_have_attribute("data-frame-state", "usable")
-        expect(usable).to_have_class(re.compile(r"frame-usability-option-active"))
-        expect(unusable).not_to_have_class(re.compile(r"frame-usability-option-active"))
+        expect(usable).to_have_attribute("aria-checked", "true")
+        expect(toggle).to_have_attribute("data-state", "usable")
+        expect(usable).to_have_attribute("aria-checked", "true")
+        expect(unusable).to_have_attribute("aria-checked", "false")
         page.wait_for_timeout(220)
         centers = toggle_centers()
         assert centers["handle"] == pytest.approx(centers["usable"], abs=2)
         response = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]
         assert response["bad_frames"] == []
         assert response["usable_frames"] == [0]
+    finally:
+        _stop_server(server, thread)
+
+
+def test_frame_and_video_usability_handles_align_with_every_selected_state(page, tmp_path: Path) -> None:
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        page.set_viewport_size({"width": 1100, "height": 800})
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+
+        frame_selector = "#error-marking-frame-usability-toggle"
+        video_selector = "#error-marking-usability-toggle"
+        frame = _segmented_control_geometry(page, frame_selector)
+        video = _segmented_control_geometry(page, video_selector)
+        assert frame["control"]["height"] == pytest.approx(video["control"]["height"], abs=0.5)
+        assert len({option["fontSize"] for option in frame["options"] + video["options"]}) == 1
+        assert frame["options"][1]["checked"] == "true"
+        assert frame["handle"]["opacity"] == "1"
+        assert video["handle"]["opacity"] == "0"
+
+        def assert_selected(selector: str, value: str, fill: str) -> None:
+            geometry = _segmented_control_geometry(page, selector)
+            active_index = next(index for index, option in enumerate(geometry["options"]) if option["value"] == value)
+            active = geometry["options"][active_index]
+            handle = geometry["handle"]
+            assert geometry["state"] == value
+            assert active["checked"] == "true"
+            assert handle["opacity"] == "1"
+            assert (handle["left"] + handle["right"]) / 2 == pytest.approx(
+                (active["left"] + active["right"]) / 2, abs=1.5
+            )
+            assert handle["background"] == fill
+            assert all(
+                option["background"] == "rgb(238, 242, 241)"
+                for index, option in enumerate(geometry["options"])
+                if index != active_index
+            )
+
+        for value, fill in (
+            ("unusable", "rgb(243, 185, 181)"),
+            ("usable", "rgb(184, 230, 216)"),
+        ):
+            page.locator(f'{frame_selector} [data-segment-value="{value}"]').click()
+            page.wait_for_timeout(220)
+            assert_selected(frame_selector, value, fill)
+
+        for value, fill in (
+            ("unusable", "rgb(243, 185, 181)"),
+            ("marginal", "rgb(248, 201, 142)"),
+            ("correctable", "rgb(244, 223, 155)"),
+            ("perfect", "rgb(184, 230, 216)"),
+        ):
+            page.locator(f'{video_selector} [data-segment-value="{value}"]').click()
+            page.wait_for_timeout(220)
+            assert_selected(video_selector, value, fill)
+
+        frame_option = page.locator(f'{frame_selector} [data-segment-value="usable"]')
+        frame_option.focus()
+        frame_option.press("ArrowLeft")
+        expect(page.locator(frame_selector)).to_have_attribute("data-state", "unusable")
+        expect(page.locator(f'{frame_selector} [data-segment-value="unusable"]')).to_be_focused()
+        assert page.evaluate("() => [getComputedStyle(document.activeElement).outlineWidth, getComputedStyle(document.activeElement).outlineStyle]") == ["3px", "solid"]
+        expect(page.locator("#error-marking-video-unusable-control")).to_have_count(0)
+    finally:
+        _stop_server(server, thread)
+
+
+def test_narrow_error_marking_view_keeps_segmented_controls_and_timeline_inside_their_rows(page, tmp_path: Path) -> None:
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        page.set_viewport_size({"width": 375, "height": 667})
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+
+        geometry = page.evaluate(
+            """() => {
+                const viewportWidth = window.innerWidth;
+                const rect = (selector) => {
+                  const box = document.querySelector(selector).getBoundingClientRect();
+                  return {left: box.left, right: box.right, width: box.width};
+                };
+                return {
+                  viewportWidth,
+                  documentWidth: document.documentElement.scrollWidth,
+                  frameRow: rect('.error-marking-disposition-controls'),
+                  videoRow: rect('.video-usability-control-row'),
+                  frameControl: rect('#error-marking-frame-usability-toggle'),
+                  videoControl: rect('#error-marking-usability-toggle'),
+                  timeline: rect('#error-marking-timeline'),
+                  trackRows: [...document.querySelectorAll('.timeline-row-track')].map((track) => {
+                    const box = track.getBoundingClientRect();
+                    return {left: box.left, right: box.right, top: box.top, bottom: box.bottom, height: box.height};
+                  }),
+                };
+            }"""
+        )
+        assert geometry["documentWidth"] <= geometry["viewportWidth"]
+        for row in (geometry["frameRow"], geometry["videoRow"], geometry["frameControl"], geometry["videoControl"], geometry["timeline"]):
+            assert row["left"] >= -1
+            assert row["right"] <= geometry["viewportWidth"] + 1
+        assert geometry["frameControl"]["width"] > 0
+        assert geometry["videoControl"]["width"] > 0
+        assert all(row["height"] == pytest.approx(25.6, abs=1) for row in geometry["trackRows"])
+        assert all(row["left"] >= -1 and row["right"] <= geometry["viewportWidth"] + 1 for row in geometry["trackRows"])
     finally:
         _stop_server(server, thread)
 
@@ -421,7 +561,7 @@ def test_video_unusable_disposition_persists_its_reason(page, tmp_path: Path) ->
     try:
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
         expect(page.locator("#error-marking-screen")).to_be_visible()
-        page.locator('input[name="error-marking-usability-rating"][value="unusable"]').check()
+        page.locator('.video-usability-option[data-segment-value="unusable"]').click()
         reason = page.locator("#error-marking-video-unusable-reason")
         note = page.locator("#error-marking-note")
         expect(reason).to_be_visible()
@@ -447,10 +587,10 @@ def test_video_unusable_allows_frame_flags_but_blocks_joint_marks(page, tmp_path
     try:
         _log_in(page, f"http://127.0.0.1:{server.server_port}")
         expect(page.locator("#error-marking-screen")).to_be_visible()
-        page.locator('input[name="error-marking-usability-rating"][value="unusable"]').check()
+        page.locator('.video-usability-option[data-segment-value="unusable"]').click()
 
-        rating = page.locator('input[name="error-marking-usability-rating"][value="unusable"]')
-        expect(rating).to_be_checked()
+        rating = page.locator('.video-usability-option[data-segment-value="unusable"]')
+        expect(rating).to_have_attribute("aria-checked", "true")
         expect(page.locator("#error-marking-mark-frame-unusable")).to_be_enabled()
         expect(page.locator('[data-track-part="LEFT_WRIST"]')).to_have_attribute("aria-disabled", "true")
 

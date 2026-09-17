@@ -1172,23 +1172,24 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert 'id="error-marking-mark-frame-usable"' in html
     assert 'id="error-marking-mark-frame-unusable"' in html
     assert 'id="error-marking-frame-usability-toggle"' in html
-    assert 'class="frame-usability-handle"' in html
-    assert 'class="frame-usability-divider"' in html
+    assert 'class="segmented-control-handle"' in html
+    assert 'class="frame-usability-divider"' not in html
     assert 'id="error-marking-video-unusable-control"' not in html
     assert 'id="error-marking-video-unusable"' not in html
+    assert "mark entire video unusable" not in html.lower()
     assert 'id="error-marking-bad-frame-badge"' in html
     assert 'id="error-marking-no-pose-badge"' in html
     assert 'id="error-marking-video-unusable-reason"' in html
     assert 'class="error-marking-disposition-controls"' in html
     assert 'id="error-marking-usability-rating"' in html
-    assert 'name="error-marking-usability-rating" value="unusable"' in html
-    assert 'name="error-marking-usability-rating" value="marginal"' in html
-    assert 'name="error-marking-usability-rating" value="correctable"' in html
-    assert 'name="error-marking-usability-rating" value="perfect"' in html
+    assert 'data-segment-value="unusable"' in html
+    assert 'data-segment-value="marginal"' in html
+    assert 'data-segment-value="correctable"' in html
+    assert 'data-segment-value="perfect"' in html
     assert 'id="error-marking-usability-toggle"' in html
     assert 'class="video-usability-control-row"' in html
     assert '>Video</span>' in html
-    assert 'class="video-usability-handle"' in html
+    assert 'class="segmented-control-handle"' in html
     assert 'class="video-usability-symbol"' in html
     error_screen_start = html.index('id="error-marking-screen"')
     error_screen_end = html.index('id="quality-rating-screen"', error_screen_start)
@@ -1257,6 +1258,44 @@ def test_error_mark_dialog_shows_corrected_skeleton_with_highlighted_landmark() 
     assert "mark.body_part" in dialog_render
     open_popup = js[js.index("function openErrorMarkPopup(") : js.index("\n}", js.index("function openErrorMarkPopup("))]
     assert "renderErrorMarkDialogOverlay()" in open_popup
+
+
+def test_usability_controls_share_a_tokenized_segmented_control_contract() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
+    javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert html.count('class="segmented-control ') == 2
+    assert html.count('class="segmented-control-handle"') == 2
+    assert html.count('class="segmented-control-option ') == 6
+    assert html.count('data-state="') == 2
+    assert 'data-control="frame-usability"' in html
+    assert 'data-control="video-usability"' in html
+    assert 'role="radiogroup"' in html
+    assert 'role="radio"' in html
+    assert 'aria-checked="' in html
+    assert 'data-segment-value="unusable"' in html
+    assert 'data-segment-value="marginal"' in html
+    assert 'data-segment-value="correctable"' in html
+    assert 'data-segment-value="perfect"' in html
+    assert 'input type="radio" name="error-marking-usability-rating"' not in html
+    assert "function setSegmentedControlState(" in javascript
+    assert "function attachSegmentedControlHandlers(" in javascript
+    assert 'event.key === "ArrowRight"' in javascript
+    assert 'event.key === "Home"' in javascript
+    assert "--control-height: 2.75rem;" in css
+    assert "--control-height-sm: 2.25rem;" in css
+    assert "--border-color:" in css
+    assert "--background-muted:" in css
+    assert "--radius-control:" in css
+    assert "--text-color:" in css
+    assert "--muted-text-color:" in css
+    assert "--unusable-red:" in css
+    assert "--marginal-orange:" in css
+    assert "--correctable-yellow:" in css
+    assert "--usable-green:" in css
+    assert "--fill-selected-" in css
+    assert "button, select, input, textarea { min-height" not in css
 
 
 def test_skeleton_overlay_colors_by_move_and_cause_and_ghosts_the_original_position() -> None:
@@ -1490,7 +1529,7 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     assert "gap: 0;" in controls_css
     assert "padding: 0;" in controls_css
     assert ".error-marking-controls-bar .step-buttons-join {" in css
-    assert ".error-marking-controls-bar .btn { margin: 0;" in css
+    assert ".error-marking-controls-bar .btn { min-height: var(--control-height-sm); height: var(--control-height-sm); margin: 0;" in css
     assert "border: 0;" in css[css.index(".error-marking-controls-bar .btn {") :].split("}", 1)[0]
     assert ".error-marking-controls-bar .btn + .btn { border-left: 1px solid" in css
     assert ".error-marking-controls-bar .error-marking-fps-select + .btn { border-left: 1px solid" in css
@@ -1506,18 +1545,18 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     assert 'classList.add("fps-select-open")' in js
     assert 'classList.remove("fps-select-open")' in js
     assert ".timeline-scrubber { -webkit-appearance: none; appearance: none; width: 100%; min-height: 0;" in css
-    assert ".error-marking-disposition-controls > .btn + .btn { border-left: 1px solid" in css
-    assert ".error-marking-disposition-controls { display: inline-flex; align-items: stretch; }" in css
-    assert ".frame-usability-option:not(.frame-usability-option-active) { background: #eef2f1; }" in css
-    assert ".video-usability-option:not(:has(input:checked)) { background: #eef2f1; }" in css
-    assert ".frame-usability-handle {" in css
-    assert "left: calc(50% + .5px);" in css
-    assert 'data-frame-state="unusable"' in css
+    assert ".error-marking-disposition-controls, .video-usability-control-row { display: inline-flex; align-items: center;" in css
+    assert ".segmented-control-option:not([aria-checked=\"true\"]) { background: var(--background-muted); }" in css
+    assert ".segmented-control-handle {" in css
+    assert "transform: translateX(calc(var(--segment-index) * 100%));" in css
+    assert "data-state" in html
+    assert "data-frame-state" not in html
     assert ".video-usability-toggle {" in css
-    assert ".video-usability-control-row { display: inline-flex; align-items: stretch;" in css
-    assert "min-height: 2.25rem;" in css[css.index(".video-usability-toggle {"):].split("}", 1)[0]
-    assert ".video-usability-toggle[data-video-state=\"perfect\"]" in css
-    assert "transition: left .18s ease" in css
+    assert ".error-marking-disposition-controls, .video-usability-control-row { display: inline-flex; align-items: center;" in css
+    assert "--control-width: 15rem;" in css[css.index(".video-usability-toggle {"):].split("}", 1)[0]
+    assert "height: var(--control-height-sm);" in css[css.index(".segmented-control {"):].split("}", 1)[0]
+    assert "transition: transform .18s ease" in css
+    assert "data-video-state" not in html
     assert "#error-marking-video { display: block; max-height: calc(32vh + 2.75rem);" in css
     mobile_css = css[css.index("@media (max-width: 800px)") :]
     assert "#error-marking-video { max-height: calc(58vh + 2.75rem); }" in mobile_css

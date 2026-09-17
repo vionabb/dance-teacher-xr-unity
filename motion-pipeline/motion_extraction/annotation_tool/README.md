@@ -216,3 +216,55 @@ The fixed `#actions` bar is shared by both screens, so
 changes to its height should be paired with the body's bottom padding. The UI
 uses daisyUI classes for controls and a small custom layer for the canvas,
 editor, and responsive layout.
+
+### Shared segmented controls
+
+Frame and video usability ratings use the same custom `segmented-control`
+primitive. Use it when a small, mutually exclusive set of states needs a
+compact visual scale with a selected fill. Use a normal daisyUI button for a
+single action, and use a normal radio group when options need visible text,
+long descriptions, or more than a compact control can support.
+
+The expected structure is one labelled row and one shared outer control:
+
+```html
+<div class="video-usability-control-row">
+  <span class="frame-usability-label">Video</span>
+  <div class="segmented-control" data-control="video-usability"
+       data-state="correctable" role="radiogroup"
+       aria-label="Overall video usability">
+    <span class="segmented-control-handle" aria-hidden="true"></span>
+    <button class="segmented-control-option" data-segment-value="correctable"
+            type="button" role="radio" aria-checked="true" tabindex="0">
+      Correctable
+    </button>
+  </div>
+</div>
+```
+
+`data-state` is the single state contract. Each option declares its value in
+`data-segment-value`; JavaScript updates `data-state`, `aria-checked`, the
+roving `tabindex`, and the handle position/fill together. Inactive options use
+the shared muted background, while the handle supplies the active state fill.
+Do not add a second radio state, active CSS class, or per-control handle
+positioning rule.
+
+Every option must have an accessible name, be reachable by keyboard, and keep
+the focus ring visible. Arrow keys (plus Home/End) move and select options;
+touch targets retain the shared small-control height. Keep the label to the
+left on wide screens. At narrow widths the row may use the available width,
+but the label and all options must remain visible and the control must not
+overflow its container.
+
+### Repeatable visual QA
+
+For UI changes, start an isolated annotation server with a temporary
+experiment root and database. Never use a live annotation database for visual
+inspection. Run the focused static tests and syntax check, then run the
+opt-in Chromium suite at its default desktop viewport and at 375px width.
+The browser assertions should cover state-to-handle alignment, the selected
+fill and inactive background, shared height/typography, timeline mark
+containment, focus visibility, and absence of duplicate whole-video controls.
+When a visual choice remains perceptual rather than geometric (for example,
+whether a color contrast or label feels sufficiently distinct), report it for
+human review instead of encoding an assumption as a test.
