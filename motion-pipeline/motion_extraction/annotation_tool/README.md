@@ -200,9 +200,13 @@ deemphasized gray ghost. `quality_triage` clips deliberately keep their
 burned-in overlay for quick-glance review.
 When an annotator marks an entire video unusable in either frame-review
 workflow, frame-level unusable flags remain available but landmark/joint marks
-are disabled. The four-point usability rating is stored with the frame flags
-so analysis can first select videos that clear a quality bar, then evaluate
-segment detection and localized correction/discounting on that subset.
+are disabled. Automatically detected missing-tracking frames remain clickable:
+the annotator can manually confirm them, which changes their timeline treatment
+to the manual unusable color. Any unusable frame, automatic or manually
+confirmed, paints the displayed skeleton red. The four-point usability rating
+is stored with the frame flags so analysis can first select videos that clear a
+quality bar, then evaluate segment detection and localized
+correction/discounting on that subset.
 The fixed `#actions` bar is shared by both screens, so
 changes to its height should be paired with the body's bottom padding. The UI
 uses daisyUI classes for controls and a small custom layer for the canvas,

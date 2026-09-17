@@ -453,13 +453,18 @@ function isBadFrame(frame = errorMarkingCurrentFrame()) {
 function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
   const bad = isBadFrame(frame);
   const automatic = state.errorMarkingAutoBadFrames.includes(frame);
+  const manuallyConfirmed = state.errorMarkingBadFrames.includes(frame);
   const toggle = $("error-marking-toggle-bad-frame");
   if (toggle) {
-    toggle.textContent = automatic ? "Missing tracking (automatic)" : bad ? "Unmark this frame" : "Mark current frame unusable";
-    toggle.setAttribute("aria-pressed", String(bad));
-    toggle.disabled = automatic;
-    toggle.title = automatic ? "This frame has no tracking data and is marked automatically." : "Mark or unmark the current frame as unusable.";
-    toggle.classList.toggle("btn-error", bad);
+    toggle.textContent = automatic && !manuallyConfirmed
+      ? "Confirm unusable frame"
+      : bad ? "Unmark this frame" : "Mark current frame unusable";
+    toggle.setAttribute("aria-pressed", String(manuallyConfirmed));
+    toggle.disabled = false;
+    toggle.title = automatic && !manuallyConfirmed
+      ? "Missing tracking marked this frame automatically. Click to confirm it manually."
+      : "Mark or unmark the current frame as unusable.";
+    toggle.classList.toggle("btn-error", manuallyConfirmed);
     toggle.classList.toggle("btn-outline", !bad);
   }
   const badge = $("error-marking-bad-frame-badge");
@@ -468,8 +473,7 @@ function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
 }
 
 function toggleBadFrame(frame = errorMarkingCurrentFrame()) {
-  if (state.errorMarkingAutoBadFrames.includes(frame)) return;
-  if (isBadFrame(frame)) {
+  if (state.errorMarkingBadFrames.includes(frame)) {
     state.errorMarkingBadFrames = state.errorMarkingBadFrames.filter((candidate) => candidate !== frame);
   } else {
     state.errorMarkingBadFrames = [...state.errorMarkingBadFrames, frame].sort((a, b) => a - b);
@@ -477,15 +481,20 @@ function toggleBadFrame(frame = errorMarkingCurrentFrame()) {
   state.errorMarkingNoErrorsConfirmed = false;
   updateBadFrameControls(frame);
   renderErrorMarkingTimeline();
+  renderSkeletonOverlay(frame);
   scheduleSave("started");
 }
 
 function toggleBadFrameRange(start, end) {
-  if (Array.from({length: end - start + 1}, (_, index) => state.errorMarkingAutoBadFrames.includes(start + index)).some(Boolean)) return;
-  state.errorMarkingBadFrames = state.errorMarkingBadFrames.filter((frame) => frame < start || frame > end);
+  const frames = Array.from({length: end - start + 1}, (_, index) => start + index);
+  const allManuallyConfirmed = frames.every((frame) => state.errorMarkingBadFrames.includes(frame));
+  state.errorMarkingBadFrames = allManuallyConfirmed
+    ? state.errorMarkingBadFrames.filter((frame) => frame < start || frame > end)
+    : [...new Set([...state.errorMarkingBadFrames, ...frames])].sort((a, b) => a - b);
   state.errorMarkingNoErrorsConfirmed = false;
   renderErrorMarkingTimeline();
   updateBadFrameControls();
+  renderSkeletonOverlay();
   scheduleSave("started");
 }
 
@@ -866,10 +875,14 @@ function renderTimelineSegment(index, frameCount) {
 function badFrameRanges() {
   const frames = allBadFrameNumbers();
   const automaticFrames = new Set(state.errorMarkingAutoBadFrames);
+  const manuallyConfirmedFrames = new Set(state.errorMarkingBadFrames);
   const ranges = [];
   frames.forEach((frame) => {
     const previous = ranges[ranges.length - 1];
-    const automatic = automaticFrames.has(frame);
+    // A manual confirmation takes precedence visually over the automatic
+    // baseline, so the timeline turns red when the annotator double-confirms
+    // an automatically detected frame.
+    const automatic = automaticFrames.has(frame) && !manuallyConfirmedFrames.has(frame);
     if (previous && frame <= previous.end + 1 && previous.automatic === automatic) previous.end = frame;
     else ranges.push({start: frame, end: frame, automatic});
   });
@@ -1275,6 +1288,7 @@ function skeletonFrameLandmarks(frame) {
 // needs a color: the same yellow-green the burned-in overlay used to draw,
 // for visual continuity with what annotators are already used to seeing.
 const TRACKED_SKELETON_COLOR = "#c6eb28";
+const SKELETON_UNUSABLE_COLOR = "#b3261e";
 // Reserve 8% of each source dimension on every side of the live video. The
 // video is scaled by the reciprocal factor while the SVG viewBox expands by
 // this amount, keeping source coordinates aligned exactly and making modestly
@@ -1328,6 +1342,8 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
   const {width, height} = data.source_dimensions;
   const points = skeletonFrameLandmarks(frame);
   const original = data.frames[frame] || {};
+  const unusable = (state.errorMarkingBadFrames || []).includes(frame) || (state.errorMarkingAutoBadFrames || []).includes(frame);
+  const skeletonColor = unusable ? SKELETON_UNUSABLE_COLOR : TRACKED_SKELETON_COLOR;
   const clampX = (x) => Math.min(Math.max(x, -width * .3), width * 1.3);
   const clampY = (y) => Math.min(Math.max(y, -height * .3), height * 1.3);
   const changed = Object.fromEntries(
@@ -1373,7 +1389,7 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
     const causeHalo = skeletonLandmarkCauseColor(a, frame, changed[a]) || skeletonLandmarkCauseColor(b, frame, changed[b]);
     const geometry = `x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}"`;
     return `${causeHalo ? `<line class="skeleton-edge-cause-halo" ${geometry} stroke="${causeHalo}"></line>` : ""}` +
-      `<line class="skeleton-edge" ${geometry} stroke="${TRACKED_SKELETON_COLOR}"></line>`;
+      `<line class="skeleton-edge" ${geometry} stroke="${skeletonColor}"></line>`;
   }).join("");
 
   const pointsHTML = (data.landmarks || []).map((landmark) => {
@@ -1385,7 +1401,7 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
     const position = `cx="${clampX(point[0])}" cy="${clampY(point[1])}"`;
     return `${causeHalo ? `<circle class="skeleton-landmark-cause-halo" ${position} r="${mark ? 15 : 12}" fill="${causeHalo}"></circle>` : ""}` +
       `<circle class="skeleton-landmark${selected ? " skeleton-landmark-selected" : ""}" data-landmark="${landmark}"` +
-      ` ${position} r="${mark ? 11 : 8}" fill="${TRACKED_SKELETON_COLOR}"></circle>`;
+      ` ${position} r="${mark ? 11 : 8}" fill="${skeletonColor}"></circle>`;
   }).join("");
 
   return {width, height, innerHTML: `<g>${previousFrameGhostEdgesHTML}${ghostEdgesHTML}</g><g>${previousFrameGhostPointHTML}${ghostPointsHTML}</g><g>${edgesHTML}</g><g>${pointsHTML}</g>`};
