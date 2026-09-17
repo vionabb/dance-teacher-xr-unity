@@ -153,9 +153,9 @@
             <button id="error-marking-replay-backwards" class="btn btn-sm btn-ghost join-item" type="button" aria-label="Play backwards">◀ Backwards</button>
             <select id="error-marking-fps-select" class="select select-sm join-item error-marking-fps-select" aria-label="Playback speed">
               <option value="1">1 fps</option>
-              <option value="2" selected>2</option>
-              <option value="4">4</option>
-              <option value="8">8</option>
+              <option value="2" selected>2 fps</option>
+              <option value="4">4 fps</option>
+              <option value="8">8 fps</option>
               <option value="0.5x">0.5x</option>
               <option value="1x">1x</option>
             </select>
@@ -166,11 +166,13 @@
         </div>
       </figure>
       <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
-        <button id="error-marking-toggle-bad-frame" class="btn btn-sm btn-error btn-outline" type="button" aria-pressed="false">Mark current frame unusable</button>
-        <label id="error-marking-video-unusable-control" class="btn btn-sm btn-error btn-outline cursor-pointer">
-          <input id="error-marking-video-unusable" class="sr-only" type="checkbox">
-          <span id="error-marking-video-unusable-label">Mark entire video unusable</span>
-        </label>
+        <div class="error-marking-disposition-controls">
+          <button id="error-marking-toggle-bad-frame" class="btn btn-sm btn-error btn-outline" type="button" aria-pressed="false">Mark current frame unusable</button>
+          <label id="error-marking-video-unusable-control" class="btn btn-sm btn-error btn-outline cursor-pointer">
+            <input id="error-marking-video-unusable" class="sr-only" type="checkbox">
+            <span id="error-marking-video-unusable-label">Mark entire video unusable</span>
+          </label>
+        </div>
       </div>
       <div id="error-marking-video-unusable-reason-wrap" class="mt-2" hidden>
         <label class="label text-xs font-bold uppercase tracking-widest text-base-content/60" for="error-marking-video-unusable-reason">Why is the video unusable? <span class="text-error">Required</span></label>

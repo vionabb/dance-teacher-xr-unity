@@ -1126,6 +1126,7 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert 'id="error-marking-video-unusable"' in html
     assert 'id="error-marking-video-unusable-reason"' in html
     assert 'id="error-marking-video-unusable-control"' in html
+    assert 'class="error-marking-disposition-controls"' in html
     error_screen_start = html.index('id="error-marking-screen"')
     error_screen_end = html.index('id="quality-rating-screen"', error_screen_start)
     error_screen = html[error_screen_start:error_screen_end]
@@ -1143,7 +1144,7 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
         "function missingTrackingFrames(",
         "function toggleVideoUnusable(",
         "bad_frames: videoUnusable ? [] : badFrames",
-        "video_unusable_reason: videoUnusable ? state.errorMarkingVideoUnusableReason.trim() : \"\"",
+        "video_unusable_reason: videoUnusable ? note : \"\"",
     ]:
         assert symbol in js
     assert "const ERROR_MARKING_CANVAS_BUFFER_RATIO = .08;" in js
@@ -1323,6 +1324,9 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     assert 'id="error-marking-replay"' in html
     assert 'id="error-marking-replay-backwards"' in html
     assert '<option value="1">1 fps</option>' in html
+    assert '<option value="2" selected>2 fps</option>' in html
+    assert '<option value="4">4 fps</option>' in html
+    assert '<option value="8">8 fps</option>' in html
     assert 'id="error-marking-replay-slow"' not in html
     assert 'id="error-marking-review-replay-slow"' not in html
     for symbol in [
@@ -1406,12 +1410,18 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     assert ".error-marking-controls-bar .btn { margin: 0;" in css
     assert "border: 0;" in css[css.index(".error-marking-controls-bar .btn {") :].split("}", 1)[0]
     assert ".error-marking-controls-bar .btn + .btn { border-left: 1px solid" in css
+    assert ".error-marking-controls-bar .error-marking-fps-select + .btn { border-left: 1px solid" in css
     assert '#error-marking-replay[aria-pressed="true"]' in css
     assert "background: #24544b;" in css
-    fps_css = css[css.index(".error-marking-fps-select") :].split("}", 1)[0]
+    fps_css = css[css.index(".error-marking-fps-select {") :].split("}", 1)[0]
     assert "background-color: #111817;" in fps_css
     assert "background-image: url(\"data:image/svg+xml" in fps_css
     assert "appearance: none;" in fps_css
+    assert ".error-marking-fps-select.fps-select-open" in css
+    assert 'classList.add("fps-select-open")' in js
+    assert 'classList.remove("fps-select-open")' in js
+    assert ".timeline-scrubber { -webkit-appearance: none; appearance: none; width: 100%; min-height: 0;" in css
+    assert ".error-marking-disposition-controls > .btn + .btn { border-left: 1px solid" in css
     assert "#error-marking-video { display: block; max-height: calc(32vh + 2.75rem);" in css
     mobile_css = css[css.index("@media (max-width: 800px)") :]
     assert "#error-marking-video { max-height: calc(58vh + 2.75rem); }" in mobile_css
