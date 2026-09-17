@@ -1419,7 +1419,7 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     # video.currentTime.
     assert "stopErrorMarkingReplay();" in js[js.index("function stepErrorMarkingVideo(") :].split("\n}", 1)[0]
     assert 'button.textContent = playing ? "⏸ Pause" : "▶ Play"' in js
-    assert 'button.textContent = playing ? "⏸ Pause" : "◀ Backwards"' in js
+    assert 'button.textContent = playing ? "⏸ Pause" : "◀ Rewind"' in js
     assert "state.errorMarkingReplayDirection = -1;" in js
     assert "}, -1);" in js
     assert "state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === 1" in js
@@ -1481,6 +1481,8 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     assert ".error-marking-controls-bar .btn + .btn { border-left: 1px solid" in css
     assert ".error-marking-controls-bar .error-marking-fps-select + .btn { border-left: 1px solid" in css
     assert '#error-marking-replay[aria-pressed="true"]' in css
+    assert "#error-marking-replay-backwards { flex: 0 0 9rem; width: 9rem;" in css
+    assert "#error-marking-replay { flex: 0 0 7rem; width: 7rem;" in css
     assert "background: #24544b;" in css
     fps_css = css[css.index(".error-marking-fps-select {") :].split("}", 1)[0]
     assert "background-color: #111817;" in fps_css

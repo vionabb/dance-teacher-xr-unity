@@ -770,8 +770,10 @@ def test_replay_button_becomes_pause_and_freezes_the_current_frame(page, tmp_pat
             }"""
         )
         replay = page.locator("#error-marking-replay")
+        play_width = replay.bounding_box()["width"]
         replay.click()
         expect(replay).to_have_text("⏸ Pause")
+        assert replay.bounding_box()["width"] == pytest.approx(play_width, abs=0.5)
         expect(page.locator("#error-marking-frame-indicator")).to_contain_text("frame 3", timeout=1500)
         replay.click()
         expect(replay).to_have_text("▶ Play")
@@ -801,13 +803,15 @@ def test_backwards_replay_button_becomes_pause_and_freezes_the_current_frame(pag
             }"""
         )
         backwards = page.locator("#error-marking-replay-backwards")
+        backwards_width = backwards.bounding_box()["width"]
         backwards.click()
         expect(backwards).to_have_text("⏸ Pause")
-        expect(backwards).to_have_attribute("aria-label", "Pause backwards playback")
+        assert backwards.bounding_box()["width"] == pytest.approx(backwards_width, abs=0.5)
+        expect(backwards).to_have_attribute("aria-label", "Pause rewind playback")
         expect(page.locator("#error-marking-frame-indicator")).to_contain_text("frame 2", timeout=1500)
         backwards.click()
-        expect(backwards).to_have_text("◀ Backwards")
-        expect(backwards).to_have_attribute("aria-label", "Play backwards")
+        expect(backwards).to_have_text("◀ Rewind")
+        expect(backwards).to_have_attribute("aria-label", "Rewind")
 
         paused_frame = page.evaluate("() => errorMarkingCurrentFrame()")
         page.wait_for_timeout(400)
