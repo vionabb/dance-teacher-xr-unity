@@ -729,8 +729,8 @@ function setErrorMarkingReplayPlaying(playing) {
 
 function setErrorMarkingReplayBackwardsPlaying(playing) {
   const button = $("error-marking-replay-backwards");
-  button.textContent = playing ? "⏸ Pause" : "◀ Backwards";
-  button.setAttribute("aria-label", playing ? "Pause backwards playback" : "Play backwards");
+  button.textContent = playing ? "⏸ Pause" : "◀ Rewind";
+  button.setAttribute("aria-label", playing ? "Pause rewind playback" : "Rewind");
   button.setAttribute("aria-pressed", String(playing));
 }
 
