@@ -136,8 +136,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .error-marking-disposition-controls > .btn + .btn { border-left: 1px solid #e6c8c6; }
 .frame-usability-label { display: inline-flex; align-items: center; padding: 0 .7rem; color: var(--muted); font-size: .82rem; font-weight: 750; }
 .frame-usability-toggle { position: relative; display: grid; grid-template-columns: 1fr 1px 1fr; align-items: center; gap: .2rem; min-width: 7.5rem; padding: .2rem; background: #fff; }
-.frame-usability-handle { position: absolute; z-index: 0; top: .2rem; bottom: .2rem; left: .2rem; width: calc(50% - .4rem); border: 1px solid #087f68; border-radius: .35rem; background: #b8e6d8; pointer-events: none; transition: left .18s ease, background-color .18s ease, border-color .18s ease; }
-.frame-usability-toggle[data-frame-state="unusable"] .frame-usability-handle { left: calc(50% + .2rem); border-color: #b3261e; background: #f3b9b5; }
+.frame-usability-handle { position: absolute; z-index: 0; top: .2rem; bottom: .2rem; left: calc(50% + .2rem); width: calc(50% - .4rem); border: 1px solid #087f68; border-radius: .35rem; background: #b8e6d8; pointer-events: none; transition: left .18s ease, background-color .18s ease, border-color .18s ease; }
+.frame-usability-toggle[data-frame-state="unusable"] .frame-usability-handle { left: .2rem; border-color: #b3261e; background: #f3b9b5; }
 .frame-usability-option { position: relative; z-index: 1; display: grid; place-items: center; width: 100%; min-height: 1.85rem; padding: 0 .6rem; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: .35rem; font-size: 1.35rem; font-weight: 800; line-height: 1; cursor: pointer; }
 .frame-usability-option:hover { filter: brightness(.97); }
 .frame-usability-option.frame-usability-unusable { color: #b3261e; }

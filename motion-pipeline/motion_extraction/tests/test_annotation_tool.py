@@ -1174,11 +1174,11 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert 'id="error-marking-frame-usability-toggle"' in html
     assert 'class="frame-usability-handle"' in html
     assert 'class="frame-usability-divider"' in html
+    assert 'id="error-marking-video-unusable-control"' not in html
+    assert 'id="error-marking-video-unusable"' not in html
     assert 'id="error-marking-bad-frame-badge"' in html
     assert 'id="error-marking-no-pose-badge"' in html
-    assert 'id="error-marking-video-unusable"' in html
     assert 'id="error-marking-video-unusable-reason"' in html
-    assert 'id="error-marking-video-unusable-control"' in html
     assert 'class="error-marking-disposition-controls"' in html
     assert 'id="error-marking-usability-rating"' in html
     assert 'name="error-marking-usability-rating" value="unusable"' in html
@@ -1207,7 +1207,6 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
         "function flashFrameUsabilityToggle()",
         "function frameHasSkeleton(",
         "function missingTrackingFrames(",
-        "function toggleVideoUnusable(",
         "function setErrorMarkingVideoUsabilityRating(",
         "function isVideoUsabilityTriageTask(",
         "if (isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return [];",
@@ -1501,6 +1500,7 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     assert ".timeline-scrubber { -webkit-appearance: none; appearance: none; width: 100%; min-height: 0;" in css
     assert ".error-marking-disposition-controls > .btn + .btn { border-left: 1px solid" in css
     assert ".frame-usability-handle {" in css
+    assert "left: calc(50% + .2rem);" in css
     assert 'data-frame-state="unusable"' in css
     assert "transition: left .18s ease" in css
     assert "#error-marking-video { display: block; max-height: calc(32vh + 2.75rem);" in css
