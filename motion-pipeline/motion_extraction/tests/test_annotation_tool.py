@@ -1390,6 +1390,8 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     positions = [screen.index(f'id="{element_id}"') for element_id in order_ids]
     assert positions == sorted(positions)
     assert 'aria-label="Skip to beginning"' in screen
+    assert 'id="error-marking-step-back-1"' in screen and '>‹<span class="step-frame-count">1</span></button>' in screen
+    assert 'id="error-marking-step-forward-1"' in screen and '>›<span class="step-frame-count">1</span></button>' in screen
     assert ".error-marking-frame-indicator { position: absolute;" in css
     # Explicit column layout prevents browser/component-library figure
     # styles from placing the control bar beside the video. The figure's
@@ -1404,7 +1406,12 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     assert ".error-marking-controls-bar .btn { margin: 0;" in css
     assert "border: 0;" in css[css.index(".error-marking-controls-bar .btn {") :].split("}", 1)[0]
     assert ".error-marking-controls-bar .btn + .btn { border-left: 1px solid" in css
-    assert "background: #111817;" in css[css.index(".error-marking-fps-select") :].split("}", 1)[0]
+    assert '#error-marking-replay[aria-pressed="true"]' in css
+    assert "background: #24544b;" in css
+    fps_css = css[css.index(".error-marking-fps-select") :].split("}", 1)[0]
+    assert "background-color: #111817;" in fps_css
+    assert "background-image: url(\"data:image/svg+xml" in fps_css
+    assert "appearance: none;" in fps_css
     assert "#error-marking-video { display: block; max-height: calc(32vh + 2.75rem);" in css
     mobile_css = css[css.index("@media (max-width: 800px)") :]
     assert "#error-marking-video { max-height: calc(58vh + 2.75rem); }" in mobile_css
