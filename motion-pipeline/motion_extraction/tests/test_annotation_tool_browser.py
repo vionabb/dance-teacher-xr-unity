@@ -328,6 +328,7 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
 
         expect(toggle).to_have_text("Unmark this frame")
         expect(page.locator("#error-marking-bad-frame-badge")).to_be_visible()
+        expect(page.locator(".skeleton-edge").first).to_have_attribute("stroke", "#b3261e")
         expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
         response = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]
         assert response["bad_frames"] == [0]
@@ -351,6 +352,12 @@ def test_missing_tracking_frame_is_auto_marked_and_grouped_on_timeline(page, tmp
         expect(page.locator(".timeline-bad-frame-auto")).to_have_count(1)
         expect(page.locator(".timeline-bad-frame-auto")).to_have_attribute("data-bad-frame-start", "2")
         expect(page.locator(".timeline-bad-frame-auto")).to_have_attribute("data-bad-frame-end", "3")
+
+        # Automatic flags remain actionable: clicking the range records a
+        # manual confirmation and changes the timeline treatment to manual.
+        page.locator(".timeline-bad-frame-auto").click()
+        expect(page.locator(".timeline-bad-frame-auto")).to_have_count(0)
+        expect(page.locator(".timeline-bad-frame").first).to_have_attribute("title", re.compile(r"marked manually"))
     finally:
         _stop_server(server, thread)
 

@@ -1254,6 +1254,7 @@ def test_skeleton_overlay_colors_by_move_and_cause_and_ghosts_the_original_posit
         javascript.index("const TRACKED_SKELETON_COLOR") : javascript.index("function landmarkMovedAtFrame(")
     ]
     assert 'const TRACKED_SKELETON_COLOR = "#c6eb28";' in constants
+    assert 'const SKELETON_UNUSABLE_COLOR = "#b3261e";' in constants
     assert 'const SKELETON_PREVIOUS_FRAME_GHOST_COLOR = "#5da9e9";' in constants
 
     helper = "\n".join(
@@ -1274,8 +1275,10 @@ def test_skeleton_overlay_colors_by_move_and_cause_and_ghosts_the_original_posit
 function causeColor(id) {{ return "CAUSE:" + id; }}
 
 const frame = 5;
-state = {{
-  errorMarkingFrame: frame,
+    state = {{
+      errorMarkingFrame: frame,
+      errorMarkingBadFrames: [],
+      errorMarkingAutoBadFrames: [],
   skeletonDragLandmark: null,
   skeletonDragPosition: null,
   selectedSkeletonLandmark: null,
