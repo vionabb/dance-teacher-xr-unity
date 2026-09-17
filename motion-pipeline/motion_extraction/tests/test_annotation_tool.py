@@ -92,7 +92,7 @@ def test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker() -> None:
     assert 'id="skeleton-screen"' in html
     assert 'id="annotation-screen"' in html
     assert 'id="initial-profile"' not in html
-    assert 'id="to-annotation"' not in html
+    assert 'id="to-annotation"' in html
     assert 'id="frame-preview"' not in html
     assert "<h2>Frame annotation</h2>" not in html
     assert "automatic-scores" not in html
@@ -103,7 +103,7 @@ def test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker() -> None:
     assert html.count(">Log out<") == 1
     assert 'class="user-menu"' in html
     assert '<div class="navbar-end">' in html
-    assert 'id="landmark-panel" class="card card-border self-center p-4" aria-labelledby="landmark-dialog-title"' in html
+    assert 'id="landmark-panel" class="card card-border p-4" popover="auto" aria-labelledby="landmark-dialog-title"' in html
     assert 'class="card card-border flex flex-row items-center justify-between' in html
     # daisyUI v5 dropdowns use the popover API, not the legacy details/summary +
     # dropdown-content pattern (deprecated -- see the header user-menu).
@@ -126,7 +126,8 @@ def test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker() -> None:
     assert "Adjust the skeleton</h2>" not in html
     assert 'id="complete-case"' in html
     assert 'id="mark-unclear"' in html
-    assert 'id="back-to-skeleton"' not in html
+    assert 'id="back-to-skeleton"' in html
+    assert 'id="skip-case"' in html
     assert "if (rememberedAnnotator && (rememberedToken || !info.access_token_required)) loadState();" in (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert '$("previous").onclick' not in (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert ".remember-token { display: inline-flex" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
@@ -137,7 +138,7 @@ def test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker() -> None:
     assert ".progress-card.card { flex-direction: row; }" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
 
 
-def test_annotation_ui_declares_single_pointer_drag_and_native_page_pan() -> None:
+def test_annotation_ui_declares_single_pointer_drag_and_two_finger_canvas_pan() -> None:
     javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert "state.activePointers.size !== 1" in javascript
     assert "editorView" not in javascript
@@ -145,7 +146,7 @@ def test_annotation_ui_declares_single_pointer_drag_and_native_page_pan() -> Non
     html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert 'id="landmark-panel"' in html
-    assert "touch-action: auto" in css
+    assert "touch-action: none" in css
     assert "position: fixed" in css
     assert "max-height: min(70vh, calc(100vh - 15rem))" in css
     assert "overflow: visible" in css
@@ -159,6 +160,8 @@ def test_annotation_ui_declares_single_pointer_drag_and_native_page_pan() -> Non
     assert 'popovertarget="user-menu-popover"' in html
     assert "function nearestLandmark(point, radius)" in javascript
     assert "const nearest = nearestLandmark(point, hitRadius)" in javascript
+    assert "function pointerMidpoint()" in javascript
+    assert "state.activePointers.size >= 2" in javascript
 
 
 def test_annotation_editor_pads_canvas_around_out_of_frame_landmarks() -> None:
@@ -207,7 +210,7 @@ def test_annotation_ui_has_outside_dismissible_occlusion_tiles() -> None:
 def test_landmark_dialog_has_explicit_viewport_position_when_open() -> None:
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
-    assert "#landmark-panel { flex: 0 0 11rem;" in css
+    assert "#landmark-panel { position: fixed;" in css
     assert "state.selectedLandmark = mostDiscrepantLandmark(task);" in javascript
     assert "padding-bottom: 7rem" in css
     assert "background: #f3f1eb;" in css
@@ -462,7 +465,7 @@ def test_ui_flushes_pending_save_and_advances_only_after_success() -> None:
     assert "const previous = state.savePromise" in save_source
     assert "refresh(" not in save_source
     assert "lockInteraction(true)" in source
-    assert "navigateTo(state.taskIndex - 1)" in source
+    assert 'id="skip-case"' in (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
     assert "if (saved)" in source
 
 
@@ -932,9 +935,9 @@ def test_error_marking_marks_are_typed_append_only_and_exported(tmp_path: Path) 
     assert exported["marks"][0]["positions"]["15"] == [210.0, 90.25]
 
 
-def test_completed_error_marking_requires_marks_or_no_errors_found(tmp_path: Path) -> None:
+def test_completed_error_marking_requires_marks_bad_frames_video_unusable_or_no_errors_found(tmp_path: Path) -> None:
     store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
-    with pytest.raises(ValueError, match="requires marks, or no_errors_found"):
+    with pytest.raises(ValueError, match="requires marks, bad frames, video_unusable, or no_errors_found"):
         store.append(
             {
                 "annotator": "reviewer",
@@ -951,6 +954,88 @@ def test_completed_error_marking_requires_marks_or_no_errors_found(tmp_path: Pat
             "error_marking_response": {"marks": [], "no_errors_found": True, "note": "clean pass"},
         }
     )
+
+
+def test_error_marking_bad_frames_are_sorted_validated_and_can_complete_alone(tmp_path: Path) -> None:
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
+    saved = store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "error-marking-1",
+            "status": "completed",
+            "error_marking_response": {
+                "marks": [],
+                "bad_frames": [14, 3, 14, 1],
+                "no_errors_found": False,
+                "note": "Tracking is unusable in these frames.",
+            },
+        }
+    )
+    response = store.state("reviewer")["latest_judgments"]["error-marking-1"]["error_marking_response"]
+    assert response["bad_frames"] == [1, 3, 14]
+    assert saved["status"] == "completed"
+
+    with pytest.raises(ValueError, match="outside the task's frame range"):
+        store.append(
+            {
+                "annotator": "reviewer",
+                "task_id": "error-marking-1",
+                "status": "started",
+                "error_marking_response": {"marks": [], "bad_frames": [90], "note": ""},
+            }
+        )
+
+
+def test_error_marking_can_reject_an_entire_video_with_a_reason(tmp_path: Path) -> None:
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
+    saved = store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "error-marking-1",
+            "status": "completed",
+            "error_marking_response": {
+                "marks": [],
+                "bad_frames": [],
+                "video_unusable": True,
+                "video_unusable_reason": "Tracking is detached from the dancer throughout the clip.",
+                "no_errors_found": False,
+                "note": "",
+            },
+        }
+    )
+    response = store.state("reviewer")["latest_judgments"]["error-marking-1"]["error_marking_response"]
+    assert response["video_unusable"] is True
+    assert response["video_unusable_reason"] == "Tracking is detached from the dancer throughout the clip."
+    assert saved["status"] == "completed"
+
+    with pytest.raises(ValueError, match="requires a reason"):
+        store.append(
+            {
+                "annotator": "reviewer",
+                "task_id": "error-marking-1",
+                "status": "completed",
+                "error_marking_response": {
+                    "marks": [],
+                    "bad_frames": [],
+                    "video_unusable": True,
+                    "video_unusable_reason": "",
+                },
+            }
+        )
+    with pytest.raises(ValueError, match="cannot be combined"):
+        store.append(
+            {
+                "annotator": "reviewer",
+                "task_id": "error-marking-1",
+                "status": "completed",
+                "error_marking_response": {
+                    "marks": [],
+                    "bad_frames": [2],
+                    "video_unusable": True,
+                    "video_unusable_reason": "The whole clip is invalid.",
+                },
+            }
+        )
 
 
 def test_error_marking_mark_position_must_fall_within_its_own_frame_range(tmp_path: Path) -> None:
@@ -1036,6 +1121,10 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert 'id="error-marking-overlay"' in html
     assert 'id="error-marking-video-wrap"' in html
+    assert 'id="error-marking-toggle-bad-frame"' in html
+    assert 'id="error-marking-bad-frame-badge"' in html
+    assert 'id="error-marking-video-unusable"' in html
+    assert 'id="error-marking-video-unusable-reason"' in html
     js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     for symbol in [
         "function ensureMarkAtFrame(",
@@ -1043,6 +1132,11 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
         "function startSkeletonLandmarkDrag(",
         "function svgToContentPoint(",
         "function attachSkeletonOverlayHandlers(",
+        "function toggleBadFrame(",
+        "function missingTrackingFrames(",
+        "function toggleVideoUnusable(",
+        "bad_frames: videoUnusable ? [] : badFrames",
+        "video_unusable_reason: videoUnusable ? state.errorMarkingVideoUnusableReason.trim() : \"\"",
     ]:
         assert symbol in js
     assert "const ERROR_MARKING_CANVAS_BUFFER_RATIO = .08;" in js
@@ -1051,6 +1145,7 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert "const viewBox = svg.viewBox.baseVal;" in js
     assert "1 / (1 + 2 * ERROR_MARKING_CANVAS_BUFFER_RATIO)" in js
     assert "transform-origin: center;" in css
+    assert ".timeline-bad-frame-track" in css
 
 
 def test_error_mark_dialog_shows_corrected_skeleton_with_highlighted_landmark() -> None:
@@ -1355,7 +1450,7 @@ def test_completion_is_relabeled_and_gated_on_reviewing_dirty_error_marks() -> N
 
     complete_button_start = html.index('id="complete-case"')
     complete_button = html[complete_button_start : html.index("</button>", complete_button_start)]
-    assert "Done annotating" in complete_button
+    assert "Complete" in complete_button
     assert "Complete case" not in complete_button
 
     assert 'id="error-marking-review-dialog"' in html

@@ -16,6 +16,7 @@ and server-contract tests that cover everything else about this tool.
 from __future__ import annotations
 
 import json
+import re
 import threading
 from pathlib import Path
 
@@ -311,6 +312,66 @@ def test_clicking_a_skeleton_landmark_creates_a_mark_at_the_current_frame(page, 
         assert marks[0]["start_frame"] == 0
         assert marks[0]["end_frame"] == 0
         assert marks[0]["positions"] == {}
+    finally:
+        _stop_server(server, thread)
+
+
+def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path) -> None:
+    server, store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        toggle = page.locator("#error-marking-toggle-bad-frame")
+        expect(toggle).to_have_text("Mark current frame unusable")
+
+        toggle.click()
+
+        expect(toggle).to_have_text("Unmark this frame")
+        expect(page.locator("#error-marking-bad-frame-badge")).to_be_visible()
+        expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
+        response = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]
+        assert response["bad_frames"] == [0]
+    finally:
+        _stop_server(server, thread)
+
+
+def test_missing_tracking_frame_is_auto_marked_and_grouped_on_timeline(page, tmp_path: Path) -> None:
+    server, _store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        page.evaluate(
+            """() => {
+                state.errorMarkingLandmarks.frames[2] = {};
+                state.errorMarkingLandmarks.frames[3] = {};
+                refreshAutomaticBadFrames(state.errorMarkingLandmarks, state.data.tasks[state.taskIndex]);
+                renderErrorMarkingTimeline();
+            }"""
+        )
+        expect(page.locator(".timeline-bad-frame-auto")).to_have_count(1)
+        expect(page.locator(".timeline-bad-frame-auto")).to_have_attribute("data-bad-frame-start", "2")
+        expect(page.locator(".timeline-bad-frame-auto")).to_have_attribute("data-bad-frame-end", "3")
+    finally:
+        _stop_server(server, thread)
+
+
+def test_video_unusable_disposition_persists_its_reason(page, tmp_path: Path) -> None:
+    server, store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        page.locator("#error-marking-video-unusable").check()
+        reason = page.locator("#error-marking-video-unusable-reason")
+        expect(reason).to_be_visible()
+        reason.fill("The tracking is detached from the dancer for the entire clip.")
+
+        expect(page.locator("#error-marking-screen")).to_have_class(
+            re.compile(r"video-marked-unusable")
+        )
+        expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
+        response = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]
+        assert response["video_unusable"] is True
+        assert response["video_unusable_reason"] == "The tracking is detached from the dancer for the entire clip."
     finally:
         _stop_server(server, thread)
 
