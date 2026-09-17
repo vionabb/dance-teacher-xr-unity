@@ -68,10 +68,12 @@ DEFAULT_ERROR_CAUSES = [
 ]
 LIGHTING_RATINGS = {"good", "moderate", "poor"}
 CLOTHING_RATINGS = {"well_suited", "moderate", "poorly_suited"}
+VIDEO_USABILITY_RATINGS = {"unusable", "marginal", "correctable", "perfect"}
 SKELETON_FREE_TASK_TYPES = {
     "temporal_pose_comparison",
     "quality_triage",
     "error_marking",
+    "video_usability_triage",
     "video_quality_rating",
 }
 SOURCE_EVIDENCE_QUALITIES = {"usable", "constrained", "weak"}
@@ -578,10 +580,11 @@ class AnnotationStore:
             "bad_frames": [],
             "video_unusable": False,
             "video_unusable_reason": "",
+            "video_usability_rating": "",
             "no_errors_found": False,
             "note": "",
         }
-        if task_type != "error_marking":
+        if task_type not in {"error_marking", "video_usability_triage"}:
             if value not in ({}, None):
                 raise ValueError(
                     "error_marking_response is only valid for error_marking tasks"
@@ -618,6 +621,16 @@ class AnnotationStore:
             raise ValueError(
                 f"video_unusable_reason must be at most {ERROR_MARK_NOTE_MAX_LENGTH} characters"
             )
+        video_usability_rating = str(value.get("video_usability_rating", "")).strip()
+        if video_usability_rating and video_usability_rating not in VIDEO_USABILITY_RATINGS:
+            raise ValueError(
+                "video_usability_rating must be one of "
+                f"{sorted(VIDEO_USABILITY_RATINGS)}"
+            )
+        if video_unusable and video_usability_rating not in {"", "unusable"}:
+            raise ValueError("video_unusable requires an unusable video_usability_rating")
+        if video_usability_rating == "unusable" and not video_unusable:
+            raise ValueError("an unusable video_usability_rating requires video_unusable")
         raw_marks = value.get("marks", [])
         if not isinstance(raw_marks, list):
             raise ValueError("error_marking_response marks must be an array")
@@ -678,12 +691,14 @@ class AnnotationStore:
         no_errors_found = bool(value.get("no_errors_found", False))
         note = str(value.get("note", "")).strip()
         if status == "completed":
+            if not video_usability_rating:
+                raise ValueError("completed error_marking requires a video_usability_rating")
             if video_unusable:
                 if not video_unusable_reason:
                     raise ValueError("video_unusable requires a reason")
-                if marks or bad_frames or no_errors_found:
+                if marks or no_errors_found:
                     raise ValueError(
-                        "video_unusable cannot be combined with landmark marks, bad frames, or no_errors_found"
+                        "video_unusable cannot be combined with landmark marks or no_errors_found"
                     )
             elif not marks and not bad_frames and not no_errors_found:
                 raise ValueError(
@@ -698,6 +713,7 @@ class AnnotationStore:
             "bad_frames": bad_frames,
             "video_unusable": video_unusable,
             "video_unusable_reason": video_unusable_reason if video_unusable else "",
+            "video_usability_rating": video_usability_rating,
             "no_errors_found": no_errors_found,
             "note": note,
         }

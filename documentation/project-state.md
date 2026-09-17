@@ -41,6 +41,7 @@ The current system should be described as an operational research prototype, not
 - Complexity-aware progression and difficulty modeling.
 - Visibility repair, outlier masking, interpolation, and smoothing beyond the current preprocessing phase.
 - Corpus-level quality gating: automatic detection of bad-quality source video or bad-quality pose detection, correction of fixable issues, and exclusion of clips/spans with compromising unfixable errors from metric development.
+- A two-stage human quality gate is now the intended annotation direction: first run full-video `video_usability_triage` (frame flags plus required `unusable`/`marginal`/`correctable`/`perfect` rating), then send only the quality-clearing subset to detailed `error_marking` for bad-segment detection and frame/part-of-skeleton repair or discounting.
 - A live webcam input-quality check for the study frontend (framing, lighting, tracking confidence) that prompts the participant to adjust before recording, informed by whichever offline quality detectors prove cheap enough to run in-browser.
 
 ## Historical findings that constrain current work
@@ -82,7 +83,10 @@ Status: **in progress**
   annotation-tool task types for gathering further ground truth are all done as
   of 2026-08-30 — current status, findings, and next actions are maintained in
   [lab-log/2026-08-27-preprocessing-quality-gate-pivot-handoff.md](../lab-log/2026-08-27-preprocessing-quality-gate-pivot-handoff.md),
-  not duplicated here.
+  not duplicated here. The next annotation batch should begin with the full-video
+  usability triage described in [the 2026-09-17 lab entry](../lab-log/2026-09-17-video-usability-triage.md),
+  rather than treating the historical `quality_triage`/`error_marking` pilot as
+  the final workflow.
 
 ### System integration
 
@@ -110,7 +114,7 @@ A new study is needed to evaluate the current coaching system. Before recruitmen
 ## Near-term priorities
 
 1. Make pose/metric assumptions explicit and reproducible.
-2. Quality-gate the pose/video corpus: validate automatic bad-quality detectors against existing human annotations, then fix or exclude affected clips/spans before further metric or preprocessing-optimization work.
+2. Quality-gate the pose/video corpus: first collect full-video usability triage, define the quality bar, then validate automatic bad-quality detectors and detailed correction/discounting against the selected subset before further metric or preprocessing-optimization work.
 3. Establish technical validity and failure modes for candidate metrics.
 4. Decide which signals are safe to use for learner-facing feedback.
 5. Integrate self-report and performance history into a testable decision policy.

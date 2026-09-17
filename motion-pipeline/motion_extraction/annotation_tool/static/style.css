@@ -131,6 +131,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .error-marking-disposition-controls { display: inline-flex; align-items: stretch; overflow: hidden; border: 1px solid #e6c8c6; border-radius: .5rem; }
 .error-marking-disposition-controls > .btn { min-height: 2.25rem; border: 0; border-radius: 0; font-size: .875rem; font-weight: 650; }
 .error-marking-disposition-controls > .btn + .btn { border-left: 1px solid #e6c8c6; }
+.error-marking-usability-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .45rem; }
+.error-marking-usability-options .label { align-items: start; gap: .45rem; min-height: 3.1rem; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: .55rem; background: #fbfdfc; }
+.error-marking-usability-options .label:has(input:checked) { border-color: var(--teal); background: #e9f5f1; box-shadow: inset 0 0 0 1px var(--teal); }
+.error-marking-usability-options span { display: grid; gap: .1rem; }
+.error-marking-usability-options small { color: var(--muted); font-size: .72rem; line-height: 1.2; }
+.video-marked-unusable .timeline-joint-track-disabled { opacity: .48; cursor: not-allowed; pointer-events: none; }
+.video-marked-unusable #error-marking-overlay { cursor: not-allowed; }
+@media (max-width: 800px) { .error-marking-usability-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .skeleton-landmark { pointer-events: auto; cursor: pointer; touch-action: none; stroke: #10201d; stroke-width: 1.5; }
 .skeleton-landmark:hover { filter: brightness(1.15); }
 .skeleton-landmark-selected { stroke: #ffffff; stroke-width: 2.5; }

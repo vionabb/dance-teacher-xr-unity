@@ -136,7 +136,7 @@
 
     <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
-        <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
+        <div><span class="step-badge">▶</span><h2 id="error-marking-title">Mark tracking errors</h2></div>
       </div>
       <figure class="mt-2 error-marking-player">
         <div id="error-marking-video-wrap" class="error-marking-video-wrap">
@@ -178,6 +178,16 @@
         <label class="label text-xs font-bold uppercase tracking-widest text-base-content/60" for="error-marking-video-unusable-reason">Why is the video unusable? <span class="text-error">Required</span></label>
         <textarea id="error-marking-video-unusable-reason" class="textarea w-full" maxlength="500" placeholder="Why is the entire video too incorrect or flawed to annotate?"></textarea>
       </div>
+
+      <fieldset id="error-marking-usability-rating" class="fieldset mt-3">
+        <legend class="fieldset-legend">Overall video usability <span class="text-error">Required</span></legend>
+        <div class="error-marking-usability-options">
+          <label class="label cursor-pointer"><input class="radio radio-error" type="radio" name="error-marking-usability-rating" value="unusable"> <span><strong>Unusable</strong><small>Exclude the whole video.</small></span></label>
+          <label class="label cursor-pointer"><input class="radio" type="radio" name="error-marking-usability-rating" value="marginal"> <span><strong>Marginal</strong><small>Usable only with substantial caveats.</small></span></label>
+          <label class="label cursor-pointer"><input class="radio radio-warning" type="radio" name="error-marking-usability-rating" value="correctable"> <span><strong>Correctable</strong><small>Repair or discount localized problems.</small></span></label>
+          <label class="label cursor-pointer"><input class="radio radio-success" type="radio" name="error-marking-usability-rating" value="perfect"> <span><strong>Perfect</strong><small>No meaningful quality concerns.</small></span></label>
+        </div>
+      </fieldset>
 
       <div id="error-marking-timeline" class="mt-3"></div>
 

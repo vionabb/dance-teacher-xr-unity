@@ -8,7 +8,7 @@ const state = {
   temporalPlaybackRate: 1, errorMarks: [], errorMarkingBadFrames: [], errorMarkingAutoBadFrames: [],
   errorBodyParts: [], errorCauses: [], editingListKind: "body_part",
   activeMarkIndex: null, errorMarkingNoErrorsConfirmed: false,
-  errorMarkingVideoUnusable: false, errorMarkingVideoUnusableReason: "",
+  errorMarkingVideoUnusable: false, errorMarkingVideoUnusableReason: "", errorMarkingVideoUsabilityRating: "",
   editingBodyParts: false, addingBodyPartEntry: false,
   errorMarkingLandmarks: null, errorMarkingLandmarksTaskId: null,
   skeletonDragLandmark: null, skeletonDragPosition: null, selectedSkeletonLandmark: null,
@@ -122,7 +122,8 @@ function occlusionStates() { return state.data.occlusion_states?.length ? state.
 function profile(task, id) { return task.overlays.find((item) => item.overlay_id === id); }
 function isTemporalTask(task) { return task.task_type === "temporal_pose_comparison"; }
 function isTriageTask(task) { return task.task_type === "quality_triage"; }
-function isErrorMarkingTask(task) { return task.task_type === "error_marking"; }
+function isVideoUsabilityTriageTask(task) { return task.task_type === "video_usability_triage"; }
+function isErrorMarkingTask(task) { return task.task_type === "error_marking" || isVideoUsabilityTriageTask(task); }
 function isQualityRatingTask(task) { return task.task_type === "video_quality_rating"; }
 const ALL_SCREEN_IDS = ["skeleton-screen", "annotation-screen", "temporal-screen", "triage-screen", "error-marking-screen", "quality-rating-screen"];
 function hideAllScreens() { stopErrorMarkingReplay(); ALL_SCREEN_IDS.forEach((id) => { $(id).hidden = true; }); $("actions").hidden = true; }
@@ -456,8 +457,8 @@ function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
   if (toggle) {
     toggle.textContent = automatic ? "Missing tracking (automatic)" : bad ? "Unmark this frame" : "Mark current frame unusable";
     toggle.setAttribute("aria-pressed", String(bad));
-    toggle.disabled = automatic || state.errorMarkingVideoUnusable;
-    toggle.title = automatic ? "This frame has no tracking data and is marked automatically." : state.errorMarkingVideoUnusable ? "Uncheck the video-level disposition to edit individual frames." : "Mark or unmark the current frame as unusable.";
+    toggle.disabled = automatic;
+    toggle.title = automatic ? "This frame has no tracking data and is marked automatically." : "Mark or unmark the current frame as unusable.";
     toggle.classList.toggle("btn-error", bad);
     toggle.classList.toggle("btn-outline", !bad);
   }
@@ -532,9 +533,12 @@ function updateVideoUnusableControls() {
   const screen = $("error-marking-screen");
   if (screen) screen.classList.toggle("video-marked-unusable", unusable);
   const frameToggle = $("error-marking-toggle-bad-frame");
-  if (frameToggle && !state.errorMarkingAutoBadFrames.includes(errorMarkingCurrentFrame())) {
-    frameToggle.disabled = unusable;
-  }
+  if (frameToggle) frameToggle.disabled = state.errorMarkingAutoBadFrames.includes(errorMarkingCurrentFrame());
+  document.querySelectorAll('input[name="error-marking-usability-rating"]').forEach((input) => {
+    input.checked = input.value === state.errorMarkingVideoUsabilityRating;
+  });
+  const timeline = $("error-marking-timeline");
+  if (timeline) timeline.classList.toggle("joint-marking-disabled", unusable);
 }
 
 function syncErrorMarkingNote(event) {
@@ -549,8 +553,29 @@ function syncErrorMarkingNote(event) {
 
 function toggleVideoUnusable() {
   state.errorMarkingVideoUnusable = $("error-marking-video-unusable").checked;
+  state.errorMarkingVideoUsabilityRating = state.errorMarkingVideoUnusable
+    ? "unusable"
+    : state.errorMarkingVideoUsabilityRating === "unusable" ? "" : state.errorMarkingVideoUsabilityRating;
   state.errorMarkingNoErrorsConfirmed = false;
+  if (state.errorMarkingVideoUnusable) {
+    state.editingBodyParts = false;
+    $("error-mark-dialog")?.close();
+    state.activeMarkIndex = null;
+  }
   updateVideoUnusableControls();
+  renderErrorMarkingTimeline();
+  renderSkeletonOverlay();
+  scheduleSave("started");
+}
+
+function setErrorMarkingVideoUsabilityRating(rating) {
+  state.errorMarkingVideoUsabilityRating = rating;
+  state.errorMarkingVideoUnusable = rating === "unusable";
+  state.errorMarkingNoErrorsConfirmed = false;
+  if (state.errorMarkingVideoUnusable) state.editingBodyParts = false;
+  updateVideoUnusableControls();
+  renderErrorMarkingTimeline();
+  renderSkeletonOverlay();
   scheduleSave("started");
 }
 
@@ -811,6 +836,7 @@ function markPointColor(mark) {
 }
 
 function timelineRowGroups() {
+  if (isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return [];
   const groups = errorListArray("body_part")
     .map((part) => ({part, indices: state.errorMarks.map((_, index) => index).filter((index) => state.errorMarks[index].body_part === part.id)}));
   const knownIds = new Set(groups.map((group) => group.part.id));
@@ -881,7 +907,7 @@ function renderErrorMarkingTimeline() {
   const groups = timelineRowGroups();
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
   const minTrackWidth = Math.max(1, errorMarkingFrameCount()) * MIN_TIMELINE_PX_PER_FRAME;
-  const editing = state.editingBodyParts;
+  const editing = state.editingBodyParts && !state.errorMarkingVideoUnusable;
   const rowCount = groups.length + 2;
 
   // Row headers and row tracks are separate DOM subtrees (so the track
@@ -905,7 +931,7 @@ function renderErrorMarkingTimeline() {
 
   const badFrameTrack = `<div class="timeline-row-track timeline-bad-frame-track" aria-label="Frames marked unusable">${badFrameRanges().map((range) => renderBadFrameSegment(range, frameCount)).join("")}</div>`;
   const trackCells = badFrameTrack + groups.map(({part, indices}) =>
-    `<div class="timeline-row-track" data-track-part="${part.id}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>`
+    `<div class="timeline-row-track timeline-joint-track${state.errorMarkingVideoUnusable ? " timeline-joint-track-disabled" : ""}" data-track-part="${part.id}" aria-disabled="${state.errorMarkingVideoUnusable}">${indices.map((index) => renderTimelineSegment(index, frameCount)).join("")}</div>`
   ).join("");
 
   const footerHTML = (editing
@@ -970,6 +996,7 @@ function attachTimelineHandlers() {
   if (container.dataset.handlersAttached) return;
   container.dataset.handlersAttached = "1";
   container.addEventListener("click", (event) => {
+    if (state.errorMarkingVideoUnusable && !event.target.closest("[data-bad-frame-start]")) return;
     if (event.target.closest("#timeline-edit-body-parts-toggle")) {
       state.editingBodyParts = !state.editingBodyParts;
       state.addingBodyPartEntry = false;
@@ -1017,6 +1044,7 @@ function attachTimelineHandlers() {
     if (event.target.id === "timeline-add-body-part-input") commitNewBodyPart(event.target.value);
   });
   container.addEventListener("pointerdown", (event) => {
+    if (state.errorMarkingVideoUnusable) return;
     const handle = event.target.closest(".timeline-handle");
     if (handle) { startTimelineHandleDrag(event, handle); return; }
     if (event.target.closest(".timeline-segment")) return;
@@ -1027,6 +1055,7 @@ function attachTimelineHandlers() {
 }
 
 function startTimelineHandleDrag(event, handleEl) {
+  if (state.errorMarkingVideoUnusable) return;
   event.preventDefault();
   event.stopPropagation();
   const index = Number(handleEl.dataset.markIndex);
@@ -1076,6 +1105,7 @@ function startTimelineHandleDrag(event, handleEl) {
 }
 
 function startNewMarkDrag(event, track) {
+  if (state.errorMarkingVideoUnusable) return;
   event.preventDefault();
   const partId = track.dataset.trackPart;
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
@@ -1167,6 +1197,7 @@ function renderErrorMarkDialogCauses(mark) {
 }
 
 function openErrorMarkPopup(index) {
+  if (state.errorMarkingVideoUnusable || isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return;
   stopErrorMarkingReplay();
   state.activeMarkIndex = index;
   const mark = state.errorMarks[index];
@@ -1374,6 +1405,11 @@ function renderOverlayInto(svg, data, frame, highlight = null) {
 }
 
 function renderSkeletonOverlay(frame = errorMarkingCurrentFrame()) {
+  if (isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) {
+    $("error-marking-overlay").innerHTML = "";
+    renderErrorMarkDialogOverlay();
+    return;
+  }
   renderOverlayInto($("error-marking-overlay"), state.errorMarkingLandmarks, frame);
   renderErrorMarkDialogOverlay();
 }
@@ -1410,6 +1446,7 @@ function svgToContentPoint(svg, clientX, clientY) {
 const SKELETON_DRAG_THRESHOLD = 3;
 
 function startSkeletonLandmarkDrag(event, landmark) {
+  if (state.errorMarkingVideoUnusable || isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return;
   event.preventDefault();
   const svg = $("error-marking-overlay");
   const data = state.errorMarkingLandmarks;
@@ -1460,6 +1497,7 @@ function attachSkeletonOverlayHandlers() {
   if (!svg || svg.dataset.handlersAttached) return;
   svg.dataset.handlersAttached = "1";
   svg.addEventListener("pointerdown", (event) => {
+    if (state.errorMarkingVideoUnusable || isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return;
     const circle = event.target.closest(".skeleton-landmark");
     if (!circle || !state.errorMarkingLandmarks) return;
     startSkeletonLandmarkDrag(event, circle.dataset.landmark);
@@ -1470,6 +1508,7 @@ function renderErrorMarkingTask(task, judgment) {
   pauseTemporalVideos();
   hideAllScreens();
   $("error-marking-screen").hidden = false;
+  $("error-marking-title").textContent = isVideoUsabilityTriageTask(task) ? "Assess video usability" : "Mark tracking errors";
   $("actions").hidden = false;
   $("mark-unclear").hidden = true;
 
@@ -1494,6 +1533,7 @@ function renderErrorMarkingTask(task, judgment) {
     .sort((a, b) => a - b);
   state.errorMarkingAutoBadFrames = [];
   state.errorMarkingVideoUnusable = Boolean(response.video_unusable);
+  state.errorMarkingVideoUsabilityRating = response.video_usability_rating || (state.errorMarkingVideoUnusable ? "unusable" : "");
   state.errorMarkingVideoUnusableReason = response.note || response.video_unusable_reason || "";
   state.errorMarkingNoErrorsConfirmed = Boolean(response.no_errors_found);
   state.errorMarkingDirty = false;
@@ -1523,9 +1563,10 @@ function errorMarkingResponsePayload() {
   const note = $("error-marking-note").value.trim();
   return {
     marks: videoUnusable ? [] : state.errorMarks,
-    bad_frames: videoUnusable ? [] : badFrames,
+    bad_frames: badFrames,
     video_unusable: videoUnusable,
     video_unusable_reason: videoUnusable ? note : "",
+    video_usability_rating: state.errorMarkingVideoUsabilityRating,
     no_errors_found: !videoUnusable && state.errorMarks.length === 0 && badFrames.length === 0 && Boolean(state.errorMarkingNoErrorsConfirmed),
     note,
   };
@@ -1890,6 +1931,9 @@ function payload(status) {
   }
   if (isErrorMarkingTask(task)) {
     const errorMarkingResponse = errorMarkingResponsePayload();
+    if (status === "completed" && !errorMarkingResponse.video_usability_rating) {
+      throw new Error("Choose an overall video usability rating before completing this case.");
+    }
     if (status === "completed" && errorMarkingResponse.video_unusable && !errorMarkingResponse.video_unusable_reason) {
       throw new Error("Explain why this entire video is too flawed to annotate.");
     }
@@ -1992,11 +2036,19 @@ fetch("/api/access-info").then(responseJson).then((info) => {
 $("error-marking-toggle-bad-frame").onclick = () => toggleBadFrame();
 $("error-marking-video-unusable").onchange = toggleVideoUnusable;
 $("error-marking-video-unusable-reason").oninput = syncErrorMarkingNote;
+document.querySelectorAll('input[name="error-marking-usability-rating"]').forEach((input) => {
+  input.onchange = (event) => setErrorMarkingVideoUsabilityRating(event.target.value);
+});
 document.querySelectorAll(".actions button[data-status]").forEach((button) => button.onclick = async () => {
   const task = state.data?.tasks?.[state.taskIndex];
   if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && state.errorMarkingVideoUnusable && !state.errorMarkingVideoUnusableReason.trim()) {
     alert("Explain why this entire video is too flawed to annotate.");
     $("error-marking-video-unusable-reason")?.focus();
+    return;
+  }
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarkingVideoUsabilityRating) {
+    alert("Choose an overall video usability rating before completing this case.");
+    $("error-marking-usability-rating")?.scrollIntoView({behavior: "smooth", block: "center"});
     return;
   }
   if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarkingVideoUnusable && !state.errorMarks.length && !allBadFrameNumbers().length) {
