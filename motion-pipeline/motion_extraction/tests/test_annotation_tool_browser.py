@@ -356,6 +356,15 @@ def test_flagging_current_frame_persists_as_unusable_frame(page, tmp_path: Path)
         page.wait_for_timeout(220)
         centers = toggle_centers()
         assert centers["handle"] == pytest.approx(centers["unusable"], abs=2)
+        mark_geometry = page.evaluate(
+            """() => {
+                const track = document.querySelector('.timeline-bad-frame-track').getBoundingClientRect();
+                const mark = document.querySelector('.timeline-bad-frame').getBoundingClientRect();
+                return {trackTop: track.top, trackBottom: track.bottom, markTop: mark.top, markBottom: mark.bottom};
+            }"""
+        )
+        assert mark_geometry["markTop"] >= mark_geometry["trackTop"]
+        assert mark_geometry["markBottom"] <= mark_geometry["trackBottom"]
         expect(page.locator("#error-marking-bad-frame-badge")).to_be_visible()
         expect(page.locator(".skeleton-edge").first).to_have_attribute("stroke", "#b3261e")
         expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
