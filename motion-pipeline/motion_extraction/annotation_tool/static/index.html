@@ -137,7 +137,6 @@
     <section id="error-marking-screen" class="card card-border bg-base-100 p-4 shadow-sm" hidden>
       <div class="section-heading">
         <div><span class="step-badge">▶</span><h2>Mark tracking errors</h2></div>
-        <details class="instructions-details"><summary>Instructions</summary><p>Mark which landmark is inaccurate and for which frames using the timeline below, or click/drag a point directly on the skeleton.</p></details>
       </div>
       <figure class="mt-2 error-marking-player">
         <div id="error-marking-video-wrap" class="error-marking-video-wrap">
@@ -168,19 +167,15 @@
       </figure>
       <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
         <button id="error-marking-toggle-bad-frame" class="btn btn-sm btn-error btn-outline" type="button" aria-pressed="false">Mark current frame unusable</button>
-        <span class="text-xs text-base-content/70">Use this when the whole frame is missing or badly tracked.</span>
-      </div>
-      <fieldset class="mt-3 error-marking-video-disposition">
-        <label class="label cursor-pointer justify-start gap-2">
-          <input id="error-marking-video-unusable" class="checkbox checkbox-error" type="checkbox">
-          <span><strong>This entire video is too incorrect or flawed to annotate</strong><span class="block text-xs text-base-content/65">Use this when the clip is fundamentally unusable, beyond individual frame repairs.</span></span>
+        <label id="error-marking-video-unusable-control" class="btn btn-sm btn-error btn-outline cursor-pointer">
+          <input id="error-marking-video-unusable" class="sr-only" type="checkbox">
+          <span id="error-marking-video-unusable-label">Mark entire video unusable</span>
         </label>
-        <div id="error-marking-video-unusable-reason-wrap" class="mt-2" hidden>
-          <label class="label text-xs font-bold uppercase tracking-widest text-base-content/60" for="error-marking-video-unusable-reason">Why is the video unusable? <span class="text-error">Required</span></label>
-          <textarea id="error-marking-video-unusable-reason" class="textarea w-full" maxlength="500" placeholder="For example: tracking is absent for most of the clip, or the pose is consistently detached from the person." aria-describedby="error-marking-video-unusable-help"></textarea>
-          <p id="error-marking-video-unusable-help" class="mt-1 text-xs text-base-content/60">Individual frame and landmark annotations will be excluded while this is selected.</p>
-        </div>
-      </fieldset>
+      </div>
+      <div id="error-marking-video-unusable-reason-wrap" class="mt-2" hidden>
+        <label class="label text-xs font-bold uppercase tracking-widest text-base-content/60" for="error-marking-video-unusable-reason">Why is the video unusable? <span class="text-error">Required</span></label>
+        <textarea id="error-marking-video-unusable-reason" class="textarea w-full" maxlength="500" placeholder="Why is the entire video too incorrect or flawed to annotate?"></textarea>
+      </div>
 
       <div id="error-marking-timeline" class="mt-3"></div>
 

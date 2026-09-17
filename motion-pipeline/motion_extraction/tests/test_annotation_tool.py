@@ -1125,6 +1125,13 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert 'id="error-marking-bad-frame-badge"' in html
     assert 'id="error-marking-video-unusable"' in html
     assert 'id="error-marking-video-unusable-reason"' in html
+    assert 'id="error-marking-video-unusable-control"' in html
+    error_screen_start = html.index('id="error-marking-screen"')
+    error_screen_end = html.index('id="quality-rating-screen"', error_screen_start)
+    error_screen = html[error_screen_start:error_screen_end]
+    assert '<details class="instructions-details">' not in error_screen
+    assert "Use this when the whole frame is missing" not in error_screen
+    assert "Use this when the clip is fundamentally unusable" not in error_screen
     js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     for symbol in [
         "function ensureMarkAtFrame(",
@@ -1300,13 +1307,13 @@ console.log(JSON.stringify({{
     assert ".skeleton-previous-frame-landmark-ghost { stroke-width: 2.5;" in css
 
 
-def test_task_instructions_are_collapsible_on_every_screen() -> None:
+def test_task_instructions_are_collapsible_on_screens_that_have_them() -> None:
     html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
-    # One per task screen: skeleton, describe-the-frame, temporal comparison,
-    # triage, error marking, and quality rating.
-    assert html.count('<details class="instructions-details">') == 6
-    assert html.count("<summary>Instructions</summary>") == 6
+    # One per task screen that still needs an expandable instruction block;
+    # the error-marking screen is self-explanatory from its controls.
+    assert html.count('<details class="instructions-details">') == 5
+    assert html.count("<summary>Instructions</summary>") == 5
     assert ".instructions-details summary" in css
 
 
@@ -1397,6 +1404,7 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     assert ".error-marking-controls-bar .btn { margin: 0;" in css
     assert "border: 0;" in css[css.index(".error-marking-controls-bar .btn {") :].split("}", 1)[0]
     assert ".error-marking-controls-bar .btn + .btn { border-left: 1px solid" in css
+    assert "background: #111817;" in css[css.index(".error-marking-fps-select") :].split("}", 1)[0]
     assert "#error-marking-video { display: block; max-height: calc(32vh + 2.75rem);" in css
     mobile_css = css[css.index("@media (max-width: 800px)") :]
     assert "#error-marking-video { max-height: calc(58vh + 2.75rem); }" in mobile_css

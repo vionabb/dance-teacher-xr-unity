@@ -517,6 +517,14 @@ function updateVideoUnusableControls() {
   const unusable = state.errorMarkingVideoUnusable;
   const checkbox = $("error-marking-video-unusable");
   if (checkbox) checkbox.checked = unusable;
+  const control = $("error-marking-video-unusable-control");
+  if (control) {
+    control.setAttribute("aria-pressed", String(unusable));
+    control.classList.toggle("btn-outline", !unusable);
+    control.title = unusable ? "Unmark the video as unusable." : "Mark the entire video as unusable.";
+  }
+  const controlLabel = $("error-marking-video-unusable-label");
+  if (controlLabel) controlLabel.textContent = unusable ? "Unmark entire video" : "Mark entire video unusable";
   const reasonField = $("error-marking-video-unusable-reason");
   if (reasonField) reasonField.value = state.errorMarkingVideoUnusableReason;
   const reasonWrap = $("error-marking-video-unusable-reason-wrap");
@@ -897,8 +905,7 @@ function renderErrorMarkingTimeline() {
     : "") +
     `<button type="button" id="timeline-edit-body-parts-toggle" class="btn btn-xs btn-ghost timeline-edit-toggle" aria-label="${editing ? "Done editing body parts" : "Edit body parts"}" title="${editing ? "Done editing body parts" : "Edit body parts"}">${editing ? "✓ Done" : "Edit"}</button>`;
 
-  container.innerHTML = `<div class="mb-1 text-xs font-bold uppercase tracking-widest text-base-content/60">Red frames are unusable as a whole and do not need landmark repair. Click-drag an empty body-part row to start a landmark error; click an existing span to set its cause; drag its edges to adjust.</div>` +
-    `<div class="timeline-grid grid gap-x-[.6rem] items-stretch" style="grid-template-columns:auto 1fr;grid-template-rows:auto repeat(${groups.length + 1},1.6rem);row-gap:.4rem">
+  container.innerHTML = `<div class="timeline-grid grid gap-x-[.6rem] items-stretch" style="grid-template-columns:auto 1fr;grid-template-rows:auto repeat(${groups.length + 1},1.6rem);row-gap:.4rem">
       <div class="timeline-left-col grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount}">${headerCells}</div>
       <div class="timeline-scroll grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount}">
         <div class="timeline-scroll-inner grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount};min-width:${minTrackWidth}px">${scrubberRowHTML}${trackCells}<div class="timeline-playhead" style="left:${timelinePlayheadLeftPercent()}%"></div></div>
