@@ -381,6 +381,32 @@ def test_video_unusable_disposition_persists_its_reason(page, tmp_path: Path) ->
         _stop_server(server, thread)
 
 
+def test_video_unusable_allows_frame_flags_but_blocks_joint_marks(page, tmp_path: Path) -> None:
+    server, store, thread = _start_error_marking_server(tmp_path)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        page.locator("#error-marking-video-unusable-control").click()
+
+        rating = page.locator('input[name="error-marking-usability-rating"][value="unusable"]')
+        expect(rating).to_be_checked()
+        expect(page.locator("#error-marking-toggle-bad-frame")).to_be_enabled()
+        expect(page.locator('[data-track-part="LEFT_WRIST"]')).to_have_attribute("aria-disabled", "true")
+
+        page.locator("#error-marking-toggle-bad-frame").click()
+        page.locator(".skeleton-landmark").first.click()
+        expect(page.locator("#error-mark-dialog")).not_to_be_visible()
+        expect(page.locator("#save-state")).to_contain_text("saved revision", timeout=5000)
+
+        response = store.state("researcher")["latest_judgments"]["error-marking-1"]["error_marking_response"]
+        assert response["video_unusable"] is True
+        assert response["video_usability_rating"] == "unusable"
+        assert response["bad_frames"] == [0]
+        assert response["marks"] == []
+    finally:
+        _stop_server(server, thread)
+
+
 def test_dragging_a_skeleton_landmark_records_a_corrected_position_and_a_mark(page, tmp_path: Path) -> None:
     server, store, thread = _start_error_marking_server(tmp_path)
     try:

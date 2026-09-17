@@ -917,6 +917,7 @@ def test_error_marking_marks_are_typed_append_only_and_exported(tmp_path: Path) 
                         "positions": {"12": [201.5, 88.0], "15": [210.0, 90.25]},
                     }
                 ],
+                "video_usability_rating": "correctable",
                 "no_errors_found": False,
                 "note": "otherwise clean",
             },
@@ -937,7 +938,7 @@ def test_error_marking_marks_are_typed_append_only_and_exported(tmp_path: Path) 
 
 def test_completed_error_marking_requires_marks_bad_frames_video_unusable_or_no_errors_found(tmp_path: Path) -> None:
     store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
-    with pytest.raises(ValueError, match="requires marks, bad frames, video_unusable, or no_errors_found"):
+    with pytest.raises(ValueError, match="video_usability_rating"):
         store.append(
             {
                 "annotator": "reviewer",
@@ -951,7 +952,7 @@ def test_completed_error_marking_requires_marks_bad_frames_video_unusable_or_no_
             "annotator": "reviewer",
             "task_id": "error-marking-1",
             "status": "completed",
-            "error_marking_response": {"marks": [], "no_errors_found": True, "note": "clean pass"},
+            "error_marking_response": {"marks": [], "no_errors_found": True, "video_usability_rating": "perfect", "note": "clean pass"},
         }
     )
 
@@ -966,6 +967,7 @@ def test_error_marking_bad_frames_are_sorted_validated_and_can_complete_alone(tm
             "error_marking_response": {
                 "marks": [],
                 "bad_frames": [14, 3, 14, 1],
+                "video_usability_rating": "correctable",
                 "no_errors_found": False,
                 "note": "Tracking is unusable in these frames.",
             },
@@ -981,7 +983,7 @@ def test_error_marking_bad_frames_are_sorted_validated_and_can_complete_alone(tm
                 "annotator": "reviewer",
                 "task_id": "error-marking-1",
                 "status": "started",
-                "error_marking_response": {"marks": [], "bad_frames": [90], "note": ""},
+                "error_marking_response": {"marks": [], "bad_frames": [90], "video_usability_rating": "correctable", "note": ""},
             }
         )
 
@@ -998,6 +1000,7 @@ def test_error_marking_can_reject_an_entire_video_with_a_reason(tmp_path: Path) 
                 "bad_frames": [],
                 "video_unusable": True,
                 "video_unusable_reason": "Tracking is detached from the dancer throughout the clip.",
+                "video_usability_rating": "unusable",
                 "no_errors_found": False,
                 "note": "",
             },
@@ -1019,9 +1022,25 @@ def test_error_marking_can_reject_an_entire_video_with_a_reason(tmp_path: Path) 
                     "bad_frames": [],
                     "video_unusable": True,
                     "video_unusable_reason": "",
+                    "video_usability_rating": "unusable",
                 },
             }
         )
+    saved_with_frame_flags = store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "error-marking-1",
+            "status": "completed",
+            "error_marking_response": {
+                "marks": [],
+                "bad_frames": [2],
+                "video_unusable": True,
+                "video_unusable_reason": "The whole clip is invalid.",
+                "video_usability_rating": "unusable",
+            },
+        }
+    )
+    assert saved_with_frame_flags["status"] == "completed"
     with pytest.raises(ValueError, match="cannot be combined"):
         store.append(
             {
@@ -1029,13 +1048,39 @@ def test_error_marking_can_reject_an_entire_video_with_a_reason(tmp_path: Path) 
                 "task_id": "error-marking-1",
                 "status": "completed",
                 "error_marking_response": {
-                    "marks": [],
-                    "bad_frames": [2],
+                    "marks": [{"body_part": "LEFT_WRIST", "start_frame": 2, "end_frame": 2, "causes": [], "note": "", "positions": {}}],
+                    "bad_frames": [],
                     "video_unusable": True,
                     "video_unusable_reason": "The whole clip is invalid.",
+                    "video_usability_rating": "unusable",
                 },
             }
         )
+
+
+def test_video_usability_triage_task_accepts_frame_flags_and_four_point_rating(tmp_path: Path) -> None:
+    manifest = _error_marking_manifest()
+    manifest["task_type"] = "video_usability_triage"
+    manifest["tasks"][0]["task_type"] = "video_usability_triage"
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", manifest)
+    store.append(
+        {
+            "annotator": "reviewer",
+            "task_id": "error-marking-1",
+            "status": "completed",
+            "error_marking_response": {
+                "marks": [],
+                "bad_frames": [4, 8],
+                "video_unusable": False,
+                "video_usability_rating": "marginal",
+                "no_errors_found": False,
+                "note": "The clip is usable only with substantial caveats.",
+            },
+        }
+    )
+    response = store.state("reviewer")["latest_judgments"]["error-marking-1"]["error_marking_response"]
+    assert response["bad_frames"] == [4, 8]
+    assert response["video_usability_rating"] == "marginal"
 
 
 def test_error_marking_mark_position_must_fall_within_its_own_frame_range(tmp_path: Path) -> None:
@@ -1057,6 +1102,7 @@ def test_error_marking_mark_position_must_fall_within_its_own_frame_range(tmp_pa
                             "positions": {"20": [1.0, 2.0]},
                         }
                     ],
+                    "video_usability_rating": "correctable",
                     "no_errors_found": False,
                     "note": "",
                 },
@@ -1127,6 +1173,11 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert 'id="error-marking-video-unusable-reason"' in html
     assert 'id="error-marking-video-unusable-control"' in html
     assert 'class="error-marking-disposition-controls"' in html
+    assert 'id="error-marking-usability-rating"' in html
+    assert 'name="error-marking-usability-rating" value="unusable"' in html
+    assert 'name="error-marking-usability-rating" value="marginal"' in html
+    assert 'name="error-marking-usability-rating" value="correctable"' in html
+    assert 'name="error-marking-usability-rating" value="perfect"' in html
     error_screen_start = html.index('id="error-marking-screen"')
     error_screen_end = html.index('id="quality-rating-screen"', error_screen_start)
     error_screen = html[error_screen_start:error_screen_end]
@@ -1143,7 +1194,11 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
         "function toggleBadFrame(",
         "function missingTrackingFrames(",
         "function toggleVideoUnusable(",
-        "bad_frames: videoUnusable ? [] : badFrames",
+        "function setErrorMarkingVideoUsabilityRating(",
+        "function isVideoUsabilityTriageTask(",
+        "if (isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return [];",
+        "video_usability_rating: state.errorMarkingVideoUsabilityRating",
+        "bad_frames: badFrames",
         "video_unusable_reason: videoUnusable ? note : \"\"",
     ]:
         assert symbol in js
@@ -1155,6 +1210,7 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert "transform-origin: center;" in css
     assert ".timeline-bad-frame-track" in css
     assert ".timeline-bad-frame-auto" in css
+    assert ".video-marked-unusable .timeline-joint-track-disabled" in css
     assert "Automatic: missing tracking" in js
 
 

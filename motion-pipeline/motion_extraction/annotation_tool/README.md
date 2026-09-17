@@ -187,13 +187,22 @@ main screens are `#skeleton-screen` (landmark alignment) and
 the selected landmark; it starts with the landmark showing the greatest
 disagreement across preprocessing overlays. Keep those IDs stable: JavaScript
 uses them as workflow boundaries and the focused tests assert their presence.
-`error_marking` tasks use clean clips with no pose burned into the video. Their
+`video_usability_triage` tasks are the first-stage quality gate: the annotator
+marks any unusable frames and assigns one required overall rating — `unusable`,
+`marginal`, `correctable`, or `perfect`. These tasks intentionally expose no
+joint-editing controls. `error_marking` tasks are the downstream follow-up for
+videos that clear the quality bar; they use clean clips with no pose burned into the video. Their
 SVG overlay paints the full tracked skeleton in yellow-green; a corrected
 landmark remains yellow-green until it has a cause attribution, then the
 corrected landmark and connected segments use the cause color. A moved
 landmark also leaves its original node and connected segments behind as a
 deemphasized gray ghost. `quality_triage` clips deliberately keep their
 burned-in overlay for quick-glance review.
+When an annotator marks an entire video unusable in either frame-review
+workflow, frame-level unusable flags remain available but landmark/joint marks
+are disabled. The four-point usability rating is stored with the frame flags
+so analysis can first select videos that clear a quality bar, then evaluate
+segment detection and localized correction/discounting on that subset.
 The fixed `#actions` bar is shared by both screens, so
 changes to its height should be paired with the body's bottom padding. The UI
 uses daisyUI classes for controls and a small custom layer for the canvas,

@@ -89,3 +89,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   play, a 2/4/8fps and 0.5x/1x speed selector, a frame scrubber sized and scrolled in lockstep with the
   timeline tracks beneath it, a frame counter floating over the canvas, immediate repaint after mark
   removal, and remembered-user auto-load; the existing annotation database remains intact.
+
+- [2026-09-17 — Video usability triage before detailed error annotation](2026-09-17-video-usability-triage.md)
+  Reoriented the annotation stream around a first-stage full-video usability
+  gate: mark unusable frames, then assign `unusable`/`marginal`/`correctable`/
+  `perfect`. Use only the quality-clearing subset for downstream bad-segment
+  detection and frame or skeleton-part repair/discounting.
