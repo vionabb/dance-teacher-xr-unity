@@ -79,19 +79,19 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).
 
 - [Handoff: corpus-wide quality triage + defect localization](2026-08-27-preprocessing-quality-gate-pivot-handoff.md)
-  (living document — status as of 2026-09-07) Full-corpus pose extraction and
-  `quality_triage` are complete; `error_marking` and `video_quality_rating` are
-  in progress (1/17 and 0/20). The live `error_marking` batch now uses clean
-  clips with a client-painted, correction-aware yellow skeleton (cause-colored
-  halos, gray original-position ghosts, persistent faint blue previous-frame correction guides,
-  and an alignment-preserving out-of-frame interaction buffer, both ghost layers suppressed during
-  playback), taller below-canvas integrated playback with flush single-border controls, forward/backwards
-  play, a 2/4/8fps and 0.5x/1x speed selector, a frame scrubber sized and scrolled in lockstep with the
-  timeline tracks beneath it, a frame counter floating over the canvas, immediate repaint after mark
-  removal, and remembered-user auto-load; the existing annotation database remains intact.
+  (living document — status as of 2026-09-22) Full-corpus pose extraction and
+  60 sampled coarse quality judgments are complete; three of 17 detailed-error
+  tasks have unfinished drafts. The next work is a versioned three-stage video,
+  frame, and landmark workflow, with an audit sample and preserved history.
 
 - [2026-09-17 — Video usability triage before detailed error annotation](2026-09-17-video-usability-triage.md)
   Reoriented the annotation stream around a first-stage full-video usability
   gate: mark unusable frames, then assign `unusable`/`marginal`/`correctable`/
   `perfect`. Use only the quality-clearing subset for downstream bad-segment
   detection and frame or skeleton-part repair/discounting.
+
+- [2026-09-22 — Three-stage preprocessing annotation audit](2026-09-22-three-stage-preprocessing-annotation-audit.md)
+  Set the video, frame, and landmark annotation sequence and audited live
+  progress: 60 coarse triage judgments complete, three detailed-error drafts,
+  no four-point video-usability tasks yet. Identified missing three-level frame
+  flow and a manual-versus-automatic frame-flag provenance defect.
