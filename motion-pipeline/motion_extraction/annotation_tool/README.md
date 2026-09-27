@@ -46,6 +46,29 @@ The server consumes a versioned task manifest rather than hard-coding the pose
 experiment, so future human-input questions can reuse persistence, progress,
 revision, export, editable-landmark, and frame-note behavior.
 
+## Resume the active annotation batch
+
+For the active three-stage batch, launch the maintained helper from
+`motion-pipeline`:
+
+```bash
+./.venv/bin/python resume_annotation_server.py
+```
+
+It serves the active manifest on the configured private-LAN address, prompts
+for the access code, and resumes judgments from the configured SQLite database.
+Progress is read from that database, so do not copy task counts or judgments
+into the helper. The server reads `annotation_tasks.json` at startup; restart it
+after changing the active manifest.
+
+When generating, replacing, or otherwise advancing the active annotation task
+batch, agents must update `resume_annotation_server.py` in the same change to
+point at the active experiment root and its matching persistent database. Keep
+its host and port aligned with the intended trusted LAN setup. Never put the
+access code in the helper or documentation; it is entered when the helper runs.
+Keep batch history intact and do not pair a new experiment manifest with an
+unrelated annotation database.
+
 ## Blinded temporal comparison
 
 The `temporal_pose_comparison` workflow compares a source-motion window with
