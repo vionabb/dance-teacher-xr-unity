@@ -22,7 +22,7 @@ Run commands with this directory as the working directory. The canonical environ
 Prerequisites:
 
 - [uv](https://docs.astral.sh/uv/);
-- Python 3.10 (the project pin is in `.python-version`);
+- Python 3.12 (the project pin is in `.python-version`);
 - `ffmpeg` on `PATH`;
 - access to source media only when the selected workflow needs it.
 
@@ -32,7 +32,7 @@ uv sync --locked --group dev
 
 This creates `motion-pipeline/.venv`. In VS Code, open [the repository multi-root workspace](../dance-teacher-xr-unity.code-workspace) and select that interpreter if the editor chose another one. Interpreter drift is a common cause of imports working in one context but not another.
 
-The support target is Python 3.10 on macOS (Apple Silicon) and Linux (x86_64); this baseline has been clean-install validated on macOS, with Linux validation delegated to the follow-on CI step. Windows and the legacy robotics stack remain unverified; install the latter explicitly with `uv sync --group legacy-robotics` when working on it. `ffmpeg` is required for the active video/audio workflow, while `rclone` is needed only for cloud-transfer commands.
+The support target is Python 3.12 on macOS (Apple Silicon) and Linux (x86_64); this baseline has been clean-install validated on macOS, with Linux validation delegated to the follow-on CI step. Windows and the legacy robotics stack remain unverified; install the latter explicitly with `uv sync --group legacy-robotics` when working on it. `ffmpeg` is required for the active video/audio workflow, while `rclone` is needed only for cloud-transfer commands.
 
 For a fresh machine, configure the `dataset` and `agentoutput` rclone remotes,
 then follow the [research-data staging and manual-review recovery guide](../documentation/dataset.md#new-research-machine-and-manual-review-recovery).
