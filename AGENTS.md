@@ -31,11 +31,16 @@ Do not load the full thesis or CHI paper unless the task requires primary-source
 - Use the smallest existing validation command that covers a change. Subproject `AGENTS.md` files list the canonical commands.
 - Browser automation (e.g. the Playwright MCP server) against the Svelte frontend or the annotation tool is token-expensive: it returns the page's full accessibility tree on every action. Reserve it for exploratory, interactive work and local UI debugging. For CI/CD or any repeated run, generate a static Playwright test script (e.g. via `npx playwright codegen`) instead of driving a persistent MCP loop headlessly.
 - On macOS, MediaPipe pose-extraction tests require a GUI-authorized local
-  process because the pinned wheel creates a native NSOpenGL context. When a
-  change affects extraction, run the focused wrapper in
-  `motion-pipeline/script_invocations/run_pose_extraction_smoke.sh` with the
-  required local permission; do not misclassify a sandbox-only OpenGL failure
-  as an extraction regression.
+  process because the pinned wheel creates a native NSOpenGL context even when
+  inference uses the CPU. Before running any pose smoke test, verify that the
+  command will run with GUI/OpenGL authorization. Never launch
+  `motion-pipeline/script_invocations/run_smoke_tests.sh` from Codex's default
+  sandbox on macOS: its expected NSOpenGL startup failure is environmental and
+  wastes a full gate run. Run the required gate in a GUI-authorized local
+  process. The focused `run_pose_extraction_smoke.sh` wrapper is useful for
+  diagnosis, but it does not replace the full gate. If GUI authorization is
+  unavailable or denied, do not retry inside the sandbox; report the gate as
+  blocked by the execution environment, not as a pipeline regression.
 - Update the owning canonical document rather than copying the same explanation into several files. Update [documentation/project-state.md](documentation/project-state.md) only when research maturity, known limitations, or priorities change.
 - Update the owning canonical document rather than copying the same explanation into several files.
 

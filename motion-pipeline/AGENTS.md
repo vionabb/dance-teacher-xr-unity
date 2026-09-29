@@ -39,6 +39,16 @@ Prefer the smallest applicable existing command:
 - Small pipeline smoke run: `./script_invocations/run_dancetree_pipeline_test_small.sh`
 - Broader local pipeline run: `./script_invocations/run_dancetree_pipeline_test.sh`
 
+On macOS, do not run the pose or full smoke gate from Codex's default sandbox.
+The pinned legacy Holistic wheel initializes a native NSOpenGL context even
+though inference uses CPU, so a sandboxed run can fail before it exercises the
+pipeline. Run the required full gate
+(`./script_invocations/run_smoke_tests.sh`) in a GUI-authorized local process.
+Use `./script_invocations/run_pose_extraction_smoke.sh` only as a focused
+diagnostic, not as a substitute for the full gate. If GUI authorization is
+unavailable, report validation as blocked by the environment rather than
+retrying the known-invalid sandboxed invocation or calling it a code failure.
+
 Any agent change to motion-pipeline code or configuration must pass the acceptance gate before handoff. The gate uses the committed stage-first corpus under `../data/test-fixtures/smoketest/` and writes only to temporary output directories. Do not treat missing private or full-dataset media as a smoke-test failure when the committed corpus is available.
 
 Smoke-test inputs are immutable contract fixtures. Do not point a normal pipeline output at `../data/test-fixtures/smoketest/`. If a contract change requires new inputs, generate outputs under `temp/`, validate them, promote selected files with `script_invocations/promote_smoke_fixture.py`, update `../data/test-fixtures/smoketest/manifest.json`, and review the resulting fixture diff.
