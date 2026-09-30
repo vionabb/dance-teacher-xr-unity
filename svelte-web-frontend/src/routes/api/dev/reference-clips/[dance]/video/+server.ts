@@ -2,12 +2,11 @@ import { dev } from '$app/environment';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { Readable } from 'node:stream';
-import { error } from '@sveltejs/kit';
 import { isDevLocalRequestAllowed } from '$lib/server/client-address';
 import {
-	findParticipantRecord,
 	parseByteRange,
-	participantDataRoot,
+	referenceClipInfo,
+	referenceVideoRoot,
 	validateCatalogFile
 } from '$lib/server/participant-dataset-catalog';
 import type { RequestHandler } from './$types';
@@ -19,12 +18,16 @@ const headers = {
 	'X-Content-Type-Options': 'nosniff'
 };
 
+async function selectedVideo(dance: string, request: Request, getClientAddress: () => string) {
+	if (!isDevLocalRequestAllowed(request, getClientAddress(), dev)) return null;
+	const info = referenceClipInfo(dance, 1);
+	if (!info) return null;
+	return validateCatalogFile(`${referenceVideoRoot()}/${info.fileName}`, referenceVideoRoot());
+}
+
 export const GET: RequestHandler = async ({ params, request, getClientAddress }) => {
-	if (!isDevLocalRequestAllowed(request, getClientAddress(), dev)) error(404);
-	const record = await findParticipantRecord(params.id);
-	if (!record) error(404);
-	const file = await validateCatalogFile(record.videoPath, participantDataRoot());
-	if (!file) error(404);
+	const file = await selectedVideo(params.dance, request, getClientAddress);
+	if (!file) return new Response(null, { status: 404 });
 	const { size } = await stat(file);
 	const rangeHeader = request.headers.get('range');
 	if (rangeHeader) {
@@ -51,11 +54,8 @@ export const GET: RequestHandler = async ({ params, request, getClientAddress })
 };
 
 export const HEAD: RequestHandler = async ({ params, request, getClientAddress }) => {
-	if (!isDevLocalRequestAllowed(request, getClientAddress(), dev)) error(404);
-	const record = await findParticipantRecord(params.id);
-	if (!record) error(404);
-	const file = await validateCatalogFile(record.videoPath, participantDataRoot());
-	if (!file) error(404);
+	const file = await selectedVideo(params.dance, request, getClientAddress);
+	if (!file) return new Response(null, { status: 404 });
 	const { size } = await stat(file);
 	return new Response(null, { headers: { ...headers, 'Content-Length': String(size) } });
 };

@@ -1,16 +1,16 @@
 import { dev } from '$app/environment';
 import { readFile } from 'node:fs/promises';
 import { error } from '@sveltejs/kit';
+import { isDevLocalRequestAllowed } from '$lib/server/client-address';
 import {
 	findParticipantRecord,
-	isLoopbackClientAddress,
 	participantDataRoot,
 	validateCatalogFile
 } from '$lib/server/participant-dataset-catalog';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ params, getClientAddress }) => {
-	if (!dev || !isLoopbackClientAddress(getClientAddress())) error(404);
+export const GET: RequestHandler = async ({ params, request, getClientAddress }) => {
+	if (!isDevLocalRequestAllowed(request, getClientAddress(), dev)) error(404);
 	const record = await findParticipantRecord(params.id);
 	if (!record) error(404);
 	const file = await validateCatalogFile(record.posePath, participantDataRoot());

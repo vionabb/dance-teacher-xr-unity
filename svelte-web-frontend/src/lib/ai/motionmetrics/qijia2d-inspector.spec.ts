@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	compareQijiaFrame,
+	buildContinuousTimeline,
 	getQijiaPoseCrop,
 	parseLegacyReferencePoseCsv,
 	parseRawPoseCsv,
@@ -8,6 +9,9 @@ import {
 	participantVideoTimeForRow,
 	QIJIA_LANDMARK_INDICES,
 	resolvePoseFrameAtTime,
+	locateTimelineSegment,
+	matchesTimelineSeekTarget,
+	sourcePoseRowAtTime,
 	type InspectorFrame
 } from './qijia2d-inspector';
 import { PoseLandmarkKeysUpperSnakeCase } from '$lib/webcam/mediapipe-utils';
@@ -23,6 +27,37 @@ function poseFrame(frame: number, reverse = false): InspectorFrame {
 }
 
 describe('Qijia2D frame inspector calculations', () => {
+	it('builds a continuous segment timeline and returns the correct boundary segment', () => {
+		const timeline = buildContinuousTimeline([
+			{ id: 'first', durationSeconds: 2, fallbackDurationSeconds: 1.5 },
+			{ id: 'second', durationSeconds: null, fallbackDurationSeconds: 1 }
+		]);
+		expect(timeline).toEqual([
+			{ id: 'first', startSeconds: 0, endSeconds: 2, durationSeconds: 2 },
+			{ id: 'second', startSeconds: 2, endSeconds: 3, durationSeconds: 1 }
+		]);
+		expect(locateTimelineSegment(timeline, 2)).toEqual({
+			segmentIndex: 1,
+			localTimeSeconds: 0
+		});
+	});
+
+	it('ignores stale media time updates until a segment seek reaches its requested target', () => {
+		expect(matchesTimelineSeekTarget(1, 0, 1, 0.6)).toBe(false);
+		expect(matchesTimelineSeekTarget(1, 0.58, 1, 0.6)).toBe(true);
+		expect(matchesTimelineSeekTarget(1, 1.2, 2, 1.2)).toBe(false);
+	});
+
+	it('uses participant source-frame IDs to select the pose row at global playback time', () => {
+		const frames = new Map([
+			[0, { ...poseFrame(0), csvFrame: 2 }],
+			[1, { ...poseFrame(1), csvFrame: 5 }],
+			[2, { ...poseFrame(2), csvFrame: 10 }]
+		]);
+		expect(sourcePoseRowAtTime(frames, 0.2, 30)).toBe(1);
+		expect(sourcePoseRowAtTime(frames, 0.03, 30)).toBeNull();
+	});
+
 	it('preserves explicit sparse frame numbers from raw pose CSV', () => {
 		const header = [
 			'frame',

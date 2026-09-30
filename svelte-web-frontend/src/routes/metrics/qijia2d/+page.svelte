@@ -9,7 +9,13 @@
 		parseRawPoseCsv,
 		pairFramesByRowIndex,
 		participantVideoTimeForRow,
+		buildContinuousTimeline,
+		locateTimelineSegment,
+		matchesTimelineSeekTarget,
+		sourcePoseRowAtTime,
+		reindexFramesByRowIndex,
 		QIJIA_COLORS,
+		QIJIA_LANDMARK_INDICES,
 		getQijiaPoseCrop,
 		resolvePoseFrameAtTime,
 		UPPER_SKELETON_EDGES,
@@ -23,6 +29,8 @@
 		frames: Map<number, InspectorFrame>;
 		fps: number;
 		video: HTMLVideoElement | undefined;
+		mirrored?: boolean;
+		clipStartSeconds?: number;
 	};
 	let participant = $state<Clip>({
 		url: '',
@@ -31,13 +39,32 @@
 		fps: 30,
 		video: undefined
 	});
-	let reference = $state<Clip>({ url: '', name: '', frames: new Map(), fps: 30, video: undefined });
+	let reference = $state<Clip>({
+		url: '',
+		name: '',
+		frames: new Map(),
+		fps: 30,
+		video: undefined,
+		mirrored: false,
+		clipStartSeconds: 0
+	});
 	let frameIndex = $state(0);
 	let offsetSeconds = $state(0);
 	let selectedVector = $state(-1);
 	let error = $state('');
 	let demo = $state(false);
-	type DatasetSegment = { id: string; clipNumber: number; referencePoseAvailable: boolean };
+	type DatasetSegment = {
+		id: string;
+		clipNumber: number;
+		referencePoseAvailable: boolean;
+		videoUrl?: string;
+		poseUrl?: string;
+		referencePoseUrl?: string | null;
+		durationSeconds?: number | null;
+		referenceVideoUrl?: string | null;
+		referenceClipStartSeconds?: number | null;
+		referenceVideoMirrored?: boolean;
+	};
 	type DatasetPerformance = {
 		id: string;
 		participantLabel: string;
@@ -45,25 +72,37 @@
 		danceName: string;
 		condition: string;
 		phase: string | null;
+		thumbnailUrl?: string;
 		segments: DatasetSegment[];
 	};
-	let view = $state<'dataset' | 'performance' | 'segment' | 'review'>(
+	type LoadedSegment = {
+		segment: DatasetSegment;
+		participantFrames: Map<number, InspectorFrame>;
+		referenceFrames: Map<number, InspectorFrame>;
+		frameCount: number;
+		scoreFrameCount: number;
+		fallbackDurationSeconds: number;
+	};
+	let view = $state<'dataset' | 'review'>(
 		page.url.searchParams.get('source') === 'local' ? 'review' : 'dataset'
 	);
 	let datasetPerformances = $state<DatasetPerformance[]>([]);
 	let selectedPerformance = $state<DatasetPerformance | null>(null);
-	let candidateSegment = $state<DatasetSegment | null>(null);
-	let selectedSegment = $state<DatasetSegment | null>(null);
+	let loadedSegments = $state<LoadedSegment[]>([]);
+	let activeSegmentIndex = $state(0);
+	let globalTime = $state(0);
 	let datasetLoading = $state(true);
 	let datasetError = $state('');
 	let datasetUnavailable = $state(false);
-	let datasetFrameCount = $state(0);
 	let studyFilter = $state('all');
 	let danceFilter = $state('all');
 	let participantSearch = $state('');
-	let segmentLoadToken = 0;
-	let segmentLoadController: AbortController | null = null;
-	const datasetMode = $derived(Boolean(selectedSegment));
+	let loadToken = 0;
+	let loadController: AbortController | null = null;
+	let autoAdvance = false;
+	let pendingMediaSeek: { segmentIndex: number; localTimeSeconds: number } | null = null;
+	let visiblePerformanceLimit = $state(24);
+	const datasetMode = $derived(Boolean(selectedPerformance) && view === 'review');
 	const danceOptions = $derived(
 		[...new Set(datasetPerformances.map((performance) => performance.danceName))].sort()
 	);
@@ -79,12 +118,33 @@
 
 	const frameNumbers = $derived([...participant.frames.keys()].sort((a, b) => a - b));
 	const referenceFrameNumbers = $derived([...reference.frames.keys()].sort((a, b) => a - b));
-	const participantFrame = $derived(participant.frames.get(frameIndex));
+	const visiblePerformances = $derived(filteredPerformances.slice(0, visiblePerformanceLimit));
+	const timeline = $derived(
+		datasetMode
+			? buildContinuousTimeline(
+					loadedSegments.map((loaded) => ({
+						id: loaded.segment.id,
+						durationSeconds: loaded.segment.durationSeconds ?? null,
+						fallbackDurationSeconds: loaded.fallbackDurationSeconds
+					}))
+				)
+			: []
+	);
+	const timelineDuration = $derived(timeline.at(-1)?.endSeconds ?? 0);
+	const activeLoadedSegment = $derived(loadedSegments[activeSegmentIndex]);
+	const activeTimelineSegment = $derived(timeline[activeSegmentIndex]);
+	const activeFrameCount = $derived(activeLoadedSegment?.frameCount ?? 0);
+	const currentGlobalTime = $derived(datasetMode ? globalTime : frameIndex / participant.fps);
+	const participantFrame = $derived(
+		datasetMode
+			? activeLoadedSegment?.participantFrames.get(frameIndex)
+			: participant.frames.get(frameIndex)
+	);
 	const referenceSample = $derived(
 		datasetMode
 			? {
 					targetFrame: frameIndex,
-					frame: reference.frames.get(frameIndex) ?? null,
+					frame: activeLoadedSegment?.referenceFrames.get(frameIndex) ?? null,
 					carried: false
 				}
 			: resolvePoseFrameAtTime(
@@ -100,30 +160,49 @@
 		participantFrame && referenceFrame ? compareQijiaFrame(referenceFrame, participantFrame) : null
 	);
 	const maxFrame = $derived(
-		datasetMode ? Math.max(0, datasetFrameCount - 1) : (frameNumbers.at(-1) ?? 0)
+		datasetMode ? Math.max(0, activeFrameCount - 1) : (frameNumbers.at(-1) ?? 0)
 	);
 	const duration = $derived(maxFrame / participant.fps);
 	const series = $derived(
-		(datasetMode
-			? Array.from({ length: datasetFrameCount }, (_, frame) => frame)
-			: frameNumbers
-		).map((f) => {
-			if (datasetMode) {
-				const p = participant.frames.get(f);
-				const r = reference.frames.get(f);
-				return p && r ? { frame: f, sum: compareQijiaFrame(r, p).sum } : { frame: f, sum: null };
-			}
-			const resolved = resolvePoseFrameAtTime(
-				reference.frames,
-				f / participant.fps + offsetSeconds,
-				reference.fps,
-				referenceFrameNumbers
-			);
-			const p = participant.frames.get(f);
-			return p && resolved.frame
-				? { frame: f, sum: compareQijiaFrame(resolved.frame, p).sum }
-				: { frame: f, sum: null };
-		})
+		datasetMode
+			? loadedSegments.flatMap((loaded, segmentIndex) =>
+					Array.from({ length: loaded.scoreFrameCount }, (_, row) => {
+						const participantPose = loaded.participantFrames.get(row);
+						const referencePose = loaded.referenceFrames.get(row);
+						const startSeconds = timeline[segmentIndex]?.startSeconds ?? 0;
+						const localTime = participantPose
+							? participantVideoTimeForRow(loaded.participantFrames, row, 30)
+							: 0;
+						return {
+							frame: row,
+							timeSeconds: startSeconds + localTime,
+							segmentIndex,
+							sum:
+								participantPose &&
+								referencePose &&
+								localTime < (timeline[segmentIndex]?.durationSeconds ?? 0)
+									? compareQijiaFrame(referencePose, participantPose).sum
+									: null
+						};
+					})
+				)
+			: frameNumbers.map((f) => {
+					const resolved = resolvePoseFrameAtTime(
+						reference.frames,
+						f / participant.fps + offsetSeconds,
+						reference.fps,
+						referenceFrameNumbers
+					);
+					const p = participant.frames.get(f);
+					return p && resolved.frame
+						? {
+								frame: f,
+								timeSeconds: f / participant.fps,
+								segmentIndex: 0,
+								sum: compareQijiaFrame(resolved.frame, p).sum
+							}
+						: { frame: f, timeSeconds: f / participant.fps, segmentIndex: 0, sum: null };
+				})
 	);
 	const chartMax = $derived.by(() => {
 		const peak = Math.max(0, ...series.map((point) => point.sum ?? 0));
@@ -140,13 +219,20 @@
 		getQijiaPoseCrop(referenceFrame, reference.video?.videoWidth, reference.video?.videoHeight)
 	);
 	const plot = $derived.by(() => {
-		const valid = series.filter((point) => point.sum !== null);
-		if (valid.length < 2) return '';
-		return valid
-			.map(
-				(point) =>
-					`${maxFrame ? (point.frame / maxFrame) * 100 : 0},${100 - (point.sum! / chartMax) * 100}`
-			)
+		const plotDuration = datasetMode ? timelineDuration : duration;
+		if (plotDuration <= 0) return '';
+		let previousSegment = -1;
+		return series
+			.map((point) => {
+				if (point.sum === null) {
+					previousSegment = -1;
+					return '';
+				}
+				const command = previousSegment === point.segmentIndex ? 'L' : 'M';
+				previousSegment = point.segmentIndex;
+				return `${command}${(point.timeSeconds / plotDuration) * 100},${100 - (point.sum / chartMax) * 100}`;
+			})
+			.filter(Boolean)
 			.join(' ');
 	});
 
@@ -168,6 +254,7 @@
 			if (!response.ok) throw new Error(`Dataset catalog request failed (${response.status}).`);
 			const result = (await response.json()) as { performances: DatasetPerformance[] };
 			datasetPerformances = result.performances;
+			visiblePerformanceLimit = 24;
 			datasetUnavailable = datasetPerformances.length === 0;
 		} catch (caught) {
 			datasetError =
@@ -176,99 +263,207 @@
 			datasetLoading = false;
 		}
 	}
-	async function openDatasetSegment(segment: DatasetSegment) {
-		if (!segment.referencePoseAvailable) return;
-		segmentLoadController?.abort();
+	async function openPerformance(summary: DatasetPerformance) {
+		cancelLoad();
 		const controller = new AbortController();
-		segmentLoadController = controller;
-		const requestToken = ++segmentLoadToken;
-		selectedSegment = segment;
+		loadController = controller;
+		const requestToken = ++loadToken;
 		datasetLoading = true;
+		datasetError = '';
 		error = '';
 		try {
-			const base = `/api/dev/participant-catalog/${segment.id}`;
-			const [videoResponse, participantResponse, referenceResponse] = await Promise.all([
-				fetch(`${base}/video`, { method: 'HEAD', cache: 'no-store', signal: controller.signal }),
-				fetch(`${base}/pose`, { cache: 'no-store', signal: controller.signal }),
-				fetch(`${base}/reference-pose`, { cache: 'no-store', signal: controller.signal })
-			]);
-			if (requestToken !== segmentLoadToken) return;
-			if (!videoResponse.ok || !participantResponse.ok || !referenceResponse.ok) {
-				throw new Error(
-					'This segment could not be loaded from the local dataset. Refresh the catalog and try again.'
-				);
-			}
-			const [participantCsv, referenceCsv] = await Promise.all([
-				participantResponse.text(),
-				referenceResponse.text()
-			]);
-			const paired = pairFramesByRowIndex(
-				parseRawPoseCsv(participantCsv),
-				parseLegacyReferencePoseCsv(referenceCsv)
+			const response = await fetch(`/api/dev/participant-catalog/performance/${summary.id}`, {
+				cache: 'no-store',
+				signal: controller.signal
+			});
+			if (!response.ok) throw new Error(`Performance request failed (${response.status}).`);
+			const performance = (await response.json()) as DatasetPerformance;
+			if (requestToken !== loadToken) return;
+			const loaded = await Promise.all(
+				performance.segments.map(async (segment) => {
+					if (!segment.poseUrl)
+						throw new Error(`Segment ${segment.clipNumber} has no participant pose.`);
+					const poseResponse = await fetch(segment.poseUrl, {
+						cache: 'no-store',
+						signal: controller.signal
+					});
+					if (!poseResponse.ok)
+						throw new Error(`Could not load segment ${segment.clipNumber} pose.`);
+					const poseText = await poseResponse.text();
+					const participantFrames = reindexFramesByRowIndex(parseRawPoseCsv(poseText));
+					let referenceFrames = new Map<number, InspectorFrame>();
+					let scoreFrameCount = 0;
+					if (segment.referencePoseUrl) {
+						const referenceResponse = await fetch(segment.referencePoseUrl, {
+							cache: 'no-store',
+							signal: controller.signal
+						});
+						if (!referenceResponse.ok)
+							throw new Error(`Could not load reference pose for segment ${segment.clipNumber}.`);
+						const pair = pairFramesByRowIndex(
+							participantFrames,
+							parseLegacyReferencePoseCsv(await referenceResponse.text())
+						);
+						referenceFrames = pair.referenceFrames;
+						scoreFrameCount = pair.frameCount;
+					}
+					const frameCount = participantFrames.size;
+					const fallbackDurationSeconds = Math.max(
+						0,
+						...Array.from(
+							{ length: frameCount },
+							(_, row) => participantVideoTimeForRow(participantFrames, row, 30) + 1 / 30
+						)
+					);
+					return {
+						segment,
+						participantFrames,
+						referenceFrames,
+						frameCount,
+						scoreFrameCount,
+						fallbackDurationSeconds
+					};
+				})
 			);
-			if (requestToken !== segmentLoadToken) return;
-			if (!paired.frameCount)
-				throw new Error('The participant and reference pose files contain no alignable rows.');
-			participant = {
-				url: `${base}/video`,
-				name: 'Participant video',
-				frames: paired.participantFrames,
-				fps: 30,
-				video: undefined
-			};
-			reference = {
-				url: '',
-				name: 'Reference pose only',
-				frames: paired.referenceFrames,
-				fps: 30,
-				video: undefined
-			};
-			datasetFrameCount = paired.frameCount;
+			if (requestToken !== loadToken) return;
+			if (!loaded.length || loaded.every((segment) => !segment.frameCount))
+				throw new Error('No participant pose rows were found in this performance.');
+			selectedPerformance = performance;
+			loadedSegments = loaded;
+			activeSegmentIndex = 0;
+			globalTime = 0;
 			frameIndex = 0;
 			offsetSeconds = 0;
 			selectedVector = -1;
 			demo = false;
 			view = 'review';
+			activateDatasetSegment(0);
 		} catch (caught) {
-			if (requestToken !== segmentLoadToken) return;
+			if (requestToken !== loadToken) return;
 			if (caught instanceof DOMException && caught.name === 'AbortError') return;
-			selectedSegment = null;
 			error = caught instanceof Error ? caught.message : 'Could not load this segment.';
+			datasetError = error;
 		} finally {
-			if (requestToken === segmentLoadToken) {
+			if (requestToken === loadToken) {
 				datasetLoading = false;
-				segmentLoadController = null;
+				loadController = null;
 			}
 		}
 	}
-	function cancelSegmentLoad() {
-		segmentLoadToken++;
-		segmentLoadController?.abort();
-		segmentLoadController = null;
+	function cancelLoad() {
+		loadToken++;
+		loadController?.abort();
+		loadController = null;
 		datasetLoading = false;
 	}
 	function returnToDataset() {
-		cancelSegmentLoad();
+		cancelLoad();
 		selectedPerformance = null;
-		candidateSegment = null;
-		selectedSegment = null;
-		datasetFrameCount = 0;
+		loadedSegments = [];
+		globalTime = 0;
 		view = 'dataset';
 	}
-	function showPerformance(performance: DatasetPerformance) {
-		cancelSegmentLoad();
-		selectedPerformance = performance;
-		candidateSegment = null;
-		view = 'performance';
+	function activateDatasetSegment(index: number) {
+		const loaded = loadedSegments[index];
+		if (!loaded) return;
+		const previousReferenceVideo = reference.video;
+		activeSegmentIndex = index;
+		participant = {
+			...participant,
+			url: loaded.segment.videoUrl ?? '',
+			name: 'Participant video',
+			frames: loaded.participantFrames,
+			fps: 30,
+			video: participant.video
+		};
+		reference = {
+			...reference,
+			url: loaded.segment.referenceVideoUrl ?? '',
+			name: loaded.segment.referenceVideoUrl ? 'Reference tutorial video' : 'Reference pose only',
+			frames: loaded.referenceFrames,
+			fps: 30,
+			video: previousReferenceVideo,
+			mirrored: loaded.segment.referenceVideoMirrored ?? false,
+			clipStartSeconds: loaded.segment.referenceClipStartSeconds ?? 0
+		};
+		const localTime = Math.max(0, globalTime - (timeline[index]?.startSeconds ?? 0));
+		frameIndex = sourcePoseRowAtTime(loaded.participantFrames, localTime, participant.fps) ?? -1;
+		queueMicrotask(syncReferenceVideo);
 	}
-	function showSegment(segment: DatasetSegment) {
-		cancelSegmentLoad();
-		candidateSegment = segment;
-		view = 'segment';
+	function syncReferenceVideo() {
+		if (!datasetMode || !reference.video || reference.video.readyState < 1 || !reference.url)
+			return;
+		const time =
+			(reference.clipStartSeconds ?? 0) +
+			(referenceFrame?.timestampMs ?? ((referenceFrame?.csvFrame ?? frameIndex) * 1000) / 30) /
+				1000;
+		if (Number.isFinite(time) && Math.abs(reference.video.currentTime - time) > 0.07)
+			reference.video.currentTime = Math.max(0, time);
 	}
-	function returnToPerformance() {
-		cancelSegmentLoad();
-		view = 'performance';
+	function seekGlobalTime(time: number) {
+		if (!timeline.length) return;
+		globalTime = Math.max(0, Math.min(timelineDuration, time));
+		const position = locateTimelineSegment(timeline, globalTime);
+		if (!position) return;
+		pendingMediaSeek = {
+			segmentIndex: position.segmentIndex,
+			localTimeSeconds: position.localTimeSeconds
+		};
+		if (position.segmentIndex !== activeSegmentIndex) activateDatasetSegment(position.segmentIndex);
+		frameIndex =
+			sourcePoseRowAtTime(
+				loadedSegments[position.segmentIndex].participantFrames,
+				position.localTimeSeconds,
+				30
+			) ?? -1;
+		if (participant.video?.readyState && position.segmentIndex === activeSegmentIndex)
+			participant.video.currentTime = position.localTimeSeconds;
+		syncReferenceVideo();
+	}
+	function onParticipantTimeUpdate(event: Event) {
+		if (!datasetMode) return;
+		const video = event.currentTarget as HTMLVideoElement;
+		const active = timeline[activeSegmentIndex];
+		if (!active) return;
+		if (pendingMediaSeek) {
+			if (
+				!matchesTimelineSeekTarget(
+					activeSegmentIndex,
+					video.currentTime,
+					pendingMediaSeek.segmentIndex,
+					pendingMediaSeek.localTimeSeconds
+				)
+			)
+				return;
+			pendingMediaSeek = null;
+		}
+		globalTime = Math.min(timelineDuration, active.startSeconds + video.currentTime);
+		frameIndex =
+			sourcePoseRowAtTime(activeLoadedSegment.participantFrames, video.currentTime, 30) ?? -1;
+		syncReferenceVideo();
+	}
+	function onParticipantEnded() {
+		if (!datasetMode || activeSegmentIndex >= timeline.length - 1) return;
+		const next = timeline[activeSegmentIndex + 1];
+		autoAdvance = true;
+		seekGlobalTime(next.startSeconds);
+	}
+	function onParticipantSeeked(event: Event) {
+		const video = event.currentTarget as HTMLVideoElement;
+		if (
+			pendingMediaSeek &&
+			matchesTimelineSeekTarget(
+				activeSegmentIndex,
+				video.currentTime,
+				pendingMediaSeek.segmentIndex,
+				pendingMediaSeek.localTimeSeconds
+			)
+		)
+			pendingMediaSeek = null;
+	}
+	function stepTimeline(direction: -1 | 1) {
+		if (datasetMode) seekGlobalTime(globalTime + direction / 30);
+		else seek(frameIndex + direction);
 	}
 
 	onMount(() => {
@@ -324,7 +519,19 @@
 		const target = side === 'participant' ? participant : reference;
 		if (side === 'participant') participant = { ...target, video };
 		else reference = { ...target, video };
-		if (side === 'participant') seek(frameIndex);
+		if (side === 'participant') {
+			if (datasetMode) {
+				const localTime =
+					pendingMediaSeek?.segmentIndex === activeSegmentIndex
+						? pendingMediaSeek.localTimeSeconds
+						: Math.max(0, globalTime - (timeline[activeSegmentIndex]?.startSeconds ?? 0));
+				video.currentTime = localTime;
+				if (autoAdvance) {
+					autoAdvance = false;
+					void video.play().catch(() => {});
+				}
+			} else seek(frameIndex);
+		} else if (datasetMode) syncReferenceVideo();
 	}
 	function landmarkLabel(index: number) {
 		return (
@@ -333,11 +540,14 @@
 	}
 	function hasOutOfBoundsLandmarks(frame: InspectorFrame | undefined, clip: Clip) {
 		if (!frame || !clip.video?.videoWidth || !clip.video?.videoHeight) return false;
-		return frame.landmarks.some(
-			(point) =>
+		return QIJIA_LANDMARK_INDICES.some((index) => {
+			const point = frame.landmarks[index];
+			if (!point || (point.visibility !== undefined && point.visibility < 0.35)) return false;
+			return (
 				(Number.isFinite(point.x) && (point.x < -2 || point.x > clip.video!.videoWidth + 2)) ||
 				(Number.isFinite(point.y) && (point.y < -2 || point.y > clip.video!.videoHeight + 2))
-		);
+			);
+		});
 	}
 	function demoFrames() {
 		const make = (elbow: number, wrist: number) => {
@@ -408,7 +618,7 @@
 		seek(frameIndex);
 	}
 	onDestroy(() => {
-		segmentLoadController?.abort();
+		loadController?.abort();
 		if (participant.url) URL.revokeObjectURL(participant.url);
 		if (reference.url) URL.revokeObjectURL(reference.url);
 	});
@@ -422,313 +632,153 @@
 	/>
 </svelte:head>
 
-<main class="mx-auto max-w-[1500px] space-y-5 px-4 py-6 lg:px-8">
-	<header class="flex flex-wrap items-end justify-between gap-4">
-		<div>
-			<p class="text-primary text-xs font-bold tracking-[.18em] uppercase">Metric workbench</p>
-			<h1 class="mt-1 text-3xl font-bold">Qijia2D frame inspector</h1>
-			<p class="mt-1 max-w-2xl text-sm opacity-70">
-				Compare eight upper body unit vectors frame by frame. Dataset media stays on this machine.
-			</p>
-		</div>
-		<div class="daisy-badge daisy-badge-outline daisy-badge-lg">Local only · no upload</div>
-	</header>
+<main
+	class="mx-auto max-w-[1500px] space-y-4 px-4 py-4 pb-48 lg:px-8"
+	class:pb-56={view === 'review'}
+>
+	{#if view === 'dataset'}
+		<header class="flex items-center gap-3">
+			<h1 class="text-lg font-semibold">Choose a performance</h1>
+			<span class="daisy-badge daisy-badge-outline daisy-badge-sm">Qijia2D · local</span>
+		</header>
+	{/if}
 
-	{#if view !== 'review'}
-		<nav class="flex flex-wrap items-center gap-2 text-sm" aria-label="Explorer steps">
-			<button
-				class="daisy-btn daisy-btn-sm"
-				class:daisy-btn-primary={view === 'dataset'}
-				onclick={returnToDataset}>Dataset explorer</button
-			>
-			<span aria-hidden="true" class="opacity-40">›</span>
-			<button
-				class="daisy-btn daisy-btn-sm"
-				disabled={!selectedPerformance}
-				class:daisy-btn-primary={view === 'performance'}
-				onclick={() => selectedPerformance && showPerformance(selectedPerformance)}
-				>Performance</button
-			>
-			<span aria-hidden="true" class="opacity-40">›</span>
-			<button
-				class="daisy-btn daisy-btn-sm"
-				disabled={!candidateSegment}
-				class:daisy-btn-primary={view === 'segment'}
-				onclick={() => candidateSegment && showSegment(candidateSegment)}>Segment</button
-			>
-			<span aria-hidden="true" class="opacity-40">›</span>
-			<span class="daisy-badge daisy-badge-ghost">Frame review</span>
-		</nav>
-
-		{#if view === 'dataset'}
-			<section class="daisy-card border-base-300 bg-base-100 border shadow-sm">
-				<div class="daisy-card-body gap-4">
-					<div class="flex flex-wrap items-end justify-between gap-3">
-						<div>
-							<h2 class="daisy-card-title">Dataset explorer</h2>
-							<p class="text-sm opacity-70">
-								Choose a performance, then inspect one of its pose segments.
-							</p>
-						</div>
-						<a class="daisy-btn daisy-btn-outline daisy-btn-sm" href="/research">Metric selector</a>
+	{#if view === 'dataset'}
+		<section class="daisy-card border-base-300 bg-base-100 border shadow-sm">
+			<div class="daisy-card-body gap-4">
+				{#if datasetLoading}
+					<div class="flex items-center gap-3 py-6" role="status">
+						<span class="daisy-loading daisy-loading-spinner daisy-loading-md"></span>Reading local
+						catalog…
 					</div>
-					{#if datasetLoading}
-						<div class="flex items-center gap-3 py-6" role="status">
-							<span class="daisy-loading daisy-loading-spinner daisy-loading-md"></span>Reading
-							local catalog…
-						</div>
-					{:else if datasetError}
-						<div class="daisy-alert daisy-alert-error" role="alert">
-							<span>{datasetError}</span><button
-								class="daisy-btn daisy-btn-sm"
-								onclick={loadDataset}>Retry</button
-							>
-						</div>
-					{:else if datasetUnavailable}
-						<div class="rounded-box bg-base-200/70 border-base-300 space-y-2 border p-5">
-							<h3 class="font-semibold">No paired participant data found</h3>
-							<p class="max-w-2xl text-sm opacity-75">
-								The local cache may be missing, or no video currently has a matching canonical
-								pose2d CSV. Set <code>MOTION_PIPELINE_USER_STUDY_DATA_DIR</code> to the participant cache
-								root and restart the dev server.
-							</p>
-							<p class="text-xs opacity-60">
-								Only files in the known study video and segmented pose folders are listed.
-							</p>
-							<a
-								class="daisy-btn daisy-btn-outline daisy-btn-sm mt-2"
-								href="/metrics/qijia2d?source=local">Use local files instead</a
-							>
-						</div>
-					{:else}
-						<div class="rounded-box bg-base-200/50 grid gap-3 p-3 sm:grid-cols-3">
-							<label class="daisy-form-control">
-								<span class="daisy-label-text text-xs">Search participant label</span>
-								<input
-									class="daisy-input daisy-input-bordered daisy-input-sm"
-									type="search"
-									placeholder="Participant 001"
-									bind:value={participantSearch}
-								/>
-							</label>
-							<label class="daisy-form-control">
-								<span class="daisy-label-text text-xs">Study</span>
-								<select
-									class="daisy-select daisy-select-bordered daisy-select-sm"
-									bind:value={studyFilter}
-								>
-									<option value="all">All studies</option><option value="study1">Study 1</option
-									><option value="study2">Study 2</option>
-								</select>
-							</label>
-							<label class="daisy-form-control">
-								<span class="daisy-label-text text-xs">Dance</span>
-								<select
-									class="daisy-select daisy-select-bordered daisy-select-sm"
-									bind:value={danceFilter}
-								>
-									<option value="all">All dances</option>
-									{#each danceOptions as dance (dance)}<option value={dance}
-											>{displayDance(dance)}</option
-										>{/each}
-								</select>
-							</label>
-						</div>
-						<p class="text-xs opacity-65">
-							Showing {filteredPerformances.length} of {datasetPerformances.length} performances.
-						</p>
-						<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-							{#each filteredPerformances as performance (performance.id)}
-								<button
-									class="daisy-card border-base-300 bg-base-100 hover:border-primary border text-left transition-colors"
-									onclick={() => showPerformance(performance)}
-								>
-									<div class="daisy-card-body gap-2 p-4">
-										<div class="flex items-center justify-between gap-2">
-											<span class="daisy-badge daisy-badge-ghost"
-												>{performance.study === 'study1' ? 'Study 1' : 'Study 2'}</span
-											><span class="text-xs opacity-60">{performance.segments.length} segments</span
-											>
-										</div>
-										<h3 class="font-semibold">
-											{performance.participantLabel} · {displayDance(performance.danceName)}
-										</h3>
-										<p class="text-sm opacity-70">
-											{performance.condition} · {phaseLabel(performance.phase)}
-										</p>
-									</div>
-								</button>
-							{/each}
-							{#if filteredPerformances.length === 0}<p
-									class="rounded-box bg-base-200 p-4 text-sm opacity-70"
-								>
-									No performances match these filters.
-								</p>{/if}
-						</div>
-					{/if}
-				</div>
-			</section>
-		{:else if view === 'performance' && selectedPerformance}
-			<section class="daisy-card border-base-300 bg-base-100 border shadow-sm">
-				<div class="daisy-card-body gap-4">
-					<button
-						class="daisy-btn daisy-btn-ghost daisy-btn-sm self-start"
-						onclick={returnToDataset}>← All performances</button
-					>
-					<div>
-						<p class="text-primary text-xs font-semibold uppercase">
-							{selectedPerformance.study === 'study1' ? 'Study 1' : 'Study 2'} · {selectedPerformance.participantLabel}
-						</p>
-						<h2 class="daisy-card-title mt-1">{displayDance(selectedPerformance.danceName)}</h2>
-						<p class="text-sm opacity-70">
-							{selectedPerformance.condition} · {phaseLabel(selectedPerformance.phase)}
-						</p>
+				{:else if datasetError}
+					<div class="daisy-alert daisy-alert-error" role="alert">
+						<span>{datasetError}</span><button class="daisy-btn daisy-btn-sm" onclick={loadDataset}
+							>Retry</button
+						>
 					</div>
-					<h3 class="font-semibold">Choose a segment</h3>
-					<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-						{#each selectedPerformance.segments as segment (segment.id)}
+				{:else if datasetUnavailable}
+					<div class="rounded-box bg-base-200/70 border-base-300 space-y-2 border p-5">
+						<h3 class="font-semibold">No paired participant data found</h3>
+						<p class="max-w-2xl text-sm opacity-75">
+							The local cache may be missing, or no video currently has a matching canonical pose2d
+							CSV. Set <code>MOTION_PIPELINE_USER_STUDY_DATA_DIR</code> to the participant cache root
+							and restart the dev server.
+						</p>
+						<p class="text-xs opacity-60">
+							Only files in the known study video and segmented pose folders are listed.
+						</p>
+						<a
+							class="daisy-btn daisy-btn-outline daisy-btn-sm mt-2"
+							href="/metrics/qijia2d?source=local">Use local files instead</a
+						>
+					</div>
+				{:else}
+					<div class="rounded-box bg-base-200/50 grid gap-3 p-3 sm:grid-cols-3">
+						<label class="daisy-form-control">
+							<span class="daisy-label-text text-xs">Search participant label</span>
+							<input
+								class="daisy-input daisy-input-bordered daisy-input-sm"
+								type="search"
+								placeholder="Participant 001"
+								bind:value={participantSearch}
+							/>
+						</label>
+						<label class="daisy-form-control">
+							<span class="daisy-label-text text-xs">Study</span>
+							<select
+								class="daisy-select daisy-select-bordered daisy-select-sm"
+								bind:value={studyFilter}
+							>
+								<option value="all">All studies</option><option value="study1">Study 1</option
+								><option value="study2">Study 2</option>
+							</select>
+						</label>
+						<label class="daisy-form-control">
+							<span class="daisy-label-text text-xs">Dance</span>
+							<select
+								class="daisy-select daisy-select-bordered daisy-select-sm"
+								bind:value={danceFilter}
+							>
+								<option value="all">All dances</option>
+								{#each danceOptions as dance (dance)}<option value={dance}
+										>{displayDance(dance)}</option
+									>{/each}
+							</select>
+						</label>
+					</div>
+					<p class="text-xs opacity-65">
+						Showing {visiblePerformances.length} of {filteredPerformances.length} matching performances
+						({datasetPerformances.length} total).
+					</p>
+					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+						{#each visiblePerformances as performance (performance.id)}
 							<button
-								class="daisy-card border-base-300 bg-base-100 hover:border-primary border text-left"
-								onclick={() => showSegment(segment)}
+								class="daisy-card border-base-300 bg-base-100 hover:border-primary border text-left transition-colors"
+								disabled={datasetLoading}
+								onclick={() => void openPerformance(performance)}
 							>
-								<div class="daisy-card-body p-4">
-									<h4 class="font-semibold">Segment {segment.clipNumber}</h4>
-									<p class="text-xs opacity-70">Participant video and pose available</p>
-									<span
-										class="daisy-badge daisy-badge-sm"
-										class:daisy-badge-success={segment.referencePoseAvailable}
-										class:daisy-badge-warning={!segment.referencePoseAvailable}
-										>{segment.referencePoseAvailable
-											? 'Reference pose available'
-											: 'Reference pose missing'}</span
-									>
+								<img
+									class="h-36 w-full object-cover"
+									src={`/api/dev/participant-catalog/performance/${performance.id}/thumbnail`}
+									alt=""
+									loading="lazy"
+									decoding="async"
+								/>
+								<div class="daisy-card-body gap-2 p-4">
+									<div class="flex items-center justify-between gap-2">
+										<span class="daisy-badge daisy-badge-ghost"
+											>{performance.study === 'study1' ? 'Study 1' : 'Study 2'}</span
+										><span class="text-xs opacity-60">{performance.segments.length} segments</span>
+									</div>
+									<h3 class="font-semibold">
+										{performance.participantLabel} · {displayDance(performance.danceName)}
+									</h3>
+									<p class="text-sm opacity-70">
+										{performance.condition} · {phaseLabel(performance.phase)}
+									</p>
 								</div>
 							</button>
 						{/each}
+						{#if filteredPerformances.length === 0}<p
+								class="rounded-box bg-base-200 p-4 text-sm opacity-70"
+							>
+								No performances match these filters.
+							</p>{/if}
 					</div>
-				</div>
-			</section>
-		{:else if view === 'segment' && selectedPerformance && candidateSegment}
-			<section class="daisy-card border-base-300 bg-base-100 border shadow-sm">
-				<div class="daisy-card-body gap-4">
-					<button
-						class="daisy-btn daisy-btn-ghost daisy-btn-sm self-start"
-						onclick={returnToPerformance}>← Segments</button
-					>
-					<div>
-						<p class="text-primary text-xs font-semibold uppercase">
-							{selectedPerformance.participantLabel} · {displayDance(selectedPerformance.danceName)}
-						</p>
-						<h2 class="daisy-card-title mt-1">Segment {candidateSegment.clipNumber}</h2>
-					</div>
-					<div class="grid gap-3 sm:grid-cols-2">
-						<div class="rounded-box bg-base-200/60 p-4">
-							<h3 class="font-semibold">Participant</h3>
-							<p class="mt-1 text-sm opacity-70">
-								Video and raw pose rows are paired by exact segment stem.
-							</p>
-						</div>
-						<div class="rounded-box bg-base-200/60 p-4">
-							<h3 class="font-semibold">Reference</h3>
-							<p class="mt-1 text-sm opacity-70">
-								{candidateSegment.referencePoseAvailable
-									? 'A pose-only reference segment is available.'
-									: 'No matching reference pose segment is available.'} No synchronized reference video
-								is mapped for this clip.
-							</p>
-						</div>
-					</div>
-					<div class="daisy-alert daisy-alert-info text-sm">
-						<span
-							>Review pairs CSV rows by index, matching the current offline metric fixture, and
-							truncates to the shorter pose sequence. Participant playback and reference pose timing
-							are shown as separate contexts.</span
-						>
-					</div>
-					<div class="daisy-card-actions">
-						<button
-							class="daisy-btn daisy-btn-primary"
-							disabled={!candidateSegment.referencePoseAvailable || datasetLoading}
-							onclick={() => candidateSegment && openDatasetSegment(candidateSegment)}
-							>{datasetLoading ? 'Loading segment…' : 'Open frame review'}</button
-						><button class="daisy-btn daisy-btn-ghost" onclick={returnToPerformance}>Back</button>
-					</div>
-					{#if error}<div class="daisy-alert daisy-alert-error" role="alert">{error}</div>{/if}
-				</div>
-			</section>
-		{/if}
+					{#if visiblePerformanceLimit < filteredPerformances.length}<button
+							class="daisy-btn daisy-btn-outline daisy-btn-sm mx-auto"
+							onclick={() => (visiblePerformanceLimit += 24)}
+							>Show {Math.min(24, filteredPerformances.length - visiblePerformanceLimit)} more</button
+						>{/if}
+				{/if}
+			</div>
+		</section>
 	{:else}
 		{#if datasetMode}
-			<section class="daisy-card border-info/40 bg-info/5 border shadow-sm">
-				<div class="daisy-card-body gap-2 py-3">
-					<div class="flex flex-wrap items-center justify-between gap-2">
-						<div>
-							<h2 class="font-semibold">
-								Dataset segment review · Segment {selectedSegment?.clipNumber}
-							</h2>
-							<p class="text-xs opacity-70">
-								Offline fixture pairing: participant CSV row i ↔ reference pose CSV row i; truncated
-								to {datasetFrameCount} shared rows.
-							</p>
-						</div>
-						<button class="daisy-btn daisy-btn-outline daisy-btn-sm" onclick={returnToDataset}
-							>Back to dataset</button
-						>
-					</div>
-					<p class="text-xs opacity-70">
-						Participant video seeks to the raw CSV source-frame column / 30 FPS. Reference is
-						pose-only; its CSV row / 30 FPS and timestamp are separate display contexts and do not
-						drive alignment. No reference video timing is inferred.
-					</p>
-				</div>
-			</section>
-		{/if}
-		<section
-			class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-center justify-between gap-3 border px-4 py-3"
-			aria-label="Metric selection"
-		>
-			<div>
-				<h2 class="text-sm font-semibold">Metric visualization</h2>
-				<p class="text-xs opacity-65">
-					Qijia2D active · {datasetMode
-						? `${selectedPerformance?.participantLabel ?? 'Participant'} · ${displayDance(selectedPerformance?.danceName ?? '')} · Segment ${selectedSegment?.clipNumber}`
-						: 'Local file review'}
-				</p>
-			</div>
-			<div
-				class="daisy-tabs daisy-tabs-box"
-				role="tablist"
-				aria-label="Available metric visualizations"
-			>
-				<button class="daisy-tab daisy-tab-active" role="tab" aria-selected="true">Qijia2D</button>
-				<button class="daisy-tab" role="tab" aria-disabled="true" disabled>Viona2D · planned</button
-				>
-				<button class="daisy-tab" role="tab" aria-disabled="true" disabled>3D · planned</button>
-			</div>
-		</section>
-
-		<section
-			class="daisy-card border-base-300 bg-base-100 border shadow-sm"
-			aria-labelledby="math-title"
-		>
-			<div class="daisy-card-body gap-3 py-4 md:flex-row md:items-center md:justify-between">
+			<div class="flex flex-wrap items-center justify-between gap-2">
 				<div>
-					<h2 id="math-title" class="daisy-card-title text-base">
-						How the frame score is calculated
+					<h2 class="font-semibold">
+						{selectedPerformance?.participantLabel} · {displayDance(
+							selectedPerformance?.danceName ?? ''
+						)}
 					</h2>
-					<p class="text-sm opacity-75">
-						For each landmark pair: <span class="font-mono">eᵢ = ‖uᵢ(ref) − uᵢ(person)‖₂</span>. Sum
-						eight errors (0–16), average (0–2), then score
-						<span class="font-mono">5 × (1 − mean / 2)</span> (0–5).
+					<p class="text-xs opacity-70">
+						Segment {activeSegmentIndex + 1} of {loadedSegments.length} · row-index pose pairing; tutorial
+						video is a timing guide
 					</p>
 				</div>
-				{#if !datasetMode}<div class="flex flex-wrap gap-2">
-						<button class="daisy-btn daisy-btn-primary daisy-btn-sm" onclick={demoFrames}
-							>Load synthetic demo</button
-						><span class="self-center text-xs opacity-60">Pose only · no video required</span>
-					</div>{/if}
+				<button class="daisy-btn daisy-btn-outline daisy-btn-sm" onclick={returnToDataset}
+					>← Performances</button
+				>
 			</div>
-		</section>
+		{/if}
+		<div class="flex justify-end">
+			{#if !datasetMode}<button
+					class="daisy-btn daisy-btn-primary daisy-btn-sm"
+					onclick={demoFrames}>Load synthetic demo</button
+				>{/if}
+		</div>
 
 		{#if error}<div class="daisy-alert daisy-alert-error" role="alert">{error}</div>{/if}
 		{#if !datasetMode}<section
@@ -798,10 +848,12 @@
 					>{/if}
 			</section>{/if}
 
-		<section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-			<div class="grid min-w-0 gap-4 md:grid-cols-2">
+		<section class="grid gap-4 md:grid-cols-12">
+			<div class="grid min-w-0 gap-4 md:contents">
 				{#each [{ side: 'participant' as const, label: 'Participant', clip: participant, pose: participantFrame, vectors: comparison?.vectors, crop: participantCrop }, { side: 'reference' as const, label: 'Reference', clip: reference, pose: referenceFrame, vectors: comparison?.vectors, crop: referenceCrop }] as panel (panel.side)}
-					<article class="daisy-card border-base-300 bg-base-100 overflow-hidden border shadow-sm">
+					<article
+						class={`daisy-card border-base-300 bg-base-100 overflow-hidden border shadow-sm ${datasetMode ? (panel.side === 'participant' ? 'md:col-span-8 md:row-span-2' : 'md:col-span-4 md:col-start-9') : 'md:col-span-6'}`}
+					>
 						<div class="flex items-center justify-between px-4 pt-3">
 							<h2 class="font-semibold">{panel.label}</h2>
 							{#if panel.side === 'participant' && datasetMode}
@@ -809,10 +861,8 @@
 									>row {panel.pose?.frame ?? '—'} · source frame {panel.pose?.csvFrame ?? '—'}</span
 								>
 							{:else if panel.side === 'reference' && datasetMode}
-								<span class="daisy-badge daisy-badge-ghost"
-									>row {panel.pose?.frame ?? '—'} · source {panel.pose?.csvFrame ?? '—'} · {panel.pose?.timestampMs?.toFixed(
-										0
-									) ?? '—'} ms</span
+								<span class="daisy-badge daisy-badge-ghost whitespace-nowrap"
+									>row {panel.pose?.frame ?? '—'} · {panel.pose?.timestampMs?.toFixed(0) ?? '—'} ms</span
 								>
 							{:else if panel.side === 'reference'}
 								<span class="daisy-badge daisy-badge-ghost"
@@ -829,12 +879,17 @@
 							{#if panel.clip.url}
 								<video
 									class="cropped-video"
+									class:mirror-video={panel.clip.mirrored}
 									style={`width:${panel.clip.video?.videoWidth ? (panel.clip.video.videoWidth / panel.crop.w) * 100 : 100}%;height:${panel.clip.video?.videoHeight ? (panel.clip.video.videoHeight / panel.crop.h) * 100 : 100}%;left:${panel.clip.video?.videoWidth ? (-panel.crop.x / panel.crop.w) * 100 : 0}%;top:${panel.clip.video?.videoHeight ? (-panel.crop.y / panel.crop.h) * 100 : 0}%`}
 									src={panel.clip.url}
 									muted
 									playsinline
 									preload="metadata"
 									onloadedmetadata={(event) => loaded(panel.side, event)}
+									ontimeupdate={panel.side === 'participant' ? onParticipantTimeUpdate : undefined}
+									onseeked={panel.side === 'participant' ? onParticipantSeeked : undefined}
+									onended={panel.side === 'participant' ? onParticipantEnded : undefined}
+									controls={panel.side === 'participant'}
 								></video>
 							{:else if !panel.pose}<div class="empty-image">
 									Choose a video and pose CSV, or load the synthetic demo
@@ -852,8 +907,8 @@
 												viewBox="0 0 10 10"
 												refX="8"
 												refY="5"
-												markerWidth="5"
-												markerHeight="5"
+												markerWidth="3"
+												markerHeight="3"
 												orient="auto-start-reverse"
 												><path d="M 0 0 L 10 5 L 0 10 z" fill={color} /></marker
 											>{/each}</defs
@@ -889,7 +944,7 @@
 										{@const origin = panel.pose.landmarks[vector.src]}
 										{@const actual = panel.side === 'reference' ? vector.ref : vector.participant}
 										{@const other = panel.side === 'participant' ? vector.ref : null}
-										{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.075}
+										{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.12}
 										{#if actual}
 											{#if panel.side === 'participant' && other}<line
 													x1={origin.x}
@@ -942,14 +997,13 @@
 						{#if panel.clip.video && hasOutOfBoundsLandmarks(panel.pose, panel.clip)}<p
 								class="daisy-alert daisy-alert-warning mx-3 mb-3 py-2 text-xs"
 							>
-								Some pose coordinates fall outside this video ({panel.clip.video.videoWidth}×{panel
-									.clip.video.videoHeight}). Check for a CSV/video dimension mismatch.
+								Scored joint outside video bounds.
 							</p>{/if}
 					</article>
 				{/each}
 			</div>
 			<aside
-				class="daisy-card border-base-300 bg-base-100 border shadow-sm"
+				class="daisy-card border-base-300 bg-base-100 border shadow-sm md:col-span-4 md:col-start-9 md:row-start-2"
 				aria-label="Frame score"
 			>
 				<div class="daisy-card-body gap-3 p-4">
@@ -1025,83 +1079,90 @@
 			</aside>
 		</section>
 
-		<section class="daisy-card border-base-300 bg-base-100 border shadow-sm">
-			<div class="daisy-card-body gap-2 p-4">
-				<div class="flex flex-wrap items-center justify-between gap-2">
-					<h2 class="daisy-card-title text-base">Frame error across time</h2>
-					<span class="text-xs opacity-65"
-						>Sum of eight pair distances · chart 0–{chartMax} adaptive; stacked bar 0–16</span
-					>
-				</div>
-				<div
-					class="bg-base-200/60 relative h-28 overflow-hidden rounded-md"
-					aria-label={`Frame error time series from zero to ${chartMax}`}
-				>
+		<div class="timeline-dock fixed inset-x-0 bottom-0 z-40 px-2 pb-[env(safe-area-inset-bottom)]">
+			<section
+				class="daisy-card border-base-300 bg-base-100 mx-auto max-w-[1500px] border shadow-lg"
+			>
+				<div class="daisy-card-body gap-2 p-3">
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<h2 class="daisy-card-title text-base">Frame error across time</h2>
+						<span class="text-xs opacity-65"
+							>Sum of eight pair distances · chart 0–{chartMax} adaptive; stacked bar 0–16</span
+						>
+					</div>
 					<div
-						class="border-base-content/25 absolute inset-x-0 top-1/2 border-t border-dashed"
-					></div>
-					<svg
-						class="absolute inset-0 h-full w-full"
-						viewBox="0 0 100 100"
-						preserveAspectRatio="none"
-						aria-hidden="true"
-						><polyline
-							points={plot}
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.3"
-							vector-effect="non-scaling-stroke"
-							class="text-primary"
-						/></svg
-					>{#if comparison && maxFrame > 0}<div
-							class="border-primary absolute top-0 h-full border-l-2"
-							style={`left:${(frameIndex / maxFrame) * 100}%`}
-						></div>{/if}<span class="absolute top-1 left-2 text-[10px] opacity-60">{chartMax}</span
-					><span class="absolute bottom-1 left-2 text-[10px] opacity-60">0</span>
-				</div>
-				<div class="flex items-center gap-2">
-					<button
-						class="daisy-btn daisy-btn-square daisy-btn-sm"
-						aria-label="Previous participant frame"
-						onclick={() => seek(frameIndex - 1)}>‹</button
-					><input
-						class="daisy-range daisy-range-primary daisy-range-sm flex-1"
-						type="range"
-						min="0"
-						max={maxFrame}
-						step="1"
-						value={frameIndex}
-						oninput={(event) => seek(Number(event.currentTarget.value))}
-						aria-label="Seek participant frame"
-					/><button
-						class="daisy-btn daisy-btn-square daisy-btn-sm"
-						aria-label="Next participant frame"
-						onclick={() => seek(frameIndex + 1)}>›</button
-					><span class="w-52 text-right font-mono text-[10px] leading-tight"
-						>{#if datasetMode}row {frameIndex} · video frame {participantFrame?.csvFrame ??
-								frameIndex} @ {(
-								(participantFrame?.csvFrame ?? frameIndex) / participant.fps
-							).toFixed(2)}s · ref row {frameIndex} @ {(frameIndex / reference.fps).toFixed(
-								2
-							)}s{:else}{(frameIndex / participant.fps).toFixed(2)}s / {duration.toFixed(
-								2
-							)}s{/if}</span
+						class="bg-base-200/60 relative h-16 overflow-hidden rounded-md sm:h-20"
+						aria-label={`Frame error time series from zero to ${chartMax}`}
 					>
+						<div
+							class="border-base-content/25 absolute inset-x-0 top-1/2 border-t border-dashed"
+						></div>
+						<svg
+							class="absolute inset-0 h-full w-full"
+							viewBox="0 0 100 100"
+							preserveAspectRatio="none"
+							aria-hidden="true"
+							><path
+								d={plot}
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.3"
+								vector-effect="non-scaling-stroke"
+								class="text-primary"
+							/></svg
+						>{#if datasetMode && timelineDuration > 0}{#each timeline.slice(1) as boundary, i (boundary.id)}<div
+									class="border-base-content/25 absolute top-0 h-full border-l border-dashed"
+									style={`left:${(boundary.startSeconds / timelineDuration) * 100}%`}
+								>
+									<span class="absolute top-0 left-1 text-[9px] opacity-60">S{i + 2}</span>
+								</div>{/each}{/if}{#if comparison || datasetMode}<div
+								class="border-primary absolute top-0 h-full border-l-2"
+								style={`left:${(datasetMode ? globalTime / Math.max(0.001, timelineDuration) : frameIndex / Math.max(1, maxFrame)) * 100}%`}
+							></div>{/if}<span class="absolute top-1 left-2 text-[10px] opacity-60"
+							>{chartMax}</span
+						><span class="absolute bottom-1 left-2 text-[10px] opacity-60">0</span>
+						<input
+							class="chart-scrubber"
+							type="range"
+							min="0"
+							max={datasetMode ? timelineDuration : maxFrame}
+							step={datasetMode ? '0.01' : '1'}
+							value={datasetMode ? globalTime : frameIndex}
+							oninput={(event) =>
+								datasetMode
+									? seekGlobalTime(Number(event.currentTarget.value))
+									: seek(Number(event.currentTarget.value))}
+							aria-label={datasetMode ? 'Seek participant timeline' : 'Seek participant frame'}
+						/>
+					</div>
+					<div class="flex items-center gap-2">
+						<button
+							class="daisy-btn daisy-btn-square daisy-btn-sm"
+							aria-label="Previous frame"
+							onclick={() => stepTimeline(-1)}>‹</button
+						><button
+							class="daisy-btn daisy-btn-square daisy-btn-sm"
+							aria-label="Next frame"
+							onclick={() => stepTimeline(1)}>›</button
+						><span class="min-w-24 text-right font-mono text-[10px] leading-tight sm:min-w-52"
+							>{#if datasetMode}{globalTime.toFixed(2)}s / {timelineDuration.toFixed(2)}s · S{activeSegmentIndex +
+									1} · row {frameIndex} · src {participantFrame?.csvFrame ?? '—'}{:else}{(
+									frameIndex / participant.fps
+								).toFixed(2)}s / {duration.toFixed(2)}s{/if}</span
+						>
+					</div>
+					{#if participant.frames.size && reference.frames.size && !referenceFrame}<p
+							class="text-warning text-xs"
+						>
+							No reference pose exists at or before target frame {referenceFrameIndex}; check the
+							FPS values and time offset.
+						</p>{/if}
 				</div>
-				{#if participant.frames.size && reference.frames.size && !referenceFrame}<p
-						class="text-warning text-xs"
-					>
-						No reference pose exists at or before target frame {referenceFrameIndex}; check the FPS
-						values and time offset.
-					</p>{/if}
-			</div>
-		</section>
+			</section>
+		</div>
 		<p class="text-xs opacity-60">
-			Low visibility landmarks are shown in red. Zero length or non-finite vector pairs are labeled
-			invalid. Current metric implementation contributes zero for invalid pair distances, so the
-			visualization calls that out while retaining the metric’s score. The CSV does not record
-			source image dimensions, so an in-bounds coordinate scale mismatch cannot always be detected
-			automatically.
+			Invalid vectors are flagged; the displayed score preserves the metric’s zero-error fallback.
+			Visibility is diagnostic only and does not affect scoring.
 		</p>
 	{/if}
 </main>
@@ -1117,6 +1178,23 @@
 		position: absolute;
 		max-width: none;
 		object-fit: fill;
+	}
+	.mirror-video {
+		transform: scaleX(-1);
+	}
+	.chart-scrubber {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		cursor: ew-resize;
+		opacity: 0;
+	}
+	.chart-scrubber:focus-visible {
+		opacity: 0.08;
+		outline: 2px solid var(--color-primary);
+		outline-offset: -3px;
 	}
 	.pose-overlay {
 		position: absolute;

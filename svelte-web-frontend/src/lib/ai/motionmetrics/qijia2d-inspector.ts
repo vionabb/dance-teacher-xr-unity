@@ -123,14 +123,8 @@ export function pairFramesByRowIndex(
 	participantFrames: ReadonlyMap<number, InspectorFrame>,
 	referenceFrames: ReadonlyMap<number, InspectorFrame>
 ) {
-	const reindex = (frames: ReadonlyMap<number, InspectorFrame>) =>
-		[...frames.values()].map((frame, index) => ({
-			...frame,
-			frame: index,
-			csvFrame: frame.csvFrame ?? frame.frame
-		}));
-	const participants = reindex(participantFrames);
-	const references = reindex(referenceFrames);
+	const participants = [...reindexFramesByRowIndex(participantFrames).values()];
+	const references = [...reindexFramesByRowIndex(referenceFrames).values()];
 	const frameCount = Math.min(participants.length, references.length);
 	return {
 		frameCount,
@@ -141,6 +135,15 @@ export function pairFramesByRowIndex(
 	};
 }
 
+export function reindexFramesByRowIndex(frames: ReadonlyMap<number, InspectorFrame>) {
+	return new Map(
+		[...frames.values()].map((frame, index) => [
+			index,
+			{ ...frame, frame: index, csvFrame: frame.csvFrame ?? frame.frame }
+		])
+	);
+}
+
 /** Resolve a paired row to its source video time; sparse source frame IDs stay intact. */
 export function participantVideoTimeForRow(
 	frames: Map<number, InspectorFrame>,
@@ -149,6 +152,88 @@ export function participantVideoTimeForRow(
 ): number {
 	const sourceFrame = frames.get(rowIndex)?.csvFrame ?? rowIndex;
 	return sourceFrame / fps;
+}
+
+export type ContinuousTimelineSegment = {
+	id: string;
+	startSeconds: number;
+	endSeconds: number;
+	durationSeconds: number;
+};
+
+export function buildContinuousTimeline(
+	segments: Array<{ id: string; durationSeconds: number | null; fallbackDurationSeconds: number }>
+): ContinuousTimelineSegment[] {
+	let cursor = 0;
+	return segments.map((segment) => {
+		const durationSeconds =
+			segment.durationSeconds !== null &&
+			Number.isFinite(segment.durationSeconds) &&
+			segment.durationSeconds > 0
+				? segment.durationSeconds
+				: Math.max(0, segment.fallbackDurationSeconds);
+		const timelineSegment = {
+			id: segment.id,
+			startSeconds: cursor,
+			endSeconds: cursor + durationSeconds,
+			durationSeconds
+		};
+		cursor = timelineSegment.endSeconds;
+		return timelineSegment;
+	});
+}
+
+export function locateTimelineSegment(
+	timeline: ContinuousTimelineSegment[],
+	timeSeconds: number
+): { segmentIndex: number; localTimeSeconds: number } | null {
+	if (!timeline.length || !Number.isFinite(timeSeconds) || timeSeconds < 0) return null;
+	const index = timeline.findIndex(
+		(segment, i) =>
+			timeSeconds < segment.endSeconds ||
+			(i === timeline.length - 1 && timeSeconds <= segment.endSeconds)
+	);
+	if (index < 0) return null;
+	return {
+		segmentIndex: index,
+		localTimeSeconds: timeSeconds - timeline[index].startSeconds
+	};
+}
+
+/** Ignore media events emitted for the previous seek until the requested segment time is reached. */
+export function matchesTimelineSeekTarget(
+	actualSegmentIndex: number,
+	actualLocalTimeSeconds: number,
+	targetSegmentIndex: number,
+	targetLocalTimeSeconds: number,
+	toleranceSeconds = 0.08
+): boolean {
+	return (
+		actualSegmentIndex === targetSegmentIndex &&
+		Number.isFinite(actualLocalTimeSeconds) &&
+		Math.abs(actualLocalTimeSeconds - targetLocalTimeSeconds) <= toleranceSeconds
+	);
+}
+
+/** Map participant media time to the latest pose CSV row at or before that source frame. */
+export function sourcePoseRowAtTime(
+	frames: Map<number, InspectorFrame>,
+	timeSeconds: number,
+	fps: number
+): number | null {
+	if (!Number.isFinite(timeSeconds) || timeSeconds < 0 || !Number.isFinite(fps) || fps <= 0)
+		return null;
+	const targetSourceFrame = Math.floor(timeSeconds * fps);
+	let selectedRow: number | null = null;
+	let selectedSourceFrame = Number.NEGATIVE_INFINITY;
+	for (const [row, frame] of frames) {
+		const sourceFrame = frame.csvFrame ?? frame.frame;
+		if (sourceFrame <= targetSourceFrame && sourceFrame > selectedSourceFrame) {
+			selectedRow = row;
+			selectedSourceFrame = sourceFrame;
+		}
+	}
+	return selectedRow;
 }
 
 /** Match production sampling: floor timestamp × FPS, then use the latest available row at or before it. */

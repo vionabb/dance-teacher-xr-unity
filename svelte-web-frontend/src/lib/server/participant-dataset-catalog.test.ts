@@ -8,6 +8,8 @@ import {
 	isLoopbackClientAddress,
 	parseByteRange,
 	participantDataRoot,
+	referenceClipInfo,
+	toParticipantPerformanceResource,
 	validateCatalogFile
 } from './participant-dataset-catalog';
 
@@ -26,6 +28,16 @@ afterEach(async () => {
 });
 
 describe('participant catalog', () => {
+	it('maps reference dances to approved tutorial clips and segment timing', () => {
+		expect(referenceClipInfo('last-christmas', 2)).toEqual({
+			fileName: 'last-christmas-tutorial.mp4',
+			clipStartSeconds: 4.352,
+			mirrored: true
+		});
+		expect(referenceClipInfo('unmapped-dance', 1)).toBeNull();
+		expect(referenceClipInfo('bartender', 0)).toBeNull();
+	});
+
 	it.skipIf(
 		!existsSync(path.join(participantDataRoot(), 'chi25_study1')) &&
 			!existsSync(path.join(participantDataRoot(), 'chi25_study2'))
@@ -73,6 +85,33 @@ describe('participant catalog', () => {
 		expect(catalog.performances[0].segments[0].referencePoseAvailable).toBe(true);
 		expect(catalog.performances[0].segments[1].referencePoseAvailable).toBe(false);
 		expect([...catalog.records.keys()][0]).toMatch(/^[a-f0-9]{24}$/);
+
+		const [first, second] = catalog.performances[0].segments;
+		const resource = toParticipantPerformanceResource(
+			catalog.performances[0],
+			new Map([[first.id, 12.5]])
+		);
+		expect(resource).toMatchObject({
+			id: expect.stringMatching(/^[a-f0-9]{24}$/),
+			thumbnailUrl: `/api/dev/participant-catalog/performance/${catalog.performances[0].id}/thumbnail`,
+			segments: [
+				{
+					id: first.id,
+					clipNumber: 1,
+					videoUrl: `/api/dev/participant-catalog/${first.id}/video`,
+					poseUrl: `/api/dev/participant-catalog/${first.id}/pose`,
+					referencePoseUrl: `/api/dev/participant-catalog/${first.id}/reference-pose`,
+					durationSeconds: 12.5
+				},
+				{
+					id: second.id,
+					clipNumber: 2,
+					referencePoseUrl: null,
+					durationSeconds: null
+				}
+			]
+		});
+		expect(JSON.stringify(resource)).not.toMatch(/userId|workflowId|videoPath|posePath/);
 	});
 
 	it('rejects files reached through a symlink outside the allowed root', async () => {
