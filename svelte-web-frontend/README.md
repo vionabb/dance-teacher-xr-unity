@@ -57,26 +57,34 @@ Open <http://localhost:5173>.
 
 With the development server running on loopback, open
 <http://localhost:5173/research>. Choose **Qijia2D similarity**, then select a
-performance and segment from the local dataset explorer. The review shows the
-participant video and raw pose alongside the matching reference segment pose,
-the eight unit-vector comparisons, a per-vector error stack, and a frame-error
-chart with a scrubber. **Use local files** opens the same inspector with manual
-video/CSV inputs and a synthetic pose demo.
+performance thumbnail. The inspector treats its ordered segments as one
+timeline: seeking in the fixed bottom error chart switches participant video
+and pose files at segment boundaries. The larger participant pane and smaller
+reference tutorial pane show the eight unit-vector comparisons, a per-vector
+error stack, and the frame score. **Use local files** opens the same inspector
+with manual video/CSV inputs and a synthetic pose demo.
 
 The explorer discovers the staged files under
 `../data/participant_motions/chi25_study{1,2}/` in a normal checkout. Set
 `MOTION_PIPELINE_USER_STUDY_DATA_DIR` to the `participant_motions` directory
 when using another checkout layout. Reference segment poses are looked up in
 `testResults/tiktoks-pixelposes-segmented/`; override with
-`MOTION_PIPELINE_REFERENCE_POSE_DIR` if needed. No participant media is copied
-into `static/` or committed. The catalog and media routes are available only in
-development to loopback clients.
+`MOTION_PIPELINE_REFERENCE_POSE_DIR` if needed. The tutorial videos are read
+from `../data/reference_motions/videos/chi-studyvideos/`; override with
+`MOTION_PIPELINE_REFERENCE_VIDEO_DIR` if needed. No participant media is copied
+into `static/` or committed. Thumbnail frames are generated in memory. The
+catalog and media routes are available only in development to loopback clients;
+browser requests from other origins are rejected.
 
 Dataset review follows the existing offline metric fixture: participant and
 reference pose rows are paired by index and truncated to the shorter sequence.
-The reference display is pose-only because a source-video segment offset has
-not been verified. The inspector explains the current metric and helps diagnose
-pose or alignment failures; its scores are not a validation result.
+The reference tutorial video is flipped horizontally while its pose stays in
+native pixel coordinates; the inspector seeks the full tutorial using clip
+spacing and the reference CSV's clip-local timestamp. Representative frames
+across all four dances support this diagnostic alignment, with roughly one
+frame of timing uncertainty near cuts. The inspector explains the current
+metric and helps diagnose pose or alignment failures; its scores are not a
+validation result.
 
 For the complete experience, first populate:
 
