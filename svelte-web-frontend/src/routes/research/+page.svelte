@@ -47,16 +47,23 @@
 			</div>
 		</article>
 
-		<article class="daisy-card border-base-300 bg-base-100 border">
+		<article class="daisy-card border-primary bg-base-100 border-2 shadow-sm">
 			<div class="daisy-card-body gap-3 py-4">
 				<div class="flex flex-wrap items-center gap-2">
-					<h2 class="font-semibold">Planned metric inspectors</h2>
-					<span class="daisy-badge daisy-badge-ghost">Not available yet</span>
+					<h2 class="font-semibold">Viona2D dissimilarity</h2>
+					<span class="daisy-badge daisy-badge-primary">Available</span>
 				</div>
-				<div class="flex flex-wrap gap-2">
-					{#each ['Viona2D', '3D pose similarity', 'Temporal alignment'] as metric (metric)}
-						<span class="daisy-badge daisy-badge-outline opacity-65">{metric}</span>
-					{/each}
+				<p class="text-sm opacity-70">
+					Inspect angle and body-scale-adjusted length errors, the projected-length blend, and all
+					eight vector pairs across a performance.
+				</p>
+				<div class="daisy-card-actions mt-1 flex-wrap">
+					<a class="daisy-btn daisy-btn-primary" href="/metrics/viona2d"
+						>Browse participant dataset</a
+					>
+					<a class="daisy-btn daisy-btn-outline" href="/metrics/viona2d?source=local"
+						>Use local files</a
+					>
 				</div>
 			</div>
 		</article>

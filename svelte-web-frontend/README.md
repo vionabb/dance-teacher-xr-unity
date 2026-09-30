@@ -56,16 +56,23 @@ Open <http://localhost:5173>.
 ### Local motion-metric inspector
 
 With the development server running on loopback, open
-<http://localhost:5173/research>. Choose **Qijia2D similarity**, then select a
-performance thumbnail. The inspector treats its ordered segments as one
-timeline: seeking in the fixed bottom error chart switches participant video
-and pose files at segment boundaries. The larger participant pane and smaller
-reference tutorial pane show the eight unit-vector comparisons and compact
-per-vector error bars. Each pose viewport uses fixed bounds computed from the
-performance's pose frames, so seeking does not move the crop. The fixed chart
-can compare up to three curves with different visibility weighting and included
-vectors; frames without usable vectors appear as gaps. **Use local files** opens the same inspector
-with manual video/CSV inputs and a synthetic pose demo.
+<http://localhost:5173/research>. Choose **Qijia2D similarity** or
+**Viona2D dissimilarity**, then select a performance thumbnail. Each inspector
+treats its ordered segments as one timeline: seeking in the fixed bottom chart
+switches participant video and pose files at segment boundaries. Each pose
+viewport uses fixed bounds computed from the performance's pose frames, so
+seeking does not move the crop.
+Frames without usable pose geometry appear as gaps. **Use local files** opens
+the same inspector with manual video/CSV inputs and a synthetic pose demo.
+
+The Qijia2D inspector shows unit-vector orientation comparisons and compact
+per-vector error bars. Its fixed chart can compare up to three curves with
+different visibility weighting and included vectors. The Viona2D inspector
+offers three views over the same selected frame: **Vector lens** explains one
+pair's direction, body-scale-adjusted length, and blend weight;
+**Eight-pair audit** shows all pair contributions; **Angle × length** plots
+their angle and magnitude errors. Its fixed chart shows full-performance
+Viona2D dissimilarity and doubles as the scrubber.
 
 The explorer discovers the staged files under
 `../data/participant_motions/chi25_study{1,2}/` in a normal checkout. Set
