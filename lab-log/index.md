@@ -97,9 +97,7 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   flow and a manual-versus-automatic frame-flag provenance defect.
 
 - [2026-09-30 — Qijia2D frame inspector and local dataset exploration](2026-09-30-qijia2d-frame-inspector.md)
-  Built a frame-by-frame visual explanation of the existing eight-vector metric
-  with a local performance picker, thumbnails, and one chart scrubber across its
-  segments. Participant and reference videos switch or seek with the pose rows;
-  fixed pose crops prevent viewport jitter, and compact colored bars expose
-  each pair error. The offline metric still aligns poses by row index.
-  Representative tutorial frames support the flipped-video/native-pose overlay mapping.
+  Built a local performance inspector with paired videos, stable pose crops,
+  vector errors, and one chart scrubber across segments. Missing Qijia2D frames
+  stay unscored; the chart compares visibility rules and vector subsets.
+  Pose pairing remains by row index with a flipped-video/native-pose reference overlay.
