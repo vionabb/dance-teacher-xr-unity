@@ -3,6 +3,9 @@ import {
 	compareQijiaFrame,
 	buildContinuousTimeline,
 	getQijiaPoseCrop,
+	getQijiaPoseCropForFrames,
+	getQijiaNormalizedPoseCropForSegments,
+	mapQijiaNormalizedCropToVideo,
 	parseLegacyReferencePoseCsv,
 	parseRawPoseCsv,
 	pairFramesByRowIndex,
@@ -179,6 +182,80 @@ describe('Qijia2D frame inspector calculations', () => {
 		const outlierCrop = getQijiaPoseCrop(frame, 640, 480);
 		expect(outlierCrop.y).toBeLessThan(300);
 		expect(outlierCrop.y + outlierCrop.h).toBeLessThan(480);
+	});
+
+	it('fits one robust viewport to motion across frames and rejects isolated high-visibility outliers', () => {
+		const first = poseFrame(0);
+		const second = poseFrame(1);
+		const third = poseFrame(2);
+		for (const index of QIJIA_LANDMARK_INDICES) {
+			second.landmarks[index] = { ...second.landmarks[index], x: second.landmarks[index].x + 180 };
+			third.landmarks[index] = { ...third.landmarks[index], x: third.landmarks[index].x + 360 };
+		}
+		third.landmarks[11] = { ...third.landmarks[11], x: 630, y: 470 };
+		const crop = getQijiaPoseCropForFrames([first, second, third], 640, 480);
+		expect(crop.x).toBeLessThan(30);
+		expect(crop.x + crop.w).toBeGreaterThan(380);
+		expect(crop.w / crop.h).toBeCloseTo(640 / 480);
+		expect(crop.x + crop.w).toBeLessThan(640);
+	});
+
+	it('uses the full video dimensions when no reliable scored pose is available', () => {
+		const frame = poseFrame(0);
+		for (const index of QIJIA_LANDMARK_INDICES)
+			frame.landmarks[index] = { ...frame.landmarks[index], visibility: 0.1 };
+		expect(getQijiaPoseCropForFrames([frame], 1280, 720)).toEqual({
+			x: 0,
+			y: 0,
+			w: 1280,
+			h: 720
+		});
+	});
+
+	it('keeps one normalized viewport across mixed-resolution performance segments', () => {
+		const makeFrame = (frame: number, width: number, height: number) => {
+			const result = poseFrame(frame);
+			for (const index of QIJIA_LANDMARK_INDICES) {
+				result.landmarks[index] = {
+					...result.landmarks[index],
+					x: width * (0.32 + (index % 3) * 0.08),
+					y: height * (0.2 + (index % 4) * 0.08)
+				};
+			}
+			return result;
+		};
+		const portrait = [makeFrame(0, 480, 640), makeFrame(1, 480, 640)];
+		const landscape = [makeFrame(2, 640, 480), makeFrame(3, 640, 480)];
+		const clean = getQijiaNormalizedPoseCropForSegments([
+			{ frames: portrait, videoWidth: 480, videoHeight: 640 },
+			{ frames: landscape, videoWidth: 640, videoHeight: 480 }
+		]);
+		landscape[1].landmarks[11] = { ...landscape[1].landmarks[11], x: 640, y: 480 };
+		const withOutlier = getQijiaNormalizedPoseCropForSegments([
+			{ frames: portrait, videoWidth: 480, videoHeight: 640 },
+			{ frames: landscape, videoWidth: 640, videoHeight: 480 }
+		]);
+		expect(withOutlier.x).toBeCloseTo(clean.x);
+		expect(withOutlier.y).toBeCloseTo(clean.y);
+		expect(withOutlier.w).toBeCloseTo(clean.w);
+		expect(withOutlier.h).toBeCloseTo(clean.h);
+		const portraitPixels = mapQijiaNormalizedCropToVideo(withOutlier, 480, 640);
+		const landscapePixels = mapQijiaNormalizedCropToVideo(withOutlier, 640, 480);
+		expect(portraitPixels.x / 480).toBeCloseTo(landscapePixels.x / 640);
+		expect(portraitPixels.y / 640).toBeCloseTo(landscapePixels.y / 480);
+		expect(portraitPixels.w / 480).toBeCloseTo(landscapePixels.w / 640);
+		expect(portraitPixels.h / 640).toBeCloseTo(landscapePixels.h / 480);
+	});
+
+	it('falls back to the full normalized viewport when mixed segments have no reliable poses', () => {
+		const frame = poseFrame(0);
+		for (const index of QIJIA_LANDMARK_INDICES)
+			frame.landmarks[index] = { ...frame.landmarks[index], visibility: 0.1 };
+		expect(
+			getQijiaNormalizedPoseCropForSegments([
+				{ frames: [frame], videoWidth: 480, videoHeight: 640 }
+			])
+		).toEqual({ x: 0, y: 0, w: 1, h: 1 });
 	});
 
 	it('keeps degenerate pairs visible as invalid while applying the production zero fallback', () => {
