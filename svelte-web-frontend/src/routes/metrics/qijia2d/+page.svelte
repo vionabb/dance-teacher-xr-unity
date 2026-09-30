@@ -1125,20 +1125,11 @@
 												viewBox="0 0 10 10"
 												refX="8"
 												refY="5"
-												markerWidth="3"
-												markerHeight="3"
+												markerWidth="1.8"
+												markerHeight="1.8"
 												orient="auto-start-reverse"
 												><path d="M 0 0 L 10 5 L 0 10 z" fill={color} /></marker
-											>{/each}<filter
-											id={`${panel.side}-error-glow`}
-											x="-60%"
-											y="-60%"
-											width="220%"
-											height="220%"
-										>
-											<feGaussianBlur stdDeviation="1.5" result="blur" />
-											<feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-										</filter></defs
+											>{/each}</defs
 									>
 									{#each UPPER_SKELETON_EDGES as [a, b] (`${a}-${b}`)}
 										{@const pa = panel.pose.landmarks[a]}
@@ -1171,7 +1162,7 @@
 										{@const origin = panel.pose.landmarks[vector.src]}
 										{@const actual = panel.side === 'reference' ? vector.ref : vector.participant}
 										{@const other = panel.side === 'participant' ? vector.ref : null}
-										{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.09}
+										{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.15}
 										{#if actual}
 											{#if panel.side === 'participant' && other}<line
 													x1={origin.x}
@@ -1179,8 +1170,8 @@
 													x2={origin.x + other[0] * length}
 													y2={origin.y + other[1] * length}
 													stroke={QIJIA_COLORS[i]}
-													stroke-width="2"
-													opacity={selectedVector === -1 || selectedVector === i ? 0.65 : 0.13}
+													stroke-width={selectedVector === i ? 2.6 : 2}
+													opacity={selectedVector === -1 || selectedVector === i ? 1 : 0.88}
 													marker-end={`url(#${panel.side}-arrow-${i})`}
 												/>{/if}
 											<line
@@ -1189,9 +1180,9 @@
 												x2={origin.x + actual[0] * length}
 												y2={origin.y + actual[1] * length}
 												stroke={QIJIA_COLORS[i]}
-												stroke-width="2"
+												stroke-width={selectedVector === i ? 2.6 : 2}
 												stroke-dasharray={panel.side === 'participant' ? '5 4' : undefined}
-												opacity={selectedVector === -1 || selectedVector === i ? 1 : 0.18}
+												opacity={selectedVector === -1 || selectedVector === i ? 1 : 0.88}
 												marker-end={panel.side === 'reference'
 													? `url(#${panel.side}-arrow-${i})`
 													: undefined}
@@ -1201,17 +1192,28 @@
 									{#if panel.side === 'participant'}
 										{#each panel.vectors ?? [] as vector, i (vector.name)}
 											{@const origin = panel.pose.landmarks[vector.src]}
-											{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.09}
+											{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.15}
 											{#if vector.ref && vector.participant}<line
 													x1={origin.x + vector.ref[0] * length}
 													y1={origin.y + vector.ref[1] * length}
 													x2={origin.x + vector.participant[0] * length}
 													y2={origin.y + vector.participant[1] * length}
-													stroke="#ff334f"
-													stroke-width="2.5"
+													stroke="#9f1239"
+													stroke-width="6"
 													vector-effect="non-scaling-stroke"
-													opacity={selectedVector === -1 || selectedVector === i ? 0.95 : 0.12}
-													filter="url(#participant-error-glow)"
+													stroke-linecap="round"
+													opacity="0.98"
+												/>{/if}
+											{#if vector.ref && vector.participant}<line
+													x1={origin.x + vector.ref[0] * length}
+													y1={origin.y + vector.ref[1] * length}
+													x2={origin.x + vector.participant[0] * length}
+													y2={origin.y + vector.participant[1] * length}
+													stroke="#fda4af"
+													stroke-width="3"
+													vector-effect="non-scaling-stroke"
+													stroke-linecap="round"
+													opacity="1"
 												/>{/if}
 										{/each}
 									{/if}
