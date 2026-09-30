@@ -62,7 +62,9 @@ timeline: seeking in the fixed bottom error chart switches participant video
 and pose files at segment boundaries. The larger participant pane and smaller
 reference tutorial pane show the eight unit-vector comparisons and compact
 per-vector error bars. Each pose viewport uses fixed bounds computed from the
-performance's pose frames, so seeking does not move the crop. **Use local files** opens the same inspector
+performance's pose frames, so seeking does not move the crop. The fixed chart
+can compare up to three curves with different visibility weighting and included
+vectors; frames without usable vectors appear as gaps. **Use local files** opens the same inspector
 with manual video/CSV inputs and a synthetic pose demo.
 
 The explorer discovers the staged files under
