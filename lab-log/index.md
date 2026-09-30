@@ -101,3 +101,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   vector errors, and one chart scrubber across segments. Missing Qijia2D frames
   stay unscored; the chart compares visibility rules and vector subsets.
   Pose pairing remains by row index with a flipped-video/native-pose reference overlay.
+
+- [2026-09-30 — Viona2D inspector views](2026-09-30-viona2d-inspector-views.md)
+  Built selectable vector lens, eight-pair audit, and angle-versus-length views
+  on the same local performance timeline. Exposes the production blend and its
+  unclamped 50–100 px angle weight for frame-by-frame debugging.

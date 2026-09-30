@@ -67,7 +67,10 @@ const supabase: Handle = async ({ event, resolve }) => {
 };
 
 const authGuard: Handle = async ({ event, resolve }) => {
-	const localPage = event.url.pathname === '/research' || event.url.pathname === '/metrics/qijia2d';
+	const localPage =
+		event.url.pathname === '/research' ||
+		event.url.pathname === '/metrics/qijia2d' ||
+		event.url.pathname === '/metrics/viona2d';
 	const localDataEndpoint =
 		event.url.pathname === '/api/dev/participant-catalog' ||
 		event.url.pathname.startsWith('/api/dev/participant-catalog/') ||
