@@ -95,3 +95,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   progress: 60 coarse triage judgments complete, three detailed-error drafts,
   no four-point video-usability tasks yet. Identified missing three-level frame
   flow and a manual-versus-automatic frame-flag provenance defect.
+
+- [2026-09-30 — Qijia2D frame inspector and local dataset exploration](2026-09-30-qijia2d-frame-inspector.md)
+  Built a frame-by-frame visual explanation of the existing eight-vector metric
+  and a development-only path from staged participant segments to review. The
+  offline fixture aligns poses by row index while video seeking uses preserved
+  source frames; reference-video segment timing remains unverified.
