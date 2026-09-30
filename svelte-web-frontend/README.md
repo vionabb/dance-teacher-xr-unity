@@ -60,8 +60,9 @@ With the development server running on loopback, open
 performance thumbnail. The inspector treats its ordered segments as one
 timeline: seeking in the fixed bottom error chart switches participant video
 and pose files at segment boundaries. The larger participant pane and smaller
-reference tutorial pane show the eight unit-vector comparisons, a per-vector
-error stack, and the frame score. **Use local files** opens the same inspector
+reference tutorial pane show the eight unit-vector comparisons and compact
+per-vector error bars. Each pose viewport uses fixed bounds computed from the
+performance's pose frames, so seeking does not move the crop. **Use local files** opens the same inspector
 with manual video/CSV inputs and a synthetic pose demo.
 
 The explorer discovers the staged files under
