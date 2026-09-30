@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	compareQijiaFrame,
+	compareQijiaFrameVariant,
 	buildContinuousTimeline,
 	getQijiaPoseCrop,
 	getQijiaPoseCropForFrames,
@@ -258,12 +259,54 @@ describe('Qijia2D frame inspector calculations', () => {
 		).toEqual({ x: 0, y: 0, w: 1, h: 1 });
 	});
 
-	it('keeps degenerate pairs visible as invalid while applying the production zero fallback', () => {
+	it('keeps degenerate pairs visible as invalid while scoring the valid pairs', () => {
 		const participant = poseFrame(0);
 		participant.landmarks[12] = { ...participant.landmarks[11] };
 		const result = compareQijiaFrame(poseFrame(0), participant);
 		expect(result.invalidCount).toBe(1);
 		expect(result.vectors[0].error).toBeNull();
-		expect(Number.isFinite(result.score)).toBe(true);
+		expect(result.validCount).toBe(7);
+		expect(result.sum).not.toBeNull();
+		expect(result.score).not.toBeNull();
+	});
+
+	it('excludes invalid pairs from the raw sum and reports no score when every pair is invalid', () => {
+		const participant = poseFrame(0);
+		participant.landmarks[12] = { ...participant.landmarks[11] };
+		const partial = compareQijiaFrame(poseFrame(0), participant);
+		expect(partial.validCount).toBe(7);
+		expect(partial.sum).toBeCloseTo(
+			partial.vectors.reduce((sum, vector) => sum + (vector.error ?? 0), 0)
+		);
+		const invalid = poseFrame(1);
+		for (const index of QIJIA_LANDMARK_INDICES)
+			invalid.landmarks[index] = { ...invalid.landmarks[index], x: Number.NaN, y: Number.NaN };
+		const empty = compareQijiaFrame(invalid, invalid);
+		expect(empty.sum).toBeNull();
+		expect(empty.mean).toBeNull();
+		expect(empty.score).toBeNull();
+	});
+
+	it('supports vector subsets and each visibility weighting mode, returning null for empty selections or missing visibility', () => {
+		const reference = poseFrame(0);
+		const participant = poseFrame(1, true);
+		const raw = compareQijiaFrame(reference, participant).vectors[0].error!;
+		for (const index of [11, 12])
+			reference.landmarks[index] = { ...reference.landmarks[index], visibility: 0.5 };
+		for (const index of [11, 12])
+			participant.landmarks[index] = { ...participant.landmarks[index], visibility: 0.5 };
+		expect(compareQijiaFrameVariant(reference, participant, [0], 'none').sum).toBeCloseTo(raw);
+		expect(compareQijiaFrameVariant(reference, participant, [0], 'product').sum).toBeCloseTo(
+			raw / 16
+		);
+		expect(compareQijiaFrameVariant(reference, participant, [0], 'average').sum).toBeCloseTo(
+			raw * 0.5
+		);
+		expect(compareQijiaFrameVariant(reference, participant, [0], 'minimum').sum).toBeCloseTo(
+			raw * 0.5
+		);
+		expect(compareQijiaFrameVariant(reference, participant, [], 'none').sum).toBeNull();
+		participant.landmarks[11] = { ...participant.landmarks[11], visibility: Number.NaN };
+		expect(compareQijiaFrameVariant(reference, participant, [0], 'minimum').sum).toBeNull();
 	});
 });

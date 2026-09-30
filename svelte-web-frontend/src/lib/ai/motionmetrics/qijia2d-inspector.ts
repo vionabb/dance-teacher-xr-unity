@@ -271,6 +271,15 @@ function normalized(
 	src: number,
 	dest: number
 ): [number, number] | null {
+	const source = landmarks[src];
+	const target = landmarks[dest];
+	if (
+		!source ||
+		!target ||
+		![source.x, source.y, target.x, target.y].every(Number.isFinite) ||
+		Math.hypot(target.x - source.x, target.y - source.y) === 0
+	)
+		return null;
 	const [x, y] = GetNormalized2DVector(landmarks, src, dest);
 	return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
 }
@@ -296,17 +305,57 @@ export function compareQijiaFrame(reference: InspectorFrame, participant: Inspec
 					: undefined
 		};
 	});
-	// The production implementation's `magnitude || 0` makes invalid vector pairs contribute zero.
-	// Keep that displayed score faithful, while retaining nulls and diagnostics above for debugging.
-	const sum = vectors.reduce((total, vector) => total + (vector.error ?? 0), 0);
-	const mean = sum / vectors.length;
+	const valid = vectors.flatMap((vector) => (vector.error === null ? [] : [vector.error]));
+	const sum = valid.length ? valid.reduce((total, value) => total + value, 0) : null;
+	const mean = sum === null ? null : sum / valid.length;
 	return {
 		vectors,
 		sum,
 		mean,
-		score: 5 * (1 - mean / 2),
+		score: mean === null ? null : 5 * (1 - mean / 2),
+		validCount: valid.length,
 		invalidCount: vectors.filter((v) => v.error === null).length
 	};
+}
+
+export type QijiaVisibilityMode = 'none' | 'product' | 'average' | 'minimum';
+export type QijiaFrameVariant = { sum: number | null; validCount: number };
+
+/** Sum selected raw vector errors, optionally weighted by visibility at all four endpoints. */
+export function compareQijiaFrameVariant(
+	reference: InspectorFrame,
+	participant: InspectorFrame,
+	selectedIndices: readonly number[],
+	visibilityMode: QijiaVisibilityMode
+): QijiaFrameVariant {
+	const selected = new Set(selectedIndices);
+	const comparison = compareQijiaFrame(reference, participant);
+	let sum = 0;
+	let validCount = 0;
+	for (const vector of comparison.vectors) {
+		if (!selected.has(vector.index) || vector.error === null) continue;
+		let weight = 1;
+		if (visibilityMode !== 'none') {
+			const visibilityValues = [
+				participant.landmarks[vector.src]?.visibility,
+				participant.landmarks[vector.dest]?.visibility,
+				reference.landmarks[vector.src]?.visibility,
+				reference.landmarks[vector.dest]?.visibility
+			];
+			if (visibilityValues.some((value) => value === undefined || !Number.isFinite(value)))
+				continue;
+			const values = visibilityValues.map((value) => Math.max(0, Math.min(1, value!)));
+			weight =
+				visibilityMode === 'product'
+					? values.reduce((product, value) => product * value, 1)
+					: visibilityMode === 'average'
+						? values.reduce((total, value) => total + value, 0) / values.length
+						: Math.min(...values);
+		}
+		sum += vector.error * weight;
+		validCount++;
+	}
+	return { sum: validCount ? sum : null, validCount };
 }
 
 /** Restrict the background skeleton to the eight segments the metric actually scores. */

@@ -5,6 +5,7 @@
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
 	import {
 		compareQijiaFrame,
+		compareQijiaFrameVariant,
 		parseLegacyReferencePoseCsv,
 		parseRawPoseCsv,
 		pairFramesByRowIndex,
@@ -141,6 +142,24 @@
 		'R upper arm',
 		'R forearm'
 	] as const;
+	type Curve = {
+		id: string;
+		name: string;
+		enabled: boolean;
+		visibility: 'none' | 'product' | 'average' | 'minimum';
+		vectors: number[];
+	};
+	const curveColors = ['#2563eb', '#e11d48', '#16a34a'];
+	let curves = $state<Curve[]>([
+		{
+			id: 'baseline',
+			name: 'Baseline',
+			enabled: true,
+			visibility: 'none',
+			vectors: [0, 1, 2, 3, 4, 5, 6, 7]
+		}
+	]);
+	let curveSettingsOpen = $state(false);
 	const referenceFrameNumbers = $derived([...reference.frames.keys()].sort((a, b) => a - b));
 	const visiblePerformances = $derived(filteredPerformances.slice(0, visiblePerformanceLimit));
 	const timeline = $derived(
@@ -219,11 +238,13 @@
 							frame: row,
 							timeSeconds: startSeconds + localTime,
 							segmentIndex,
-							sum:
-								participantPose &&
-								referencePose &&
-								localTime < (timeline[segmentIndex]?.durationSeconds ?? 0)
-									? compareQijiaFrame(referencePose, participantPose).sum
+							participantPose:
+								participantPose && localTime < (timeline[segmentIndex]?.durationSeconds ?? 0)
+									? participantPose
+									: null,
+							referencePose:
+								participantPose && localTime < (timeline[segmentIndex]?.durationSeconds ?? 0)
+									? referencePose
 									: null
 						};
 					})
@@ -241,32 +262,78 @@
 								frame: f,
 								timeSeconds: f / participant.fps,
 								segmentIndex: 0,
-								sum: compareQijiaFrame(resolved.frame, p).sum
+								participantPose: p,
+								referencePose: resolved.frame
 							}
-						: { frame: f, timeSeconds: f / participant.fps, segmentIndex: 0, sum: null };
+						: {
+								frame: f,
+								timeSeconds: f / participant.fps,
+								segmentIndex: 0,
+								participantPose: null,
+								referencePose: null
+							};
 				})
 	);
+	const curveSeries = $derived(
+		curves.map((curve) => ({
+			curve,
+			points: series.map((point) => ({
+				...point,
+				sum:
+					point.participantPose && point.referencePose
+						? compareQijiaFrameVariant(
+								point.referencePose,
+								point.participantPose,
+								curve.vectors,
+								curve.visibility
+							).sum
+						: null
+			}))
+		}))
+	);
 	const chartMax = $derived.by(() => {
-		const peak = Math.max(0, ...series.map((point) => point.sum ?? 0));
+		const peak = Math.max(
+			0,
+			...curveSeries
+				.filter(({ curve }) => curve.enabled)
+				.flatMap(({ points }) => points.map((point) => point.sum ?? 0))
+		);
 		return Math.max(1, Math.min(16, Math.ceil(peak * 2) / 2));
 	});
-	const plot = $derived.by(() => {
-		const plotDuration = datasetMode ? timelineDuration : duration;
-		if (plotDuration <= 0) return '';
-		let previousSegment = -1;
-		return series
-			.map((point) => {
-				if (point.sum === null) {
-					previousSegment = -1;
-					return '';
-				}
-				const command = previousSegment === point.segmentIndex ? 'L' : 'M';
-				previousSegment = point.segmentIndex;
-				return `${command}${(point.timeSeconds / plotDuration) * 100},${100 - (point.sum / chartMax) * 100}`;
-			})
-			.filter(Boolean)
-			.join(' ');
-	});
+	const plots = $derived.by(() =>
+		curveSeries.map(({ curve, points }) => {
+			const plotDuration = datasetMode ? timelineDuration : duration;
+			if (!curve.enabled || plotDuration <= 0) return { id: curve.id, d: '' };
+			let previousSegment = -1;
+			const d = points
+				.map((point) => {
+					if (point.sum === null) {
+						previousSegment = -1;
+						return '';
+					}
+					const command = previousSegment === point.segmentIndex ? 'L' : 'M';
+					previousSegment = point.segmentIndex;
+					return `${command}${(point.timeSeconds / plotDuration) * 100},${100 - (point.sum / chartMax) * 100}`;
+				})
+				.filter(Boolean)
+				.join(' ');
+			return { id: curve.id, d };
+		})
+	);
+	function addCurve() {
+		if (curves.length >= 3) return;
+		const id = `curve-${Date.now()}`;
+		curves = [
+			...curves,
+			{
+				id,
+				name: `Variant ${curves.length}`,
+				enabled: true,
+				visibility: 'none',
+				vectors: [0, 1, 2, 3, 4, 5, 6, 7]
+			}
+		];
+	}
 
 	function displayDance(name: string) {
 		return name
@@ -1112,33 +1179,42 @@
 													x2={origin.x + other[0] * length}
 													y2={origin.y + other[1] * length}
 													stroke={QIJIA_COLORS[i]}
-													stroke-width={selectedVector === i || selectedVector === -1 ? 2 : 1}
-													stroke-dasharray="4 4"
+													stroke-width="2"
 													opacity={selectedVector === -1 || selectedVector === i ? 0.65 : 0.13}
-												/>
-												{#if vector.participant}<line
-														x1={origin.x + other[0] * length}
-														y1={origin.y + other[1] * length}
-														x2={origin.x + vector.participant[0] * length}
-														y2={origin.y + vector.participant[1] * length}
-														stroke="#ff334f"
-														stroke-width="2.5"
-														opacity={selectedVector === -1 || selectedVector === i ? 0.95 : 0.12}
-														filter={`url(#${panel.side}-error-glow)`}
-													/>{/if}
-											{/if}
+													marker-end={`url(#${panel.side}-arrow-${i})`}
+												/>{/if}
 											<line
 												x1={origin.x}
 												y1={origin.y}
 												x2={origin.x + actual[0] * length}
 												y2={origin.y + actual[1] * length}
 												stroke={QIJIA_COLORS[i]}
-												stroke-width={selectedVector === -1 || selectedVector === i ? 3 : 1.2}
+												stroke-width="2"
+												stroke-dasharray={panel.side === 'participant' ? '5 4' : undefined}
 												opacity={selectedVector === -1 || selectedVector === i ? 1 : 0.18}
-												marker-end={`url(#${panel.side}-arrow-${i})`}
+												marker-end={panel.side === 'reference'
+													? `url(#${panel.side}-arrow-${i})`
+													: undefined}
 											/>
 										{/if}
 									{/each}
+									{#if panel.side === 'participant'}
+										{#each panel.vectors ?? [] as vector, i (vector.name)}
+											{@const origin = panel.pose.landmarks[vector.src]}
+											{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.09}
+											{#if vector.ref && vector.participant}<line
+													x1={origin.x + vector.ref[0] * length}
+													y1={origin.y + vector.ref[1] * length}
+													x2={origin.x + vector.participant[0] * length}
+													y2={origin.y + vector.participant[1] * length}
+													stroke="#ff334f"
+													stroke-width="2.5"
+													vector-effect="non-scaling-stroke"
+													opacity={selectedVector === -1 || selectedVector === i ? 0.95 : 0.12}
+													filter="url(#participant-error-glow)"
+												/>{/if}
+										{/each}
+									{/if}
 								</svg>
 							{:else if panel.clip.frames.size}<div class="empty-image">
 									No matching pose row for this frame
@@ -1147,8 +1223,8 @@
 						<div class="px-4 pb-3 text-xs opacity-60">
 							{#if panel.pose && !panel.clip.url}{datasetMode && panel.side === 'reference'
 									? 'Reference pose only · reference video timing unavailable · '
-									: 'Pose overlay · no video selected · '}{/if}Image coordinates retained · crop
-							uses fixed pose bounds · faint arrow = relocated reference direction
+									: 'Pose overlay · no video selected · '}{/if}Image coordinates retained · fixed
+							pose crop · solid arrow = reference · dashed = participant · red = orientation error
 						</div>
 						{#if panel.side === 'reference' && referenceSample.carried}<p
 								class="text-info mx-4 mb-3 text-xs"
@@ -1165,9 +1241,14 @@
 			</div>
 			<aside class="md:col-span-4 md:col-start-9 md:row-start-2" aria-label="Vector errors">
 				{#if comparison}
+					<div class="mb-1 text-xs opacity-65">Current frame · raw unweighted errors</div>
 					<div class="mb-3 flex items-baseline justify-between px-1 text-sm tabular-nums">
-						<strong>Σ {comparison.sum.toFixed(2)} / 16</strong>
-						<span>{comparison.score.toFixed(2)} / 5</span>
+						<strong
+							>Σ {comparison.sum?.toFixed(2) ?? 'missing'} / {(comparison.validCount * 2).toFixed(
+								0
+							)}</strong
+						>
+						<span>{comparison.score?.toFixed(2) ?? 'missing'} / 5</span>
 					</div>
 					<ul class="space-y-1">
 						{#each comparison.vectors as vector, i (vector.name)}<li>
@@ -1193,7 +1274,7 @@
 											></span>{/if}
 									</span>
 									<span class="w-12 text-right font-mono tabular-nums"
-										>{vector.error?.toFixed(2) ?? 'invalid'}</span
+										>{vector.error?.toFixed(2) ?? 'missing'}</span
 									>
 								</button>
 							</li>{/each}
@@ -1209,15 +1290,87 @@
 
 		<div class="timeline-dock fixed inset-x-0 bottom-0 z-40 px-2 pb-[env(safe-area-inset-bottom)]">
 			<section
-				class="daisy-card border-base-300 bg-base-100 mx-auto max-w-[1500px] border shadow-lg"
+				class="daisy-card border-base-300 bg-base-100 relative mx-auto max-w-[1500px] border shadow-lg"
 			>
 				<div class="daisy-card-body gap-2 p-3">
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<h2 class="daisy-card-title text-base">Frame error across time</h2>
-						<span class="text-xs opacity-65"
-							>Sum of eight pair distances · chart scale 0–{chartMax}</span
-						>
+						<div class="flex items-center gap-2">
+							<span class="text-xs opacity-65">Selected vector error sums · 0–{chartMax}</span
+							><button
+								class="daisy-btn daisy-btn-xs"
+								aria-expanded={curveSettingsOpen}
+								onclick={() => (curveSettingsOpen = !curveSettingsOpen)}>Curves</button
+							>
+						</div>
 					</div>
+					<div class="flex flex-wrap gap-x-3 text-[10px]" aria-label="Active chart variants">
+						{#each curves.filter((curve) => curve.enabled) as curve (curve.id)}<span
+								class="flex items-center gap-1"
+								><i
+									class="inline-block h-0.5 w-4"
+									style={`background:${curveColors[curves.findIndex((entry) => entry.id === curve.id)]}`}
+								></i>{curve.name} · {curve.vectors.length}/8 · {curve.visibility === 'none'
+									? 'no visibility'
+									: curve.visibility === 'product'
+										? 'visibility product'
+										: curve.visibility === 'average'
+											? 'visibility average'
+											: 'visibility minimum'}</span
+							>{/each}
+					</div>
+					{#if curveSettingsOpen}<div
+							class="border-base-300 bg-base-100 absolute right-3 bottom-full z-50 mb-2 max-h-[65vh] w-[min(30rem,calc(100vw-1.5rem))] overflow-auto rounded-lg border p-3 shadow-xl"
+						>
+							<div class="mb-2 flex items-center justify-between text-xs">
+								<strong>Chart variants</strong><button
+									class="daisy-btn daisy-btn-xs"
+									disabled={curves.length >= 3}
+									onclick={addCurve}>Add variant</button
+								>
+							</div>
+							{#each curves as curve, curveIndex (curve.id)}<fieldset
+									class="border-base-300 mb-2 rounded-md border p-2"
+									aria-label={`${curve.name} chart variant`}
+								>
+									<div class="flex flex-wrap items-center gap-2">
+										<input
+											class="daisy-input daisy-input-xs w-28"
+											aria-label="Variant name"
+											bind:value={curve.name}
+										/><label class="flex items-center gap-1 text-xs"
+											><input type="checkbox" bind:checked={curve.enabled} /> Plot</label
+										><select
+											class="daisy-select daisy-select-xs"
+											bind:value={curve.visibility}
+											aria-label="Visibility weighting"
+											><option value="none">No visibility</option><option value="product"
+												>Visibility product</option
+											><option value="average">Average visibility</option><option value="minimum"
+												>Minimum visibility</option
+											></select
+										>{#if curveIndex > 0}<button
+												class="daisy-btn daisy-btn-ghost daisy-btn-xs"
+												aria-label={`Remove ${curve.name}`}
+												onclick={() => (curves = curves.filter((item) => item.id !== curve.id))}
+												>Remove</button
+											>{/if}
+									</div>
+									<div class="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-4">
+										{#each vectorShortLabels as label, vectorIndex (label)}<label
+												class="flex items-center gap-1 text-[11px]"
+												><input
+													type="checkbox"
+													checked={curve.vectors.includes(vectorIndex)}
+													onchange={(event) =>
+														(curve.vectors = event.currentTarget.checked
+															? [...curve.vectors, vectorIndex].sort((a, b) => a - b)
+															: curve.vectors.filter((index) => index !== vectorIndex))}
+												/><span style={`color:${QIJIA_COLORS[vectorIndex]}`}>{label}</span></label
+											>{/each}
+									</div>
+								</fieldset>{/each}
+						</div>{/if}
 					<div
 						class="bg-base-200/60 relative h-16 overflow-hidden rounded-md sm:h-20"
 						aria-label={`Frame error time series from zero to ${chartMax}`}
@@ -1230,14 +1383,14 @@
 							viewBox="0 0 100 100"
 							preserveAspectRatio="none"
 							aria-hidden="true"
-							><path
-								d={plot}
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.3"
-								vector-effect="non-scaling-stroke"
-								class="text-primary"
-							/></svg
+							>{#each plots as line (line.id)}<path
+									d={line.d}
+									fill="none"
+									stroke={curveColors[curves.findIndex((curve) => curve.id === line.id)]}
+									stroke-width="1.6"
+									vector-effect="non-scaling-stroke"
+								/>
+							{/each}</svg
 						>{#if datasetMode && timelineDuration > 0}{#each timeline.slice(1) as boundary, i (boundary.id)}<div
 									class="border-base-content/25 absolute top-0 h-full border-l border-dashed"
 									style={`left:${(boundary.startSeconds / timelineDuration) * 100}%`}
