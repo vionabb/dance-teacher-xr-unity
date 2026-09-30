@@ -1,4 +1,38 @@
-/* Write your global styles here, in PostCSS syntax */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4 entrypoint. Retain legacy utility and Iconify configuration. */
+@import 'tailwindcss/index.css';
+@config '../tailwind.config.cjs';
+
+@plugin 'daisyui' {
+	prefix: 'daisy-';
+	themes: mytheme --default;
+}
+
+@plugin 'daisyui/theme' {
+	name: 'mytheme';
+	default: true;
+	color-scheme: light;
+	--color-base-100: #eff0eb;
+	--color-base-200: #d0d1cd;
+	--color-base-300: #bdc0bc;
+	--color-base-content: rgba(0, 0, 0, 0.7);
+	--color-primary: #3c64b1;
+	--color-primary-content: #ffffff;
+	--color-secondary: #60a5fa;
+	--color-secondary-content: #0f172a;
+	--color-accent: #f0abfc;
+	--color-accent-content: #0f172a;
+	--color-neutral: #d0d1cd;
+	--color-neutral-content: #1f2937;
+	--color-info: #3b82f6;
+	--color-info-content: #ffffff;
+	--color-success: #0fb40b;
+	--color-success-content: #ffffff;
+	--color-warning: #fdba74;
+	--color-warning-content: #1f2937;
+	--color-error: #f87171;
+	--color-error-content: #1f2937;
+	--radius-selector: 0.5rem;
+	--radius-field: 0.5rem;
+	--radius-box: 0.5rem;
+	--border: 1px;
+}
