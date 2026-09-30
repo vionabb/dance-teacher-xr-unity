@@ -25,7 +25,7 @@
 		</p>
 	</header>
 
-	<section class="grid gap-4 md:grid-cols-2" aria-label="Motion metrics">
+	<section class="space-y-4" aria-label="Motion metrics">
 		<article class="daisy-card border-primary bg-base-100 border-2 shadow-sm">
 			<div class="daisy-card-body">
 				<div class="flex items-center justify-between gap-3">
@@ -47,18 +47,19 @@
 			</div>
 		</article>
 
-		{#each ['Viona2D', '3D pose similarity', 'Temporal alignment'] as metric (metric)}
-			<article class="daisy-card border-base-300 bg-base-100 border opacity-65">
-				<div class="daisy-card-body">
-					<div class="flex items-center justify-between gap-3">
-						<h2 class="daisy-card-title">{metric}</h2>
-						<span class="daisy-badge daisy-badge-ghost">Planned</span>
-					</div>
-					<p class="text-sm">A frame-by-frame inspector for this metric is not available yet.</p>
-					<button class="daisy-btn daisy-btn-sm mt-2" disabled>Coming later</button>
+		<article class="daisy-card border-base-300 bg-base-100 border">
+			<div class="daisy-card-body gap-3 py-4">
+				<div class="flex flex-wrap items-center gap-2">
+					<h2 class="font-semibold">Planned metric inspectors</h2>
+					<span class="daisy-badge daisy-badge-ghost">Not available yet</span>
 				</div>
-			</article>
-		{/each}
+				<div class="flex flex-wrap gap-2">
+					{#each ['Viona2D', '3D pose similarity', 'Temporal alignment'] as metric (metric)}
+						<span class="daisy-badge daisy-badge-outline opacity-65">{metric}</span>
+					{/each}
+				</div>
+			</div>
+		</article>
 	</section>
 
 	<p class="text-xs opacity-60">

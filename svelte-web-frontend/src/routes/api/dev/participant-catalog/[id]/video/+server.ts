@@ -3,9 +3,9 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { error } from '@sveltejs/kit';
+import { isDevLocalRequestAllowed } from '$lib/server/client-address';
 import {
 	findParticipantRecord,
-	isLoopbackClientAddress,
 	parseByteRange,
 	participantDataRoot,
 	validateCatalogFile
@@ -20,7 +20,7 @@ const headers = {
 };
 
 export const GET: RequestHandler = async ({ params, request, getClientAddress }) => {
-	if (!dev || !isLoopbackClientAddress(getClientAddress())) error(404);
+	if (!isDevLocalRequestAllowed(request, getClientAddress(), dev)) error(404);
 	const record = await findParticipantRecord(params.id);
 	if (!record) error(404);
 	const file = await validateCatalogFile(record.videoPath, participantDataRoot());
@@ -50,8 +50,8 @@ export const GET: RequestHandler = async ({ params, request, getClientAddress })
 	});
 };
 
-export const HEAD: RequestHandler = async ({ params, getClientAddress }) => {
-	if (!dev || !isLoopbackClientAddress(getClientAddress())) error(404);
+export const HEAD: RequestHandler = async ({ params, request, getClientAddress }) => {
+	if (!isDevLocalRequestAllowed(request, getClientAddress(), dev)) error(404);
 	const record = await findParticipantRecord(params.id);
 	if (!record) error(404);
 	const file = await validateCatalogFile(record.videoPath, participantDataRoot());
