@@ -323,70 +323,156 @@ export function getQijiaPoseCrop(
 	videoWidth?: number,
 	videoHeight?: number
 ) {
-	const widthLimit = videoWidth && videoWidth > 0 ? videoWidth : Number.POSITIVE_INFINITY;
-	const heightLimit = videoHeight && videoHeight > 0 ? videoHeight : Number.POSITIVE_INFINITY;
-	const points = QIJIA_LANDMARK_INDICES.map((index) => frame?.landmarks[index]).filter(
-		(point): point is NonNullable<typeof point> =>
-			!!point && Number.isFinite(point.x) && Number.isFinite(point.y)
-	);
-	const confident = points.filter(
-		(point) => point.visibility === undefined || point.visibility >= 0.35
-	);
-	const marks = confident.length ? confident : points;
-	const nose = frame?.landmarks[0];
-	if (
-		nose &&
-		Number.isFinite(nose.x) &&
-		Number.isFinite(nose.y) &&
-		(nose.visibility === undefined || nose.visibility >= 0.35) &&
-		marks.length
-	) {
-		const scoredX = marks.map((point) => point.x);
-		const scoredY = marks.map((point) => point.y);
-		const tolerance = Math.max(
-			(Math.max(...scoredX) - Math.min(...scoredX)) * 0.75,
-			(Math.max(...scoredY) - Math.min(...scoredY)) * 2.5,
-			180
+	return getQijiaPoseCropForFrames(frame ? [frame] : [], videoWidth, videoHeight, true);
+}
+
+/** Fit one stable, robust crop around scored pose landmarks across a whole clip/performance. */
+export function getQijiaPoseCropForFrames(
+	frames: Iterable<InspectorFrame>,
+	videoWidth?: number,
+	videoHeight?: number,
+	includeNearbyNose = false
+) {
+	const width = videoWidth && videoWidth > 0 ? videoWidth : 640;
+	const height = videoHeight && videoHeight > 0 ? videoHeight : 480;
+	const xs: number[] = [];
+	const ys: number[] = [];
+	for (const frame of frames) {
+		const marks = QIJIA_LANDMARK_INDICES.map((index) => frame.landmarks[index]).filter(
+			(point) =>
+				!!point &&
+				Number.isFinite(point.x) &&
+				Number.isFinite(point.y) &&
+				(point.visibility === undefined || point.visibility >= 0.35) &&
+				point.x >= 0 &&
+				point.x <= width &&
+				point.y >= 0 &&
+				point.y <= height
 		);
-		const nearScoredPose =
-			nose.x >= Math.min(...scoredX) - tolerance &&
-			nose.x <= Math.max(...scoredX) + tolerance &&
-			nose.y >= Math.min(...scoredY) - tolerance &&
-			nose.y <= Math.max(...scoredY) + tolerance;
-		if (nearScoredPose) marks.push(nose);
+		if (!marks.length) continue;
+		const minX = Math.min(...marks.map((point) => point.x));
+		const maxX = Math.max(...marks.map((point) => point.x));
+		const minY = Math.min(...marks.map((point) => point.y));
+		const maxY = Math.max(...marks.map((point) => point.y));
+		const nose = includeNearbyNose ? frame.landmarks[0] : undefined;
+		if (
+			nose &&
+			Number.isFinite(nose.x) &&
+			Number.isFinite(nose.y) &&
+			(nose.visibility === undefined || nose.visibility >= 0.35) &&
+			nose.x >= minX - Math.max((maxX - minX) * 0.75, 100) &&
+			nose.x <= maxX + Math.max((maxX - minX) * 0.75, 100) &&
+			nose.y >= minY - Math.max((maxY - minY) * 2.5, 180) &&
+			nose.y <= maxY + Math.max((maxY - minY) * 2.5, 180) &&
+			nose.x >= 0 &&
+			nose.x <= width &&
+			nose.y >= 0 &&
+			nose.y <= height
+		)
+			marks.push(nose);
+		for (const point of marks) {
+			xs.push(point.x);
+			ys.push(point.y);
+		}
 	}
-	if (!marks.length) {
-		return {
-			x: 0,
-			y: 0,
-			w: Number.isFinite(widthLimit) ? widthLimit : 640,
-			h: Number.isFinite(heightLimit) ? heightLimit : 480
-		};
-	}
-	const xs = marks.map((point) => point.x);
-	const ys = marks.map((point) => point.y);
-	const x0 = Math.min(...xs);
-	const x1 = Math.max(...xs);
-	const y0 = Math.min(...ys);
-	const y1 = Math.max(...ys);
-	const padX = Math.max((x1 - x0) * 0.28, 45);
+	if (!xs.length) return { x: 0, y: 0, w: width, h: height };
+	const quantile = (values: number[], p: number) => {
+		const sorted = [...values].sort((a, b) => a - b);
+		return sorted[Math.floor((sorted.length - 1) * p)];
+	};
+	// Trim isolated detector excursions while retaining the full temporal range of the motion.
+	const x0 = quantile(xs, 0.01);
+	const x1 = quantile(xs, 0.99);
+	const y0 = quantile(ys, 0.01);
+	const y1 = quantile(ys, 0.99);
+	const padX = Math.max((x1 - x0) * 0.2, 45);
 	const padY = Math.max((y1 - y0) * 0.2, 45);
-	const x = Math.max(0, x0 - padX);
-	const y = Math.max(0, y0 - padY);
-	const w = Math.min(
-		widthLimit,
-		Math.max(Math.min(120, widthLimit), Math.min(widthLimit, x1 + padX) - x)
-	);
-	const h = Math.min(
-		heightLimit,
-		Math.max(Math.min(160, heightLimit), Math.min(heightLimit, y1 + padY) - y)
-	);
-	const centerX = (x + Math.min(widthLimit, x1 + padX)) / 2;
-	const centerY = (y + Math.min(heightLimit, y1 + padY)) / 2;
+	const centerX = (x0 + x1) / 2;
+	const centerY = (y0 + y1) / 2;
+	const aspect = width / height;
+	let cropWidth = Math.max(120, x1 - x0 + padX * 2);
+	let cropHeight = Math.max(160, y1 - y0 + padY * 2);
+	if (cropWidth / cropHeight > aspect) cropHeight = cropWidth / aspect;
+	else cropWidth = cropHeight * aspect;
+	const scale = Math.min(1, width / cropWidth, height / cropHeight);
+	cropWidth *= scale;
+	cropHeight *= scale;
 	return {
-		x: Math.max(0, Math.min(widthLimit - w, centerX - w / 2)),
-		y: Math.max(0, Math.min(heightLimit - h, centerY - h / 2)),
-		w,
-		h
+		x: Math.max(0, Math.min(width - cropWidth, centerX - cropWidth / 2)),
+		y: Math.max(0, Math.min(height - cropHeight, centerY - cropHeight / 2)),
+		w: cropWidth,
+		h: cropHeight
+	};
+}
+
+export type NormalizedQijiaPoseCrop = { x: number; y: number; w: number; h: number };
+
+/** Aggregate a fixed video-relative crop across segments with different source resolutions. */
+export function getQijiaNormalizedPoseCropForSegments(
+	segments: Array<{
+		frames: Iterable<InspectorFrame>;
+		videoWidth: number;
+		videoHeight: number;
+	}>
+): NormalizedQijiaPoseCrop {
+	const xs: number[] = [];
+	const ys: number[] = [];
+	let minimumPadX = 0;
+	let minimumPadY = 0;
+	for (const segment of segments) {
+		const { videoWidth: width, videoHeight: height } = segment;
+		if (!(width > 0 && height > 0)) continue;
+		minimumPadX = Math.max(minimumPadX, 45 / width);
+		minimumPadY = Math.max(minimumPadY, 45 / height);
+		for (const frame of segment.frames) {
+			for (const index of QIJIA_LANDMARK_INDICES) {
+				const point = frame.landmarks[index];
+				if (
+					!point ||
+					!Number.isFinite(point.x) ||
+					!Number.isFinite(point.y) ||
+					(point.visibility !== undefined && point.visibility < 0.35) ||
+					point.x < 0 ||
+					point.x > width ||
+					point.y < 0 ||
+					point.y > height
+				)
+					continue;
+				xs.push(point.x / width);
+				ys.push(point.y / height);
+			}
+		}
+	}
+	if (!xs.length) return { x: 0, y: 0, w: 1, h: 1 };
+	const quantile = (values: number[], p: number) => {
+		const sorted = [...values].sort((a, b) => a - b);
+		return sorted[Math.floor((sorted.length - 1) * p)];
+	};
+	const x0 = quantile(xs, 0.01);
+	const x1 = quantile(xs, 0.99);
+	const y0 = quantile(ys, 0.01);
+	const y1 = quantile(ys, 0.99);
+	const padX = Math.max((x1 - x0) * 0.2, minimumPadX);
+	const padY = Math.max((y1 - y0) * 0.2, minimumPadY);
+	const left = Math.max(0, x0 - padX);
+	const top = Math.max(0, y0 - padY);
+	const right = Math.min(1, x1 + padX);
+	const bottom = Math.min(1, y1 + padY);
+	return { x: left, y: top, w: right - left, h: bottom - top };
+}
+
+/** Map a shared normalized viewport into one segment's pixel coordinates. */
+export function mapQijiaNormalizedCropToVideo(
+	crop: NormalizedQijiaPoseCrop,
+	videoWidth: number,
+	videoHeight: number
+) {
+	const width = videoWidth > 0 ? videoWidth : 640;
+	const height = videoHeight > 0 ? videoHeight : 480;
+	return {
+		x: crop.x * width,
+		y: crop.y * height,
+		w: crop.w * width,
+		h: crop.h * height
 	};
 }

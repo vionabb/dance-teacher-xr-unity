@@ -16,9 +16,12 @@
 		reindexFramesByRowIndex,
 		QIJIA_COLORS,
 		QIJIA_LANDMARK_INDICES,
-		getQijiaPoseCrop,
+		getQijiaPoseCropForFrames,
+		getQijiaNormalizedPoseCropForSegments,
+		mapQijiaNormalizedCropToVideo,
 		resolvePoseFrameAtTime,
 		UPPER_SKELETON_EDGES,
+		type NormalizedQijiaPoseCrop,
 		type InspectorFrame
 	} from '$lib/ai/motionmetrics/qijia2d-inspector';
 	import { PoseLandmarkKeysUpperSnakeCase } from '$lib/webcam/mediapipe-utils';
@@ -82,7 +85,12 @@
 		frameCount: number;
 		scoreFrameCount: number;
 		fallbackDurationSeconds: number;
+		participantVideoWidth: number;
+		participantVideoHeight: number;
+		referenceVideoWidth: number;
+		referenceVideoHeight: number;
 	};
+	type VideoDimensions = { width: number; height: number };
 	let view = $state<'dataset' | 'review'>(
 		page.url.searchParams.get('source') === 'local' ? 'review' : 'dataset'
 	);
@@ -102,6 +110,12 @@
 	let autoAdvance = false;
 	let pendingMediaSeek: { segmentIndex: number; localTimeSeconds: number } | null = null;
 	let visiblePerformanceLimit = $state(24);
+	let participantManualCrop = $state({ x: 0, y: 0, w: 640, h: 480 });
+	let referenceManualCrop = $state({ x: 0, y: 0, w: 640, h: 480 });
+	let participantNormalizedCrop = $state<NormalizedQijiaPoseCrop>({ x: 0, y: 0, w: 1, h: 1 });
+	let referenceNormalizedCrop = $state<NormalizedQijiaPoseCrop>({ x: 0, y: 0, w: 1, h: 1 });
+	let cropDimensions = { participant: { width: 0, height: 0 }, reference: { width: 0, height: 0 } };
+	const videoDimensionCache = new Map<string, Promise<VideoDimensions | null>>();
 	const datasetMode = $derived(Boolean(selectedPerformance) && view === 'review');
 	const danceOptions = $derived(
 		[...new Set(datasetPerformances.map((performance) => performance.danceName))].sort()
@@ -117,6 +131,16 @@
 	});
 
 	const frameNumbers = $derived([...participant.frames.keys()].sort((a, b) => a - b));
+	const vectorShortLabels = [
+		'Shoulders',
+		'Left torso',
+		'Hips',
+		'Right torso',
+		'L upper arm',
+		'L forearm',
+		'R upper arm',
+		'R forearm'
+	] as const;
 	const referenceFrameNumbers = $derived([...reference.frames.keys()].sort((a, b) => a - b));
 	const visiblePerformances = $derived(filteredPerformances.slice(0, visiblePerformanceLimit));
 	const timeline = $derived(
@@ -133,6 +157,24 @@
 	const timelineDuration = $derived(timeline.at(-1)?.endSeconds ?? 0);
 	const activeLoadedSegment = $derived(loadedSegments[activeSegmentIndex]);
 	const activeTimelineSegment = $derived(timeline[activeSegmentIndex]);
+	const participantCrop = $derived.by(() =>
+		datasetMode && activeLoadedSegment
+			? mapQijiaNormalizedCropToVideo(
+					participantNormalizedCrop,
+					activeLoadedSegment.participantVideoWidth,
+					activeLoadedSegment.participantVideoHeight
+				)
+			: participantManualCrop
+	);
+	const referenceCrop = $derived.by(() =>
+		datasetMode && activeLoadedSegment
+			? mapQijiaNormalizedCropToVideo(
+					referenceNormalizedCrop,
+					activeLoadedSegment.referenceVideoWidth,
+					activeLoadedSegment.referenceVideoHeight
+				)
+			: referenceManualCrop
+	);
 	const activeFrameCount = $derived(activeLoadedSegment?.frameCount ?? 0);
 	const currentGlobalTime = $derived(datasetMode ? globalTime : frameIndex / participant.fps);
 	const participantFrame = $derived(
@@ -208,16 +250,6 @@
 		const peak = Math.max(0, ...series.map((point) => point.sum ?? 0));
 		return Math.max(1, Math.min(16, Math.ceil(peak * 2) / 2));
 	});
-	const participantCrop = $derived(
-		getQijiaPoseCrop(
-			participantFrame,
-			participant.video?.videoWidth,
-			participant.video?.videoHeight
-		)
-	);
-	const referenceCrop = $derived(
-		getQijiaPoseCrop(referenceFrame, reference.video?.videoWidth, reference.video?.videoHeight)
-	);
 	const plot = $derived.by(() => {
 		const plotDuration = datasetMode ? timelineDuration : duration;
 		if (plotDuration <= 0) return '';
@@ -263,12 +295,49 @@
 			datasetLoading = false;
 		}
 	}
+	function probeVideoDimensions(url?: string): Promise<VideoDimensions | null> {
+		if (!url) return Promise.resolve(null);
+		const cached = videoDimensionCache.get(url);
+		if (cached) return cached;
+		const dimensions = new Promise<VideoDimensions | null>((resolve) => {
+			const video = document.createElement('video');
+			video.preload = 'metadata';
+			let settled = false;
+			const timeout = window.setTimeout(() => finish(null), 10_000);
+			const finish = (value: VideoDimensions | null) => {
+				if (settled) return;
+				settled = true;
+				window.clearTimeout(timeout);
+				video.removeEventListener('loadedmetadata', onMetadata);
+				video.removeEventListener('error', onError);
+				video.removeAttribute('src');
+				video.load();
+				resolve(value);
+			};
+			const onMetadata = () =>
+				finish(
+					video.videoWidth > 0 && video.videoHeight > 0
+						? { width: video.videoWidth, height: video.videoHeight }
+						: null
+				);
+			const onError = () => finish(null);
+			video.addEventListener('loadedmetadata', onMetadata);
+			video.addEventListener('error', onError);
+			video.src = url;
+			video.load();
+		});
+		videoDimensionCache.set(url, dimensions);
+		return dimensions;
+	}
 	async function openPerformance(summary: DatasetPerformance) {
 		cancelLoad();
 		const controller = new AbortController();
 		loadController = controller;
 		const requestToken = ++loadToken;
 		datasetLoading = true;
+		cropDimensions = { participant: { width: 0, height: 0 }, reference: { width: 0, height: 0 } };
+		participantNormalizedCrop = { x: 0, y: 0, w: 1, h: 1 };
+		referenceNormalizedCrop = { x: 0, y: 0, w: 1, h: 1 };
 		datasetError = '';
 		error = '';
 		try {
@@ -281,6 +350,10 @@
 			if (requestToken !== loadToken) return;
 			const loaded = await Promise.all(
 				performance.segments.map(async (segment) => {
+					const participantDimensionsPromise = probeVideoDimensions(segment.videoUrl);
+					const referenceDimensionsPromise = probeVideoDimensions(
+						segment.referenceVideoUrl ?? undefined
+					);
 					if (!segment.poseUrl)
 						throw new Error(`Segment ${segment.clipNumber} has no participant pose.`);
 					const poseResponse = await fetch(segment.poseUrl, {
@@ -315,13 +388,21 @@
 							(_, row) => participantVideoTimeForRow(participantFrames, row, 30) + 1 / 30
 						)
 					);
+					const [participantDimensions, referenceDimensions] = await Promise.all([
+						participantDimensionsPromise,
+						referenceDimensionsPromise
+					]);
 					return {
 						segment,
 						participantFrames,
 						referenceFrames,
 						frameCount,
 						scoreFrameCount,
-						fallbackDurationSeconds
+						fallbackDurationSeconds,
+						participantVideoWidth: participantDimensions?.width ?? 640,
+						participantVideoHeight: participantDimensions?.height ?? 480,
+						referenceVideoWidth: referenceDimensions?.width ?? 640,
+						referenceVideoHeight: referenceDimensions?.height ?? 480
 					};
 				})
 			);
@@ -337,6 +418,7 @@
 			selectedVector = -1;
 			demo = false;
 			view = 'review';
+			updatePoseCrops();
 			activateDatasetSegment(0);
 		} catch (caught) {
 			if (requestToken !== loadToken) return;
@@ -362,6 +444,37 @@
 		loadedSegments = [];
 		globalTime = 0;
 		view = 'dataset';
+	}
+	function updatePoseCrops() {
+		if (datasetMode) {
+			participantNormalizedCrop = getQijiaNormalizedPoseCropForSegments(
+				loadedSegments.map((segment) => ({
+					frames: segment.participantFrames.values(),
+					videoWidth: segment.participantVideoWidth,
+					videoHeight: segment.participantVideoHeight
+				}))
+			);
+			referenceNormalizedCrop = getQijiaNormalizedPoseCropForSegments(
+				loadedSegments.map((segment) => ({
+					frames: segment.referenceFrames.values(),
+					videoWidth: segment.referenceVideoWidth,
+					videoHeight: segment.referenceVideoHeight
+				}))
+			);
+			return;
+		}
+		const p = cropDimensions.participant;
+		const r = cropDimensions.reference;
+		participantManualCrop = getQijiaPoseCropForFrames(
+			participant.frames.values(),
+			p.width || undefined,
+			p.height || undefined
+		);
+		referenceManualCrop = getQijiaPoseCropForFrames(
+			reference.frames.values(),
+			r.width || undefined,
+			r.height || undefined
+		);
 	}
 	function activateDatasetSegment(index: number) {
 		const loaded = loadedSegments[index];
@@ -482,6 +595,7 @@
 		if (!file) return;
 		const clip = side === 'participant' ? participant : reference;
 		if (file.type.startsWith('video/')) {
+			cropDimensions[side] = { width: 0, height: 0 };
 			if (clip.url) URL.revokeObjectURL(clip.url);
 			const next = { ...clip, url: URL.createObjectURL(file), name: 'Video loaded' };
 			if (side === 'participant') participant = next;
@@ -494,6 +608,7 @@
 						participant = next;
 						frameIndex = [...next.frames.keys()].sort((a, b) => a - b)[0] ?? 0;
 					} else reference = next;
+					updatePoseCrops();
 					error = '';
 				} catch (e) {
 					error = e instanceof Error ? e.message : 'Could not read pose CSV.';
@@ -516,6 +631,42 @@
 	}
 	function loaded(side: 'participant' | 'reference', event: Event) {
 		const video = event.currentTarget as HTMLVideoElement;
+		if (video.videoWidth > 0 && video.videoHeight > 0) {
+			if (datasetMode) {
+				const active = loadedSegments[activeSegmentIndex];
+				const sourceUrl =
+					side === 'participant' ? active?.segment.videoUrl : active?.segment.referenceVideoUrl;
+				const dimensionWidth =
+					side === 'participant' ? active?.participantVideoWidth : active?.referenceVideoWidth;
+				const dimensionHeight =
+					side === 'participant' ? active?.participantVideoHeight : active?.referenceVideoHeight;
+				if (
+					active &&
+					sourceUrl === (side === 'participant' ? participant.url : reference.url) &&
+					(dimensionWidth !== video.videoWidth || dimensionHeight !== video.videoHeight)
+				) {
+					loadedSegments = loadedSegments.map((segment, index) =>
+						index !== activeSegmentIndex
+							? segment
+							: side === 'participant'
+								? {
+										...segment,
+										participantVideoWidth: video.videoWidth,
+										participantVideoHeight: video.videoHeight
+									}
+								: {
+										...segment,
+										referenceVideoWidth: video.videoWidth,
+										referenceVideoHeight: video.videoHeight
+									}
+					);
+					updatePoseCrops();
+				}
+			} else if (cropDimensions[side].width === 0) {
+				cropDimensions[side] = { width: video.videoWidth, height: video.videoHeight };
+				updatePoseCrops();
+			}
+		}
 		const target = side === 'participant' ? participant : reference;
 		if (side === 'participant') participant = { ...target, video };
 		else reference = { ...target, video };
@@ -911,7 +1062,16 @@
 												markerHeight="3"
 												orient="auto-start-reverse"
 												><path d="M 0 0 L 10 5 L 0 10 z" fill={color} /></marker
-											>{/each}</defs
+											>{/each}<filter
+											id={`${panel.side}-error-glow`}
+											x="-60%"
+											y="-60%"
+											width="220%"
+											height="220%"
+										>
+											<feGaussianBlur stdDeviation="1.5" result="blur" />
+											<feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+										</filter></defs
 									>
 									{#each UPPER_SKELETON_EDGES as [a, b] (`${a}-${b}`)}
 										{@const pa = panel.pose.landmarks[a]}
@@ -944,7 +1104,7 @@
 										{@const origin = panel.pose.landmarks[vector.src]}
 										{@const actual = panel.side === 'reference' ? vector.ref : vector.participant}
 										{@const other = panel.side === 'participant' ? vector.ref : null}
-										{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.12}
+										{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.09}
 										{#if actual}
 											{#if panel.side === 'participant' && other}<line
 													x1={origin.x}
@@ -961,9 +1121,10 @@
 														y1={origin.y + other[1] * length}
 														x2={origin.x + vector.participant[0] * length}
 														y2={origin.y + vector.participant[1] * length}
-														stroke={QIJIA_COLORS[i]}
+														stroke="#ff334f"
 														stroke-width="2.5"
 														opacity={selectedVector === -1 || selectedVector === i ? 0.95 : 0.12}
+														filter={`url(#${panel.side}-error-glow)`}
 													/>{/if}
 											{/if}
 											<line
@@ -987,7 +1148,7 @@
 							{#if panel.pose && !panel.clip.url}{datasetMode && panel.side === 'reference'
 									? 'Reference pose only · reference video timing unavailable · '
 									: 'Pose overlay · no video selected · '}{/if}Image coordinates retained · crop
-							follows pose bounds · faint arrow = relocated reference direction
+							uses fixed pose bounds · faint arrow = relocated reference direction
 						</div>
 						{#if panel.side === 'reference' && referenceSample.carried}<p
 								class="text-info mx-4 mb-3 text-xs"
@@ -1002,80 +1163,47 @@
 					</article>
 				{/each}
 			</div>
-			<aside
-				class="daisy-card border-base-300 bg-base-100 border shadow-sm md:col-span-4 md:col-start-9 md:row-start-2"
-				aria-label="Frame score"
-			>
-				<div class="daisy-card-body gap-3 p-4">
-					<div>
-						<h2 class="daisy-card-title text-base">Frame error</h2>
-						<p class="text-xs opacity-65">Stacked vector distances · maximum 16</p>
+			<aside class="md:col-span-4 md:col-start-9 md:row-start-2" aria-label="Vector errors">
+				{#if comparison}
+					<div class="mb-3 flex items-baseline justify-between px-1 text-sm tabular-nums">
+						<strong>Σ {comparison.sum.toFixed(2)} / 16</strong>
+						<span>{comparison.score.toFixed(2)} / 5</span>
 					</div>
-					{#if comparison}
-						<div class="text-4xl font-bold tabular-nums">
-							{comparison.score.toFixed(2)}<span class="text-base font-normal opacity-60">
-								/ 5</span
-							>
-						</div>
-						<div
-							class="border-base-300 flex h-7 overflow-hidden rounded-md border"
-							role="img"
-							aria-label={`Dissimilarity sum ${comparison.sum.toFixed(2)} on a 0 to 16 scale`}
-						>
-							{#each comparison.vectors as vector, i (vector.name)}<div
-									style={`width:${((vector.error ?? 0) / 16) * 100}%;background:${QIJIA_COLORS[i]};min-width:${vector.error === null ? '3px' : '0'}`}
-									title={`${vector.name}: ${vector.error === null ? 'invalid' : vector.error.toFixed(3)}`}
-								></div>{/each}
-							<div class="bg-base-200 flex-1"></div>
-						</div>
-						<div class="flex justify-between text-xs tabular-nums">
-							<span>0 · match</span><span>sum {comparison.sum.toFixed(3)} / 16</span><span>16</span>
-						</div>
-						<p class="text-sm">
-							Mean pair distance <strong>{comparison.mean.toFixed(3)}</strong> / 2
-						</p>
-						{#if comparison.invalidCount}<div class="daisy-alert daisy-alert-warning py-2 text-xs">
-								{comparison.invalidCount} invalid pair{comparison.invalidCount === 1 ? '' : 's'};
-								displayed score follows metric zero fallback. See diagnostics below.
-							</div>{/if}
-						{@const lowVisibility = comparison.vectors.filter((v) =>
-							[
-								participantFrame?.landmarks[v.src],
-								participantFrame?.landmarks[v.dest],
-								referenceFrame?.landmarks[v.src],
-								referenceFrame?.landmarks[v.dest]
-							].some((point) => point?.visibility !== undefined && point.visibility < 0.35)
-						).length}
-						{#if lowVisibility}<p class="text-warning text-xs">
-								{lowVisibility} pair{lowVisibility === 1 ? ' includes' : 's include'} a landmark below
-								0.35 visibility. The metric does not weight visibility.
-							</p>{/if}
-					{:else}<div class="rounded-box bg-base-200 p-4 text-sm opacity-70">
-							Load both pose CSV files to calculate a frame score.
-						</div>{/if}
-					<div class="daisy-divider my-0"></div>
-					<h3 class="text-sm font-semibold">Vector pairs</h3>
 					<ul class="space-y-1">
-						{#each comparison?.vectors ?? [] as vector, i (vector.name)}<li>
+						{#each comparison.vectors as vector, i (vector.name)}<li>
 								<button
-									class="hover:bg-base-200 flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs"
+									class="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-xs focus-visible:outline focus-visible:outline-2"
+									class:bg-base-200={selectedVector === i}
 									aria-pressed={selectedVector === i}
+									aria-label={`${vector.name} error ${vector.error?.toFixed(2) ?? 'invalid'}`}
+									title={`${vector.name}${vector.invalidReason ? ` · ${vector.invalidReason}` : ''}`}
 									onclick={() => (selectedVector = selectedVector === i ? -1 : i)}
-									><span
-										class="h-3 w-3 shrink-0 rounded-full"
-										style={`background:${QIJIA_COLORS[i]}`}
-									></span><span class="min-w-0 flex-1 truncate">{vector.name}</span><span
-										class="font-mono"
-										>{vector.error === null ? 'invalid' : vector.error.toFixed(3)}</span
-									></button
-								>{#if vector.invalidReason && (selectedVector === i || selectedVector === -1)}<p
-										class="text-warning ml-7 text-[11px]"
+								>
+									<span class="w-24 shrink-0">{vectorShortLabels[i]}</span>
+									<span
+										class="bg-base-200 relative h-3 min-w-0 flex-1 overflow-hidden rounded-sm"
+										style={vector.error === null
+											? 'background-image:repeating-linear-gradient(135deg,transparent 0 3px,color-mix(in srgb,currentColor 30%,transparent) 3px 5px)'
+											: undefined}
+										aria-hidden="true"
 									>
-										{vector.invalidReason}
-									</p>{/if}
+										{#if vector.error !== null}<span
+												class="absolute inset-y-0 left-0 rounded-sm"
+												style={`width:${(vector.error / 2) * 100}%;background:${QIJIA_COLORS[i]}`}
+											></span>{/if}
+									</span>
+									<span class="w-12 text-right font-mono tabular-nums"
+										>{vector.error?.toFixed(2) ?? 'invalid'}</span
+									>
+								</button>
 							</li>{/each}
 					</ul>
-				</div>
+					{#if comparison.invalidCount}<p class="text-warning mt-2 text-xs">
+							{comparison.invalidCount} invalid pair{comparison.invalidCount === 1 ? '' : 's'}
+						</p>{/if}
+				{:else}<p class="text-xs opacity-65">
+						Load both pose CSV files to calculate vector errors.
+					</p>{/if}
 			</aside>
 		</section>
 
@@ -1087,7 +1215,7 @@
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<h2 class="daisy-card-title text-base">Frame error across time</h2>
 						<span class="text-xs opacity-65"
-							>Sum of eight pair distances · chart 0–{chartMax} adaptive; stacked bar 0–16</span
+							>Sum of eight pair distances · chart scale 0–{chartMax}</span
 						>
 					</div>
 					<div
@@ -1160,10 +1288,6 @@
 				</div>
 			</section>
 		</div>
-		<p class="text-xs opacity-60">
-			Invalid vectors are flagged; the displayed score preserves the metric’s zero-error fallback.
-			Visibility is diagnostic only and does not affect scoring.
-		</p>
 	{/if}
 </main>
 
