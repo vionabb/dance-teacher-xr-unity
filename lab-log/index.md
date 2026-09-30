@@ -98,6 +98,7 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 
 - [2026-09-30 — Qijia2D frame inspector and local dataset exploration](2026-09-30-qijia2d-frame-inspector.md)
   Built a frame-by-frame visual explanation of the existing eight-vector metric
-  and a development-only path from staged participant segments to review. The
-  offline fixture aligns poses by row index while video seeking uses preserved
-  source frames; reference-video segment timing remains unverified.
+  with a local performance picker, thumbnails, and one chart scrubber across its
+  segments. Participant and reference videos switch or seek with the pose rows;
+  the offline metric still aligns poses by row index. Representative tutorial
+  frames support the flipped-video/native-pose overlay mapping.
