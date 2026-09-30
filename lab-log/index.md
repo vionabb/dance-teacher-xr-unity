@@ -100,5 +100,6 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Built a frame-by-frame visual explanation of the existing eight-vector metric
   with a local performance picker, thumbnails, and one chart scrubber across its
   segments. Participant and reference videos switch or seek with the pose rows;
-  the offline metric still aligns poses by row index. Representative tutorial
-  frames support the flipped-video/native-pose overlay mapping.
+  fixed pose crops prevent viewport jitter, and compact colored bars expose
+  each pair error. The offline metric still aligns poses by row index.
+  Representative tutorial frames support the flipped-video/native-pose overlay mapping.
