@@ -74,6 +74,10 @@ pair's direction, body-scale-adjusted length, and blend weight;
 their angle and magnitude errors. Its fixed chart shows full-performance
 Viona2D dissimilarity and doubles as the scrubber.
 
+While reviewing a dataset performance, use the metric choice in the header to
+switch between Qijia2D and Viona2D. The selected performance and position in
+its full timeline carry across the switch.
+
 The explorer discovers the staged files under
 `../data/participant_motions/chi25_study{1,2}/` in a normal checkout. Set
 `MOTION_PIPELINE_USER_STUDY_DATA_DIR` to the `participant_motions` directory

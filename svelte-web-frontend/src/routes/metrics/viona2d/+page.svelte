@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
+	import { afterNavigate, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
+	import MetricSwitcher from '$lib/elements/MetricSwitcher.svelte';
 	import {
 		parseLegacyReferencePoseCsv,
 		parseRawPoseCsv,
@@ -101,6 +103,8 @@
 	let activeSegmentIndex = $state(0);
 	let globalTime = $state(0);
 	let datasetLoading = $state(true);
+	let datasetCatalogReady = false;
+	let lastRestoreKey = '';
 	let datasetError = $state('');
 	let datasetUnavailable = $state(false);
 	let studyFilter = $state('all');
@@ -339,12 +343,34 @@
 			datasetPerformances = result.performances;
 			visiblePerformanceLimit = 24;
 			datasetUnavailable = datasetPerformances.length === 0;
+			datasetCatalogReady = true;
+			await restorePerformanceFromUrl(page.url);
 		} catch (caught) {
 			datasetError =
 				caught instanceof Error ? caught.message : 'Could not load the local dataset catalog.';
 		} finally {
 			datasetLoading = false;
 		}
+	}
+	async function restorePerformanceFromUrl(url: URL) {
+		const performanceId = url.searchParams.get('performance');
+		if (!performanceId) {
+			lastRestoreKey = '';
+			return;
+		}
+		const timeText = url.searchParams.get('time');
+		const timeSeconds = timeText === null ? 0 : Number(timeText);
+		if (!Number.isFinite(timeSeconds) || timeSeconds < 0) return;
+		const target = datasetPerformances.find((performance) => performance.id === performanceId);
+		if (!target) return;
+		const key = `${performanceId}\u0000${timeSeconds}`;
+		if (key === lastRestoreKey) return;
+		lastRestoreKey = key;
+		if (selectedPerformance?.id === performanceId && datasetMode) {
+			seekGlobalTime(timeSeconds);
+			return;
+		}
+		await openPerformance(target, timeSeconds);
 	}
 	function probeVideoDimensions(url?: string): Promise<VideoDimensions | null> {
 		if (!url) return Promise.resolve(null);
@@ -380,7 +406,7 @@
 		videoDimensionCache.set(url, dimensions);
 		return dimensions;
 	}
-	async function openPerformance(summary: DatasetPerformance) {
+	async function openPerformance(summary: DatasetPerformance, restoreTimeSeconds = 0) {
 		cancelLoad();
 		const controller = new AbortController();
 		loadController = controller;
@@ -471,6 +497,8 @@
 			view = 'review';
 			updatePoseCrops();
 			activateDatasetSegment(0);
+			await tick();
+			if (requestToken === loadToken) seekGlobalTime(restoreTimeSeconds);
 		} catch (caught) {
 			if (requestToken !== loadToken) return;
 			if (caught instanceof DOMException && caught.name === 'AbortError') return;
@@ -491,10 +519,15 @@
 	}
 	function returnToDataset() {
 		cancelLoad();
+		lastRestoreKey = '';
 		selectedPerformance = null;
 		loadedSegments = [];
 		globalTime = 0;
 		view = 'dataset';
+		const url = new URL(page.url);
+		url.searchParams.delete('performance');
+		url.searchParams.delete('time');
+		replaceState(url, page.state);
 	}
 	function updatePoseCrops() {
 		if (datasetMode) {
@@ -640,6 +673,10 @@
 		});
 		if (view === 'dataset') void loadDataset();
 		return () => navbarProps.set(previousNav);
+	});
+	afterNavigate(({ to }) => {
+		if (to?.url.pathname === '/metrics/viona2d' && datasetCatalogReady)
+			void restorePerformanceFromUrl(to.url);
 	});
 
 	function setClip(side: 'participant' | 'reference', file?: File) {
@@ -970,9 +1007,16 @@
 						video is a timing guide
 					</p>
 				</div>
-				<button class="daisy-btn daisy-btn-outline daisy-btn-sm" onclick={returnToDataset}
-					>← Performances</button
-				>
+				<div class="flex items-center gap-2">
+					<MetricSwitcher
+						performanceId={selectedPerformance?.id ?? ''}
+						timeSeconds={globalTime}
+						currentMetric="viona2d"
+					/>
+					<button class="daisy-btn daisy-btn-outline daisy-btn-sm" onclick={returnToDataset}
+						>← Performances</button
+					>
+				</div>
 			</div>
 		{/if}
 		<div class="flex justify-end">
