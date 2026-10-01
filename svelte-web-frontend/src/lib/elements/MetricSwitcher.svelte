@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
+	import { setLastMetric } from '$lib/utils/last-inspected-metric';
 
 	interface Props {
 		performanceId: string;
@@ -13,6 +14,7 @@
 	function switchMetric(event: Event) {
 		const metric = (event.currentTarget as HTMLSelectElement).value;
 		if (metric !== 'qijia2d' && metric !== 'viona2d') return;
+		setLastMetric(metric);
 
 		const params = new URLSearchParams({ performance: performanceId, time: String(timeSeconds) });
 		const currentUrl = new URL(page.url);
