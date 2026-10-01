@@ -55,6 +55,46 @@ describe('participant catalog', () => {
 		30_000
 	);
 
+	it('canonicalizes observed unhyphenated Study 2 dance names into catalog performances', async () => {
+		const { data, refs } = await fixture();
+		const videos = path.join(data, 'chi25_study2', 'videos');
+		const poses = path.join(
+			data,
+			'chi25_study2',
+			'pose-raw',
+			'canonical',
+			'study2-segmented',
+			'pose2d'
+		);
+		await Promise.all([mkdir(videos, { recursive: true }), mkdir(poses, { recursive: true })]);
+		const aliases = [
+			['lastchristmas', 'segmented'],
+			['madatdisney', 'control'],
+			['pajamaparty', 'emoji']
+		] as const;
+		for (const [alias, condition] of aliases) {
+			const stem = `user4707________userstudy2-${alias}-${condition}____workflowid-f77787d8-9af4-4358-98e0-4cf00813438e____clip1`;
+			await Promise.all([
+				writeFile(path.join(videos, `${stem}.mp4`), 'video'),
+				writeFile(path.join(poses, `${stem}.pose2d.raw.csv`), 'frame,x')
+			]);
+		}
+
+		const catalog = await buildParticipantCatalog({ dataRoot: data, referenceRoot: refs });
+		expect(catalog.performances).toHaveLength(3);
+		expect(catalog.performances.map((performance) => performance.danceName).sort()).toEqual([
+			'last-christmas',
+			'mad-at-disney',
+			'pajama-party'
+		]);
+		expect(
+			catalog.performances.find((performance) => performance.danceName === 'mad-at-disney')
+		).toMatchObject({
+			study: 'study2',
+			condition: 'control'
+		});
+	});
+
 	it('pairs exact stems and groups segments by performance metadata', async () => {
 		const { data, refs } = await fixture();
 		const study = path.join(data, 'chi25_study1');

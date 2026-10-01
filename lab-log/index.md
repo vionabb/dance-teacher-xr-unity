@@ -110,3 +110,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 - [2026-10-01 — Switching metrics within a performance review](2026-10-01-metric-inspector-switching.md)
   Adds a Qijia2D/Viona2D choice inside the review, carrying the selected
   performance and full-timeline position across metric views.
+
+- [2026-10-01 — Dance-first performance browsing](2026-10-01-dance-first-performance-browser.md)
+  Organizes the local dataset by dance reference thumbnails, then participant
+  performance cards; selecting another performance reuses the last viewed metric.
+  Restores paired Study 2 recordings with unhyphenated dance filenames to the catalog.

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
-	import { afterNavigate, replaceState } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
@@ -27,6 +27,7 @@
 	} from '$lib/ai/motionmetrics/qijia2d-inspector';
 	import { compareVionaFrame } from '$lib/ai/motionmetrics/viona2d-inspector';
 	import { PoseLandmarkKeysUpperSnakeCase } from '$lib/webcam/mediapipe-utils';
+	import { setLastMetric } from '$lib/utils/last-inspected-metric';
 
 	type Clip = {
 		url: string;
@@ -518,16 +519,14 @@
 		datasetLoading = false;
 	}
 	function returnToDataset() {
+		const dance = selectedPerformance?.danceName;
 		cancelLoad();
 		lastRestoreKey = '';
 		selectedPerformance = null;
 		loadedSegments = [];
 		globalTime = 0;
 		view = 'dataset';
-		const url = new URL(page.url);
-		url.searchParams.delete('performance');
-		url.searchParams.delete('time');
-		replaceState(url, page.state);
+		void goto(dance ? `/research?dance=${encodeURIComponent(dance)}` : '/research');
 	}
 	function updatePoseCrops() {
 		if (datasetMode) {
@@ -671,7 +670,13 @@
 			back: { url: '/research', title: 'Metrics' },
 			hideSettings: true
 		});
-		if (view === 'dataset') void loadDataset();
+		setLastMetric('viona2d');
+		if (view === 'dataset' && !page.url.searchParams.has('performance')) {
+			const dance = page.url.searchParams.get('dance');
+			void goto(dance ? `/research?dance=${encodeURIComponent(dance)}` : '/research', {
+				replaceState: true
+			});
+		} else if (view === 'dataset') void loadDataset();
 		return () => navbarProps.set(previousNav);
 	});
 	afterNavigate(({ to }) => {
