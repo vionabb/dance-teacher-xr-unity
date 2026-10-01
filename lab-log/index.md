@@ -106,3 +106,7 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Built selectable vector lens, eight-pair audit, and angle-versus-length views
   on the same local performance timeline. Exposes the production blend and its
   unclamped 50–100 px angle weight for frame-by-frame debugging.
+
+- [2026-10-01 — Switching metrics within a performance review](2026-10-01-metric-inspector-switching.md)
+  Adds a Qijia2D/Viona2D choice inside the review, carrying the selected
+  performance and full-timeline position across metric views.
