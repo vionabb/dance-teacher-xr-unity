@@ -14,7 +14,8 @@ The owning [workspace direction](../documentation/research-workspace.md) and
 record the accepted data boundary and first-slice acceptance.
 Implementation started from `main` at `b1a475eb72ee28fff659f4980fdb60c59771249c`
 in an isolated checkout. [PR #408](https://github.com/vionabb/dance-teacher-xr-unity/pull/408)
-records the direction and is the base for the local read-model branch. The active
+records the direction; [PR #409](https://github.com/vionabb/dance-teacher-xr-unity/pull/409)
+adds the local read model on top of it. Both are draft PRs. The active
 annotation server and its SQLite database are outside this checkout and must
 not be modified as part of the initial read-only work.
 
