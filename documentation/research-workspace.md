@@ -143,3 +143,38 @@ neither participant videos nor research records are published by the deployed
 Vercel app. Add server-side researcher-role authorization to every research
 route before any remote serving. Metric calculations and frame-correction
 authoring are not part of this slice.
+
+## Hypothesis page prototype
+
+The local development app exposes `/research/hypothesis` and individual
+`/research/hypothesis/<slug>` pages. The initial registry identifies five
+research questions from the dated lab log: landmark error signals, recurring
+segment risk, reference versus participant trackability, metric sensitivity
+to manual corrections, and confidence-aware coaching. These are candidate
+questions or design directions, not confirmed conclusions. Each overview reads
+opening prose from its cited lab-log Markdown file at request time; the full
+source entry is available on the page. Hypothesis-specific investigation
+sections and links can differ by slug.
+
+The app-managed research SQLite database stores append-only conversation,
+status, and finding records. Each conversation save makes a verified local
+snapshot. Statuses describe the research workflow (`candidate`,
+`investigating`, `evidence-review`, `resolved`, `archived`) rather than an
+automatic scientific verdict. The local conversation panel invokes a separate
+read-only Codex CLI turn for each message, passing the cited lab-log entry and
+recent conversation; it is not the live Codex desktop task. The server accepts
+a structured response and allows
+status and finding records only for explicit requests, validates the returned
+values, and does the database write itself. The panel can discuss a prospective
+analysis; running that analysis or adding a custom tool still requires a Codex
+task with an implementation brief. The initial pages do not ingest the live
+annotation history or execute new hypothesis-specific analyses.
+
+The local CLI call requires a working Codex sign-in on the serving machine.
+This prototype inherits the development-mode and loopback-client boundary.
+Before using it remotely, add researcher-role authorization to every page and
+action. Before treating these pages as the durable research record, review the
+initial hypothesis wording, decide whether lab-log prose should remain the
+canonical overview, and define an evidence-link and revision policy for saved
+findings. See the [dated prototype entry](../lab-log/2026-10-02-hypothesis-workspace-prototype.md)
+and its [handoff](../lab-log/2026-10-02-hypothesis-workspace-prototype-handoff.md).
