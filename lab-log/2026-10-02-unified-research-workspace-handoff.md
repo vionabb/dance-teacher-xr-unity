@@ -12,8 +12,9 @@ The architecture direction is recorded in the [dated entry](2026-10-02-unified-r
 The owning [workspace direction](../documentation/research-workspace.md) and
 [issue #407](https://github.com/vionabb/dance-teacher-xr-unity/issues/407)
 record the accepted data boundary and first-slice acceptance.
-Implementation is starting from `main` at `b1a475eb72ee28fff659f4980fdb60c59771249c`
-in an isolated checkout. Use a stacked set of small reviewable PRs. The active
+Implementation started from `main` at `b1a475eb72ee28fff659f4980fdb60c59771249c`
+in an isolated checkout. [PR #408](https://github.com/vionabb/dance-teacher-xr-unity/pull/408)
+records the direction and is the base for the local read-model branch. The active
 annotation server and its SQLite database are outside this checkout and must
 not be modified as part of the initial read-only work.
 
@@ -43,8 +44,22 @@ Later stacks can move the two current annotation workflows, extract a normal
 metric batch runner from Vitest, and add Python job orchestration. Keep each
 data-producing stage versioned and preserve exact input identities.
 
+## Validation and current limits
+
+- The frozen `20261002-first-manual-review` manifest and prior-study rating CSV
+  imported into the isolated checkout's ignored `local-data/research.sqlite3`:
+  154 video, 48 frame, and 1,570 human-rating records.
+- A synthetic Vitest case verifies repeatable import, source-file immutability,
+  frame-stage override provenance, and rejection of a changed source.
+- The full Vite build passed after restoring three existing Git LFS JSON/CSV
+  files from the original checkout into the isolated checkout for the build.
+  They were restored to pointer form afterward and are not part of the PR.
+- `/research/records` is local and development-only. Identity joins, pagination,
+  researcher role authorization, annotation authoring, and job orchestration
+  remain open. The active annotation database is still the writer.
+
 ## Next action
 
-Complete and review the lab-log/contract PR, then implement the first
-functional local SQLite and read-only research slice on top of that branch.
-Update this status and next action before ending the work session.
+Verify the manual-review segment identities against prior-study study/dance/
+participant/segment keys, recording exact matches and ambiguous or unmatched
+cases. Then add the researcher authorization boundary before any remote serving.
