@@ -95,3 +95,14 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   progress: 60 coarse triage judgments complete, three detailed-error drafts,
   no four-point video-usability tasks yet. Identified missing three-level frame
   flow and a manual-versus-automatic frame-flag provenance defect.
+
+- [2026-10-01 — Canonical manual-review corpus and first release](2026-10-01-manual-review-corpus-proposal.md)
+  Established a source-aware review catalog and frozen 2026-10-02 release:
+  3,640 revisions, 154 video ratings, 138 exact raw poses, and 48 complete
+  reviewed 2D segments. Verified Drive backup and restore, and ran optional
+  2D preprocessing; the live annotation database remains in place.
+
+- [2026-10-02 — First paired use of manually reviewed poses](2026-10-02-manual-review-paired-metrics.md)
+  Compared exact reviewed 2D inputs with raw/C4 on 30 participant-reviewed,
+  19 reference-reviewed, and 8 fully reviewed human-rated pairs. The raw
+  control matched exactly; whole-clip similarity correlations changed little.

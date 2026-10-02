@@ -163,4 +163,7 @@ cython_debug/
 temp/*
 !temp/README.md
 
+# Access-controlled manual-review databases and derived releases.
+/local-data/
+
 .DS_Store
