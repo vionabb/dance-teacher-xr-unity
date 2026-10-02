@@ -27,8 +27,11 @@ deployment failed when the updated Vite parser encountered optional TypeScript
 parameters in the two metric inspector pages. The top branch now defers native
 SQLite loading until a local research operation and uses explicit `| undefined`
 parameter types in those pages. Its exact-lockfile local production build,
-frontend lint, and focused research tests pass; the Vercel rebuild remains the
-remote acceptance check.
+frontend lint, and focused research tests pass. The
+[Vercel preview rebuild](https://vercel.com/j55blanchets-projects/dance-teacher-xr-unity/3tv5SVJxzK36mGW8jHmBVak3qAV8)
+for #411 completed successfully, and the frontend smoke check passed. The
+production deployment from `main` still needs these changes merged through
+the normal review path.
 
 ## Settled boundaries
 
