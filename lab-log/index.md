@@ -186,3 +186,11 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Compared exact reviewed 2D inputs with raw/C4 on 30 participant-reviewed,
   19 reference-reviewed, and 8 fully reviewed human-rated pairs. The raw
   control matched exactly; whole-clip similarity correlations changed little.
+
+- [2026-10-02 — Toward one research workspace](2026-10-02-unified-research-workspace.md)
+  Viona chose one SvelteKit interface for research and learner work, local
+  SQLite for research records, and shared versioned data contracts. Python
+  workers remain acceptable; metric implementations stay canonical in JavaScript.
+- [2026-10-02 — Unified research workspace handoff](2026-10-02-unified-research-workspace-handoff.md)
+  Tracks the stacked implementation from a read-only corpus and ratings slice
+  through later annotation, metric-runner, and pipeline-job integration.

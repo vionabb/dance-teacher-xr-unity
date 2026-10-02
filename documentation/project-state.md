@@ -102,6 +102,11 @@ Status: **in progress**
 - Keep raw `pose2d` for source-aligned overlays.
 - Maintain parity between tested metric behavior and live frontend use.
 - Integrate self-report, performance history, and coaching decisions without hiding uncertainty.
+- Build a local researcher workspace within the Svelte application so dataset,
+  annotation, metric, and pipeline inspection can share versioned identities
+  and provenance. The first local SQLite/read-only integration is planned, not
+  yet an implemented replacement for the annotation server or metric exports;
+  see the [research workspace direction](research-workspace.md).
 
 ### Adaptive coaching
 
