@@ -193,6 +193,7 @@ dependencies = [
     { name = "numpy" },
     { name = "opencv-contrib-python" },
     { name = "pandas" },
+    { name = "scipy" },
 ]
 
 [package.metadata]
@@ -201,6 +202,7 @@ requires-dist = [
     { name = "numpy", specifier = "==1.26.4" },
     { name = "opencv-contrib-python", specifier = "==4.8.1.78" },
     { name = "pandas", specifier = "==2.3.3" },
+    { name = "scipy", specifier = "==1.17.1" },
 ]
 
 [package.metadata.requires-dev]
