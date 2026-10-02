@@ -133,6 +133,11 @@ export const TiktokClipNameToId = Object.fromEntries(
 };
 export type DanceName = keyof typeof TiktokClipNameToId;
 export type DanceId = keyof typeof TiktokClipIdToName;
+const LEGACY_DANCE_NAME_ALIASES: Readonly<Record<string, DanceName>> = {
+	lastchristmas: 'last-christmas',
+	madatdisney: 'mad-at-disney',
+	pajamaparty: 'pajama-party'
+};
 
 export type SegmentInfo = {
 	userId: number;
@@ -476,6 +481,8 @@ export function getClipInfo<T extends Study | OtherPoseSource>(
 }
 
 function canonicalizeDanceName(danceNameRaw: string): [DanceId, DanceName] | null {
+	const legacyName = LEGACY_DANCE_NAME_ALIASES[danceNameRaw.toLowerCase()];
+	if (legacyName) return [TiktokClipNameToId[legacyName], legacyName];
 	for (const danceName of Object.keys(TiktokClipNameToId)) {
 		if (danceNameRaw.includes(danceName))
 			return [

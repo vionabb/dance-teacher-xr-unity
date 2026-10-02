@@ -145,10 +145,30 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   tools remain in an overflow menu. Keyboard arrows step frames, phone
   completion confirms, and return visits resume at the last viewed frame.
 
+- [2026-09-30 — Qijia2D frame inspector and local dataset exploration](2026-09-30-qijia2d-frame-inspector.md)
+  Built a local performance inspector with paired videos, stable pose crops,
+  vector errors, and one chart scrubber across segments. Missing Qijia2D frames
+  stay unscored; the chart compares visibility rules and vector subsets.
+  Pose pairing remains by row index with a flipped-video/native-pose reference overlay.
+
+- [2026-09-30 — Viona2D inspector views](2026-09-30-viona2d-inspector-views.md)
+  Built selectable vector lens, eight-pair audit, and angle-versus-length views
+  on the same local performance timeline. Exposes the production blend and its
+  unclamped 50–100 px angle weight for frame-by-frame debugging.
+
 - [2026-09-30 — Visibility against frame-level corrections](2026-09-30-frame-visibility-audit.md)
   First 23 completed frame tasks: upper-body corrections concentrate at wrists
   and elbows; low raw-pose visibility predicts correction priority but misses
   some errors. The selected sparse labels do not establish occlusion causality.
+
+- [2026-10-01 — Switching metrics within a performance review](2026-10-01-metric-inspector-switching.md)
+  Adds a Qijia2D/Viona2D choice inside the review, carrying the selected
+  performance and full-timeline position across metric views.
+
+- [2026-10-01 — Dance-first performance browsing](2026-10-01-dance-first-performance-browser.md)
+  Organizes the local dataset by dance reference thumbnails, then participant
+  performance cards; selecting another performance reuses the last viewed metric.
+  Restores paired Study 2 recordings with unhyphenated dance filenames to the catalog.
 
 - [2026-10-01 — Layered pose quality and segment coverage](2026-10-01-layered-pose-quality-and-segment-coverage.md)
   Viona set a reference-first, quality-aware path through conservative repair,
