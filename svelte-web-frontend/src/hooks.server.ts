@@ -1,8 +1,10 @@
 // src/hooks.server.ts
+import { dev } from '$app/environment';
 import { NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { createServerClient } from '@supabase/ssr';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
+import { isDevLocalRequestAllowed, isLoopbackClientAddress } from '$lib/server/client-address';
 
 const supabase: Handle = async ({ event, resolve }) => {
 	event.locals.supabase = createServerClient(
@@ -65,6 +67,27 @@ const supabase: Handle = async ({ event, resolve }) => {
 };
 
 const authGuard: Handle = async ({ event, resolve }) => {
+	const localPage =
+		event.url.pathname === '/research' ||
+		event.url.pathname === '/metrics/qijia2d' ||
+		event.url.pathname === '/metrics/viona2d';
+	const localDataEndpoint =
+		event.url.pathname === '/api/dev/participant-catalog' ||
+		event.url.pathname.startsWith('/api/dev/participant-catalog/') ||
+		event.url.pathname.startsWith('/api/dev/reference-clips/');
+	if (localDataEndpoint) {
+		if (!isDevLocalRequestAllowed(event.request, event.getClientAddress(), dev))
+			return new Response(null, { status: 404 });
+		event.locals.session = null;
+		event.locals.user = null;
+		return resolve(event);
+	}
+	if (localPage && dev && isLoopbackClientAddress(event.getClientAddress())) {
+		event.locals.session = null;
+		event.locals.user = null;
+		return resolve(event);
+	}
+
 	const { session, user } = await event.locals.safeGetSession();
 	event.locals.session = session;
 	event.locals.user = user;

@@ -44,7 +44,7 @@ function getVectorColor(
 	evaluationResult: FrontendLiveEvaluationResult | null
 ) {
 	const score = evaluationResult?.qijia2DPoseEvaluation?.vectorByVectorScore?.[lmData.index ?? -1];
-	if (score === undefined) return 'white';
+	if (score == null) return 'white';
 
 	if (score >= greenThreshold) return 'green';
 	if (score >= yellowThreshold) return 'yellow';
