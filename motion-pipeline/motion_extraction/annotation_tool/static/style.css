@@ -28,10 +28,11 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; padding-bottom: 7rem; background: #f3f1eb; background: radial-gradient(circle at 50% -10rem, #dcebe6 0, #eef3f1 34rem); }
-header { display: flex; gap: .75rem; align-items: center; padding: 1rem max(1rem, calc((100vw - 1120px) / 2)); background: var(--teal-dark); color: white; box-shadow: 0 3px 18px #12332d26; }
+header { display: flex; gap: .6rem; align-items: center; padding: .45rem max(1rem, calc((100vw - 1120px) / 2)); background: var(--teal-dark); color: white; box-shadow: 0 3px 18px #12332d26; }
+header.navbar { min-height: 3.25rem; }
 header .navbar-end { margin-left: auto; }
 header .btn-ghost { color: white; }
-.brand-mark { display: grid; place-items: center; width: 2.35rem; height: 2.35rem; border: 1px solid #ffffff4d; border-radius: .7rem; color: #6ce0c2; font-size: 1.25rem; }
+.brand-mark { display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid #ffffff4d; border-radius: .65rem; color: #6ce0c2; font-size: 1.05rem; }
 .eyebrow { margin: 0 0 .15rem; color: #9bb7b0; font-size: .68rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
 .user-menu #user-menu-popover button { min-height: 2.5rem; white-space: nowrap; }
 .login-panel { width: min(42rem, calc(100% - 2rem)); margin: 15vh auto; padding: clamp(1.5rem, 4vw, 2.5rem); background: white; border: 1px solid var(--line); border-radius: 1.25rem; box-shadow: 0 1rem 3rem #16332e12; }
@@ -43,9 +44,9 @@ header .btn-ghost { color: white; }
 .remember-token { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
 .remember-token input { min-height: 20px; width: 20px; }
 h2, h3 { margin-top: 0; }
-main { max-width: 1120px; margin: auto; padding: 1rem 1rem 5rem; }
+main { max-width: 1120px; margin: auto; padding: .55rem 1rem 5rem; }
 .progress-card, .actions { display: flex; gap: 1rem; align-items: center; margin: 0 0 1rem; }
-.progress-card { min-height: 4.25rem; justify-content: space-between; padding: 1rem 1.15rem; background: #ffffffcc; border: 1px solid var(--line); border-radius: 1rem; overflow: visible; }
+.progress-card { min-height: 3.25rem; justify-content: space-between; padding: .5rem .75rem; background: #ffffffcc; border: 1px solid var(--line); border-radius: .75rem; overflow: visible; }
 .progress-card.card { flex-direction: row; }
 .progress-copy { display: grid; min-width: 0; gap: .1rem; }
 .progress-copy strong { font-size: 1.05rem; }
@@ -60,7 +61,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .source-panel, .frame-note-panel, .workflow-screen { background: white; border: 1px solid var(--line); border-radius: 1rem; padding: clamp(.8rem, 2vw, 1.15rem); margin: .75rem 0; box-shadow: 0 .5rem 1.5rem #16332e0b; overflow: visible; }
 .section-heading { display: flex; align-items: start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .section-heading > div { display: flex; align-items: center; gap: .55rem; }
-.section-heading h2 { margin: 0; font-size: 1.15rem; letter-spacing: -.02em; }
+.section-heading h2 { margin: 0; font-size: 1rem; letter-spacing: -.02em; }
 .section-heading p { max-width: 32rem; margin: .15rem 0 0; color: var(--muted); font-size: .9rem; }
 .step-badge { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: .5rem; background: #d9f4ec; color: var(--teal-dark); font-size: .7rem; font-weight: 800; }
 .section-heading.compact { margin-bottom: .75rem; }
@@ -123,7 +124,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .landmark-row { cursor: pointer; }
 .status-unjudged { color: #777; }.status-completed { color: #16745f; }.status-skipped { color: #9a6500; }.status-unclear { color: #7b4594; }
 
-#error-marking-video { display: block; max-height: calc(32vh + 2.75rem); margin: 0 auto; background: #111817; object-fit: contain; transform-origin: center; }
+#error-marking-video { display: block; max-height: min(58vh, calc(100dvh - 23rem)); margin: 0 auto; background: #111817; object-fit: contain; transform-origin: center; }
+@media (min-width: 801px) {
+  #error-marking-video { max-height: min(58vh, calc(100dvh - 24rem)); }
+}
+
 /* The wrap is sized entirely by the video (its only in-flow child). The live
    video is uniformly scaled down in app.js while the overlay gets a matching
    source-relative expanded viewBox. That creates a real interaction buffer
@@ -135,6 +140,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .error-marking-bad-frame-badge { position: absolute; top: .5rem; left: .5rem; z-index: 6; pointer-events: none; }
 .error-marking-no-pose-badge { position: absolute; top: 50%; left: 50%; z-index: 5; transform: translate(-50%, -50%); padding: .7rem 1.1rem; color: #fff; background: color-mix(in srgb, var(--unusable-red) 80%, transparent); border: 1px solid #f5b6b1; font-size: 1rem; font-weight: 750; letter-spacing: .04em; pointer-events: none; }
 #error-marking-video-wrap.frame-marked-bad { outline: 3px solid var(--unusable-red); outline-offset: -3px; }
+#error-marking-video-wrap.frame-marked-flawed { outline: 3px solid var(--marginal-orange); outline-offset: -3px; }
 #error-marking-screen.video-marked-unusable #error-marking-timeline { opacity: .5; pointer-events: none; }
 #error-marking-screen.video-marked-unusable .error-marking-overlay { pointer-events: none; }
 .error-marking-video-disposition { border: 1px solid var(--line); border-radius: .5rem; padding: .35rem .75rem .65rem; background: #fff8f7; }
@@ -159,7 +165,12 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .error-marking-fps-select:focus, .error-marking-fps-select:focus-within { outline: none; }
 .frame-usability-label { display: inline-flex; align-items: center; padding: 0 .7rem; color: var(--muted-text-color); font-size: .82rem; font-weight: 750; }
 .error-marking-disposition-controls, .video-usability-control-row { display: inline-flex; align-items: center; max-width: 100%; }
+.error-marking-disposition-controls[hidden] { display: none; }
+.video-rating-scrubber { display: block; margin: .5rem 0 0; }
 .video-usability-fieldset { display: flex; justify-content: center; }
+.video-usability-fieldset[hidden] { display: none; }
+.legacy-frame-usability [data-segment-value="flawed"] { display: none; }
+.frame-usability-option { font-size: .72rem; }
 
 /* Shared segmented-control primitive. The handle is the only active fill;
    inactive options keep the muted surface so both controls read as one
@@ -180,6 +191,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   border-radius: var(--radius-control);
   background: var(--background-muted);
 }
+.segmented-control.frame-usability-toggle { --segment-count: 3; --control-width: 10rem; }
+.segmented-control.frame-usability-toggle.legacy-frame-usability { --segment-count: 2; --control-width: 7.5rem; }
 .segmented-control-handle {
   position: absolute;
   z-index: 0;
@@ -216,7 +229,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .segmented-control-option:not([aria-checked="true"]) { background: var(--background-muted); }
 .segmented-control-option:focus-visible { z-index: 2; outline: 3px solid var(--teal); outline-offset: -3px; }
 .segmented-control-option:hover { filter: brightness(.97); }
-.frame-usability-toggle { --segment-count: 2; --control-width: 7.5rem; }
 .video-usability-toggle { --segment-count: 4; --control-width: 15rem; }
 .frame-usability-option, .video-usability-option { font-size: 1.35rem; font-weight: 850; }
 .frame-usability-unusable, .video-usability-unusable { color: var(--unusable-red); }
@@ -295,6 +307,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .timeline-row-track { position: relative; height: 1.6rem; background: #e2e9e6; border-radius: .4rem; cursor: crosshair; touch-action: none; }
 .timeline-bad-frame-track { overflow: hidden; background: #fbe4e2; cursor: pointer; }
 .timeline-bad-frame { position: absolute; top: .05rem; bottom: .05rem; min-width: 1.5%; min-height: 0; height: auto; display: block; box-sizing: border-box; padding: 0; background: var(--unusable-red); border: 0; border-radius: .25rem; cursor: pointer; line-height: 1; box-shadow: inset 0 0 0 1px #7a1a15; }
+.timeline-bad-frame-flawed { background: var(--correctable-yellow); box-shadow: inset 0 0 0 1px #806000; }
+.timeline-bad-frame-unusable { background: var(--unusable-red); }
 .timeline-bad-frame-auto { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--unusable-red) 40%, transparent) 0, color-mix(in srgb, var(--unusable-red) 40%, transparent) 5px, color-mix(in srgb, var(--unusable-red) 18%, transparent) 5px, color-mix(in srgb, var(--unusable-red) 18%, transparent) 9px); border: 1px dashed #8c1d17; }
 .timeline-bad-frame:hover, .timeline-bad-frame-current { filter: brightness(1.1); box-shadow: inset 0 0 0 2px #5f1210; }
 .timeline-segment { position: absolute; top: 0; bottom: 0; min-width: 1.5%; border-radius: .35rem; cursor: pointer; box-shadow: inset 0 0 0 1px #00000022; }
@@ -311,8 +325,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .error-marking-review-box { display: flex; flex-direction: column; }
 
 @media (max-width: 800px) {
-  header { flex-wrap: wrap; gap: .5rem; padding: .65rem; }
-  h1 { width: 100%; }
+  header.navbar { min-height: 3rem; flex-wrap: nowrap; gap: .4rem; padding: .35rem .55rem; }
+  header h1 { width: auto; font-size: 1rem; line-height: 1.15; }
+  header .text-xs { display: none; }
   header label { display: grid; grid-template-columns: 1fr; gap: .15rem; flex: 1 1 42%; }
   header input { width: 100%; box-sizing: border-box; }
   .access-form { align-items: end; }
@@ -320,10 +335,16 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   .access-form input:not([type="checkbox"]) { max-width: none; }
   .remember-token { flex: 1 1 auto; }
   #start { flex: 1 1 100%; font-weight: 700; }
-  main { padding: .6rem; }
-  .progress-card.card { align-items: stretch; flex-direction: column; gap: .65rem; height: auto; }
-  .progress select { width: 100%; min-width: 0; }
-  .case-picker { width: 100%; max-width: none; }
+  main { padding: .35rem .45rem 5rem; }
+  #workspace > .progress-card.card { align-items: center; flex-direction: row; gap: .45rem; min-height: 2.8rem; padding: .3rem .5rem; margin-bottom: .4rem; }
+  #workspace > .progress-card.card > div { flex: 0 1 auto; }
+  #workspace > .progress-card.card > div > span { display: none; }
+  .progress select { width: 100%; min-width: 0; font-size: .78rem; }
+  #workspace > .progress-card.card .case-picker { flex: 1 1 55%; width: auto; max-width: 60%; gap: 0; font-size: .65rem; }
+  #workspace > .progress-card.card .case-picker select { min-height: 2rem; height: 2rem; }
+  #error-marking-screen { padding: .55rem; }
+  #error-marking-screen .section-heading { margin-bottom: .35rem; }
+  #error-marking-screen .section-heading h2 { font-size: .94rem; }
   .actions { gap: .25rem; padding-left: .5rem; padding-right: .5rem; }
   .actions button { padding-left: .3rem; padding-right: .3rem; }
   .editor-heading { display: block; }
@@ -349,10 +370,76 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
      is the primary interaction surface (tap/drag a landmark directly, or
      use the frame-step controls right below it); the timeline further down
      still works, it just no longer has to fit above the fold too. */
-  #error-marking-video { max-height: calc(58vh + 2.75rem); }
+  #error-marking-video { max-height: min(55vh, calc(100dvh - 22rem)); }
   .timeline-row-label { flex-basis: 4.5rem; font-size: .72rem; }
   .error-marking-review-box { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
   .error-marking-review-box figure { flex: 1 1 auto; display: flex; min-height: 0; }
   .error-marking-review-box .error-marking-video-wrap { flex: 1 1 auto; min-height: 0; }
   #error-marking-review-video { max-height: none; width: 100%; height: 100%; }
+}
+
+/* The frame review phone surface is canvas-first; all other task modes retain
+   the shared shell and the existing desktop annotation layout. */
+.frame-mobile-bar { display: none; }
+.frame-mobile-details { display: contents; }
+.frame-mobile-details > summary { display: none; }
+@media (max-width: 700px) {
+  body.frame-usability-task-active { min-height: 100dvh; padding: 0; overflow: hidden; background: #111817; }
+  body.frame-usability-task-active > header { display: none; }
+  body.frame-usability-task-active main#workspace { position: fixed; inset: 0; width: 100%; max-width: none; height: 100dvh; margin: 0; padding: 0 0 calc(4.6rem + env(safe-area-inset-bottom)); overflow: hidden; }
+  body.frame-usability-task-active #workspace > .progress-card { display: none; }
+  body.frame-usability-task-active #error-marking-screen { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; margin: 0; padding: 0; overflow: hidden; border: 0; border-radius: 0; background: #111817; box-shadow: none; }
+  body.frame-usability-task-active #error-marking-screen > .section-heading,
+  body.frame-usability-task-active #error-marking-screen > .error-marking-disposition-controls,
+  body.frame-usability-task-active #error-marking-frame-usability-row,
+  body.frame-usability-task-active #error-marking-screen > #error-marking-video-unusable-reason-wrap,
+  body.frame-usability-task-active #error-marking-screen > #error-marking-usability-rating { display: none; }
+  body.frame-usability-task-active .error-marking-player { flex: 1 1 auto; width: 100%; min-height: 0; margin: 0; border-radius: 0; }
+  body.frame-usability-task-active .error-marking-video-wrap { display: flex; flex: 1 1 auto; min-height: 0; align-items: center; justify-content: center; overflow: hidden; }
+  body.frame-usability-task-active .error-marking-video-wrap.frame-pan-active { cursor: grab; touch-action: none; }
+  body.frame-usability-task-active .error-marking-video-wrap.frame-pan-active:active { cursor: grabbing; }
+  body.frame-usability-task-active #error-marking-video,
+  body.frame-usability-task-active #error-marking-overlay { transform-origin: center; }
+  body.frame-usability-task-active #error-marking-video { width: 100%; height: 100%; max-height: none; margin: 0; object-fit: contain; }
+  body.frame-usability-task-active .error-marking-controls-bar { display: none; }
+  body.frame-usability-task-active #error-marking-video-wrap { touch-action: auto; }
+  body.frame-usability-task-active #frame-landmark-load-status { flex: 0 0 auto; margin: .25rem .6rem; }
+  body.frame-usability-task-active #frame-mobile-details { display: block; position: absolute; inset: auto .6rem calc(4.6rem + env(safe-area-inset-bottom)) .6rem; z-index: 120; width: auto; max-height: 48dvh; overflow: auto; color: #f3f1eb; }
+  body.frame-usability-task-active #frame-mobile-details > summary { display: none; }
+  body.frame-usability-task-active #frame-mobile-details > summary::-webkit-details-marker,
+  body.frame-usability-task-active #frame-mobile-overflow > summary::-webkit-details-marker { display: none; }
+  body.frame-usability-task-active .frame-mobile-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+  body.frame-usability-task-active #error-marking-timeline { max-height: 38dvh; overflow: auto; padding: .5rem; border-radius: .75rem; background: #f4f6f5; color: #172522; }
+  body.frame-usability-task-active #error-marking-screen > fieldset { margin: .4rem 0 0; padding: .55rem; border-radius: .65rem; background: #f4f6f5; color: #172522; }
+  body.frame-usability-task-active #error-marking-screen > fieldset legend { display: none; }
+  body.frame-usability-task-active #error-marking-screen > fieldset textarea { min-height: 3.2rem; }
+  .frame-mobile-bar:not([hidden]) { position: fixed; inset: auto 0 0; z-index: 130; display: grid; grid-template-columns: .65fr .75fr 1fr 1.5fr .72fr; align-items: center; gap: .28rem; min-height: calc(4.25rem + env(safe-area-inset-bottom)); padding: .45rem .45rem calc(.45rem + env(safe-area-inset-bottom)); border-top: 1px solid #ffffff30; background: #101b18f5; box-shadow: 0 -8px 26px #0005; }
+  body.frame-usability-task-active #frame-mobile-scrubber-wrap { display: none; }
+  .frame-mobile-scrubber-wrap { display: none; }
+  body.frame-usability-task-active #frame-mobile-scrubber-wrap { position: fixed; inset: auto 0 calc(4.25rem + env(safe-area-inset-bottom)); z-index: 129; display: flex; align-items: center; min-height: 2.75rem; padding: 0 .85rem; background: #101b18ed; }
+  #frame-mobile-scrubber { width: 100%; min-height: 2.5rem; margin: 0; accent-color: #8bd6bd; touch-action: pan-x; }
+  .frame-mobile-bar > .btn, .frame-mobile-usability .btn { min-width: 0; min-height: 2.7rem; padding: .35rem; border: 1px solid #ffffff38; background: #1e302b; color: #f5f5f0; font-size: 1.2rem; font-weight: 750; }
+  #frame-mobile-forward { font-size: .82rem; white-space: nowrap; }
+  .frame-mobile-usability { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border: 1px solid #ffffff38; border-radius: .65rem; }
+  .frame-mobile-usability .btn { border: 0; border-radius: 0; }
+  .frame-mobile-usability #frame-mobile-usable { min-width: 2.75rem; font-size: 1.2rem; }
+  #frame-mobile-unusable.is-selected { color: white; background: #a52922; }
+  #frame-mobile-usable.is-selected { color: #083c31; background: #8bd6bd; }
+  #frame-mobile-usable.is-selected.is-correctable { color: #4a3100; background: #f1c45c; }
+  .frame-mobile-overflow { position: relative; justify-self: stretch; }
+  .frame-mobile-overflow > summary { display: grid; place-items: center; min-height: 2.7rem; border: 1px solid #ffffff38; border-radius: .65rem; color: #f3f1eb; font-size: 1rem; font-weight: 900; list-style: none; }
+  .frame-mobile-overflow-panel { position: absolute; right: 0; bottom: calc(100% + .6rem); display: grid; gap: .5rem; width: min(19rem, calc(100vw - 1rem)); max-height: min(70dvh, 34rem); overflow: auto; padding: .8rem; border: 1px solid #cbdad5; border-radius: .85rem; background: #fff; color: #172522; box-shadow: 0 1rem 3rem #0005; }
+  .frame-mobile-overflow-panel label { font-size: .8rem; font-weight: 750; }
+  .frame-mobile-menu-section { display: grid; gap: .35rem; padding: .5rem 0; border-top: 1px solid #dbe5e1; }
+  #frame-mobile-navigation-controls > #task-picker-label { width: 100%; max-width: none; color: #43544f; }
+  #frame-mobile-navigation-controls #task-picker { width: 100%; min-width: 0; }
+  #frame-mobile-account-controls #user-menu { display: block; }
+  #frame-mobile-account-controls #logged-in-annotator { color: #173c37; }
+  #frame-mobile-extra-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
+  #frame-mobile-zoom { min-height: 2.5rem; }
+  #frame-mobile-extra-controls .btn, #frame-mobile-extra-controls select { min-height: 2.5rem; height: auto; padding: .45rem; border: 1px solid #cbdad5; border-radius: .45rem; color: #173c37; background-color: #f3f7f5; }
+  #frame-mobile-extra-controls #error-marking-replay-backwards { width: auto; flex: 0 0 auto; }
+  #frame-mobile-extra-controls #error-marking-fps-select { color: #173c37; background-color: #f3f7f5; }
+  #frame-mobile-give-up, #frame-mobile-skip { min-height: 2.5rem; }
+  #actions.frame-mobile-hidden { display: none; }
 }

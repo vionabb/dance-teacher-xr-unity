@@ -1085,6 +1085,26 @@ def test_video_usability_triage_task_accepts_frame_flags_and_four_point_rating(t
     assert response["video_usability_rating"] == "marginal"
 
 
+def test_video_rating_only_task_accepts_completed_rating_without_frame_labels(tmp_path: Path) -> None:
+    manifest = _error_marking_manifest()
+    manifest["task_type"] = "video_usability_triage"
+    manifest["tasks"][0].update(task_type="video_usability_triage", video_rating_only=True)
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", manifest)
+    store.append({
+        "annotator": "reviewer",
+        "task_id": "error-marking-1",
+        "status": "completed",
+        "error_marking_response": {
+            "video_usability_rating": "perfect",
+            "note": "Clear pose throughout.",
+        },
+    })
+    response = store.state("reviewer")["latest_judgments"]["error-marking-1"]["error_marking_response"]
+    assert response["video_usability_rating"] == "perfect"
+    assert response["bad_frames"] == []
+    assert response["no_errors_found"] is False
+
+
 def test_error_marking_mark_position_must_fall_within_its_own_frame_range(tmp_path: Path) -> None:
     store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
     with pytest.raises(ValueError, match="within the mark's own range"):
@@ -1162,6 +1182,30 @@ def test_error_mark_body_part_defaults_are_the_tracked_landmark_names() -> None:
 
     tracked_landmarks = {item for edge in POSE_EDGES for item in edge}
     assert {item["id"] for item in DEFAULT_ERROR_BODY_PARTS} == tracked_landmarks
+
+
+def test_phone_frame_review_exposes_zoom_pan_timeline_and_overflow_accessibility() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
+    javascript = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="frame-mobile-bar"' in html
+    assert 'id="task-picker-label"' in html
+    assert 'id="frame-mobile-navigation-controls"' in html
+    assert 'id="frame-mobile-account-controls"' in html
+    assert 'id="frame-mobile-zoom"' in html
+    assert '<option value="auto" selected>Auto · fit the subject</option>' in html
+    assert 'id="frame-mobile-pan"' in html and 'aria-label="Enable video panning"' in html
+    assert 'id="frame-mobile-timeline"' in html and 'aria-label="Show timeline and notes"' in html
+    assert "frame-usability-task-active #error-marking-frame-usability-row" in css
+    assert "function updateFrameViewTransform()" in javascript
+    assert 'state.frameViewAutoZoomOverride ?? autoZoom()' in javascript
+    assert "function attachFramePanHandlers()" in javascript
+    assert "pinch.zoom * distance / pinch.distance" in javascript
+    assert 'state.frameViewAutoZoomOverride = nextZoom' in javascript
+    assert 'const taskPickerTarget = mobile ? $("frame-mobile-navigation-controls")' in javascript
+    assert '"frame-mobile-timeline"' in javascript
+    assert 'forward.textContent = atEnd ? "Complete"' in javascript
 
 
 def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract() -> None:
@@ -1322,6 +1366,7 @@ def test_skeleton_overlay_colors_by_move_and_cause_and_ghosts_the_original_posit
     helper = "\n".join(
         [
             "function errorMarkingCurrentFrame() { return state.errorMarkingFrame; }",
+            "function isVideoRatingOnlyTask() { return false; }",
             extract_function("markForPartAtFrame"),
             extract_function("skeletonFrameLandmarks"),
             constants,
@@ -1480,6 +1525,17 @@ def test_error_marking_has_in_screen_replay_controls() -> None:
     assert "if (state.errorMarkingReviewReplayHandle)" in js
 
 
+def test_frame_usability_keyboard_completion_and_resume_controls() -> None:
+    js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+    assert 'event.key !== "ArrowLeft" && event.key !== "ArrowRight"' in js
+    assert 'target.closest("input, textarea, select, [contenteditable=\'true\'], [role=\'slider\'], [role=\'radio\'], dialog[open], [popover]:popover-open")' in js
+    assert 'stepErrorMarkingVideo(event.key === "ArrowLeft" ? -1 : 1)' in js
+    assert 'confirm("Complete this frame annotation task?")' in js
+    assert "annotation-frame-resume:${state.data.experiment_id" in js
+    assert "last_viewed_frame: errorMarkingCurrentFrame()" in js
+    assert "video.currentTime = frameToTime(initialFrame)" in js
+
+
 def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_are_grouped() -> None:
     html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
     js = (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
@@ -1631,7 +1687,7 @@ def test_completion_is_relabeled_and_gated_on_reviewing_dirty_error_marks() -> N
     # already-reviewed error_marking task) goes straight to submission.
     handler_start = js.index('document.querySelectorAll(".actions button[data-status]")')
     handler = js[handler_start : js.index("\n});", handler_start)]
-    assert "isErrorMarkingTask(task) && state.errorMarkingDirty" in handler
+    assert "isErrorMarkingTask(task) && !isVideoRatingOnlyTask(task) && state.errorMarkingDirty" in handler
     assert "openErrorMarkingReviewDialog();" in handler
     assert "await submitStatusAndAdvance(button.dataset.status);" in handler
     # "Looks good" is the only path in the dialog that actually completes

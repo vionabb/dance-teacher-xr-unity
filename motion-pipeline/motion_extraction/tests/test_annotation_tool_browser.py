@@ -225,7 +225,8 @@ def _error_marking_manifest() -> dict:
     }
 
 
-def _start_error_marking_server(tmp_path: Path):
+def _start_error_marking_server(tmp_path: Path, *, video_rating_only: bool = False):
+    """Serve a synthetic clip with pose points for interaction tests."""
     from motion_extraction.annotation_tool.generate_temporal_comparison_tasks import (
         _encode_frames,
         _require_encoder,
@@ -262,11 +263,36 @@ def _start_error_marking_server(tmp_path: Path):
         )
     )
 
-    store = AnnotationStore(tmp_path / "annotations.sqlite3", _error_marking_manifest())
+    manifest = _error_marking_manifest()
+    if video_rating_only:
+        manifest["task_type"] = "video_usability_triage"
+        manifest["tasks"][0].update(task_type="video_usability_triage", video_rating_only=True)
+    store = AnnotationStore(tmp_path / "annotations.sqlite3", manifest)
     server = AnnotationServer(0, experiment_root, store)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server, store, thread
+
+
+def test_video_rating_only_shows_pose_and_saves_overall_rating_without_frame_labels(page, tmp_path: Path) -> None:
+    server, store, thread = _start_error_marking_server(tmp_path, video_rating_only=True)
+    try:
+        _log_in(page, f"http://127.0.0.1:{server.server_port}")
+        expect(page.locator("#error-marking-screen")).to_be_visible()
+        expect(page.locator("#error-marking-overlay .skeleton-edge")).to_have_count(1, timeout=5000)
+        expect(page.locator("#error-marking-frame-usability-row")).to_be_hidden()
+        expect(page.locator(".timeline-bad-frame-track")).to_have_count(0)
+        expect(page.locator("#error-marking-scrubber")).to_be_visible()
+        page.locator('.video-usability-option[data-segment-value="perfect"]').click()
+        page.locator("#complete-case").click()
+        page.wait_for_function("() => state.data?.latest_judgments?.['error-marking-1']?.status === 'completed'")
+        response = store.state("researcher")["latest_judgments"]["error-marking-1"]
+        assert response["status"] == "completed"
+        assert response["error_marking_response"]["video_usability_rating"] == "perfect"
+        assert response["error_marking_response"]["bad_frames"] == []
+        assert response["error_marking_response"]["no_errors_found"] is False
+    finally:
+        _stop_server(server, thread)
 
 
 def _svg_client_point(svg_rect: dict, width: int, height: int, x: float, y: float) -> tuple[float, float]:

@@ -48,7 +48,7 @@ revision, export, editable-landmark, and frame-note behavior.
 
 ## Resume the active annotation batch
 
-For the active three-stage batch, launch the maintained helper from
+For the active 203-task video and frame-usability batch, launch the maintained helper from
 `motion-pipeline`:
 
 ```bash
@@ -57,9 +57,86 @@ For the active three-stage batch, launch the maintained helper from
 
 It serves the active manifest on the configured private-LAN address, prompts
 for the access code, and resumes judgments from the configured SQLite database.
-Progress is read from that database, so do not copy task counts or judgments
-into the helper. The server reads `annotation_tasks.json` at startup; restart it
-after changing the active manifest.
+The active manifest preserves all 154 completed video-usability ratings. It
+adds 49 frame-usability tasks for the videos whose latest completed rating was
+`correctable`, including all five such study reference videos. The source
+manifest is `temp/experiments/20260929-video-usability-targeted-154/annotation_tasks.json`;
+the frozen frame selection and artifact hashes are in
+`temp/experiments/20260929-frame-usability-correctable-203/selection_provenance.json`.
+The manifest shares the source experiment ID and database so those judgments remain available. Progress is
+read from that database, so do not copy task counts or judgments into the
+helper. The server reads `annotation_tasks.json` at startup; restart it after
+changing the active manifest.
+
+The first 154 tasks set `video_rating_only: true`. This mode
+shows the tracked skeleton as a read-only overlay on the clean video, asks for
+one overall four-point rating of **visible pose-tracking accuracy** (and a
+reason if unusable), and
+hides frame usability controls and the frame-marking timeline. The frame
+scrubber remains available to inspect the clip. A completed rating needs no
+frame flags or `no_errors_found` declaration. Existing frame annotations in
+earlier revisions remain in SQLite if a completed task is opened again.
+The optional note can separately flag that a video is unsuitable for movement
+analysis despite accurate visible tracking, such as a non-dance attempt or a
+cover section. If no person or assessable pose appears, choose `unusable` and
+explain why. Do not downgrade accurate visible tracking solely for crop or
+video content; record that separate concern in the optional note. Existing
+ratings are preserved as recorded; this clarification does
+not silently reinterpret them.
+The 49 follow-up `frame_usability` tasks show the clean video and tracked
+skeleton. They retain the compact three-level frame-state selector and
+whole-frame timeline, and also expose the established landmark-by-landmark
+error editor: one timeline row per landmark, drag-to-mark, mark details for
+causes and notes, and landmark dragging to save per-frame corrections. The
+existing slow replay and frame stepping controls remain available. Unmarked
+frames count as `good`; Viona only needs to mark frames with `flawed` or
+`unusable` tracking. Frames with no detected pose are marked `unusable`
+automatically in the timeline. Automatic missing-pose frame numbers are saved
+separately from sparse manual `good`/`flawed`/`unusable` overrides, so an
+explicit Good choice can correct an automatic mark without losing its
+provenance. Dragging a landmark to a different position records its per-frame
+correction and automatically changes a Good frame to `flawed`; it leaves an
+Unusable frame unchanged. A click without moving the landmark does not change
+the frame rating. Flawed frames use orange for the skeleton and video outline;
+Unusable frames remain red. Yellow timeline marks mean manually Flawed, red
+means manually Unusable, and patterned red means automatically missing pose. Partial manual
+work autosaves; completion does not require an action on every frame. The
+server waits for the pose artifact before completion so automatic marks are
+included. Frame responses live in `frame_usability_response_json` and now hold
+the landmark-level error marks and corrected positions alongside labels and
+automatic missing-pose provenance, separate from earlier video judgments and
+historical `error_marking` drafts.
+Leg annotation is out of scope for this pass: knee and ankle timeline rows and
+landmark handles are hidden, as are skeleton edges incident to those joints.
+Hip landmarks remain visible. Any older knee or ankle marks already present
+are retained when saving. **Give up on video** completes the frame task and
+stores a validated `video_usability_rating_override: "unusable"` in the new
+append-only revision; it preserves partial frame work and takes precedence
+over the earlier video rating for effective curation. On a resumed task,
+**Undo give up** clears the override while preserving the work; **Complete**
+also clears it when the annotator decides to keep working on the video.
+On phone-sized frame tasks, the video and editable skeleton fill the available
+view. The default Auto view follows the visible upper-body pose as frames
+advance, panning the enlarged clip to keep the subject in view. It holds the
+last position when pose is missing. Drag two fingers on the video to pan or
+pinch to zoom (1×–4×); Auto view retains that zoom while following later
+frames. One-finger landmark dragging still edits a landmark. Use **More** to
+switch to Fit, 2×, or 3×, enable one-pointer panning, adjust slow playback
+speed, or open the landmark timelines and note. A frame scrubber sits directly
+above the bottom bar. The bottom bar steps
+one frame backward or forward, plays or pauses, and marks the frame Unusable
+or usable. A usable frame is recorded as Good if unchanged and Flawed if a
+landmark position was corrected. On the last frame, the forward action becomes
+Complete and asks for confirmation. Left and right arrow keys step one frame
+when a text field or frame slider is not active. The current frame is remembered
+per annotator and task on this device. Once the server is running this code,
+the next annotation save also records it for recovery on another device.
+Case switching, the account menu, Give up, and Skip are also under
+More. Other task types and desktop
+layout retain the established controls.
+Future agents advancing these tasks should preserve the first 154 task objects,
+experiment ID, and database; update `resume_annotation_server.py` with the
+active manifest and keep the three-level frame-response contract explicit.
 
 When generating, replacing, or otherwise advancing the active annotation task
 batch, agents must update `resume_annotation_server.py` in the same change to
@@ -210,10 +287,14 @@ main screens are `#skeleton-screen` (landmark alignment) and
 the selected landmark; it starts with the landmark showing the greatest
 disagreement across preprocessing overlays. Keep those IDs stable: JavaScript
 uses them as workflow boundaries and the focused tests assert their presence.
-`video_usability_triage` tasks are the first-stage quality gate: the annotator
-marks any unusable frames and assigns one required overall rating — `unusable`,
-`marginal`, `correctable`, or `perfect`. These tasks intentionally expose no
-joint-editing controls. `error_marking` tasks are the downstream follow-up for
+`video_usability_triage` tasks are the first-stage quality gate. In the
+current follow-up batch they collect one required overall rating of visible
+pose-tracking accuracy — `unusable`,
+`marginal`, `correctable`, or `perfect` — with the tracked pose visible for
+inspection. Use the optional note to separate analysis suitability concerns
+from tracking accuracy. Older tasks without `video_rating_only` also support marking
+unusable frames. These tasks intentionally expose no joint-editing controls.
+`error_marking` tasks are the downstream follow-up for
 videos that clear the quality bar; they use clean clips with no pose burned into the video. Their
 SVG overlay paints the full tracked skeleton in yellow-green; a corrected
 landmark remains yellow-green until it has a cause attribution, then the
