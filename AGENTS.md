@@ -9,6 +9,8 @@
 
 Open [dance-teacher-xr-unity.code-workspace](dance-teacher-xr-unity.code-workspace) when working across the Python and Svelte projects. It preserves each subproject's language-server working directory and recommended extensions.
 
+In each fresh clone or cloud-agent checkout, install the repository's Git hooks by running `./script_invocations/install_git_hooks.sh`. This is clone-local Git configuration and is not enabled by cloning alone. The pre-push hook runs `pnpm lint` in `svelte-web-frontend/` and `uv lock --check` in `motion-pipeline/`.
+
 ## Route work to the right subsystem
 
 - Frontend, coaching flow, live evaluation, or motion metrics: [svelte-web-frontend/AGENTS.md](svelte-web-frontend/AGENTS.md)
