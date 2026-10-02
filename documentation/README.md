@@ -11,6 +11,7 @@ This directory is the canonical documentation hub for the standalone code reposi
 | Check implementation maturity, limitations, or near-term work | [Project state](project-state.md) |
 | Locate study data or use Google Drive/rclone safely | [Dataset and artifact guide](dataset.md) |
 | Organize manual usability ratings and pose corrections | [Manual-review data contract](manual-review-data-contract.md) |
+| Build the unified local research and inspection workspace | [Research workspace direction](research-workspace.md) |
 | Work on the Svelte app | [Frontend README](../svelte-web-frontend/README.md) and [frontend agent instructions](../svelte-web-frontend/AGENTS.md) |
 | Work on Python processing or analysis | [Motion pipeline README](../motion-pipeline/README.md) and [pipeline agent instructions](../motion-pipeline/AGENTS.md) |
 | Review the pose-preprocessing experiment | [Experiment report](preprocessing-cleanup-experiment-report.md), [short paper](preprocessing-cleanup-short-paper.md), and [dated lab log](../lab-log/2026-08-25-preprocessing-cleanup.md) |
@@ -23,6 +24,7 @@ This directory is the canonical documentation hub for the standalone code reposi
 - `project-state.md` owns research maturity, known limitations, and next milestones.
 - `dataset.md` owns data provenance, sensitivity, storage locations, and transfer/publishing rules.
 - `research-context.md` owns the concise, self-contained research lineage and claim boundaries needed for code work.
+- `research-workspace.md` owns the planned local research-app data boundary and first-slice acceptance criteria.
 - Subproject READMEs own environment setup and runnable commands.
 - `AGENTS.md` files own operational instructions for coding agents.
 - `lab-log/` owns dated rationale, findings, and changes in research direction.
