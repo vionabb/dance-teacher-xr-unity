@@ -11,7 +11,7 @@
 	import { NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 	let showingSettings = $state(false);
-	async function toggleSettings(setValue?: boolean) {
+	async function toggleSettings(setValue: boolean | undefined = undefined) {
 		showingSettings = !showingSettings;
 		showingSettings = setValue ?? showingSettings;
 	}

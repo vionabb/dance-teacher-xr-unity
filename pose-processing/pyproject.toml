@@ -6,12 +6,13 @@ build-backend = "setuptools.build_meta"
 name = "dance-teacher-pose-processing"
 version = "0.1.0"
 description = "Shared pose extraction, schema, and preprocessing for Dance Teacher XR."
-requires-python = ">=3.10,<3.11"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "mediapipe==0.10.21",
-    "numpy==1.25.2",
+    "numpy==1.26.4",
     "opencv-contrib-python==4.8.1.78",
     "pandas==2.3.3",
+    "scipy==1.17.1",
 ]
 
 [dependency-groups]
@@ -24,4 +25,3 @@ include = ["dance_teacher_pose*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-

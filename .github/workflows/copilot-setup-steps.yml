@@ -11,6 +11,10 @@ on:
       - .github/rclone-template.conf
       - motion-pipeline/uv.lock
       - motion-pipeline/pyproject.toml
+      - motion-pipeline/.python-version
+      - pose-processing/uv.lock
+      - pose-processing/pyproject.toml
+      - pose-processing/.python-version
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
@@ -18,6 +22,10 @@ on:
       - .github/rclone-template.conf
       - motion-pipeline/uv.lock
       - motion-pipeline/pyproject.toml
+      - motion-pipeline/.python-version
+      - pose-processing/uv.lock
+      - pose-processing/pyproject.toml
+      - pose-processing/.python-version
 
 jobs:
   copilot-setup-steps:
@@ -37,9 +45,11 @@ jobs:
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
-          cache-dependency-glob: motion-pipeline/uv.lock
+          cache-dependency-glob: |
+            motion-pipeline/uv.lock
+            pose-processing/uv.lock
       - name: Set up Python
-        run: uv python install 3.10
+        run: uv python install 3.12
       - name: Install system media dependency
         run: sudo apt-get update && sudo apt-get install --yes ffmpeg
       - name: Install locked motion-pipeline environment
