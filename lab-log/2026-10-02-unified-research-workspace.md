@@ -1,6 +1,13 @@
 ---
 date: 2026-10-02
-tags: [research-workspace, architecture, annotation, motion-metrics, data-provenance]
+tags:
+  [
+    research-workspace,
+    architecture,
+    annotation,
+    motion-metrics,
+    data-provenance,
+  ]
 artifacts: []
 ---
 
@@ -75,3 +82,33 @@ does not make the annotation server or release catalog editable through Svelte.
 Use the [living handoff](2026-10-02-unified-research-workspace-handoff.md) for
 the staged implementation, validation, and remaining cutover decisions.
 No dissertation results or claims change from this architecture decision.
+
+## Later on October 2: first local usability review loop
+
+The first research page now lists whole-video usability judgments by CHI25
+paper, study, user ID, dance, condition, and segment. It keeps pose-tracking
+usability distinct from the three other raters' prior-study motion-similarity
+scores. The imported release has 134 participant reviews and 20 reference
+reviews; seven participant filenames lack a user ID and therefore cannot be
+joined to the human-rating source.
+
+The **Rate more videos’ usability** action considers only an unrated segment
+with an exact matching CHI25 similarity record containing a mean and at least
+one individual rater value. The known study 1 `sheetmotion`/`sheet` naming
+difference is normalized only for that match. With the current frozen task
+manifest and ratings CSV, 691 segments meet the rule. Whole-video similarity
+aggregates are excluded.
+
+The [October 1 coverage analysis](2026-10-01-layered-pose-quality-and-segment-coverage.md)
+points to filling empty study × dance × segment × condition cells, then
+replicating thin cells while comparing suspected problem segments with other
+segments. The queue follows that ordering, balances participants secondarily,
+and alternates suspected and comparison segments within a coverage tier. The
+selection reason and similarity score are hidden while rating to reduce bias.
+
+New usability responses are append-only in the app's Git-ignored local SQLite
+database, with source-manifest, video, and raw-landmarks hashes and a verified
+snapshot after each save. The existing Python annotation database and source
+artifacts are read-only to this interface. Research and media routes remain
+restricted to the local development server; this change does not publish
+participant data or research records.

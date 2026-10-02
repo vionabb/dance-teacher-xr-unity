@@ -15,9 +15,10 @@ record the accepted data boundary and first-slice acceptance.
 Implementation started from `main` at `b1a475eb72ee28fff659f4980fdb60c59771249c`
 in an isolated checkout. [PR #408](https://github.com/vionabb/dance-teacher-xr-unity/pull/408)
 records the direction; [PR #409](https://github.com/vionabb/dance-teacher-xr-unity/pull/409)
-adds the local read model on top of it. Both are draft PRs. The active
-annotation server and its SQLite database are outside this checkout and must
-not be modified as part of the initial read-only work.
+adds the local read model on top of it. Both are draft PRs. A third stacked
+branch adds the usability table and a local-only authoring queue. The original
+annotation SQLite database is outside this checkout and remains read-only to
+the SvelteKit process.
 
 ## Settled boundaries
 
@@ -26,9 +27,10 @@ not be modified as part of the initial read-only work.
 - Local SQLite for app-managed research metadata and future records; local
   hashed files for media, poses, and full per-frame outputs. Supabase continues
   to serve learner data and sign-in.
-- Existing manual-review source databases remain the annotation authority
-  until a separate verified authoring cutover. Frozen releases and their
-  rebuildable catalog are read-only inputs.
+- Existing manual-review source databases remain the authority for their
+  existing tasks and frame corrections. New whole-video usability ratings are
+  appended to the local research SQLite database with verified snapshots.
+  Frozen releases and their rebuildable catalog remain read-only inputs.
 - Prior-study human similarity ratings, pose-tracking usability judgments,
   manual corrections, and metric outputs retain distinct meanings and sources.
 
@@ -55,12 +57,26 @@ data-producing stage versioned and preserve exact input identities.
 - The full Vite build passed after restoring three existing Git LFS JSON/CSV
   files from the original checkout into the isolated checkout for the build.
   They were restored to pointer form afterward and are not part of the PR.
-- `/research/records` is local and development-only. Identity joins, pagination,
-  researcher role authorization, annotation authoring, and job orchestration
-  remain open. The active annotation database is still the writer.
+- `/research/records` now shows all 134 CHI25 participant video reviews in a
+  study/dance/user/condition/segment table, plus 20 reference reviews. Seven
+  participant source filenames have no user ID; they remain visible and cannot
+  join to the CHI25 human-rating CSV.
+- The rating queue currently finds 691 unrated clips with exact segment-level
+  prior-study human similarity ratings from at least one of the three raters.
+  It uses the explicit study 1 `sheetmotion`/`sheet` source-name equivalence.
+  The queue fills sparse coverage cells and alternates the suspected problem
+  segments in the October 1 lab log with comparison segments within ties.
+- The original annotation DB is read-only to this app. New ratings live in
+  `local-data/research.sqlite3`; a verified snapshot is made after each save.
+  The local rating page plays the frozen clip and raw pose overlay. Safari
+  playback was checked. The Codex in-app browser crashed when playback was
+  tried, although its read-only table and media HTTP endpoints worked.
+- Researcher role authorization, frame-correction authoring, pagination, and
+  job orchestration remain open. All research routes remain dev-loopback only.
 
 ## Next action
 
-Verify the manual-review segment identities against prior-study study/dance/
-participant/segment keys, recording exact matches and ambiguous or unmatched
-cases. Then add the researcher authorization boundary before any remote serving.
+Keep the interface local while testing new usability reviews. Compare the
+resulting balanced sample with the October 1 coverage targets. Before any
+remote serving, add researcher-role authorization to every research page,
+API, and media route. Frame-correction authoring remains a later stack.
