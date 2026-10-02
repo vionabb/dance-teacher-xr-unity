@@ -47,7 +47,7 @@
 		}
 	}
 
-	async function startVideo(startTime?: number) {
+	async function startVideo(startTime: number | undefined = undefined) {
 		videoPaused = true;
 		if (startTime !== undefined) {
 			videoCurrentTime = startTime;
