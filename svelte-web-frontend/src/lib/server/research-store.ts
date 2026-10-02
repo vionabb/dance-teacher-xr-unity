@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import sqlite3 from 'sqlite3';
+import type sqlite3 from 'sqlite3';
 import Papa from 'papaparse';
 import { humanSimilarityCondition } from './research-identity.js';
 
@@ -124,7 +124,8 @@ function assertReview(review: Review): void {
 		throw new Error('Review has an invalid source-frame interval');
 }
 
-function openDatabase(file: string): Promise<sqlite3.Database> {
+async function openDatabase(file: string): Promise<sqlite3.Database> {
+	const { default: sqlite3 } = await import('sqlite3');
 	return new Promise((resolve, reject) => {
 		const db = new sqlite3.Database(file, (error) => (error ? reject(error) : resolve(db)));
 	});

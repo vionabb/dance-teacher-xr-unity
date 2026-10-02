@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
-import sqlite3 from 'sqlite3';
+import type sqlite3 from 'sqlite3';
 import { getClipInfo, Study } from '$lib/ai/motionmetrics/PoseDataTestFile';
 import { humanSimilarityCondition } from './research-identity.js';
 
@@ -229,6 +229,7 @@ export async function readLegacyTaskStatuses(
 	file: string,
 	experimentId: string
 ): Promise<Map<string, string>> {
+	const { default: sqlite3 } = await import('sqlite3');
 	const db = await new Promise<sqlite3.Database>((resolve, reject) => {
 		const connection = new sqlite3.Database(file, sqlite3.OPEN_READONLY, (error) =>
 			error ? reject(error) : resolve(connection)

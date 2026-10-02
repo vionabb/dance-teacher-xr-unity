@@ -373,7 +373,7 @@
 		}
 		await openPerformance(target, timeSeconds);
 	}
-	function probeVideoDimensions(url?: string): Promise<VideoDimensions | null> {
+	function probeVideoDimensions(url: string | undefined): Promise<VideoDimensions | null> {
 		if (!url) return Promise.resolve(null);
 		const cached = videoDimensionCache.get(url);
 		if (cached) return cached;
@@ -684,7 +684,7 @@
 			void restorePerformanceFromUrl(to.url);
 	});
 
-	function setClip(side: 'participant' | 'reference', file?: File) {
+	function setClip(side: 'participant' | 'reference', file: File | undefined) {
 		if (!file) return;
 		const clip = side === 'participant' ? participant : reference;
 		if (file.type.startsWith('video/')) {
