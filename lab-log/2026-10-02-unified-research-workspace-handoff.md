@@ -20,6 +20,15 @@ adds the usability table and a local-only authoring queue on top of #409. All
 three are draft PRs. The original
 annotation SQLite database is outside this checkout and remains read-only to
 the SvelteKit process.
+On October 2, `origin/main` at `2b8212a` was merged into the top stack branch
+for #411. The Vercel preview build exposed a Linux `GLIBC_2.38` requirement
+when the local research SQLite module loaded during build. A separate mainline
+deployment failed when the updated Vite parser encountered optional TypeScript
+parameters in the two metric inspector pages. The top branch now defers native
+SQLite loading until a local research operation and uses explicit `| undefined`
+parameter types in those pages. Its exact-lockfile local production build,
+frontend lint, and focused research tests pass; the Vercel rebuild remains the
+remote acceptance check.
 
 ## Settled boundaries
 
@@ -58,6 +67,10 @@ data-producing stage versioned and preserve exact input identities.
 - The full Vite build passed after restoring three existing Git LFS JSON/CSV
   files from the original checkout into the isolated checkout for the build.
   They were restored to pointer form afterward and are not part of the PR.
+- After merging current `main`, `pnpm install --frozen-lockfile` and a production
+  build with local placeholder Supabase values passed using the updated
+  SvelteKit/Vite lockfile. The Git LFS files are still locally materialized for
+  the running research preview and remain excluded from commits.
 - `/research/records` now shows all 134 CHI25 participant video reviews in a
   study/dance/user/condition/segment table, plus 20 reference reviews. Seven
   participant source filenames have no user ID; they remain visible and cannot

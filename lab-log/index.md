@@ -194,3 +194,4 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 - [2026-10-02 — Unified research workspace handoff](2026-10-02-unified-research-workspace-handoff.md)
   Tracks the stacked implementation and the remaining verified identity join,
   researcher authorization, annotation, metric-runner, and pipeline-job work.
+  Records the October 2 main merge and Vercel build fixes awaiting remote validation.
