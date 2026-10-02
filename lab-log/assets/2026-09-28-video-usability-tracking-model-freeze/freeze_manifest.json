@@ -1,0 +1,137 @@
+{
+  "purpose": "predict overall accurate visible pose tracking; analysis suitability belongs in separate notes",
+  "training": {
+    "participant_clips": 80,
+    "participant_groups": 61,
+    "reference_segments_excluded_from_fitting": 20
+  },
+  "pose_availability_definition": "fraction of VIDEO frames with any finite x coordinate among 33 canonical raw pose landmarks; missing pose rows including a truncated tail count as absent; descriptive proxy, not person detection",
+  "protocol": "fixed logistic C=1, median imputation and standardization fitted on original 80 participant clips only; M0 3 signals, M1 adds raw-pose frame fraction; no follow-up labels used",
+  "endpoints": {
+    "primary": "marginal or unusable (ratings 2 or 1) versus correctable or perfect (3 or 4)",
+    "secondary": "any concern (correctable, marginal, unusable) versus perfect",
+    "four_level": "exploratory only; no frozen 4-way classifier"
+  },
+  "inputs_sha256": {
+    "focused_manifest": "9a814376c612ce0767f6faa658167f2269a4ced5a37cb4d22d9ddb1bc3dea1ec",
+    "participant_prior_predictions": "ca3efbc81c2ecf1b579d643255a12cd496f833c3af49efc3127962a911dd09a9",
+    "reference_prior_scores": "f17247a8e964bd55bc84d4d28c27231bef924b8eb9d1dd9aeb4d6a750d2ccbd5"
+  },
+  "frozen_training_rows_sha256": "4c3c79e8b5906468e0ca58f3ce84a7126f48ef9cb09045ab43f785b64a2d4cdb",
+  "models": {
+    "marginal_or_unusable": {
+      "M0_three_signals": {
+        "features_in_order": [
+          "crop_violation_fraction",
+          "windowed_roughness_p95_max",
+          "false_tracking_candidate_fraction"
+        ],
+        "artifact": "marginal_or_unusable_M0_three_signals.joblib",
+        "artifact_sha256": "3c1d3a4385c57cac9cd117ca132511a9628a5fa2122e4a9cbd4737f34a09a3d2",
+        "participant_grouped_oof": {
+          "n": 80,
+          "positive": 16,
+          "auroc": 0.8642578125,
+          "average_precision": 0.7429918121094592,
+          "constant_score_average_precision": 0.2
+        },
+        "reference_out_of_domain": {
+          "n": 20,
+          "positive": 1,
+          "auroc": 0.3157894736842105,
+          "average_precision": 0.07142857142857142,
+          "constant_score_average_precision": 0.05
+        },
+        "reference_cover_only_task_005_score": 0.014143539551171116,
+        "reference_cover_tail_task_004_score": 0.027627056400598447
+      },
+      "M1_plus_pose_availability": {
+        "features_in_order": [
+          "crop_violation_fraction",
+          "windowed_roughness_p95_max",
+          "false_tracking_candidate_fraction",
+          "raw_pose_frame_fraction"
+        ],
+        "artifact": "marginal_or_unusable_M1_plus_pose_availability.joblib",
+        "artifact_sha256": "21751336a4fcce59d1343d6610f78488627a234e4b35f400038851ff5c71822b",
+        "participant_grouped_oof": {
+          "n": 80,
+          "positive": 16,
+          "auroc": 0.94140625,
+          "average_precision": 0.8667395104895105,
+          "constant_score_average_precision": 0.2
+        },
+        "reference_out_of_domain": {
+          "n": 20,
+          "positive": 1,
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "constant_score_average_precision": 0.05
+        },
+        "reference_cover_only_task_005_score": 0.9878848410635768,
+        "reference_cover_tail_task_004_score": 0.8952322297119908
+      }
+    },
+    "any_concern": {
+      "M0_three_signals": {
+        "features_in_order": [
+          "crop_violation_fraction",
+          "windowed_roughness_p95_max",
+          "false_tracking_candidate_fraction"
+        ],
+        "artifact": "any_concern_M0_three_signals.joblib",
+        "artifact_sha256": "556d7ddbf9905e7326d57af1dcaaf79bbe319fed4e182f2cfddce3fa79b7c1fc",
+        "participant_grouped_oof": {
+          "n": 80,
+          "positive": 43,
+          "auroc": 0.9126335637963545,
+          "average_precision": 0.913738176007183,
+          "constant_score_average_precision": 0.5375
+        },
+        "reference_out_of_domain": {
+          "n": 20,
+          "positive": 6,
+          "auroc": 0.6428571428571428,
+          "average_precision": 0.552876984126984,
+          "constant_score_average_precision": 0.3
+        },
+        "reference_cover_only_task_005_score": 0.039515535962939434,
+        "reference_cover_tail_task_004_score": 0.15360060216445573
+      },
+      "M1_plus_pose_availability": {
+        "features_in_order": [
+          "crop_violation_fraction",
+          "windowed_roughness_p95_max",
+          "false_tracking_candidate_fraction",
+          "raw_pose_frame_fraction"
+        ],
+        "artifact": "any_concern_M1_plus_pose_availability.joblib",
+        "artifact_sha256": "aeb092f53b72d1355dd9eab4d71d92396701caffb3ee9dc6a53959da0d661366",
+        "participant_grouped_oof": {
+          "n": 80,
+          "positive": 43,
+          "auroc": 0.923318667504714,
+          "average_precision": 0.9261630151994165,
+          "constant_score_average_precision": 0.5375
+        },
+        "reference_out_of_domain": {
+          "n": 20,
+          "positive": 6,
+          "auroc": 0.7380952380952381,
+          "average_precision": 0.6077653283535637,
+          "constant_score_average_precision": 0.3
+        },
+        "reference_cover_only_task_005_score": 0.969325194774719,
+        "reference_cover_tail_task_004_score": 0.9462355640619159
+      }
+    }
+  },
+  "freeze_script_sha256": "38179517a9bf4cc8e1f32409f8d734da2fbaa0e0932cc5ed787e1a069511c65e",
+  "runtime_versions": {
+    "python": "3.10.14",
+    "numpy": "1.25.2",
+    "pandas": "2.3.3",
+    "scikit_learn": "1.7.2",
+    "joblib": "1.5.3"
+  }
+}

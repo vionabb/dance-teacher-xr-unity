@@ -1,0 +1,645 @@
+{
+  "provenance": {
+    "selection_sha256": "7b7b9f8260df9df1e78ad34020482935aa3c3dcc4d1a624b35e9028d7472fb85",
+    "followup_manifest_sha256": "eecc4f52b657c2c977d535adf6584d7722746f044be2723da6ec839d3d91f7ec",
+    "freeze_manifest_sha256": "63c631bb654b7fe034e190413a0fc12dd077e649a8242208000272e50d0a8467",
+    "earliest_followup_revision": "2026-09-28T23:12:21.833956+00:00",
+    "latest_revision_id": 587,
+    "frozen_training_max_revision_id": 394,
+    "random_group_count": 24,
+    "diagnostic_group_count": 6
+  },
+  "random_validation": {
+    "ratings": {
+      "perfect": 9,
+      "marginal": 4,
+      "correctable": 9,
+      "unusable": 2
+    },
+    "by_corpus": {
+      "chi25_study1": {
+        "perfect": 5,
+        "marginal": 1,
+        "correctable": 3
+      },
+      "chi25_study2": {
+        "marginal": 3,
+        "unusable": 2,
+        "correctable": 6,
+        "perfect": 4
+      }
+    },
+    "notes_present": 17,
+    "endpoints": {
+      "marginal_or_unusable": {
+        "M0_three_signals": {
+          "n": 24,
+          "positive": 6,
+          "negative": 18,
+          "observed_positive_fraction": 0.25,
+          "mean_frozen_probability": 0.2240564425181808,
+          "brier_score": 0.12807119470664924,
+          "auroc": 0.75,
+          "average_precision": 0.6826820839978734,
+          "constant_score_ap_baseline": 0.25,
+          "illustrative_0_5_cutoff": {
+            "true_positive": 3,
+            "false_positive": 0,
+            "false_negative": 3,
+            "true_negative": 18,
+            "alerts": 3,
+            "sensitivity": 0.5,
+            "specificity": 1.0,
+            "precision": 1.0,
+            "sensitivity_exact_95": [
+              0.11811724875702524,
+              0.8818827512429748
+            ],
+            "specificity_exact_95": [
+              0.8146980318621477,
+              1.0
+            ]
+          },
+          "exploratory_threshold_sensitivity": [
+            {
+              "cutoff": 0.25,
+              "alerts": 9,
+              "true_positive": 3,
+              "false_positive": 6
+            },
+            {
+              "cutoff": 0.75,
+              "alerts": 2,
+              "true_positive": 2,
+              "false_positive": 0
+            }
+          ],
+          "stratified_bootstrap": {
+            "method": "10000 within-study clip bootstrap resamples, fixed 9/15 study quotas, seed 20260929",
+            "usable_draws": 9994,
+            "auroc_95": [
+              0.4603174603174603,
+              1.0
+            ],
+            "average_precision_95": [
+              0.22424242424242424,
+              1.0
+            ]
+          }
+        },
+        "M1_plus_pose_availability": {
+          "n": 24,
+          "positive": 6,
+          "negative": 18,
+          "observed_positive_fraction": 0.25,
+          "mean_frozen_probability": 0.24737545812619788,
+          "brier_score": 0.08020834782256792,
+          "auroc": 0.9259259259259259,
+          "average_precision": 0.9047619047619048,
+          "constant_score_ap_baseline": 0.25,
+          "illustrative_0_5_cutoff": {
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 2,
+            "true_negative": 18,
+            "alerts": 4,
+            "sensitivity": 0.6666666666666666,
+            "specificity": 1.0,
+            "precision": 1.0,
+            "sensitivity_exact_95": [
+              0.22277809550354957,
+              0.9567281317071105
+            ],
+            "specificity_exact_95": [
+              0.8146980318621477,
+              1.0
+            ]
+          },
+          "exploratory_threshold_sensitivity": [
+            {
+              "cutoff": 0.25,
+              "alerts": 9,
+              "true_positive": 5,
+              "false_positive": 4
+            },
+            {
+              "cutoff": 0.75,
+              "alerts": 2,
+              "true_positive": 2,
+              "false_positive": 0
+            }
+          ],
+          "stratified_bootstrap": {
+            "method": "10000 within-study clip bootstrap resamples, fixed 9/15 study quotas, seed 20260929",
+            "usable_draws": 9994,
+            "auroc_95": [
+              0.7407407407407407,
+              1.0
+            ],
+            "average_precision_95": [
+              0.6333333333333333,
+              1.0
+            ]
+          }
+        }
+      },
+      "any_concern": {
+        "M0_three_signals": {
+          "n": 24,
+          "positive": 15,
+          "negative": 9,
+          "observed_positive_fraction": 0.625,
+          "mean_frozen_probability": 0.5800767415094479,
+          "brier_score": 0.13009838904941487,
+          "auroc": 0.9037037037037037,
+          "average_precision": 0.9444461094461094,
+          "constant_score_ap_baseline": 0.625,
+          "illustrative_0_5_cutoff": {
+            "true_positive": 13,
+            "false_positive": 2,
+            "false_negative": 2,
+            "true_negative": 7,
+            "alerts": 15,
+            "sensitivity": 0.8666666666666667,
+            "specificity": 0.7777777777777778,
+            "precision": 0.8666666666666667,
+            "sensitivity_exact_95": [
+              0.5953973033966279,
+              0.9834240865599164
+            ],
+            "specificity_exact_95": [
+              0.3999064262836879,
+              0.9718550265221126
+            ]
+          },
+          "exploratory_threshold_sensitivity": [
+            {
+              "cutoff": 0.25,
+              "alerts": 19,
+              "true_positive": 14,
+              "false_positive": 5
+            },
+            {
+              "cutoff": 0.75,
+              "alerts": 11,
+              "true_positive": 10,
+              "false_positive": 1
+            }
+          ],
+          "stratified_bootstrap": {
+            "method": "10000 within-study clip bootstrap resamples, fixed 9/15 study quotas, seed 20260929",
+            "usable_draws": 10000,
+            "auroc_95": [
+              0.75,
+              1.0
+            ],
+            "average_precision_95": [
+              0.8374208829365078,
+              1.0
+            ]
+          }
+        },
+        "M1_plus_pose_availability": {
+          "n": 24,
+          "positive": 15,
+          "negative": 9,
+          "observed_positive_fraction": 0.625,
+          "mean_frozen_probability": 0.622847811627191,
+          "brier_score": 0.08922059457272007,
+          "auroc": 0.9555555555555555,
+          "average_precision": 0.9722667528549881,
+          "constant_score_ap_baseline": 0.625,
+          "illustrative_0_5_cutoff": {
+            "true_positive": 14,
+            "false_positive": 2,
+            "false_negative": 1,
+            "true_negative": 7,
+            "alerts": 16,
+            "sensitivity": 0.9333333333333333,
+            "specificity": 0.7777777777777778,
+            "precision": 0.875,
+            "sensitivity_exact_95": [
+              0.6805154334216967,
+              0.9983135697586446
+            ],
+            "specificity_exact_95": [
+              0.3999064262836879,
+              0.9718550265221126
+            ]
+          },
+          "exploratory_threshold_sensitivity": [
+            {
+              "cutoff": 0.25,
+              "alerts": 20,
+              "true_positive": 15,
+              "false_positive": 5
+            },
+            {
+              "cutoff": 0.75,
+              "alerts": 12,
+              "true_positive": 11,
+              "false_positive": 1
+            }
+          ],
+          "stratified_bootstrap": {
+            "method": "10000 within-study clip bootstrap resamples, fixed 9/15 study quotas, seed 20260929",
+            "usable_draws": 10000,
+            "auroc_95": [
+              0.8518518518518519,
+              1.0
+            ],
+            "average_precision_95": [
+              0.9081390831390833,
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    "by_corpus_metrics": {
+      "marginal_or_unusable": {
+        "chi25_study1": {
+          "n": 9,
+          "positive": 1,
+          "negative": 8,
+          "observed_positive_fraction": 0.1111111111111111,
+          "mean_frozen_probability": 0.2082946849417926,
+          "brier_score": 0.028045519254353793,
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "constant_score_ap_baseline": 0.1111111111111111,
+          "illustrative_0_5_cutoff": {
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 8,
+            "alerts": 1,
+            "sensitivity": 1.0,
+            "specificity": 1.0,
+            "precision": 1.0,
+            "sensitivity_exact_95": [
+              0.025000000000000022,
+              1.0
+            ],
+            "specificity_exact_95": [
+              0.6305833524471808,
+              1.0
+            ]
+          },
+          "exploratory_threshold_sensitivity": [
+            {
+              "cutoff": 0.25,
+              "alerts": 3,
+              "true_positive": 1,
+              "false_positive": 2
+            },
+            {
+              "cutoff": 0.75,
+              "alerts": 1,
+              "true_positive": 1,
+              "false_positive": 0
+            }
+          ]
+        },
+        "chi25_study2": {
+          "n": 15,
+          "positive": 5,
+          "negative": 10,
+          "observed_positive_fraction": 0.3333333333333333,
+          "mean_frozen_probability": 0.23351349706401375,
+          "brier_score": 0.18808659997802646,
+          "auroc": 0.66,
+          "average_precision": 0.6571428571428571,
+          "constant_score_ap_baseline": 0.3333333333333333,
+          "illustrative_0_5_cutoff": {
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 3,
+            "true_negative": 10,
+            "alerts": 2,
+            "sensitivity": 0.4,
+            "specificity": 1.0,
+            "precision": 1.0,
+            "sensitivity_exact_95": [
+              0.05274495052631566,
+              0.8533672003653274
+            ],
+            "specificity_exact_95": [
+              0.6915028921812371,
+              1.0
+            ]
+          },
+          "exploratory_threshold_sensitivity": [
+            {
+              "cutoff": 0.25,
+              "alerts": 6,
+              "true_positive": 2,
+              "false_positive": 4
+            },
+            {
+              "cutoff": 0.75,
+              "alerts": 1,
+              "true_positive": 1,
+              "false_positive": 0
+            }
+          ]
+        }
+      },
+      "any_concern": {
+        "chi25_study1": {
+          "n": 9,
+          "positive": 4,
+          "negative": 5,
+          "observed_positive_fraction": 0.4444444444444444,
+          "mean_frozen_probability": 0.48482680729067695,
+          "brier_score": 0.12369767072082742,
+          "auroc": 0.9,
+          "average_precision": 0.8875,
+          "constant_score_ap_baseline": 0.4444444444444444,
+          "illustrative_0_5_cutoff": {
+            "true_positive": 3,
+            "false_positive": 1,
+            "false_negative": 1,
+            "true_negative": 4,
+            "alerts": 4,
+            "sensitivity": 0.75,
+            "specificity": 0.8,
+            "precision": 0.75,
+            "sensitivity_exact_95": [
+              0.19412044968324338,
+              0.9936905367902901
+            ],
+            "specificity_exact_95": [
+              0.28358206388191054,
+              0.9949492366205319
+            ]
+          },
+          "exploratory_threshold_sensitivity": [
+            {
+              "cutoff": 0.25,
+              "alerts": 6,
+              "true_positive": 4,
+              "false_positive": 2
+            },
+            {
+              "cutoff": 0.75,
+              "alerts": 4,
+              "true_positive": 3,
+              "false_positive": 1
+            }
+          ]
+        },
+        "chi25_study2": {
+          "n": 15,
+          "positive": 11,
+          "negative": 4,
+          "observed_positive_fraction": 0.7333333333333333,
+          "mean_frozen_probability": 0.6372267020407104,
+          "brier_score": 0.13393882004656732,
+          "auroc": 0.9090909090909091,
+          "average_precision": 0.9757575757575758,
+          "constant_score_ap_baseline": 0.7333333333333333,
+          "illustrative_0_5_cutoff": {
+            "true_positive": 10,
+            "false_positive": 1,
+            "false_negative": 1,
+            "true_negative": 3,
+            "alerts": 11,
+            "sensitivity": 0.9090909090909091,
+            "specificity": 0.75,
+            "precision": 0.9090909090909091,
+            "sensitivity_exact_95": [
+              0.5872200830116173,
+              0.9977010277861846
+            ],
+            "specificity_exact_95": [
+              0.19412044968324338,
+              0.9936905367902901
+            ]
+          },
+          "exploratory_threshold_sensitivity": [
+            {
+              "cutoff": 0.25,
+              "alerts": 13,
+              "true_positive": 10,
+              "false_positive": 3
+            },
+            {
+              "cutoff": 0.75,
+              "alerts": 7,
+              "true_positive": 7,
+              "false_positive": 0
+            }
+          ]
+        }
+      }
+    },
+    "known_user_id_sensitivity": {
+      "n": 19,
+      "ratings": {
+        "perfect": 8,
+        "marginal": 3,
+        "correctable": 8
+      },
+      "endpoints": {
+        "marginal_or_unusable": {
+          "M0_three_signals": {
+            "n": 19,
+            "positive": 3,
+            "negative": 16,
+            "observed_positive_fraction": 0.15789473684210525,
+            "mean_frozen_probability": 0.21428081080720188,
+            "brier_score": 0.07026348861073783,
+            "auroc": 0.875,
+            "average_precision": 0.7777777777777777,
+            "constant_score_ap_baseline": 0.15789473684210525,
+            "illustrative_0_5_cutoff": {
+              "true_positive": 2,
+              "false_positive": 0,
+              "false_negative": 1,
+              "true_negative": 16,
+              "alerts": 2,
+              "sensitivity": 0.6666666666666666,
+              "specificity": 1.0,
+              "precision": 1.0,
+              "sensitivity_exact_95": [
+                0.09429932405071303,
+                0.9915962413403874
+              ],
+              "specificity_exact_95": [
+                0.7940927857921769,
+                1.0
+              ]
+            },
+            "exploratory_threshold_sensitivity": [
+              {
+                "cutoff": 0.25,
+                "alerts": 7,
+                "true_positive": 2,
+                "false_positive": 5
+              },
+              {
+                "cutoff": 0.75,
+                "alerts": 2,
+                "true_positive": 2,
+                "false_positive": 0
+              }
+            ]
+          },
+          "M1_plus_pose_availability": {
+            "n": 19,
+            "positive": 3,
+            "negative": 16,
+            "observed_positive_fraction": 0.15789473684210525,
+            "mean_frozen_probability": 0.18088649316654568,
+            "brier_score": 0.0813419467408413,
+            "auroc": 0.875,
+            "average_precision": 0.7777777777777777,
+            "constant_score_ap_baseline": 0.15789473684210525,
+            "illustrative_0_5_cutoff": {
+              "true_positive": 2,
+              "false_positive": 0,
+              "false_negative": 1,
+              "true_negative": 16,
+              "alerts": 2,
+              "sensitivity": 0.6666666666666666,
+              "specificity": 1.0,
+              "precision": 1.0,
+              "sensitivity_exact_95": [
+                0.09429932405071303,
+                0.9915962413403874
+              ],
+              "specificity_exact_95": [
+                0.7940927857921769,
+                1.0
+              ]
+            },
+            "exploratory_threshold_sensitivity": [
+              {
+                "cutoff": 0.25,
+                "alerts": 6,
+                "true_positive": 2,
+                "false_positive": 4
+              },
+              {
+                "cutoff": 0.75,
+                "alerts": 1,
+                "true_positive": 1,
+                "false_positive": 0
+              }
+            ]
+          }
+        },
+        "any_concern": {
+          "M0_three_signals": {
+            "n": 19,
+            "positive": 11,
+            "negative": 8,
+            "observed_positive_fraction": 0.5789473684210527,
+            "mean_frozen_probability": 0.59827306064678,
+            "brier_score": 0.10760680953468331,
+            "auroc": 0.9431818181818181,
+            "average_precision": 0.9585576040121495,
+            "constant_score_ap_baseline": 0.5789473684210527,
+            "illustrative_0_5_cutoff": {
+              "true_positive": 10,
+              "false_positive": 2,
+              "false_negative": 1,
+              "true_negative": 6,
+              "alerts": 12,
+              "sensitivity": 0.9090909090909091,
+              "specificity": 0.75,
+              "precision": 0.8333333333333334,
+              "sensitivity_exact_95": [
+                0.5872200830116173,
+                0.9977010277861846
+              ],
+              "specificity_exact_95": [
+                0.3491442055871758,
+                0.9681459737500557
+              ]
+            },
+            "exploratory_threshold_sensitivity": [
+              {
+                "cutoff": 0.25,
+                "alerts": 16,
+                "true_positive": 11,
+                "false_positive": 5
+              },
+              {
+                "cutoff": 0.75,
+                "alerts": 9,
+                "true_positive": 8,
+                "false_positive": 1
+              }
+            ]
+          },
+          "M1_plus_pose_availability": {
+            "n": 19,
+            "positive": 11,
+            "negative": 8,
+            "observed_positive_fraction": 0.5789473684210527,
+            "mean_frozen_probability": 0.5870079410763268,
+            "brier_score": 0.1090883883603917,
+            "auroc": 0.9431818181818181,
+            "average_precision": 0.9585576040121495,
+            "constant_score_ap_baseline": 0.5789473684210527,
+            "illustrative_0_5_cutoff": {
+              "true_positive": 10,
+              "false_positive": 2,
+              "false_negative": 1,
+              "true_negative": 6,
+              "alerts": 12,
+              "sensitivity": 0.9090909090909091,
+              "specificity": 0.75,
+              "precision": 0.8333333333333334,
+              "sensitivity_exact_95": [
+                0.5872200830116173,
+                0.9977010277861846
+              ],
+              "specificity_exact_95": [
+                0.3491442055871758,
+                0.9681459737500557
+              ]
+            },
+            "exploratory_threshold_sensitivity": [
+              {
+                "cutoff": 0.25,
+                "alerts": 16,
+                "true_positive": 11,
+                "false_positive": 5
+              },
+              {
+                "cutoff": 0.75,
+                "alerts": 8,
+                "true_positive": 7,
+                "false_positive": 1
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "diagnostics": {
+    "ratings": {
+      "unusable": 4,
+      "correctable": 1,
+      "perfect": 1
+    },
+    "notes_present": 6,
+    "by_criterion": {
+      "highest_crop_violation": {
+        "correctable": 1,
+        "perfect": 1
+      },
+      "longest_missing_pose_run_with_some_pose": {
+        "unusable": 2
+      },
+      "lowest_pose_availability": {
+        "unusable": 2
+      }
+    }
+  },
+  "_git_copy_note": "Aggregate metrics only; task-level identifiers were omitted from this checked-in copy."
+}

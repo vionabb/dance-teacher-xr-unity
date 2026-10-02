@@ -1,0 +1,100 @@
+{
+  "cohort": {
+    "tasks": 100,
+    "notes_present": 16,
+    "notes_absent": 84,
+    "unusable_reasons_present": 5,
+    "unusable_reasons_duplicate_note": 5,
+    "notes_by_rating": {
+      "perfect": {
+        "present": 6,
+        "total": 51
+      },
+      "correctable": {
+        "present": 4,
+        "total": 32
+      },
+      "marginal": {
+        "present": 1,
+        "total": 8
+      },
+      "unusable": {
+        "present": 5,
+        "total": 9
+      }
+    },
+    "notes_by_corpus": {
+      "chi25_study1": {
+        "present": 4,
+        "total": 34
+      },
+      "chi25_study2": {
+        "present": 8,
+        "total": 46
+      },
+      "chi_reference": {
+        "present": 4,
+        "total": 20
+      }
+    }
+  },
+  "explicit_theme_counts_among_16_notes": {
+    "cover_tail_ignore": 1,
+    "pose_absence_mentioned": 3,
+    "cover_only_no_person": 1,
+    "nondance_intro": 1,
+    "occlusion": 1,
+    "tracking_good_despite_challenge": 2,
+    "crop_or_close": 6,
+    "analysis_utility_concern_despite_perfect": 1,
+    "leg_tracking_errors": 5,
+    "upper_body_usable": 5,
+    "not_attempting_dance": 1,
+    "tracking_inconsistent": 1,
+    "brief_artifact": 1,
+    "lighting": 1,
+    "baggy_clothing": 1,
+    "background_window": 1,
+    "correction_burden": 1,
+    "brief_errors": 1,
+    "tracking_inaccurate": 1
+  },
+  "errors_at_0_5_threshold": {
+    "participant/any_concern/false_negative": {
+      "count": 5,
+      "with_note": 1,
+      "without_note": 4
+    },
+    "participant/any_concern/false_positive": {
+      "count": 5,
+      "with_note": 2,
+      "without_note": 3
+    },
+    "participant/marginal_or_unusable/false_negative": {
+      "count": 8,
+      "with_note": 2,
+      "without_note": 6
+    },
+    "participant/marginal_or_unusable/false_positive": {
+      "count": 1,
+      "with_note": 0,
+      "without_note": 1
+    },
+    "reference/any_concern/false_negative": {
+      "count": 5,
+      "with_note": 1,
+      "without_note": 4
+    },
+    "reference/any_concern/false_positive": {
+      "count": 2,
+      "with_note": 1,
+      "without_note": 1
+    },
+    "reference/marginal_or_unusable/false_negative": {
+      "count": 1,
+      "with_note": 1,
+      "without_note": 0
+    }
+  },
+  "_git_copy_note": "Aggregate metrics only; task-level identifiers were omitted from this checked-in copy."
+}

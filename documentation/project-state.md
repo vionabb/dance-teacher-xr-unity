@@ -41,7 +41,7 @@ The current system should be described as an operational research prototype, not
 - Complexity-aware progression and difficulty modeling.
 - Visibility repair, outlier masking, interpolation, and smoothing beyond the current preprocessing phase.
 - Corpus-level quality gating: automatic detection of bad-quality source video or bad-quality pose detection, correction of fixable issues, and exclusion of clips/spans with compromising unfixable errors from metric development.
-- A two-stage human quality gate is now the intended annotation direction: first run full-video `video_usability_triage` (frame flags plus required `unusable`/`marginal`/`correctable`/`perfect` rating), then send only the quality-clearing subset to detailed `error_marking` for bad-segment detection and frame/part-of-skeleton repair or discounting.
+- The current first-stage human batch collects one `unusable`/`marginal`/`correctable`/`perfect` rating per clip for **accuracy of visible pose tracking**. An optional note may identify a video unsuitable for motion analysis despite accurate tracking. Source content and framing need their own analysis-suitability decision; the overall pose rating alone is not that decision. Focused frame and landmark correction remain later stages.
 - A live webcam input-quality check for the study frontend (framing, lighting, tracking confidence) that prompts the participant to adjust before recording, informed by whichever offline quality detectors prove cheap enough to run in-browser.
 
 ## Historical findings that constrain current work
@@ -80,13 +80,19 @@ Status: **in progress**
   as the current status). The gate work is underway: a human-vs-automatic-signal
   comparison on a real triage batch, a full-corpus framing/out-of-frame analysis,
   a first (inconclusive) test of automatic occlusion-error detection, and two new
-  annotation-tool task types for gathering further ground truth are all done as
-  of 2026-08-30 — current status, findings, and next actions are maintained in
-  [lab-log/2026-08-27-preprocessing-quality-gate-pivot-handoff.md](../lab-log/2026-08-27-preprocessing-quality-gate-pivot-handoff.md),
-  not duplicated here. The next annotation batch should begin with the full-video
-  usability triage described in [the 2026-09-17 lab entry](../lab-log/2026-09-17-video-usability-triage.md),
-  rather than treating the historical `quality_triage`/`error_marking` pilot as
-  the final workflow.
+  annotation-tool task types for gathering further ground truth were done by
+  2026-08-30. At the 2026-10-01 database snapshot, all 154 selected whole-video
+  pose-tracking ratings and 48 of 49 follow-up frame/landmark tasks are complete;
+  the remaining frame task is started. Frozen models have scored all 1,756
+  participant clips for review priority, but neither is validated as an
+  automatic inclusion or exclusion gate. The selected ratings cover every
+  reference and participant dance segment, while study × dance × segment ×
+  condition cells remain sparse. The active research direction is to validate
+  references first, then assess source/pose quality, conservative repair,
+  confidence, quality-aware metric contracts, and coaching abstention in that
+  order. This is a plan, not implemented end-to-end behavior. See
+  [the follow-up evaluation](../lab-log/2026-09-29-video-usability-followup-evaluation.md)
+  and [the direction and coverage audit](../lab-log/2026-10-01-layered-pose-quality-and-segment-coverage.md).
 
 ### System integration
 

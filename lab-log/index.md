@@ -79,10 +79,10 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).
 
 - [Handoff: corpus-wide quality triage + defect localization](2026-08-27-preprocessing-quality-gate-pivot-handoff.md)
-  (living document — status as of 2026-09-22) Full-corpus pose extraction and
-  60 sampled coarse quality judgments are complete; three of 17 detailed-error
-  tasks have unfinished drafts. The next work is a versioned three-stage video,
-  frame, and landmark workflow, with an audit sample and preserved history.
+  (living document — status as of 2026-09-29) Full-corpus pose extraction and
+  all 154 video ratings are complete; three detailed-error drafts remain.
+  Paired C4 metric analysis found little correlation change. The active queue
+  adds 49 manual three-level frame tasks for correctable videos.
 
 - [2026-09-17 — Video usability triage before detailed error annotation](2026-09-17-video-usability-triage.md)
   Reoriented the annotation stream around a first-stage full-video usability
@@ -95,6 +95,66 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   progress: 60 coarse triage judgments complete, three detailed-error drafts,
   no four-point video-usability tasks yet. Identified missing three-level frame
   flow and a manual-versus-automatic frame-flag provenance defect.
+
+- [2026-09-28 — Focused video-usability rating sample](2026-09-28-video-usability-focused-sample.md)
+  Preserved 78 completed ratings, including all four study reference videos,
+  and added 22 stratified Study 2 clips. All 100 video ratings are complete.
+
+- [2026-09-28 — First prediction test of video usability](2026-09-28-video-usability-prediction-baseline.md)
+  Participant-held-out analysis found promising ranking of low-usability clips
+  by three pose-quality signals in the selected sample. A reference-segment
+  transfer check missed an all-cover unusable clip, so feature refinement and
+  independent validation are needed before any pass/fail rule.
+
+- [2026-09-28 — Video-usability prediction error and note audit](2026-09-28-video-usability-error-audit.md)
+  Sixteen notes expose content, pose availability, and framing concerns. Viona
+  clarified that the four-point rating measures visible pose-tracking accuracy;
+  optional notes can flag analysis-unsuitable videos. The active
+  24-random-plus-6-diagnostic follow-up preserves the first 100 ratings;
+  candidate prediction models were frozen before the new labels.
+
+- [2026-09-29 — Follow-up video-usability prediction evaluation](2026-09-29-video-usability-followup-evaluation.md)
+  The 30 new ratings support provisional ranking but no automatic pass/fail gate:
+  the frozen models missed concerning clips at an illustrative cutoff, and five
+  random clips lack reliable person IDs. All 1,756 participant clips now have
+  provisional scores. The later 24-clip known-ID follow-up is complete: its 12
+  random checks had no concerning clips, so severe-case sensitivity remains
+  unmeasured; the 12 separate diagnostics exposed M0 misses. A small frame
+  pilot can use reviewed clips independently.
+
+- [2026-09-29 — Raw-pose metric correlation under curation cutoffs](2026-09-29-usability-curation-correlation.md)
+  Recomputed canonical raw-pose metrics for 95 exactly matched human-rated
+  participant clips, including 17 from the newest video batch. Tightening the
+  visible tracking-quality cutoff changed motion-rating correlations only
+  modestly and uncertainly; preserve this cohort and all cutoffs for a paired
+  comparison after pose preprocessing.
+
+- [2026-09-29 — Paired C4 preprocessing and metric evaluation](2026-09-29-c4-paired-preprocessing-evaluation.md)
+  Four paired raw/C4 arms on the same 95 clips found faithful short-gap
+  interpolation but only tiny changes in motion-rating correlations. Study
+  differences exceed the C4 effect; a separate three-level frame queue now
+  targets the 49 videos Viona rated correctable.
+
+- [2026-09-29 — Combined frame and landmark error annotation](2026-09-29-frame-usability-workflow.md)
+  Viona kept the compact three-level frame control and automatic missing-pose
+  marks, then added the established per-landmark timeline and drag correction
+  flow to the same 49-video pass. Knee/ankle annotation is now out of scope;
+  a reversible Give up action records an unusable override for costly videos.
+  Phone frame tasks now center a zoomable video with Auto subject following,
+  two-finger pan and pinch zoom, and a frame scrubber above the bottom controls; secondary
+  tools remain in an overflow menu. Keyboard arrows step frames, phone
+  completion confirms, and return visits resume at the last viewed frame.
+
+- [2026-09-30 — Visibility against frame-level corrections](2026-09-30-frame-visibility-audit.md)
+  First 23 completed frame tasks: upper-body corrections concentrate at wrists
+  and elbows; low raw-pose visibility predicts correction priority but misses
+  some errors. The selected sparse labels do not establish occlusion causality.
+
+- [2026-10-01 — Layered pose quality and segment coverage](2026-10-01-layered-pose-quality-and-segment-coverage.md)
+  Viona set a reference-first, quality-aware path through conservative repair,
+  confidence, metric contracts, and coaching abstention. All reference and
+  participant dance segments have overall ratings, but condition cells are
+  sparse; apparent hard segments are hypotheses for balanced follow-up.
 
 - [2026-10-01 — Canonical manual-review corpus and first release](2026-10-01-manual-review-corpus-proposal.md)
   Established a source-aware review catalog and frozen 2026-10-02 release:
