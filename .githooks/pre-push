@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+
+printf '%s\n' 'Running frontend lint...'
+(cd "$repo_root/svelte-web-frontend" && pnpm lint)
+
+printf '%s\n' 'Checking motion-pipeline lockfile...'
+(cd "$repo_root/motion-pipeline" && uv lock --check)
