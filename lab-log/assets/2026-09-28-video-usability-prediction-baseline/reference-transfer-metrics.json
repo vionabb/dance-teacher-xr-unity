@@ -1,0 +1,129 @@
+{
+  "manifest_sha256": "9a814376c612ce0767f6faa658167f2269a4ced5a37cb4d22d9ddb1bc3dea1ec",
+  "participant_predictions_sha256": "ca3efbc81c2ecf1b579d643255a12cd496f833c3af49efc3127962a911dd09a9",
+  "canonical_sweep_provenance_sha256": "7fe29eafc69ad7580efb4fcf2a156a7d392ef2612c712cdb11b6300489b2e95b",
+  "preprocessing": "preprocess_pose_dataframe on full canonical raw pose2d source with PoseDataType.pose2d and config=None; slice the resulting clean pose by rated segment bounds; summarize each segment with original signal functions and canonical sweep parameters",
+  "ratings": {
+    "perfect": 14,
+    "correctable": 5,
+    "unusable": 1
+  },
+  "source_videos": 4,
+  "missing_by_signal": {
+    "crop_violation_fraction": 0,
+    "windowed_roughness_p95_max": 1,
+    "false_tracking_candidate_fraction": 0
+  },
+  "provenance": {
+    "canonical_sweep_parameters": {
+      "crop_margin": 0.03,
+      "roughness_window_frames": 15,
+      "false_tracking_velocity_threshold": 0.5,
+      "false_tracking_visibility_threshold": 0.5,
+      "lighting_sample_count": 6
+    },
+    "full_source_recomputation_checks": [
+      {
+        "source_stem": "chi-studyvideos/bartender",
+        "source_frame_count": 566,
+        "raw_pose_sha256": "a27a469bbbd017828ebfd86027acfa6eed0661f1402a6cad5a88759620c123cb",
+        "crop_violation_fraction": {
+          "current": 0.0,
+          "canonical_sweep": 0.0,
+          "absolute_difference": 0.0
+        },
+        "windowed_roughness_p95_max": {
+          "current": 1.198734443012716,
+          "canonical_sweep": 1.198734443012716,
+          "absolute_difference": 0.0
+        },
+        "false_tracking_candidate_fraction": {
+          "current": 0.20848056537102475,
+          "canonical_sweep": 0.20848056537102475,
+          "absolute_difference": 0.0
+        }
+      },
+      {
+        "source_stem": "chi-studyvideos/last-christmas-tutorial",
+        "source_frame_count": 452,
+        "raw_pose_sha256": "3d49757edbb99823c2d9cca1d4d3e5dbc5260c906e41a2b3df48db01eac22ddc",
+        "crop_violation_fraction": {
+          "current": 0.0,
+          "canonical_sweep": 0.0,
+          "absolute_difference": 0.0
+        },
+        "windowed_roughness_p95_max": {
+          "current": 1.2450117445914497,
+          "canonical_sweep": 1.2450117445914497,
+          "absolute_difference": 0.0
+        },
+        "false_tracking_candidate_fraction": {
+          "current": 0.1415929203539823,
+          "canonical_sweep": 0.1415929203539823,
+          "absolute_difference": 0.0
+        }
+      },
+      {
+        "source_stem": "chi-studyvideos/mad-at-disney-tutorial",
+        "source_frame_count": 544,
+        "raw_pose_sha256": "cf7279927b108056ef0969c05036efbb86e0cb793c28fc95500e5b9bc97bd270",
+        "crop_violation_fraction": {
+          "current": 0.001838235294117647,
+          "canonical_sweep": 0.001838235294117647,
+          "absolute_difference": 0.0
+        },
+        "windowed_roughness_p95_max": {
+          "current": 1.1903026530117315,
+          "canonical_sweep": 1.1903026530117315,
+          "absolute_difference": 0.0
+        },
+        "false_tracking_candidate_fraction": {
+          "current": 0.31433823529411764,
+          "canonical_sweep": 0.31433823529411764,
+          "absolute_difference": 0.0
+        }
+      },
+      {
+        "source_stem": "chi-studyvideos/pajamaparty-tutorial",
+        "source_frame_count": 419,
+        "raw_pose_sha256": "b59f40198114b4faa35ed2a30fa656044f0bf03a1b8b4929e3563ffbd64583ad",
+        "crop_violation_fraction": {
+          "current": 0.0,
+          "canonical_sweep": 0.0,
+          "absolute_difference": 0.0
+        },
+        "windowed_roughness_p95_max": {
+          "current": 1.0148791821010332,
+          "canonical_sweep": 1.0148791821010332,
+          "absolute_difference": 0.0
+        },
+        "false_tracking_candidate_fraction": {
+          "current": 0.3317422434367542,
+          "canonical_sweep": 0.3317422434367542,
+          "absolute_difference": 0.0
+        }
+      }
+    ]
+  },
+  "transfer": {
+    "marginal_or_unusable": {
+      "positive": 1,
+      "n": 20,
+      "auroc": 0.3157894736842105,
+      "average_precision": 0.07142857142857142,
+      "baseline_average_precision": 0.05,
+      "top_5_positive": 0,
+      "top_10_positive": 0
+    },
+    "any_concern": {
+      "positive": 6,
+      "n": 20,
+      "auroc": 0.6428571428571428,
+      "average_precision": 0.552876984126984,
+      "baseline_average_precision": 0.3,
+      "top_5_positive": 3,
+      "top_10_positive": 4
+    }
+  },
+  "_git_copy_note": "Aggregate metrics only; task-level identifiers were omitted from this checked-in copy."
+}

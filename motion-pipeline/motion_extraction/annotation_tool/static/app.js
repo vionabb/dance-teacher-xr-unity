@@ -11,12 +11,28 @@ const state = {
   errorMarkingVideoUnusable: false, errorMarkingVideoUnusableReason: "", errorMarkingVideoUsabilityRating: "",
   editingBodyParts: false, addingBodyPartEntry: false,
   errorMarkingLandmarks: null, errorMarkingLandmarksTaskId: null,
+  errorMarkingLandmarksStatus: "idle",
   skeletonDragLandmark: null, skeletonDragPosition: null, selectedSkeletonLandmark: null,
   errorMarkingFrame: 0, errorMarkingReviewFrame: 0,
   errorMarkingReplayHandle: null, errorMarkingReplayDirection: null,
   errorMarkingReviewReplayHandle: null,
   errorMarkingVisualRefreshHandle: null,
   errorMarkingDirty: false,
+  frameUsabilityLabels: {},
+  frameVideoDisposition: null,
+  frameViewZoom: 1,
+  frameViewZoomMode: "auto",
+  frameViewAutoZoomOverride: null,
+  frameViewPanX: 0,
+  frameViewPanY: 0,
+  frameViewPanEnabled: false,
+  frameViewLastFollowFrame: null,
+  frameViewGesturePanFrame: null,
+  frameViewPanGestureActive: false,
+  frameViewForceRecenter: false,
+  frameViewAnchorHistory: [],
+  frameViewGeometryKey: null,
+  frameViewMobileMode: false,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -26,7 +42,8 @@ const $ = (id) => document.getElementById(id);
 const SEGMENTED_CONTROL_STATE_META = {
   "frame-usability": {
     unusable: {fill: "var(--fill-selected-unusable)"},
-    usable: {fill: "var(--fill-selected-usable)"},
+    flawed: {fill: "var(--fill-selected-correctable)"},
+    good: {fill: "var(--fill-selected-usable)"},
   },
   "video-usability": {
     unusable: {fill: "var(--fill-selected-unusable)"},
@@ -35,9 +52,21 @@ const SEGMENTED_CONTROL_STATE_META = {
     perfect: {fill: "var(--fill-selected-perfect)"},
   },
 };
+const VIDEO_USABILITY_DESCRIPTIONS = {
+  unusable: "Exclude the whole video.",
+  marginal: "Usable only with substantial caveats.",
+  correctable: "Repair or discount localized problems.",
+  perfect: "No meaningful quality concerns.",
+};
+const POSE_TRACKING_DESCRIPTIONS = {
+  unusable: "No person or pose can be assessed, or tracking is too inaccurate to use.",
+  marginal: "Pose tracking has extensive errors.",
+  correctable: "Pose tracking has localized errors, but most movement is tracked.",
+  perfect: "The visible skeleton follows the person accurately.",
+};
 
 function segmentedControlOptions(control) {
-  return [...control.querySelectorAll(".segmented-control-option")];
+  return [...control.querySelectorAll(".segmented-control-option")].filter((option) => !(control.classList.contains("legacy-frame-usability") && option.dataset.segmentValue === "flawed"));
 }
 
 function setSegmentedControlState(control, stateValue) {
@@ -59,7 +88,9 @@ function selectSegmentedControlOption(control, stateValue) {
   if (!control || !segmentedControlOptions(control).some((option) => option.dataset.segmentValue === stateValue)) return;
   if (control.dataset.control === "frame-usability") {
     flashFrameUsabilityToggle();
-    if (stateValue === "usable") markFrameUsable(); else markFrameUnusable();
+    if (isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) markFrameUsability(errorMarkingCurrentFrame(), stateValue);
+    else if (stateValue === "good") markFrameUsable();
+    else if (stateValue === "unusable") markFrameUnusable();
   } else if (control.dataset.control === "video-usability") {
     setErrorMarkingVideoUsabilityRating(stateValue);
   }
@@ -195,7 +226,9 @@ function profile(task, id) { return task.overlays.find((item) => item.overlay_id
 function isTemporalTask(task) { return task.task_type === "temporal_pose_comparison"; }
 function isTriageTask(task) { return task.task_type === "quality_triage"; }
 function isVideoUsabilityTriageTask(task) { return task.task_type === "video_usability_triage"; }
-function isErrorMarkingTask(task) { return task.task_type === "error_marking" || isVideoUsabilityTriageTask(task); }
+function isVideoRatingOnlyTask(task) { return isVideoUsabilityTriageTask(task) && task.video_rating_only === true; }
+function isFrameUsabilityTask(task) { return task?.task_type === "frame_usability"; }
+function isErrorMarkingTask(task) { return task?.task_type === "error_marking" || isVideoUsabilityTriageTask(task) || isFrameUsabilityTask(task); }
 function isQualityRatingTask(task) { return task.task_type === "video_quality_rating"; }
 const ALL_SCREEN_IDS = ["skeleton-screen", "annotation-screen", "temporal-screen", "triage-screen", "error-marking-screen", "quality-rating-screen"];
 function hideAllScreens() { stopErrorMarkingReplay(); ALL_SCREEN_IDS.forEach((id) => { $(id).hidden = true; }); $("actions").hidden = true; }
@@ -368,6 +401,10 @@ const FALLBACK_ERROR_LISTS = {
     {id: "suboptimal_clothing", label: "Suboptimal clothing"},
   ],
 };
+const LEG_LANDMARKS = new Set(["LEFT_KNEE", "RIGHT_KNEE", "LEFT_ANKLE", "RIGHT_ANKLE"]);
+function isOutOfScopeLeg(landmark) {
+  return isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex]) && LEG_LANDMARKS.has(landmark);
+}
 
 function defaultErrorList(kind) {
   const source = (state.data && state.data[ERROR_LIST_SERVER_KEYS[kind]]) || FALLBACK_ERROR_LISTS[kind];
@@ -512,7 +549,27 @@ function frameToTime(frame) { return (frame + 0.5) / errorMarkingFps(); }
 // video.ontimeupdate reconciles it from the confirmed, actually-decoded
 // position for playback or any settling this missed.
 function errorMarkingCurrentFrame() { return state.errorMarkingFrame; }
-function setErrorMarkingFrame(frame) { state.errorMarkingFrame = frame; }
+function frameResumeStorageKey(task = state.data?.tasks?.[state.taskIndex]) {
+  if (!task || !isFrameUsabilityTask(task)) return null;
+  return `annotation-frame-resume:${state.data.experiment_id || ""}:${state.annotator || ""}:${task.task_id}`;
+}
+function rememberedFrame(task, savedFrame = null) {
+  const key = frameResumeStorageKey(task);
+  let frame = Number.isInteger(savedFrame) ? savedFrame : 0;
+  try {
+    const stored = key ? localStorage.getItem(key) : null;
+    const localFrame = stored === null ? null : Number(stored);
+    if (Number.isInteger(localFrame) && localFrame >= 0) frame = localFrame;
+  } catch { /* Saved response remains the cross-device fallback. */ }
+  return Math.max(0, Math.min(Math.max(Number(task.frame_count) - 1, 0), frame));
+}
+function setErrorMarkingFrame(frame) {
+  state.errorMarkingFrame = frame;
+  const key = frameResumeStorageKey();
+  if (key && Number.isInteger(frame) && frame >= 0) {
+    try { localStorage.setItem(key, String(frame)); } catch { /* SQLite autosave remains available. */ }
+  }
+}
 
 function allBadFrameNumbers() {
   const explicitlyUsable = new Set(state.errorMarkingUsableFrames);
@@ -529,14 +586,36 @@ function frameHasSkeleton(frame = errorMarkingCurrentFrame()) {
   return Boolean(state.errorMarkingLandmarks && Object.keys(skeletonFrameLandmarks(frame)).length);
 }
 
+function frameUsabilityRating(frame = errorMarkingCurrentFrame()) {
+  return state.frameUsabilityLabels[String(frame)] || (state.errorMarkingAutoBadFrames.includes(frame) ? "unusable" : "good");
+}
+
 function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
+  if (isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) {
+    const rating = frameUsabilityRating(frame);
+    const bad = rating !== "good";
+    $("error-marking-bad-frame-badge").hidden = !bad;
+    $("error-marking-bad-frame-badge").textContent = rating === "flawed" ? "flawed tracking" : "unusable frame";
+    $("error-marking-no-pose-badge").hidden = !state.errorMarkingAutoBadFrames.includes(frame) || !bad;
+    $("error-marking-video-wrap").classList.toggle("frame-marked-bad", rating === "unusable");
+    $("error-marking-video-wrap").classList.toggle("frame-marked-flawed", rating === "flawed");
+    updateFrameUsabilityControls(frame);
+    return;
+  }
+  if (isVideoRatingOnlyTask(state.data?.tasks?.[state.taskIndex])) {
+    $("error-marking-bad-frame-badge").hidden = true;
+    $("error-marking-no-pose-badge").hidden = true;
+    $("error-marking-video-wrap").classList.remove("frame-marked-bad");
+    $("error-marking-video-wrap").classList.remove("frame-marked-flawed");
+    return;
+  }
   const bad = isBadFrame(frame);
   const automatic = state.errorMarkingAutoBadFrames.includes(frame);
   const manuallyConfirmed = state.errorMarkingBadFrames.includes(frame);
   const explicitlyUsable = state.errorMarkingUsableFrames.includes(frame);
   const toggle = $("error-marking-frame-usability-toggle");
-  setSegmentedControlState(toggle, bad ? "unusable" : "usable");
-  const usableButton = $("error-marking-mark-frame-usable");
+  setSegmentedControlState(toggle, bad ? "unusable" : "good");
+  const usableButton = $("error-marking-mark-frame-good");
   if (usableButton) {
     usableButton.title = automatic && explicitlyUsable
       ? "Manually override the automatic unusable-frame signal."
@@ -553,6 +632,26 @@ function updateBadFrameControls(frame = errorMarkingCurrentFrame()) {
   const noPoseBadge = $("error-marking-no-pose-badge");
   if (noPoseBadge) noPoseBadge.hidden = !bad || frameHasSkeleton(frame);
   $("error-marking-video-wrap")?.classList.toggle("frame-marked-bad", bad);
+  $("error-marking-video-wrap")?.classList.remove("frame-marked-flawed");
+}
+
+function updateFrameUsabilityControls(frame = errorMarkingCurrentFrame()) {
+  const rating = frameUsabilityRating(frame);
+  setSegmentedControlState($("error-marking-frame-usability-toggle"), rating);
+  state.errorMarkingBadFrames = Object.entries(state.frameUsabilityLabels).filter(([, label]) => label === "flawed" || label === "unusable").map(([number]) => Number(number));
+  state.errorMarkingUsableFrames = Object.entries(state.frameUsabilityLabels).filter(([, label]) => label === "good").map(([number]) => Number(number));
+  updateFrameMobileControls();
+}
+
+function markFrameUsability(frame, rating) {
+  if (!isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) return;
+  stopErrorMarkingReplay();
+  errorMarkingVideo().pause();
+  state.frameUsabilityLabels[String(frame)] = rating;
+  updateBadFrameControls(frame);
+  renderSkeletonOverlay(frame);
+  renderErrorMarkingTimeline();
+  scheduleSave("started", 100);
 }
 
 function saveBadFrameState(frame = errorMarkingCurrentFrame()) {
@@ -620,29 +719,30 @@ function refreshAutomaticBadFrames(data, task) {
 }
 
 function updateVideoUnusableControls() {
+  if (isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) {
+    $("error-marking-video-unusable-reason-wrap").hidden = true;
+    $("error-marking-screen").classList.remove("video-marked-unusable");
+    $("error-marking-timeline").classList.remove("joint-marking-disabled");
+    return;
+  }
   const unusable = state.errorMarkingVideoUnusable;
   const reasonField = $("error-marking-video-unusable-reason");
   if (reasonField) reasonField.value = state.errorMarkingVideoUnusableReason;
   const reasonWrap = $("error-marking-video-unusable-reason-wrap");
   if (reasonWrap) reasonWrap.hidden = !unusable;
   const screen = $("error-marking-screen");
-  if (screen) screen.classList.toggle("video-marked-unusable", unusable);
+  if (screen) screen.classList.toggle("video-marked-unusable", unusable && !isVideoRatingOnlyTask(state.data?.tasks?.[state.taskIndex]));
   const unusableButton = $("error-marking-mark-frame-unusable");
   if (unusableButton) unusableButton.disabled = false;
   const usableButton = $("error-marking-mark-frame-usable");
   if (usableButton) usableButton.disabled = false;
   const usabilityToggle = $("error-marking-usability-toggle");
   setSegmentedControlState(usabilityToggle, state.errorMarkingVideoUsabilityRating || "");
-  const descriptions = {
-    unusable: "Exclude the whole video.",
-    marginal: "Usable only with substantial caveats.",
-    correctable: "Repair or discount localized problems.",
-    perfect: "No meaningful quality concerns.",
-  };
+  const descriptions = isVideoRatingOnlyTask(state.data?.tasks?.[state.taskIndex]) ? POSE_TRACKING_DESCRIPTIONS : VIDEO_USABILITY_DESCRIPTIONS;
   const description = $("error-marking-usability-description");
   if (description) description.textContent = descriptions[state.errorMarkingVideoUsabilityRating] || "Choose a rating for this video.";
   const timeline = $("error-marking-timeline");
-  if (timeline) timeline.classList.toggle("joint-marking-disabled", unusable);
+  if (timeline) timeline.classList.toggle("joint-marking-disabled", unusable && !isVideoRatingOnlyTask(state.data?.tasks?.[state.taskIndex]));
 }
 
 function syncErrorMarkingNote(event) {
@@ -727,9 +827,308 @@ function updateErrorMarkingFrameIndicator(frame = errorMarkingCurrentFrame()) {
   $("error-marking-frame-indicator").textContent = `frame ${frame} / ${Math.max(total - 1, 0)}`;
   const scrubber = $("error-marking-scrubber");
   if (scrubber && document.activeElement !== scrubber) scrubber.value = frame;
+  const mobileScrubber = $("frame-mobile-scrubber");
+  if (mobileScrubber) {
+    mobileScrubber.max = String(Math.max(total - 1, 0));
+    if (document.activeElement !== mobileScrubber) mobileScrubber.value = frame;
+  }
   updateTimelinePlayhead(frame);
   updateBadFrameControls(frame);
+  updateFrameMobileControls();
   renderSkeletonOverlay(frame);
+  updateFrameViewTransform();
+}
+
+function hasFrameCorrection(frame = errorMarkingCurrentFrame()) {
+  return state.errorMarks.some((mark) => Object.prototype.hasOwnProperty.call(mark.positions || {}, String(frame)));
+}
+
+function updateFrameMobileControls() {
+  const bar = $("frame-mobile-bar");
+  if (!bar || !isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) return;
+  const lastFrame = Math.max(errorMarkingFrameCount() - 1, 0);
+  const atEnd = errorMarkingCurrentFrame() >= lastFrame;
+  const forward = $("frame-mobile-forward");
+  forward.textContent = atEnd ? "Complete" : "›";
+  forward.setAttribute("aria-label", atEnd ? "Complete case" : "Next frame");
+  forward.classList.toggle("btn-success", atEnd);
+  const rating = frameUsabilityRating();
+  const unusable = $("frame-mobile-unusable"), usable = $("frame-mobile-usable");
+  unusable.classList.toggle("is-selected", rating === "unusable");
+  usable.classList.toggle("is-selected", rating !== "unusable");
+  const adjusted = hasFrameCorrection();
+  usable.classList.toggle("is-correctable", adjusted);
+  usable.textContent = "✓";
+  usable.setAttribute("aria-label", adjusted ? "Mark frame correctable; skeleton adjusted" : "Mark frame perfect; skeleton unchanged");
+  usable.title = adjusted ? "Correctable — skeleton adjusted" : "Perfect — skeleton unchanged";
+  unusable.setAttribute("aria-pressed", String(rating === "unusable"));
+  usable.setAttribute("aria-pressed", String(rating !== "unusable"));
+  const play = $("frame-mobile-play");
+  const playing = Boolean(state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === 1);
+  play.textContent = playing ? "Ⅱ" : "▶";
+  play.setAttribute("aria-pressed", String(playing));
+  play.setAttribute("aria-label", playing ? "Pause slow playback" : "Play slowly");
+  bar.hidden = !(window.matchMedia("(max-width: 700px)").matches);
+  $("actions").classList.toggle("frame-mobile-hidden", bar.hidden === false);
+  document.body.classList.toggle("frame-usability-task-active", isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex]));
+}
+
+function updateFrameViewTransform() {
+  const video = $("error-marking-video");
+  const overlay = $("error-marking-overlay");
+  const wrap = $("error-marking-video-wrap");
+  if (!video || !overlay || !wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  const aspect = video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 16 / 9;
+  const fitScale = Math.min(rect.width / aspect, rect.height);
+  const contentWidth = fitScale * aspect;
+  const contentHeight = fitScale;
+  const autoZoom = () => {
+    if (!rect.width || !rect.height) return 1;
+    const targetHeight = rect.height * .8;
+    const fittedImageHeight = fitScale / (1 + 2 * errorMarkingCanvasBufferRatio());
+    return Math.max(1, Math.min(3, targetHeight / Math.max(1, fittedImageHeight)));
+  };
+  const zoom = state.frameViewZoomMode === "auto"
+    ? (state.frameViewAutoZoomOverride ?? autoZoom())
+    : state.frameViewZoom;
+  state.frameViewZoom = zoom;
+  const geometryKey = `${Math.round(rect.width)}x${Math.round(rect.height)}:${zoom.toFixed(3)}`;
+  if (geometryKey !== state.frameViewGeometryKey) state.frameViewForceRecenter = true;
+  if (state.frameViewZoomMode === "auto" && isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])
+      && state.frameViewGesturePanFrame !== errorMarkingCurrentFrame()) {
+    const frame = errorMarkingCurrentFrame();
+    const anchor = frameSubjectAnchor(frame);
+    if (anchor) {
+      let priorFrame = state.frameViewLastFollowFrame;
+      if (state.frameViewForceRecenter) {
+        state.frameViewAnchorHistory = [];
+        state.frameViewLastFollowFrame = null;
+        priorFrame = null;
+      }
+      if (frame !== priorFrame) {
+        if (priorFrame == null || Math.abs(frame - priorFrame) > 8) state.frameViewAnchorHistory = [];
+        state.frameViewAnchorHistory.push({frame, point:anchor});
+        state.frameViewAnchorHistory = state.frameViewAnchorHistory.slice(-5);
+      }
+      const x = median(state.frameViewAnchorHistory.map(({point}) => point[0]));
+      const y = median(state.frameViewAnchorHistory.map(({point}) => point[1]));
+      const dimensions = state.errorMarkingLandmarks?.source_dimensions || {};
+      const sourceWidth = Number(dimensions.width) || video.videoWidth;
+      const sourceHeight = Number(dimensions.height) || video.videoHeight;
+      if (sourceWidth > 0 && sourceHeight > 0) {
+        const effectiveZoom = zoom / (1 + 2 * errorMarkingCanvasBufferRatio());
+        const desiredX = -(x / sourceWidth - .5) * contentWidth * effectiveZoom;
+        const desiredY = -(y / sourceHeight - .5) * contentHeight * effectiveZoom;
+        const sameFrameSameGeometry = frame === priorFrame && geometryKey === state.frameViewGeometryKey;
+        if (!sameFrameSameGeometry || state.frameViewForceRecenter) {
+          const adjacent = priorFrame != null && Math.abs(frame - priorFrame) <= 8;
+          const blend = state.frameViewForceRecenter ? 1 : adjacent ? .38 : 1;
+          state.frameViewPanX += (desiredX - state.frameViewPanX) * blend;
+          state.frameViewPanY += (desiredY - state.frameViewPanY) * blend;
+          state.frameViewLastFollowFrame = frame;
+        }
+        state.frameViewGesturePanFrame = null;
+        state.frameViewForceRecenter = false;
+      }
+    }
+    // Missing pose data holds the last useful framing.
+  }
+  const effectiveZoom = zoom / (1 + 2 * errorMarkingCanvasBufferRatio());
+  const maxX = Math.max(0, (contentWidth * effectiveZoom - rect.width) / 2);
+  const maxY = Math.max(0, (contentHeight * effectiveZoom - rect.height) / 2);
+  state.frameViewPanX = Math.max(-maxX, Math.min(maxX, state.frameViewPanX));
+  state.frameViewPanY = Math.max(-maxY, Math.min(maxY, state.frameViewPanY));
+  const videoScale = zoom / (1 + 2 * errorMarkingCanvasBufferRatio());
+  const transform = `translate(${state.frameViewPanX}px, ${state.frameViewPanY}px) scale(${zoom})`;
+  video.style.transform = `translate(${state.frameViewPanX}px, ${state.frameViewPanY}px) scale(${videoScale})`;
+  overlay.style.transform = transform;
+  state.frameViewGeometryKey = geometryKey;
+  wrap.classList.toggle("frame-pan-active", state.frameViewPanEnabled);
+}
+
+function median(values) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+// Uses raw pose shoulders and hips so dragging a corrected joint cannot move
+// the viewport. Requiring multiple valid torso points rejects sparse frames.
+function frameSubjectAnchor(frame) {
+  const data = state.errorMarkingLandmarks;
+  const points = data?.frames?.[frame];
+  if (!points) return null;
+  const dimensions = data.source_dimensions || {};
+  const width = Number(dimensions.width), height = Number(dimensions.height);
+  if (!(width > 0 && height > 0)) return null;
+  const torsoNames = (data.landmarks || []).filter((name) => /shoulder|hip/i.test(name));
+  const torso = torsoNames.map((name) => points[name]).filter((point) =>
+    Array.isArray(point) && point.length >= 2 && point.every(Number.isFinite)
+      && point[0] >= -.02 * width && point[0] <= 1.02 * width
+      && point[1] >= -.02 * height && point[1] <= 1.02 * height);
+  return torso.length >= 2 ? [median(torso.map(([x]) => x)), median(torso.map(([, y]) => y))] : null;
+}
+
+function setFrameViewZoom(value) {
+  state.frameViewZoomMode = value === "auto" ? "auto" : "manual";
+  state.frameViewAutoZoomOverride = null;
+  state.frameViewLastFollowFrame = null;
+  state.frameViewGesturePanFrame = null;
+  state.frameViewForceRecenter = false;
+  state.frameViewAnchorHistory = [];
+  if (state.frameViewZoomMode === "auto") {
+    state.frameViewPanEnabled = false;
+    $("frame-mobile-pan").setAttribute("aria-pressed", "false");
+    $("frame-mobile-pan").textContent = "Enable pan";
+    $("frame-mobile-pan").setAttribute("aria-label", "Enable video panning");
+  }
+  state.frameViewZoom = value === "auto" ? 1 : (Number(value) || 1);
+  if (state.frameViewZoom <= 1) {
+    state.frameViewPanX = 0;
+    state.frameViewPanY = 0;
+    state.frameViewPanEnabled = false;
+    $("frame-mobile-pan").setAttribute("aria-pressed", "false");
+    $("frame-mobile-pan").textContent = "Enable pan";
+    $("frame-mobile-pan").setAttribute("aria-label", "Enable video panning");
+  }
+  updateFrameViewTransform();
+}
+
+function attachFramePanHandlers() {
+  const wrap = $("error-marking-video-wrap");
+  if (!wrap || wrap.dataset.panHandlersAttached) return;
+  wrap.dataset.panHandlersAttached = "1";
+  const active = new Map();
+  let pointer = null;
+  let pinch = null;
+  wrap.addEventListener("pointerdown", (event) => {
+    if (!isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) return;
+    active.set(event.pointerId, {x: event.clientX, y: event.clientY, type:event.pointerType});
+    if (active.size === 2 && activeTouchPointers(active)) {
+      state.frameViewPanGestureActive = true;
+      state.cancelSkeletonLandmarkDrag?.();
+      const midpoint = pointerMidpoint(active);
+      pointer = {midpoint, x: state.frameViewPanX, y: state.frameViewPanY};
+      const [first, second] = [...active.values()];
+      pinch = {distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)), zoom: state.frameViewZoom, midpoint};
+      state.frameViewGesturePanFrame = errorMarkingCurrentFrame();
+      event.preventDefault();
+      active.forEach((_, id) => { try { wrap.setPointerCapture(id); } catch {} });
+    } else if (state.frameViewPanEnabled && !event.target.closest(".skeleton-landmark")) {
+      pointer = {id: event.pointerId, midpoint: {x:event.clientX,y:event.clientY}, x:state.frameViewPanX, y:state.frameViewPanY};
+      event.preventDefault();
+      wrap.setPointerCapture(event.pointerId);
+    }
+  });
+  wrap.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "touch" && state.frameViewPanGestureActive) return;
+    if (active.has(event.pointerId)) active.set(event.pointerId, {x:event.clientX,y:event.clientY,type:event.pointerType});
+    if (!pointer || (active.size > 1 ? !active.has(event.pointerId) : event.pointerId !== pointer.id)) return;
+    const midpoint = active.size > 1 ? pointerMidpoint(active) : {x:event.clientX,y:event.clientY};
+    if (active.size > 1) {
+      event.preventDefault();
+      const [first, second] = [...active.values()];
+      const distance = Math.max(1, Math.hypot(second.x - first.x, second.y - first.y));
+      if (pinch && pinch.distance > 0) {
+        const rect = wrap.getBoundingClientRect();
+        const nextZoom = Math.max(1, Math.min(4, pinch.zoom * distance / pinch.distance));
+        const ratio = nextZoom / Math.max(.001, pinch.zoom);
+        state.frameViewZoom = nextZoom;
+        if (state.frameViewZoomMode === "auto") state.frameViewAutoZoomOverride = nextZoom;
+        state.frameViewPanX = midpoint.x - (rect.left + rect.width / 2)
+          - (pinch.midpoint.x - (rect.left + rect.width / 2) - pointer.x) * ratio;
+        state.frameViewPanY = midpoint.y - (rect.top + rect.height / 2)
+          - (pinch.midpoint.y - (rect.top + rect.height / 2) - pointer.y) * ratio;
+      } else {
+        state.frameViewPanX = pointer.x + midpoint.x - pointer.midpoint.x;
+        state.frameViewPanY = pointer.y + midpoint.y - pointer.midpoint.y;
+      }
+    } else {
+      state.frameViewPanX = pointer.x + midpoint.x - pointer.midpoint.x;
+      state.frameViewPanY = pointer.y + midpoint.y - pointer.midpoint.y;
+    }
+    updateFrameViewTransform();
+  });
+  const finish = (event) => {
+    active.delete(event.pointerId);
+    if (active.size < 2) pinch = null;
+    if (active.size < 2) state.frameViewPanGestureActive = false;
+    if (active.size < 2 && pointer && pointer.id === event.pointerId) pointer = null;
+    if (!active.size) pointer = null;
+  };
+  wrap.addEventListener("pointerup", finish);
+  wrap.addEventListener("pointercancel", finish);
+  let touchPan = null;
+  wrap.addEventListener("touchstart", (event) => {
+    if (event.touches.length < 2 || !isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) return;
+    event.preventDefault();
+    state.cancelSkeletonLandmarkDrag?.();
+    state.frameViewPanGestureActive = true;
+    state.frameViewGesturePanFrame = errorMarkingCurrentFrame();
+    state.frameViewForceRecenter = false;
+    const midpoint = touchMidpoint(event.touches);
+    const distance = Math.max(1, Math.hypot(event.touches[1].clientX - event.touches[0].clientX, event.touches[1].clientY - event.touches[0].clientY));
+    touchPan = {midpoint, distance, zoom:state.frameViewZoom, x:state.frameViewPanX, y:state.frameViewPanY};
+  }, {passive:false});
+  wrap.addEventListener("touchmove", (event) => {
+    if (!touchPan || event.touches.length < 2) return;
+    event.preventDefault();
+    const midpoint = touchMidpoint(event.touches);
+    const distance = Math.max(1, Math.hypot(event.touches[1].clientX - event.touches[0].clientX, event.touches[1].clientY - event.touches[0].clientY));
+    const nextZoom = Math.max(1, Math.min(4, touchPan.zoom * distance / touchPan.distance));
+    const ratio = nextZoom / Math.max(.001, touchPan.zoom);
+    state.frameViewZoom = nextZoom;
+    if (state.frameViewZoomMode === "auto") state.frameViewAutoZoomOverride = nextZoom;
+    const rect = wrap.getBoundingClientRect();
+    state.frameViewPanX = midpoint.x - (rect.left + rect.width / 2)
+      - (touchPan.midpoint.x - (rect.left + rect.width / 2) - touchPan.x) * ratio;
+    state.frameViewPanY = midpoint.y - (rect.top + rect.height / 2)
+      - (touchPan.midpoint.y - (rect.top + rect.height / 2) - touchPan.y) * ratio;
+    updateFrameViewTransform();
+  }, {passive:false});
+  const finishTouchPan = (event) => {
+    if (event.touches.length < 2) {
+      touchPan = null;
+      state.frameViewPanGestureActive = false;
+    }
+  };
+  wrap.addEventListener("touchend", finishTouchPan, {passive:true});
+  wrap.addEventListener("touchcancel", finishTouchPan, {passive:true});
+}
+
+function activeTouchPointers(points) {
+  return [...points.values()].every((point) => point.type === "touch");
+}
+
+function pointerMidpoint(points) {
+  const values = [...points.values()];
+  if (values.length < 2) return values[0] || {x:0,y:0};
+  return {x:(values[0].x + values[1].x) / 2, y:(values[0].y + values[1].y) / 2};
+}
+
+function touchMidpoint(touches) {
+  return {x:(touches[0].clientX + touches[1].clientX) / 2, y:(touches[0].clientY + touches[1].clientY) / 2};
+}
+
+function placeFrameMobileTools() {
+  const join = document.querySelector(".error-marking-controls-bar .step-buttons-join");
+  const extras = $("frame-mobile-extra-controls");
+  if (!join || !extras) return;
+  const mobile = window.matchMedia("(max-width: 700px)").matches && isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex]);
+  const taskPicker = $("task-picker-label");
+  const taskPickerTarget = mobile ? $("frame-mobile-navigation-controls") : document.querySelector(".progress-card");
+  if (taskPicker && taskPickerTarget && taskPicker.parentElement !== taskPickerTarget) taskPickerTarget.append(taskPicker);
+  const userMenu = $("user-menu");
+  const accountTarget = mobile ? $("frame-mobile-account-controls") : document.querySelector("header .navbar-end");
+  if (userMenu && accountTarget && userMenu.parentElement !== accountTarget) accountTarget.append(userMenu);
+  const mobileOrder = ["error-marking-skip-start", "error-marking-step-back-5", "error-marking-replay-backwards", "error-marking-fps-select", "error-marking-step-forward-5"];
+  mobileOrder.forEach((id) => {
+    const control = $(id);
+    if (mobile && control.parentElement !== extras) extras.append(control);
+  });
+  if (!mobile) ["error-marking-skip-start", "error-marking-step-back-5", "error-marking-step-back-1", "error-marking-replay-backwards", "error-marking-fps-select", "error-marking-replay", "error-marking-step-forward-1", "error-marking-step-forward-5"].forEach((id) => join.append($(id)));
 }
 
 function stepErrorMarkingVideo(deltaFrames) {
@@ -738,6 +1137,7 @@ function stepErrorMarkingVideo(deltaFrames) {
   const maxFrame = Math.max(frameCount - 1, 0);
   video.pause();
   const targetFrame = Math.max(0, Math.min(maxFrame, errorMarkingCurrentFrame() + deltaFrames));
+  state.frameViewForceRecenter = true;
   setErrorMarkingFrame(targetFrame);
   video.currentTime = frameToTime(targetFrame);
   updateErrorMarkingFrameIndicator(targetFrame);
@@ -924,6 +1324,14 @@ function markPointColor(mark) {
 
 function timelineRowGroups() {
   if (isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return [];
+  if (isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) {
+    const names = state.errorMarkingLandmarks?.landmarks || [];
+    const parts = names.filter((id) => !LEG_LANDMARKS.has(id)).map((id) => ({id, label: bodyPartLabel(id)}));
+    const known = new Set(names);
+    errorListArray("body_part").filter((part) => !LEG_LANDMARKS.has(part.id) && !known.has(part.id)).forEach((part) => parts.push(part));
+    [...new Set(state.errorMarks.map((mark) => mark.body_part))].filter((id) => !LEG_LANDMARKS.has(id) && !parts.some((part) => part.id === id)).forEach((id) => parts.push({id, label: bodyPartLabel(id)}));
+    return parts.map((part) => ({part, indices: state.errorMarks.map((_, index) => index).filter((index) => state.errorMarks[index].body_part === part.id)}));
+  }
   const groups = errorListArray("body_part")
     .map((part) => ({part, indices: state.errorMarks.map((_, index) => index).filter((index) => state.errorMarks[index].body_part === part.id)}));
   const knownIds = new Set(groups.map((group) => group.part.id));
@@ -957,12 +1365,12 @@ function badFrameRanges() {
   const ranges = [];
   frames.forEach((frame) => {
     const previous = ranges[ranges.length - 1];
-    // A manual confirmation takes precedence visually over the automatic
-    // baseline, so the timeline turns red when the annotator double-confirms
-    // an automatically detected frame.
+    // Explicit frame labels define the manual severity; missing-pose cues stay
+    // separately patterned unless the annotator overrides them.
     const automatic = automaticFrames.has(frame) && !manuallyConfirmedFrames.has(frame);
-    if (previous && frame <= previous.end + 1 && previous.automatic === automatic) previous.end = frame;
-    else ranges.push({start: frame, end: frame, automatic});
+    const rating = automatic ? "unusable" : state.frameUsabilityLabels[String(frame)] || "unusable";
+    if (previous && frame <= previous.end + 1 && previous.automatic === automatic && previous.rating === rating) previous.end = frame;
+    else ranges.push({start: frame, end: frame, automatic, rating});
   });
   return ranges;
 }
@@ -971,9 +1379,10 @@ function renderBadFrameSegment(range, frameCount) {
   const left = Math.min((range.start / frameCount) * 100, 100);
   const width = Math.max(((range.end - range.start + 1) / frameCount) * 100, 1.5);
   const current = errorMarkingCurrentFrame() >= range.start && errorMarkingCurrentFrame() <= range.end;
-  const label = range.start === range.end ? `Unusable frame ${range.start}` : `Unusable frames ${range.start} through ${range.end}`;
-  const title = range.automatic ? `${label} (missing tracking data)` : `${label} (marked manually)`;
-  return `<button type="button" class="timeline-bad-frame${current ? " timeline-bad-frame-current" : ""}${range.automatic ? " timeline-bad-frame-auto" : ""}" data-bad-frame-start="${range.start}" data-bad-frame-end="${range.end}" style="left:${left}%;width:${width}%" aria-label="${label}" title="${title}"></button>`;
+  const severity = range.rating === "flawed" ? "Flawed" : "Unusable";
+  const label = range.start === range.end ? `${severity} frame ${range.start}` : `${severity} frames ${range.start} through ${range.end}`;
+  const title = range.automatic ? `${label} (automatic: missing pose)` : `${label} (marked manually)`;
+  return `<button type="button" class="timeline-bad-frame timeline-bad-frame-${range.rating}${current ? " timeline-bad-frame-current" : ""}${range.automatic ? " timeline-bad-frame-auto" : ""}" data-bad-frame-start="${range.start}" data-bad-frame-end="${range.end}" style="left:${left}%;width:${width}%" aria-label="${label}" title="${title}"></button>`;
 }
 
 function updateTimelineSegmentPosition(index) {
@@ -987,14 +1396,23 @@ function updateTimelineSegmentPosition(index) {
   segment.title = timelineSegmentTitle(mark);
 }
 
-function renderErrorMarkingLegend() {
+function renderErrorMarkingLegend(includeFrameStates = true) {
   const causes = errorListArray("cause");
   const swatch = (color, label) => `<span class="timeline-legend-item"><span class="timeline-legend-swatch" style="background:${color}"></span>${label}</span>`;
-  return `<div class="timeline-legend">${swatch("#b3261e", "Manual whole-frame unusable")}${swatch("#b3261e66", "Automatic: missing tracking")}${swatch(UNSET_CAUSE_COLOR, "No cause set")}${causes.map((cause) => swatch(causeColor(cause.id), cause.label)).join("")}</div>`;
+  const frameStates = includeFrameStates
+    ? `${swatch("var(--correctable-yellow)", "Manual whole-frame flawed")}${swatch("var(--unusable-red)", "Manual whole-frame unusable")}${swatch("repeating-linear-gradient(135deg, #b3261e66 0, #b3261e66 5px, #b3261e30 5px, #b3261e30 9px)", "Automatic: missing pose")}`
+    : "";
+  return `<div class="timeline-legend">${frameStates}${swatch(UNSET_CAUSE_COLOR, "No cause set")}${causes.map((cause) => swatch(causeColor(cause.id), cause.label)).join("")}</div>`;
 }
 
 function renderErrorMarkingTimeline() {
   const container = $("error-marking-timeline");
+  if (isVideoRatingOnlyTask(state.data?.tasks?.[state.taskIndex])) {
+    container.innerHTML = `<input id="error-marking-scrubber" class="timeline-scrubber video-rating-scrubber" type="range" min="0" max="${Math.max(errorMarkingFrameCount() - 1, 0)}" step="1" value="${errorMarkingCurrentFrame()}" aria-label="Video frame scrubber">`;
+    attachTimelineHandlers();
+    return;
+  }
+  const frameTask = isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex]);
   const groups = timelineRowGroups();
   const frameCount = Math.max(errorMarkingFrameCount() - 1, 1);
   const minTrackWidth = Math.max(1, errorMarkingFrameCount()) * MIN_TIMELINE_PX_PER_FRAME;
@@ -1038,7 +1456,9 @@ function renderErrorMarkingTimeline() {
         <div class="timeline-scroll-inner grid grid-rows-subgrid row-start-1" style="grid-row-end:span ${rowCount};min-width:${minTrackWidth}px">${scrubberRowHTML}${trackCells}<div class="timeline-playhead" style="left:${timelinePlayheadLeftPercent()}%"></div></div>
       </div>
     </div>
-    <div class="timeline-footer mt-2 flex items-center gap-2">${footerHTML}</div>` + renderErrorMarkingLegend();
+    <div class="timeline-footer mt-2 flex items-center gap-2">${footerHTML}</div>` + (frameTask
+      ? `<div class="timeline-legend"><span>Yellow: manually marked flawed</span><span>Red: manually marked unusable</span><span>Dashed red: automatic missing pose</span></div>${renderErrorMarkingLegend(false)}`
+      : renderErrorMarkingLegend());
   attachTimelineHandlers();
   if (state.addingBodyPartEntry) $("timeline-add-body-part-input")?.focus();
 }
@@ -1108,6 +1528,15 @@ function attachTimelineHandlers() {
     if (badFrame) {
       const start = Number(badFrame.dataset.badFrameStart);
       const end = Number(badFrame.dataset.badFrameEnd);
+      if (isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) {
+        stopErrorMarkingReplay();
+        errorMarkingVideo().pause();
+        setErrorMarkingFrame(start);
+        state.frameViewForceRecenter = true;
+        errorMarkingVideo().currentTime = frameToTime(start);
+        updateErrorMarkingFrameIndicator(start);
+        return;
+      }
       if (start === end) toggleBadFrame(start);
       else toggleBadFrameRange(start, end);
       return;
@@ -1120,6 +1549,7 @@ function attachTimelineHandlers() {
     if (event.target.id !== "error-marking-scrubber") return;
     stopErrorMarkingReplay();
     const frame = Number(event.target.value);
+    state.frameViewForceRecenter = true;
     errorMarkingVideo().pause();
     setErrorMarkingFrame(frame);
     errorMarkingVideo().currentTime = frameToTime(frame);
@@ -1179,6 +1609,7 @@ function startTimelineHandleDrag(event, handleEl) {
   function onUp() {
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onCancel);
     if (dragged) {
       mergeTouchingErrorMarks(state.errorMarks[index]);
       renderErrorMarkingTimeline();
@@ -1315,15 +1746,20 @@ function openErrorMarkPopup(index) {
 // tap opens the detail popup, drag corrects a position -- adapted to a
 // per-frame video instead of one static image.
 
-async function loadErrorMarkingLandmarks(task) {
-  if (state.errorMarkingLandmarksTaskId === task.task_id) { renderSkeletonOverlay(); return; }
+async function loadErrorMarkingLandmarks(task, retry = false) {
+  if (!retry && state.errorMarkingLandmarksTaskId === task.task_id) { renderSkeletonOverlay(); return; }
   state.errorMarkingLandmarks = null;
   state.errorMarkingLandmarksTaskId = task.task_id;
+  state.errorMarkingLandmarksStatus = "loading";
+  const statusMessage = $("frame-landmark-load-status");
+  if (statusMessage && isFrameUsabilityTask(task)) { statusMessage.hidden = false; statusMessage.textContent = "Loading pose data for automatic missing-pose marks…"; }
   if (!task.landmarks_artifact) {
-    refreshAutomaticBadFrames({frames: []}, task);
+    if (!isVideoRatingOnlyTask(task)) { refreshAutomaticBadFrames({frames: []}, task); if (isFrameUsabilityTask(task)) updateFrameUsabilityControls(); }
+    state.errorMarkingLandmarksStatus = isFrameUsabilityTask(task) ? "absent" : "loaded";
+    if (statusMessage && isFrameUsabilityTask(task)) statusMessage.textContent = "No landmark artifact is available; every frame is marked automatically as missing pose.";
     renderErrorMarkingTimeline();
     updateErrorMarkingFrameIndicator();
-    scheduleSave("started");
+    if (!isVideoRatingOnlyTask(task) && !isFrameUsabilityTask(task)) scheduleSave("started");
     renderSkeletonOverlay();
     return;
   }
@@ -1332,13 +1768,24 @@ async function loadErrorMarkingLandmarks(task) {
     const data = await responseJson(response);
     if (state.data.tasks[state.taskIndex]?.task_id === task.task_id) {
       state.errorMarkingLandmarks = data;
-      if (refreshAutomaticBadFrames(data, task)) {
+      state.errorMarkingLandmarksStatus = "loaded";
+      if (statusMessage) statusMessage.hidden = true;
+      if (!isVideoRatingOnlyTask(task) && refreshAutomaticBadFrames(data, task)) {
+        if (isFrameUsabilityTask(task)) updateFrameUsabilityControls();
         renderErrorMarkingTimeline();
         updateErrorMarkingFrameIndicator();
-        scheduleSave("started");
+        if (!isFrameUsabilityTask(task)) scheduleSave("started");
       }
+      if (isFrameUsabilityTask(task)) renderErrorMarkingTimeline();
     }
-  } catch (error) { /* no overlay for this clip; video still works on its own */ }
+  } catch (error) {
+    if (state.data.tasks[state.taskIndex]?.task_id !== task.task_id) return;
+    state.errorMarkingLandmarksStatus = "failed";
+    if (statusMessage && isFrameUsabilityTask(task)) {
+      statusMessage.hidden = false;
+      statusMessage.textContent = `Could not load pose data for automatic missing-pose marks: ${error.message || error}. Retry completion or skip this case.`;
+    }
+  }
   renderSkeletonOverlay();
 }
 
@@ -1348,6 +1795,7 @@ async function loadErrorMarkingLandmarks(task) {
 function skeletonFrameLandmarks(frame) {
   const data = state.errorMarkingLandmarks;
   if (!data || !data.frames[frame]) return {};
+  if (isVideoRatingOnlyTask(state.data?.tasks?.[state.taskIndex])) return data.frames[frame];
   const effective = {...data.frames[frame]};
   state.errorMarks.forEach((mark) => {
     if (frame < mark.start_frame || frame > mark.end_frame) return;
@@ -1372,6 +1820,9 @@ const SKELETON_UNUSABLE_COLOR = "#b3261e";
 // this amount, keeping source coordinates aligned exactly and making modestly
 // out-of-frame estimates visible and draggable.
 const ERROR_MARKING_CANVAS_BUFFER_RATIO = .08;
+function errorMarkingCanvasBufferRatio() {
+  return ERROR_MARKING_CANVAS_BUFFER_RATIO;
+}
 // The original (pre-correction) position of a landmark an annotator has
 // moved, rendered as a deemphasized "ghost" of the incorrect estimate it
 // replaced -- distinct from CAUSE_COLOR_PALETTE/UNSET_CAUSE_COLOR, which
@@ -1420,8 +1871,12 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
   const {width, height} = data.source_dimensions;
   const points = skeletonFrameLandmarks(frame);
   const original = data.frames[frame] || {};
-  const unusable = (state.errorMarkingBadFrames || []).includes(frame) || (state.errorMarkingAutoBadFrames || []).includes(frame);
-  const skeletonColor = unusable ? SKELETON_UNUSABLE_COLOR : TRACKED_SKELETON_COLOR;
+  const frameTask = isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex]);
+  const legacyBad = !isVideoRatingOnlyTask(state.data?.tasks?.[state.taskIndex]) && !frameTask && isBadFrame(frame);
+  const rating = frameTask ? frameUsabilityRating(frame) : null;
+  const skeletonColor = rating === "unusable" || legacyBad
+    ? SKELETON_UNUSABLE_COLOR
+    : rating === "flawed" ? "var(--marginal-orange)" : TRACKED_SKELETON_COLOR;
   const clampX = (x) => Math.min(Math.max(x, -width * .3), width * 1.3);
   const clampY = (y) => Math.min(Math.max(y, -height * .3), height * 1.3);
   const changed = Object.fromEntries(
@@ -1436,12 +1891,13 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
   const showCorrectionGhosts = state.errorMarkingReplayDirection == null;
   const previousPoints = showCorrectionGhosts ? skeletonFrameLandmarks(frame - 1) : {};
   const guidedLandmarks = new Set((data.landmarks || []).filter((landmark) => changed[landmark] && previousPoints[landmark]));
-  const previousFrameGhostPointHTML = [...guidedLandmarks].map((landmark) => {
+  const previousFrameGhostPointHTML = [...guidedLandmarks].filter((landmark) => !isOutOfScopeLeg(landmark)).map((landmark) => {
     const point = previousPoints[landmark];
     return `<circle class="skeleton-previous-frame-landmark-ghost" data-landmark="${landmark}"` +
       ` cx="${clampX(point[0])}" cy="${clampY(point[1])}" r="8" fill="none" stroke="${SKELETON_PREVIOUS_FRAME_GHOST_COLOR}"></circle>`;
   }).join("");
   const previousFrameGhostEdgesHTML = (data.pose_edges || []).map(([a, b]) => {
+    if (isOutOfScopeLeg(a) || isOutOfScopeLeg(b)) return "";
     if (!guidedLandmarks.has(a) && !guidedLandmarks.has(b)) return "";
     const pa = previousPoints[a], pb = previousPoints[b];
     if (!pa || !pb) return "";
@@ -1451,17 +1907,20 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
   }).join("");
 
   const ghostEdgesHTML = (data.pose_edges || []).map(([a, b]) => {
+    if (isOutOfScopeLeg(a) || isOutOfScopeLeg(b)) return "";
     if (!showCorrectionGhosts || (!changed[a] && !changed[b])) return "";
     const pa = original[a], pb = original[b];
     if (!pa || !pb) return "";
     return `<line class="skeleton-edge-ghost" x1="${clampX(pa[0])}" y1="${clampY(pa[1])}" x2="${clampX(pb[0])}" y2="${clampY(pb[1])}" stroke="${SKELETON_GHOST_COLOR}"></line>`;
   }).join("");
   const ghostPointsHTML = (data.landmarks || []).filter((landmark) => showCorrectionGhosts && changed[landmark]).map((landmark) => {
+    if (isOutOfScopeLeg(landmark)) return "";
     const point = original[landmark];
     return `<circle class="skeleton-landmark-ghost" cx="${clampX(point[0])}" cy="${clampY(point[1])}" r="6" fill="${SKELETON_GHOST_COLOR}"></circle>`;
   }).join("");
 
   const edgesHTML = (data.pose_edges || []).map(([a, b]) => {
+    if (isOutOfScopeLeg(a) || isOutOfScopeLeg(b)) return "";
     const pa = points[a], pb = points[b];
     if (!pa || !pb) return "";
     const causeHalo = skeletonLandmarkCauseColor(a, frame, changed[a]) || skeletonLandmarkCauseColor(b, frame, changed[b]);
@@ -1471,6 +1930,7 @@ function skeletonOverlayMarkup(data, frame, highlight = null) {
   }).join("");
 
   const pointsHTML = (data.landmarks || []).map((landmark) => {
+    if (isOutOfScopeLeg(landmark)) return "";
     const point = points[landmark];
     if (!point) return "";
     const mark = markForPartAtFrame(landmark, frame);
@@ -1492,14 +1952,14 @@ function renderOverlayInto(svg, data, frame, highlight = null) {
   if (!svg) return;
   if (!data) { svg.innerHTML = ""; return; }
   const {width, height, innerHTML} = skeletonOverlayMarkup(data, frame, highlight);
-  const bufferRatio = svg.id === "error-marking-overlay" ? ERROR_MARKING_CANVAS_BUFFER_RATIO : 0;
+  const bufferRatio = svg.id === "error-marking-overlay" ? errorMarkingCanvasBufferRatio() : 0;
   const bufferX = width * bufferRatio, bufferY = height * bufferRatio;
   svg.setAttribute("viewBox", `${-bufferX} ${-bufferY} ${width + 2 * bufferX} ${height + 2 * bufferY}`);
   svg.innerHTML = innerHTML;
 }
 
 function renderSkeletonOverlay(frame = errorMarkingCurrentFrame()) {
-  if (isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) {
+  if (isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex]) && !isVideoRatingOnlyTask(state.data?.tasks?.[state.taskIndex])) {
     $("error-marking-overlay").innerHTML = "";
     renderErrorMarkDialogOverlay();
     return;
@@ -1540,7 +2000,7 @@ function svgToContentPoint(svg, clientX, clientY) {
 const SKELETON_DRAG_THRESHOLD = 3;
 
 function startSkeletonLandmarkDrag(event, landmark) {
-  if (state.errorMarkingVideoUnusable || isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return;
+  if (state.frameViewPanGestureActive || isOutOfScopeLeg(landmark) || state.errorMarkingVideoUnusable || isVideoUsabilityTriageTask(state.data?.tasks?.[state.taskIndex])) return;
   event.preventDefault();
   const svg = $("error-marking-overlay");
   const data = state.errorMarkingLandmarks;
@@ -1568,22 +2028,46 @@ function startSkeletonLandmarkDrag(event, landmark) {
     if (upEvent.pointerId !== pointerId) return;
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
-    svg.releasePointerCapture?.(pointerId);
+    window.removeEventListener("pointercancel", onCancel);
+    try { svg.releasePointerCapture?.(pointerId); } catch {}
     const mark = ensureMarkAtFrame(landmark, frame);
-    if (moved && state.skeletonDragPosition) {
+    const finalPoint = moved ? svgToContentPoint(svg, upEvent.clientX, upEvent.clientY) : null;
+    const positionChanged = Boolean(startPoint && finalPoint && Math.hypot(finalPoint.x - startPoint[0], finalPoint.y - startPoint[1]) > .1);
+    if (positionChanged) {
       mark.positions = mark.positions || {};
-      mark.positions[String(frame)] = state.skeletonDragPosition;
+      mark.positions[String(frame)] = [finalPoint.x, finalPoint.y];
+      if (isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex]) && frameUsabilityRating(frame) !== "unusable") {
+        state.frameUsabilityLabels[String(frame)] = "flawed";
+      }
     }
     state.skeletonDragLandmark = null;
     state.skeletonDragPosition = null;
+    if (isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex]) && moved && frameUsabilityRating(frame) === "flawed") {
+      updateBadFrameControls(frame);
+    }
     renderErrorMarkingTimeline();
     renderSkeletonOverlay();
     scheduleSave("started");
     if (!moved) openErrorMarkPopup(state.errorMarks.indexOf(mark));
+    state.cancelSkeletonLandmarkDrag = null;
+  }
+
+  function onCancel(cancelEvent) {
+    if (cancelEvent.pointerId !== pointerId) return;
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onCancel);
+    try { svg.releasePointerCapture?.(pointerId); } catch {}
+    state.skeletonDragLandmark = null;
+    state.skeletonDragPosition = null;
+    state.cancelSkeletonLandmarkDrag = null;
+    renderSkeletonOverlay();
   }
 
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onCancel);
+  state.cancelSkeletonLandmarkDrag = () => onCancel({pointerId});
 }
 
 function attachSkeletonOverlayHandlers() {
@@ -1602,23 +2086,70 @@ function renderErrorMarkingTask(task, judgment) {
   pauseTemporalVideos();
   hideAllScreens();
   $("error-marking-screen").hidden = false;
-  $("error-marking-title").textContent = isVideoUsabilityTriageTask(task) ? "Assess video usability" : "Mark tracking errors";
+  const videoRatingOnly = isVideoRatingOnlyTask(task);
+  const frameTask = isFrameUsabilityTask(task);
+  document.body.classList.toggle("frame-usability-task-active", frameTask);
+  $("frame-mobile-bar").hidden = !frameTask || !window.matchMedia("(max-width: 700px)").matches;
+  $("frame-mobile-details").open = !frameTask || !window.matchMedia("(max-width: 700px)").matches;
+  state.frameViewZoomMode = frameTask && window.matchMedia("(max-width: 700px)").matches ? "auto" : "manual";
+  state.frameViewAutoZoomOverride = null;
+  state.frameViewZoom = 1;
+  state.frameViewMobileMode = frameTask && window.matchMedia("(max-width: 700px)").matches;
+  state.frameViewPanX = 0;
+  state.frameViewPanY = 0;
+  state.frameViewPanEnabled = false;
+  state.frameViewLastFollowFrame = null;
+  state.frameViewGesturePanFrame = null;
+  state.frameViewPanGestureActive = false;
+  state.frameViewForceRecenter = false;
+  $("frame-mobile-zoom").value = state.frameViewZoomMode === "auto" ? "auto" : "1";
+  $("frame-mobile-pan").setAttribute("aria-pressed", "false");
+  $("frame-mobile-pan").textContent = "Enable pan";
+  $("frame-mobile-pan").setAttribute("aria-label", "Enable video panning");
+  $("frame-mobile-timeline").setAttribute("aria-expanded", "false");
+  $("frame-mobile-timeline").textContent = "Show timeline and notes";
+  $("frame-mobile-timeline").setAttribute("aria-label", "Show timeline and notes");
+  $("give-up-video").hidden = !frameTask;
+  state.errorMarkingLandmarksStatus = "idle";
+  $("frame-landmark-load-status").hidden = true;
+  $("error-marking-title").textContent = frameTask ? "Rate frames and mark landmark errors" : videoRatingOnly ? "Rate visible pose tracking" : isVideoUsabilityTriageTask(task) ? "Assess video usability" : "Mark tracking errors";
+  $("error-marking-frame-usability-row").hidden = videoRatingOnly || isVideoUsabilityTriageTask(task);
+  $("error-marking-frame-usability-toggle").classList.toggle("legacy-frame-usability", !frameTask);
+  $("error-marking-usability-rating").hidden = frameTask;
+  $("error-marking-usability-rating").querySelector("legend").textContent = videoRatingOnly ? "Overall pose-tracking accuracy (required)" : "Overall video usability (required)";
+  $("error-marking-usability-toggle").setAttribute("aria-label", videoRatingOnly ? "Overall pose-tracking accuracy" : "Overall video usability");
+  $("error-marking-video-unusable-reason-label").textContent = videoRatingOnly ? "Why is the pose tracking unusable?" : "Why is the video unusable?";
+  $("error-marking-video-unusable-reason").placeholder = videoRatingOnly ? "No person or assessable pose, or tracking too inaccurate?" : "Why should this video be excluded?";
+  $("error-marking-note").placeholder = frameTask ? "Optional note about this clip" : videoRatingOnly ? "Optional: note tracking errors or a separate reason the video may be unsuitable for movement analysis." : "Anything else worth noting";
+  const ratingDescriptions = videoRatingOnly ? POSE_TRACKING_DESCRIPTIONS : VIDEO_USABILITY_DESCRIPTIONS;
+  $("error-marking-usability-toggle").querySelectorAll(".video-usability-option").forEach((option) => {
+    const rating = option.dataset.segmentValue;
+    option.title = `${rating[0].toUpperCase()}${rating.slice(1)} — ${ratingDescriptions[rating]}`;
+    option.querySelector(".sr-only").textContent = `${rating[0].toUpperCase()}${rating.slice(1)}. ${ratingDescriptions[rating]}`;
+  });
   $("actions").hidden = false;
   $("mark-unclear").hidden = true;
 
   const video = errorMarkingVideo();
   video.pause();
-  video.style.transform = `scale(${1 / (1 + 2 * ERROR_MARKING_CANVAS_BUFFER_RATIO)})`;
   video.src = `/artifacts/${task.source_artifact}`;
   video.load();
   video.ontimeupdate = () => {
     setErrorMarkingFrame(Math.floor(video.currentTime * errorMarkingFps()));
     updateErrorMarkingFrameIndicator();
   };
+  video.onseeked = () => updateErrorMarkingFrameIndicator();
   video.onloadedmetadata = () => {
+    if (frameTask) {
+      setErrorMarkingFrame(initialFrame);
+      video.currentTime = frameToTime(initialFrame);
+      updateErrorMarkingFrameIndicator(initialFrame);
+    }
     updateErrorMarkingFrameIndicator();
     renderErrorMarkingTimeline();
+    updateFrameViewTransform();
   };
+  video.onloadeddata = updateFrameViewTransform;
 
   const response = judgment?.error_marking_response || {};
   state.errorMarks = structuredClone(response.marks || []).map((mark) => ({causes: [], note: "", positions: {}, ...mark}));
@@ -1633,13 +2164,20 @@ function renderErrorMarkingTask(task, judgment) {
   state.errorMarkingVideoUsabilityRating = response.video_usability_rating || (state.errorMarkingVideoUnusable ? "unusable" : "");
   state.errorMarkingVideoUnusableReason = response.note || response.video_unusable_reason || "";
   state.errorMarkingNoErrorsConfirmed = Boolean(response.no_errors_found);
+  const frameResponse = judgment?.frame_usability_response || {};
+  state.frameUsabilityLabels = frameTask ? structuredClone(frameResponse.labels || {}) : {};
+  state.frameVideoDisposition = frameTask ? (frameResponse.video_usability_rating_override || null) : null;
+  setGiveUpButtonState();
+  if (frameTask) state.errorMarks = structuredClone(frameResponse.marks || []).map((mark) => ({causes: [], note: "", positions: {}, ...mark}));
+  if (frameTask) { state.errorMarkingBadFrames = Object.entries(state.frameUsabilityLabels).filter(([, label]) => label === "flawed" || label === "unusable").map(([number]) => Number(number)); state.errorMarkingUsableFrames = Object.entries(state.frameUsabilityLabels).filter(([, label]) => label === "good").map(([number]) => Number(number)); }
   state.errorMarkingDirty = false;
   state.editingBodyParts = false;
   state.addingBodyPartEntry = false;
   state.selectedSkeletonLandmark = null;
   state.skeletonDragLandmark = null;
   state.skeletonDragPosition = null;
-  setErrorMarkingFrame(0);
+  const initialFrame = frameTask ? rememberedFrame(task, frameResponse.last_viewed_frame) : 0;
+  setErrorMarkingFrame(initialFrame);
   // Called before the renders below (not after) so its synchronous prefix --
   // clearing state.errorMarkingLandmarks and updating
   // state.errorMarkingLandmarksTaskId -- has already run by the time they
@@ -1647,15 +2185,25 @@ function renderErrorMarkingTask(task, judgment) {
   // render against this task's now-reset frame indicator.
   loadErrorMarkingLandmarks(task);
   attachSkeletonOverlayHandlers();
+  attachFramePanHandlers();
+  updateFrameViewTransform();
+  placeFrameMobileTools();
+  const giveUp = $("give-up-video");
+  const giveUpProxy = $("frame-mobile-give-up");
+  if (giveUpProxy) giveUpProxy.textContent = giveUp?.textContent === "Undo" ? "Undo give up" : "Give up on video";
+  const timelineDetails = $("frame-mobile-details");
+  const noteField = $("error-marking-note").closest("fieldset");
+  if (timelineDetails && noteField && noteField.parentElement !== timelineDetails) timelineDetails.append(noteField);
   renderErrorMarkingTimeline();
   updateErrorMarkingFrameIndicator();
   updateVideoUnusableControls();
-  $("error-marking-note").value = state.errorMarkingVideoUnusableReason;
-  $("error-marking-note").oninput = syncErrorMarkingNote;
+  updateFrameMobileControls();
+  $("error-marking-note").value = frameTask ? (frameResponse.note || "") : state.errorMarkingVideoUnusableReason;
+  $("error-marking-note").oninput = frameTask ? () => scheduleSave("started") : syncErrorMarkingNote;
 }
 
 function errorMarkingResponsePayload() {
-  const badFrames = allBadFrameNumbers();
+  const badFrames = isVideoRatingOnlyTask(state.data?.tasks?.[state.taskIndex]) ? state.errorMarkingBadFrames : allBadFrameNumbers();
   const videoUnusable = state.errorMarkingVideoUnusable;
   const note = $("error-marking-note").value.trim();
   return {
@@ -1665,7 +2213,7 @@ function errorMarkingResponsePayload() {
     video_unusable: videoUnusable,
     video_unusable_reason: videoUnusable ? note : "",
     video_usability_rating: state.errorMarkingVideoUsabilityRating,
-    no_errors_found: !videoUnusable && state.errorMarks.length === 0 && badFrames.length === 0 && Boolean(state.errorMarkingNoErrorsConfirmed),
+    no_errors_found: !isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex]) && !videoUnusable && state.errorMarks.length === 0 && badFrames.length === 0 && Boolean(state.errorMarkingNoErrorsConfirmed),
     note,
   };
 }
@@ -1950,6 +2498,7 @@ function configureCanvas() {
 function zoomImage(src, alt) { $("dialog-image").src = src; $("dialog-image").alt = alt; $("image-dialog").showModal(); }
 function render() {
   const task = state.data.tasks[state.taskIndex], judgment = latest(task), progress = state.data.progress;
+  $("give-up-video").hidden = true;
   $("progress").textContent = `${progress.completed} / ${progress.total} Completed`;
   $("task-picker").innerHTML = state.data.tasks.map((item, index) => `<option value="${index}" ${index === state.taskIndex ? "selected" : ""}>Case ${index + 1}: ${taskStatus(item).replace(/^./, (letter) => letter.toUpperCase())}</option>`).join("");
   if (isTemporalTask(task)) {
@@ -1998,6 +2547,14 @@ function render() {
 
 function payload(status) {
   const task = state.data.tasks[state.taskIndex];
+  if (isFrameUsabilityTask(task)) {
+    const count = Number(task.frame_count);
+    return {
+      annotator: state.annotator, task_id: task.task_id, status,
+      frame_usability_response: {labels: state.frameUsabilityLabels, automatic_missing_pose_frames: state.errorMarkingAutoBadFrames, marks: state.errorMarks, note: $("error-marking-note").value.trim(), video_usability_rating_override: state.frameVideoDisposition, last_viewed_frame: errorMarkingCurrentFrame()},
+      tier_assignments: {},
+    };
+  }
   if (isTemporalTask(task)) {
     const temporalResponse = temporalResponsePayload();
     if (status === "completed" && !temporalResponse.choice) {
@@ -2033,9 +2590,9 @@ function payload(status) {
       throw new Error("Choose an overall video usability rating before completing this case.");
     }
     if (status === "completed" && errorMarkingResponse.video_unusable && !errorMarkingResponse.video_unusable_reason) {
-      throw new Error("Explain why this entire video is too flawed to annotate.");
+      throw new Error(isVideoRatingOnlyTask(task) ? "Explain why this video is unusable." : "Explain why this entire video is too flawed to annotate.");
     }
-    if (status === "completed" && !errorMarkingResponse.video_unusable && !errorMarkingResponse.marks.length && !errorMarkingResponse.bad_frames.length && !errorMarkingResponse.usable_frames.length && !errorMarkingResponse.no_errors_found) {
+    if (status === "completed" && !isVideoRatingOnlyTask(task) && !isFrameUsabilityTask(task) && !errorMarkingResponse.video_unusable && !errorMarkingResponse.marks.length && !errorMarkingResponse.bad_frames.length && !errorMarkingResponse.usable_frames.length && !errorMarkingResponse.no_errors_found) {
       throw new Error('Add at least one error mark, flag an unusable frame, mark the video as too flawed, or check "No errors observed in this clip."');
     }
     return {
@@ -2142,19 +2699,32 @@ function flashFrameUsabilityToggle() {
 }
 attachSegmentedControlHandlers();
 $("error-marking-video-unusable-reason").oninput = syncErrorMarkingNote;
+function setGiveUpButtonState() {
+  const undo = state.frameVideoDisposition === "unusable";
+  $("give-up-video").textContent = undo ? "Undo" : "Give up";
+  $("give-up-video").setAttribute("aria-label", undo ? "Undo give up and resume annotation" : "Give up on video");
+  $("give-up-video").title = undo ? "Clear the unusable override and resume this video" : "Mark this video unusable and finish this task";
+}
 document.querySelectorAll(".actions button[data-status]").forEach((button) => button.onclick = async () => {
   const task = state.data?.tasks?.[state.taskIndex];
-  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && state.errorMarkingVideoUnusable && !state.errorMarkingVideoUnusableReason.trim()) {
-    alert("Explain why this entire video is too flawed to annotate.");
+  if (button.dataset.status === "completed" && isFrameUsabilityTask(task) && !["loaded", "absent"].includes(state.errorMarkingLandmarksStatus)) {
+    if (state.errorMarkingLandmarksStatus === "failed") await loadErrorMarkingLandmarks(task, true);
+    if (!["loaded", "absent"].includes(state.errorMarkingLandmarksStatus)) {
+      alert("Pose data must load before completing this case so automatic missing-pose marks are included. You can retry or skip the case.");
+      return;
+    }
+  }
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !isFrameUsabilityTask(task) && state.errorMarkingVideoUnusable && !state.errorMarkingVideoUnusableReason.trim()) {
+    alert(isVideoRatingOnlyTask(task) ? "Explain why this video is unusable." : "Explain why this entire video is too flawed to annotate.");
     $("error-marking-video-unusable-reason")?.focus();
     return;
   }
-  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarkingVideoUsabilityRating) {
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !isFrameUsabilityTask(task) && !state.errorMarkingVideoUsabilityRating) {
     alert("Choose an overall video usability rating before completing this case.");
     $("error-marking-usability-rating")?.scrollIntoView({behavior: "smooth", block: "center"});
     return;
   }
-  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !state.errorMarkingVideoUnusable && !state.errorMarks.length && !allBadFrameNumbers().length && !state.errorMarkingUsableFrames.length) {
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !isVideoRatingOnlyTask(task) && !isFrameUsabilityTask(task) && !state.errorMarkingVideoUnusable && !state.errorMarks.length && !allBadFrameNumbers().length && !state.errorMarkingUsableFrames.length) {
     if (!confirm("No errors or unusable frames were marked for this clip. Complete it as “no errors observed”?")) return;
     state.errorMarkingNoErrorsConfirmed = true;
   }
@@ -2162,12 +2732,41 @@ document.querySelectorAll(".actions button[data-status]").forEach((button) => bu
   // look at -- state.errorMarkingDirty tracks edits since the last time this
   // dialog was shown (see scheduleSave() and openErrorMarkingReviewDialog()),
   // not just since the task loaded.
-  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && state.errorMarkingDirty) {
+  if (button.dataset.status === "completed" && task && isErrorMarkingTask(task) && !isVideoRatingOnlyTask(task) && !isFrameUsabilityTask(task) && state.errorMarkingDirty) {
     openErrorMarkingReviewDialog();
     return;
   }
+  if (button.dataset.status === "completed" && isFrameUsabilityTask(task)) {
+    state.frameVideoDisposition = null;
+    setGiveUpButtonState();
+  }
   await submitStatusAndAdvance(button.dataset.status);
 });
+$("give-up-video").onclick = async () => {
+  if (!isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) return;
+  if (state.frameVideoDisposition === "unusable") {
+    state.frameVideoDisposition = null;
+    setGiveUpButtonState();
+    lockInteraction(true);
+    try {
+      if (!(await flushPendingSave())) return;
+      const saved = await save("started");
+      if (saved) {
+        await refresh(false);
+        render();
+      }
+    } catch (error) {
+      $("save-state").textContent = "could not resume";
+      alert(`Could not clear the unusable override: ${error.message || error}`);
+    } finally {
+      lockInteraction(false);
+    }
+    return;
+  }
+  state.frameVideoDisposition = "unusable";
+  setGiveUpButtonState();
+  await submitStatusAndAdvance("completed");
+};
 async function submitStatusAndAdvance(status) {
   lockInteraction(true);
   try {
@@ -2206,10 +2805,81 @@ $("error-marking-skip-start").onclick = () => {
   video.currentTime = frameToTime(0);
   updateErrorMarkingFrameIndicator(0);
 };
+$("frame-mobile-back").onclick = () => stepErrorMarkingVideo(-1);
+$("frame-mobile-forward").onclick = () => {
+  if (errorMarkingCurrentFrame() >= Math.max(errorMarkingFrameCount() - 1, 0)) {
+    if (confirm("Complete this frame annotation task?")) $("complete-case").click();
+  } else stepErrorMarkingVideo(1);
+};
+$("frame-mobile-play").onclick = () => {
+  if (state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === 1) stopErrorMarkingReplay();
+  else replayErrorMarking();
+  updateFrameMobileControls();
+};
+$("frame-mobile-unusable").onclick = () => markFrameUsability(errorMarkingCurrentFrame(), "unusable");
+$("frame-mobile-usable").onclick = () => markFrameUsability(errorMarkingCurrentFrame(), hasFrameCorrection() ? "flawed" : "good");
+$("frame-mobile-give-up").onclick = () => $("give-up-video").click();
+$("frame-mobile-skip").onclick = () => $("skip-case").click();
+$("frame-mobile-zoom").onchange = (event) => setFrameViewZoom(event.target.value);
+$("frame-mobile-scrubber").oninput = (event) => {
+  stopErrorMarkingReplay();
+  const frame = Number(event.target.value);
+  state.frameViewForceRecenter = true;
+  errorMarkingVideo().pause();
+  setErrorMarkingFrame(frame);
+  errorMarkingVideo().currentTime = frameToTime(frame);
+  state.frameViewLastFollowFrame = null;
+  state.frameViewGesturePanFrame = null;
+  updateErrorMarkingFrameIndicator(frame);
+};
+$("frame-mobile-pan").onclick = () => {
+  state.frameViewPanEnabled = !state.frameViewPanEnabled && state.frameViewZoom > 1;
+  if (state.frameViewPanEnabled) {
+    state.frameViewGesturePanFrame = errorMarkingCurrentFrame();
+    state.frameViewForceRecenter = false;
+  }
+  else state.frameViewGesturePanFrame = null;
+  $("frame-mobile-pan").setAttribute("aria-pressed", String(state.frameViewPanEnabled));
+  $("frame-mobile-pan").textContent = state.frameViewPanEnabled ? "Pan enabled · drag background" : "Enable pan";
+  $("frame-mobile-pan").setAttribute("aria-label", state.frameViewPanEnabled ? "Disable video panning" : "Enable video panning");
+  updateFrameViewTransform();
+};
+$("frame-mobile-timeline").onclick = () => {
+  const details = $("frame-mobile-details");
+  details.open = !details.open;
+  $("frame-mobile-timeline").setAttribute("aria-expanded", String(details.open));
+  $("frame-mobile-timeline").textContent = details.open ? "Hide timeline and notes" : "Show timeline and notes";
+  $("frame-mobile-timeline").setAttribute("aria-label", details.open ? "Hide timeline and notes" : "Show timeline and notes");
+  $("frame-mobile-overflow").open = false;
+};
+window.addEventListener("resize", () => {
+  placeFrameMobileTools();
+  const mobileMode = isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex]) && window.matchMedia("(max-width: 700px)").matches;
+  if (mobileMode !== state.frameViewMobileMode) {
+    state.frameViewMobileMode = mobileMode;
+    state.frameViewZoomMode = mobileMode ? "auto" : "manual";
+    state.frameViewAutoZoomOverride = null;
+    state.frameViewZoom = 1;
+    state.frameViewPanX = 0;
+    state.frameViewPanY = 0;
+    $("frame-mobile-zoom").value = state.frameViewZoomMode === "auto" ? "auto" : "1";
+  }
+  updateFrameViewTransform();
+  updateFrameMobileControls();
+  if (isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) $("frame-mobile-details").open = $("frame-mobile-bar").hidden;
+});
 $("error-marking-step-back-5").onclick = () => stepErrorMarkingVideo(-5);
 $("error-marking-step-back-1").onclick = () => stepErrorMarkingVideo(-1);
 $("error-marking-step-forward-1").onclick = () => stepErrorMarkingVideo(1);
 $("error-marking-step-forward-5").onclick = () => stepErrorMarkingVideo(5);
+document.addEventListener("keydown", (event) => {
+  if (!isFrameUsabilityTask(state.data?.tasks?.[state.taskIndex])) return;
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  const target = event.target;
+  if (target instanceof Element && target.closest("input, textarea, select, [contenteditable='true'], [role='slider'], [role='radio'], dialog[open], [popover]:popover-open")) return;
+  event.preventDefault();
+  stepErrorMarkingVideo(event.key === "ArrowLeft" ? -1 : 1);
+});
 $("error-marking-replay").onclick = () => {
   if (state.errorMarkingReplayHandle && state.errorMarkingReplayDirection === 1) stopErrorMarkingReplay();
   else replayErrorMarking();

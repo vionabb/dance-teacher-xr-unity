@@ -20,6 +20,13 @@ This document owns data provenance, sensitivity, storage, and transfer rules. Go
 
 Never infer consent, redistribution permission, or de-identification from the existence of a local file. Treat raw participant videos as sensitive and access-controlled.
 
+The [manual-review data contract](manual-review-data-contract.md) defines an
+access-controlled, Git-ignored working home for usability judgments, exact raw
+pose artifacts, and complete reviewed pose artifacts. The working home is
+backed up to the existing `agentoutput:manual-review/` Drive folder through
+rclone. The first release is published; active annotation databases have not been
+moved, and review data should not be copied into committed fixtures or assets.
+
 ## CHI study resources
 
 The earlier CHI studies provide participant performances, reference videos, human ratings, and derived poses used for technical validation.
@@ -93,6 +100,89 @@ rclone sync <local-bundle> processedmediabundle:
 The Python wrapper `python -m motion_extraction.rclone_transfer` provides corresponding pull and publication commands. Run processing against local staged directories.
 
 `rclone sync` is intentionally reserved for publishing a validated processed-media bundle. Use `copy` for ordinary inputs and research artifacts.
+
+## New research machine and manual-review recovery
+
+After cloning the repository, install `rclone` and `uv`, then use `rclone config`
+to sign in and create a `dataset` Drive remote rooted at the existing
+research dataset folder with read-only scope and a writable `agentoutput`
+remote rooted at the existing agent-output folder. Viona confirmed that this
+folder's audience is appropriate for manual-review backups.
+The folder IDs and login credentials are machine-local configuration, not Git
+content. The cloud-agent service-account setup in
+[setup-rclone.sh](../.github/setup-rclone.sh) is an alternative when its secrets
+are available; it configures `dataset`, `agentoutput`, and
+`processedmediabundle`. Check the remotes before staging:
+
+```bash
+rclone lsf --max-depth 1 dataset:
+rclone lsf --max-depth 1 agentoutput:
+cd motion-pipeline
+uv sync --locked --group dev
+./script_invocations/stage_video_cache.sh referencevideos
+./script_invocations/stage_video_cache.sh participant-study1-videos
+./script_invocations/stage_video_cache.sh participant-study2-videos
+```
+
+Stage raw pose subtrees with the three `*-raw-poses` forms above after checking
+their current Drive paths. Those commands are explicit because the pose folder
+layout may change independently of the local cache contract. The video cache
+commands copy only the chosen study inputs; there is no automatic download of
+the entire Drive dataset.
+
+Manual-review backups use
+`python -m motion_extraction.manual_review_backup` from `motion-pipeline/`.
+For the current batch, the one-command helper reads the active database and
+task manifest paths from `resume_annotation_server.py`, then snapshots,
+verifies, and publishes them with any existing canonical review corpus:
+
+```bash
+cd motion-pipeline
+uv run --locked python backup_current_annotation.py
+```
+
+The maintained server launcher also runs that helper after a graceful Ctrl-C
+shutdown. A forced process termination skips the hook; run the helper above
+after such a session. The backup never moves or overwrites the live database.
+
+The lower-level commands are available for another experiment or a deliberate
+local-only snapshot. For the current pre-migration batch, they are:
+
+```bash
+uv run --locked python -m motion_extraction.manual_review_backup snapshot \
+  --active-db temp/experiments/20260923-video-first-001/annotations.sqlite3 \
+  --active-manifest temp/experiments/20260929-frame-usability-correctable-203/annotation_tasks.json
+uv run --locked python -m motion_extraction.manual_review_backup publish \
+  temp/manual-review-snapshots/<snapshot-name>
+```
+
+The first command prints the local snapshot name. The second updates the
+single `agentoutput:manual-review/` folder and checks its payload before the
+completion marker is uploaded. Google Drive retains file history; repeated
+backups do not duplicate unchanged files under new snapshot folders. Drive's
+[revision history](https://rclone.org/drive/#revisions) has a retention limit;
+the append-only annotation history and frozen releases carry the durable
+research record. After the canonical review root is populated, the same
+`snapshot` command also
+includes its archived raw and reviewed poses and releases. Task video clips
+are excluded. On a new machine, restore the current backup into an empty
+directory and verify the recovered files before placing any of them into an
+active server path:
+
+```bash
+uv run --locked python -m motion_extraction.manual_review_backup restore \
+  agentoutput:manual-review local-data/restored-manual-review
+```
+
+Restored `active-source/` holds the annotation database, manifest, and pose
+streams used by the UI; `manual-review/` holds the canonical corpus. The
+`20261002-first-manual-review` release contains 48 complete reviewed pose
+segments and 154 video ratings. Snapshots do not contain task video copies.
+Stage source media through `dataset:` and
+check frame alignment before resuming annotation or analysis. Do not point a
+running server at a restored database until its matching manifest and media
+are in place. The backup destination is the existing `agentoutput` remote;
+the configured Google account must have read/write access to it.
 
 The preferred reference-video workflow is
 `motion-pipeline/script_invocations/run_rclone_pipeline_cached.sh`. It reads

@@ -129,7 +129,9 @@ describe('AllMetricsComparison', {}, async () => {
 			return {
 				metricName: 'qijia2DPoseEvaluation',
 				result: {
-					qijia2DPoseEvaluation: summary.summary.overallScore / 5 // scale from 0-5 to 0-1
+					...(summary.summary.overallScore === null
+						? {}
+						: { qijia2DPoseEvaluation: summary.summary.overallScore / 5 }) // scale from 0-5 to 0-1
 				}
 			};
 		};
