@@ -69,12 +69,15 @@ DEFAULT_ERROR_CAUSES = [
 LIGHTING_RATINGS = {"good", "moderate", "poor"}
 CLOTHING_RATINGS = {"well_suited", "moderate", "poorly_suited"}
 VIDEO_USABILITY_RATINGS = {"unusable", "marginal", "correctable", "perfect"}
+FRAME_USABILITY_LABELS = {"good", "flawed", "unusable"}
+FRAME_VIDEO_DISPOSITIONS = {"unusable"}
 SKELETON_FREE_TASK_TYPES = {
     "temporal_pose_comparison",
     "quality_triage",
     "error_marking",
     "video_usability_triage",
     "video_quality_rating",
+    "frame_usability",
 }
 SOURCE_EVIDENCE_QUALITIES = {"usable", "constrained", "weak"}
 SOURCE_EVIDENCE_FACTORS = {
@@ -140,6 +143,7 @@ class AnnotationStore:
                     temporal_note TEXT NOT NULL DEFAULT '',
                     triage_response_json TEXT NOT NULL DEFAULT '{}',
                     error_marking_response_json TEXT NOT NULL DEFAULT '{}',
+                    frame_usability_response_json TEXT NOT NULL DEFAULT '{}',
                     quality_rating_response_json TEXT NOT NULL DEFAULT '{}',
                     profile_provenance_json TEXT NOT NULL,
                     frame_window_json TEXT NOT NULL,
@@ -217,6 +221,10 @@ class AnnotationStore:
                 connection.execute(
                     "ALTER TABLE judgment_revisions ADD COLUMN error_marking_response_json TEXT NOT NULL DEFAULT '{}'"
                 )
+            if "frame_usability_response_json" not in columns:
+                connection.execute(
+                    "ALTER TABLE judgment_revisions ADD COLUMN frame_usability_response_json TEXT NOT NULL DEFAULT '{}'"
+                )
             if "quality_rating_response_json" not in columns:
                 connection.execute(
                     "ALTER TABLE judgment_revisions ADD COLUMN quality_rating_response_json TEXT NOT NULL DEFAULT '{}'"
@@ -266,6 +274,9 @@ class AnnotationStore:
         )
         error_marking_response = self._validate_error_marking_response(
             payload.get("error_marking_response", {}), task_type, status, task
+        )
+        frame_usability_response = self._validate_frame_usability_response(
+            payload.get("frame_usability_response", {}), task_type, status, task
         )
         quality_rating_response = self._validate_quality_rating_response(
             payload.get("quality_rating_response", {}), task_type, status
@@ -408,10 +419,10 @@ class AnnotationStore:
                     ground_truth_initial_profile, automatic_profile_scores_json,
                     source_evidence_quality, source_evidence_factors_json, task_type,
                     temporal_choice, temporal_confidence, temporal_note,
-                    triage_response_json, error_marking_response_json, quality_rating_response_json,
+                    triage_response_json, error_marking_response_json, frame_usability_response_json, quality_rating_response_json,
                     profile_provenance_json, frame_window_json, artifact_ids_json,
                     created_at, supersedes_revision_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     SCHEMA_VERSION,
@@ -439,6 +450,7 @@ class AnnotationStore:
                     temporal_response["note"],
                     json.dumps(triage_response, sort_keys=True),
                     json.dumps(error_marking_response, sort_keys=True),
+                    json.dumps(frame_usability_response, sort_keys=True),
                     json.dumps(quality_rating_response, sort_keys=True),
                     json.dumps(self.manifest.get("profile_provenance", {}), sort_keys=True),
                     json.dumps(task.get("frame_window", {}), sort_keys=True),
@@ -568,6 +580,59 @@ class AnnotationStore:
                 raise ValueError("mark positions must be finite")
             positions[str(frame)] = [x, y]
         return positions
+
+    @staticmethod
+    def _validate_frame_usability_response(
+        value: t.Any, task_type: str, status: str, task: dict[str, t.Any]
+    ) -> dict[str, t.Any]:
+        """Store sparse manual error labels and the derived missing-pose provenance separately."""
+
+        if task_type != "frame_usability":
+            if value not in ({}, None):
+                raise ValueError("frame_usability_response is only valid for frame_usability tasks")
+            return {}
+        if not isinstance(value, dict):
+            raise ValueError("frame_usability_response must be an object")
+        raw_labels = value.get("labels", {})
+        if not isinstance(raw_labels, dict):
+            raise ValueError("frame_usability_response labels must be an object")
+        frame_count = int(task["frame_count"])
+        if frame_count < 1:
+            raise ValueError("frame_usability task requires a positive frame_count")
+        labels: dict[str, str] = {}
+        for key, label in raw_labels.items():
+            if not isinstance(key, str) or not re.fullmatch(r"0|[1-9][0-9]*", key):
+                raise ValueError("frame label keys must be canonical nonnegative frame numbers")
+            frame = int(key)
+            if frame >= frame_count:
+                raise ValueError("frame label is outside the task's frame range")
+            if label not in FRAME_USABILITY_LABELS:
+                raise ValueError(f"frame label must be one of {sorted(FRAME_USABILITY_LABELS)}")
+            labels[key] = label
+        raw_auto = value.get("automatic_missing_pose_frames", [])
+        if not isinstance(raw_auto, list) or any(type(frame) is not int or frame < 0 or frame >= frame_count for frame in raw_auto):
+            raise ValueError("automatic_missing_pose_frames must contain valid frame numbers")
+        note = value.get("note", "")
+        if not isinstance(note, str) or len(note) > ERROR_MARK_NOTE_MAX_LENGTH:
+            raise ValueError(f"frame note must be text of at most {ERROR_MARK_NOTE_MAX_LENGTH} characters")
+        # Landmark-level tracking marks and per-frame corrected positions share
+        # the same validated representation as the established error-marking
+        # workflow, while remaining in their own frame-usability response.
+        validated_marks = AnnotationStore._validate_error_marking_response(
+            {"marks": value.get("marks", [])}, "error_marking", "started", task
+        )["marks"]
+        if any(mark["end_frame"] >= frame_count for mark in validated_marks):
+            raise ValueError("landmark error mark is outside the task's frame range")
+        rating_override = value.get("video_usability_rating_override")
+        if rating_override not in (None, *FRAME_VIDEO_DISPOSITIONS):
+            raise ValueError(
+                "video_usability_rating_override must be null or one of "
+                f"{sorted(FRAME_VIDEO_DISPOSITIONS)}"
+            )
+        last_viewed_frame = value.get("last_viewed_frame", 0)
+        if type(last_viewed_frame) is not int or not 0 <= last_viewed_frame < frame_count:
+            raise ValueError("last_viewed_frame must be a valid frame number")
+        return {"labels": dict(sorted(labels.items(), key=lambda item: int(item[0]))), "automatic_missing_pose_frames": sorted(set(raw_auto)), "marks": validated_marks, "note": note.strip(), "video_usability_rating_override": rating_override, "last_viewed_frame": last_viewed_frame}
 
     @staticmethod
     def _validate_error_marking_response(
@@ -717,7 +782,7 @@ class AnnotationStore:
                     raise ValueError(
                         "video_unusable cannot be combined with landmark marks or no_errors_found"
                     )
-            elif not marks and not bad_frames and not usable_frames and not no_errors_found:
+            elif not (task_type == "video_usability_triage" and task and task.get("video_rating_only")) and not marks and not bad_frames and not usable_frames and not no_errors_found:
                 raise ValueError(
                     "completed error_marking requires marks, frame usability flags, video_unusable, or no_errors_found checked"
                 )
@@ -1295,6 +1360,9 @@ class AnnotationStore:
         decoded["error_marking_response"] = json.loads(
             decoded.pop("error_marking_response_json", "{}") or "{}"
         )
+        decoded["frame_usability_response"] = json.loads(
+            decoded.pop("frame_usability_response_json", "{}") or "{}"
+        )
         decoded["quality_rating_response"] = json.loads(
             decoded.pop("quality_rating_response_json", "{}") or "{}"
         )
@@ -1544,7 +1612,10 @@ def main() -> None:
     if args.access_token:
         print("Access token protection is enabled for API and participant-media routes.")
     print(f"Database: {database}")
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":
