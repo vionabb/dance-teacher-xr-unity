@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
-	import { afterNavigate, goto, replaceState } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';

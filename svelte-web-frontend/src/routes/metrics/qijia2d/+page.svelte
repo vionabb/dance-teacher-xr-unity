@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
-	import { afterNavigate, goto, replaceState } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
@@ -180,7 +180,6 @@
 	);
 	const timelineDuration = $derived(timeline.at(-1)?.endSeconds ?? 0);
 	const activeLoadedSegment = $derived(loadedSegments[activeSegmentIndex]);
-	const activeTimelineSegment = $derived(timeline[activeSegmentIndex]);
 	const participantCrop = $derived.by(() =>
 		datasetMode && activeLoadedSegment
 			? mapQijiaNormalizedCropToVideo(
@@ -200,7 +199,6 @@
 			: referenceManualCrop
 	);
 	const activeFrameCount = $derived(activeLoadedSegment?.frameCount ?? 0);
-	const currentGlobalTime = $derived(datasetMode ? globalTime : frameIndex / participant.fps);
 	const participantFrame = $derived(
 		datasetMode
 			? activeLoadedSegment?.participantFrames.get(frameIndex)
@@ -1239,7 +1237,7 @@
 										{/if}
 									{/each}
 									{#if panel.side === 'participant'}
-										{#each panel.vectors ?? [] as vector, i (vector.name)}
+										{#each panel.vectors ?? [] as vector (vector.name)}
 											{@const origin = panel.pose.landmarks[vector.src]}
 											{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.15}
 											{#if vector.ref && vector.participant}<line
