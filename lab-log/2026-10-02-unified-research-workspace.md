@@ -64,6 +64,12 @@ status through the same interface. The current Vercel deployment remains a
 different execution environment, so local research operations need an explicit
 server/runtime boundary and researcher-only authorization before expansion.
 
+The first implementation stack adds a separate local SQLite read model. A
+frozen review release and the prior-study ratings imported as 154 video reviews,
+48 frame reviews, and 1,570 human similarity rows. The inspector deliberately
+lists the sources separately until clip identities are verified; this import
+does not make the annotation server or release catalog editable through Svelte.
+
 ## Next step
 
 Use the [living handoff](2026-10-02-unified-research-workspace-handoff.md) for

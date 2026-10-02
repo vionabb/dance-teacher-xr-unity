@@ -1,6 +1,6 @@
 # Research Workspace Direction
 
-Status: **planned foundation; implementation tracked in [issue #407](https://github.com/vionabb/dance-teacher-xr-unity/issues/407)**. This document defines ownership and acceptance for the first local slice. [Technical architecture](technical-architecture.md) describes currently implemented behavior; the [dated lab log](../lab-log/2026-10-02-unified-research-workspace.md) records Viona's reasons for this direction.
+Status: **local read-model slice implemented; further integration tracked in [issue #407](https://github.com/vionabb/dance-teacher-xr-unity/issues/407)**. This document defines ownership and acceptance for the first local slice. [Technical architecture](technical-architecture.md) describes the wider app; the [dated lab log](../lab-log/2026-10-02-unified-research-workspace.md) records Viona's reasons for this direction.
 
 ## Purpose and runtime
 
@@ -73,3 +73,33 @@ its Python consumer is deliberately migrated.
 
 Annotation authoring, batch metric jobs, and Python job orchestration are
 subsequent stacks; see the [living handoff](../lab-log/2026-10-02-unified-research-workspace-handoff.md).
+
+## Current local read model
+
+The Svelte project's `scripts/importResearch.mjs` imports a frozen manual-review
+release manifest and the prior-study human-rating CSV into a separate, versioned
+SQLite database. Run it from `svelte-web-frontend/` with Node 24:
+
+```sh
+RESEARCH_SQLITE_PATH=../local-data/research.sqlite3 node scripts/importResearch.mjs \
+  /path/to/frozen-release/manifest.json /path/to/humanratings.csv
+```
+
+The default database path is `../local-data/research.sqlite3` relative to the
+Svelte project, and `/local-data/` is Git-ignored. Keep the same
+`RESEARCH_SQLITE_PATH` when starting the development server. The importer
+records SHA-256 hashes of both source files and rejects a changed source rather
+than silently replacing imported rows. It never writes to the source manifest,
+rating CSV, annotation database, or manual-review catalog. It stores review
+provenance and human similarity ratings as separate tables. Source media and
+per-frame arrays remain outside the database.
+
+Open `/research/records` on the local development server to inspect the first
+100 records of each source. This page is limited to development mode and
+loopback clients, consistent with the existing local metric inspectors. The
+current page does **not** join human ratings to manual reviews: those sources
+still need a verified recording/segment identity map. It also does not offer
+annotation authoring or metric calculations. Supabase researcher-role checks
+must be added to every research page, API, and media route before research
+access is served beyond the local development boundary. The currently deployed
+Vercel app is not a research-data server.
