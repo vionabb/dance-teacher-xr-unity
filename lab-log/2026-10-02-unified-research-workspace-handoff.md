@@ -32,6 +32,10 @@ frontend lint, and focused research tests pass. The
 for #411 completed successfully, and the frontend smoke check passed. The
 production deployment from `main` still needs these changes merged through
 the normal review path.
+The same current `main` merge was propagated through #408, #409, and #411.
+The Vite parser fix now lives in #408, and the research-store SQLite loading
+fix lives in #409; #411 retains its separate legacy-annotation SQLite loading
+fix. Each layer can be reviewed and deployed independently.
 
 ## Settled boundaries
 
