@@ -4,8 +4,9 @@ import path from 'node:path';
 import type sqlite3 from 'sqlite3';
 import Papa from 'papaparse';
 import { humanSimilarityCondition } from './research-identity.js';
+import { HYPOTHESIS_STATUSES, type HypothesisStatus } from './research-hypotheses';
 
-export const RESEARCH_SCHEMA_VERSION = 2;
+export const RESEARCH_SCHEMA_VERSION = 3;
 
 export type SourceRecord = {
 	kind: string;
@@ -154,21 +155,22 @@ function close(db: sqlite3.Database): Promise<void> {
 	return new Promise((resolve, reject) => db.close((error) => (error ? reject(error) : resolve())));
 }
 
-async function snapshotAfterRating(
+async function snapshotAfterRevision(
 	db: sqlite3.Database,
 	databaseFile: string,
-	revisionId: number
+	revisionId: number,
+	table: 'local_video_usability_revisions' | 'hypothesis_chat_messages'
 ): Promise<string> {
 	const folder = path.join(path.dirname(databaseFile), 'backups');
 	await mkdir(folder, { recursive: true });
-	const snapshot = path.join(folder, `research-after-revision-${revisionId}-${Date.now()}.sqlite3`);
+	const snapshot = path.join(folder, `research-after-${table}-${revisionId}-${Date.now()}.sqlite3`);
 	await run(db, 'VACUUM INTO ?', [snapshot]);
 	const copy = await openDatabase(snapshot);
 	try {
 		const integrity = await all<{ integrity_check: string }>(copy, 'PRAGMA integrity_check');
 		const revision = await all(
 			copy,
-			'SELECT 1 FROM local_video_usability_revisions WHERE revision_id = ?',
+			`SELECT 1 FROM ${table} WHERE ${table === 'hypothesis_chat_messages' ? 'message_id' : 'revision_id'} = ?`,
 			[revisionId]
 		);
 		if (integrity.length !== 1 || integrity[0].integrity_check !== 'ok' || revision.length !== 1)
@@ -205,7 +207,9 @@ async function withDatabase<T>(
 				for (const column of ['rating_1', 'rating_2', 'rating_3'])
 					await run(db, `ALTER TABLE human_similarity_ratings ADD COLUMN ${column} INTEGER`);
 				await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
-			} else if (versions.length !== 1 || versions[0].version !== RESEARCH_SCHEMA_VERSION)
+			} else if (versions.length === 1 && versions[0].version === 2)
+				await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
+			else if (versions.length !== 1 || versions[0].version !== RESEARCH_SCHEMA_VERSION)
 				throw new Error(
 					`Unsupported research database schema version: ${versions.map((row) => row.version).join(', ')}`
 				);
@@ -257,6 +261,20 @@ async function withDatabase<T>(
 			db,
 			`CREATE INDEX IF NOT EXISTS local_video_usability_task
 			ON local_video_usability_revisions(task_id, revision_id DESC)`
+		);
+		await run(
+			db,
+			`CREATE TABLE IF NOT EXISTS hypothesis_events (
+			event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
+			kind TEXT NOT NULL CHECK(kind IN ('status', 'finding')),
+			value TEXT NOT NULL, created_at TEXT NOT NULL)`
+		);
+		await run(
+			db,
+			`CREATE TABLE IF NOT EXISTS hypothesis_chat_messages (
+			message_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
+			role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
+			content TEXT NOT NULL, created_at TEXT NOT NULL)`
 		);
 		return await action(db);
 	} finally {
@@ -614,7 +632,12 @@ export async function recordVideoUsabilityRating(
 			try {
 				return {
 					revisionId: id,
-					snapshotPath: await snapshotAfterRating(db, file, id),
+					snapshotPath: await snapshotAfterRevision(
+						db,
+						file,
+						id,
+						'local_video_usability_revisions'
+					),
 					backupError: null
 				};
 			} catch (snapshotError) {
@@ -627,6 +650,106 @@ export async function recordVideoUsabilityRating(
 		} catch (recordError) {
 			await run(db, 'ROLLBACK');
 			throw recordError;
+		}
+	});
+}
+
+export type HypothesisEvent = {
+	event_id: number;
+	slug: string;
+	kind: 'status' | 'finding';
+	value: string;
+	created_at: string;
+};
+
+export type HypothesisChatMessage = {
+	message_id: number;
+	slug: string;
+	role: 'user' | 'assistant';
+	content: string;
+	created_at: string;
+};
+
+export async function readHypothesisState(file: string, slug: string) {
+	return withDatabase(file, async (db) => ({
+		events: await all<HypothesisEvent>(
+			db,
+			'SELECT event_id, slug, kind, value, created_at FROM hypothesis_events WHERE slug = ? ORDER BY event_id',
+			[slug]
+		),
+		messages: await all<HypothesisChatMessage>(
+			db,
+			'SELECT message_id, slug, role, content, created_at FROM hypothesis_chat_messages WHERE slug = ? ORDER BY message_id DESC LIMIT 30',
+			[slug]
+		)
+	}));
+}
+
+export async function recordHypothesisTurn(
+	file: string,
+	input: {
+		slug: string;
+		userMessage: string;
+		assistantReply: string;
+		status: HypothesisStatus | null;
+		finding: string | null;
+	}
+): Promise<{ snapshotPath: string | null; backupError: string | null }> {
+	if (
+		!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.slug) ||
+		!input.userMessage.trim() ||
+		input.userMessage.length > 4000 ||
+		!input.assistantReply.trim() ||
+		input.assistantReply.length > 8000 ||
+		(input.status && !HYPOTHESIS_STATUSES.includes(input.status)) ||
+		(input.finding && input.finding.length > 2000)
+	)
+		throw new Error('Invalid hypothesis conversation turn');
+	return withDatabase(file, async (db) => {
+		await run(db, 'BEGIN IMMEDIATE');
+		let messageId: number;
+		try {
+			const now = new Date().toISOString();
+			for (const [role, content] of [
+				['user', input.userMessage.trim()],
+				['assistant', input.assistantReply.trim()]
+			])
+				await run(
+					db,
+					'INSERT INTO hypothesis_chat_messages (slug, role, content, created_at) VALUES (?, ?, ?, ?)',
+					[input.slug, role, content, now]
+				);
+			const [{ id: lastMessageId }] = await all<{ id: number }>(
+				db,
+				'SELECT last_insert_rowid() AS id'
+			);
+			messageId = lastMessageId;
+			for (const [kind, value] of [
+				['status', input.status],
+				['finding', input.finding?.trim() || null]
+			] as const) {
+				if (!value) continue;
+				await run(
+					db,
+					'INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES (?, ?, ?, ?)',
+					[input.slug, kind, value, now]
+				);
+			}
+			await run(db, 'COMMIT');
+		} catch (recordError) {
+			await run(db, 'ROLLBACK');
+			throw recordError;
+		}
+		try {
+			return {
+				snapshotPath: await snapshotAfterRevision(db, file, messageId, 'hypothesis_chat_messages'),
+				backupError: null
+			};
+		} catch (snapshotError) {
+			return {
+				snapshotPath: null,
+				backupError: snapshotError instanceof Error ? snapshotError.message : 'Snapshot failed'
+			};
 		}
 	});
 }
