@@ -34,6 +34,9 @@ This creates `motion-pipeline/.venv`. In VS Code, open [the repository multi-roo
 
 The support target is Python 3.10 on macOS (Apple Silicon) and Linux (x86_64); this baseline has been clean-install validated on macOS, with Linux validation delegated to the follow-on CI step. Windows and the legacy robotics stack remain unverified; install the latter explicitly with `uv sync --group legacy-robotics` when working on it. `ffmpeg` is required for the active video/audio workflow, while `rclone` is needed only for cloud-transfer commands.
 
+For a fresh machine, configure the `dataset` and `agentoutput` rclone remotes,
+then follow the [research-data staging and manual-review recovery guide](../documentation/dataset.md#new-research-machine-and-manual-review-recovery).
+
 `mediapipe==0.10.21` is deliberate: it includes the MediaPipe Tasks APIs and
 the Holistic implementation needed by this project. The 1.0.0 Holistic task
 graph aborts on macOS when its Metal service is unavailable, while the 0.10.21
