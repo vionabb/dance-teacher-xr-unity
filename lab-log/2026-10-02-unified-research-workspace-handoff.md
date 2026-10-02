@@ -15,8 +15,9 @@ record the accepted data boundary and first-slice acceptance.
 Implementation started from `main` at `b1a475eb72ee28fff659f4980fdb60c59771249c`
 in an isolated checkout. [PR #408](https://github.com/vionabb/dance-teacher-xr-unity/pull/408)
 records the direction; [PR #409](https://github.com/vionabb/dance-teacher-xr-unity/pull/409)
-adds the local read model on top of it. Both are draft PRs. A third stacked
-branch adds the usability table and a local-only authoring queue. The original
+adds the local read model on top of it. [PR #411](https://github.com/vionabb/dance-teacher-xr-unity/pull/411)
+adds the usability table and a local-only authoring queue on top of #409. All
+three are draft PRs. The original
 annotation SQLite database is outside this checkout and remains read-only to
 the SvelteKit process.
 
