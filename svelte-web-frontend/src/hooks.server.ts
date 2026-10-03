@@ -75,7 +75,8 @@ const authGuard: Handle = async ({ event, resolve }) => {
 	const localDataEndpoint =
 		event.url.pathname === '/api/dev/participant-catalog' ||
 		event.url.pathname.startsWith('/api/dev/participant-catalog/') ||
-		event.url.pathname.startsWith('/api/dev/reference-clips/');
+		event.url.pathname.startsWith('/api/dev/reference-clips/') ||
+		event.url.pathname.startsWith('/api/dev/research-review/');
 	if (localDataEndpoint) {
 		if (!isDevLocalRequestAllowed(event.request, event.getClientAddress(), dev))
 			return new Response(null, { status: 404 });

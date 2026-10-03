@@ -23,6 +23,12 @@ Follow [../AGENTS.md](../AGENTS.md) first.
 
 Check the Python producer or consumer when changing shared bundle schemas, metric columns, filename conventions, or artifact paths.
 
+## UI work with daisyUI Blueprint
+
+- For new or edited UI, use the available daisyUI Blueprint MCP tools or skills and follow their current instructions and complete results. Inspect the existing Svelte components, Tailwind/daisyUI setup, and visual conventions first. "Blueprint" names the MCP server, not a theme to apply.
+- Start a cohesive UI workflow with `daisyui_setup_expert`, then `daisyui_rules_enforcer`. For a new complete page or screen, also use `daisyui_creative_director` and `daisyui_page_architect`. Before writing component code, get the needed syntax from `daisyui_component_syntax_expert`, including any remaining snippet batches it requests.
+- After a substantive UI change, use `daisyui_quality_inspector` and follow its next action. Then inspect the diff and verify the rendered UI and relevant checks. Follow the tool's exception for copy-only or harmless localized fixes. If a required Blueprint tool is unavailable, report that limitation instead of substituting invented guidance.
+
 ## Validation
 
 Run from `svelte-web-frontend/` and prefer the smallest applicable command:

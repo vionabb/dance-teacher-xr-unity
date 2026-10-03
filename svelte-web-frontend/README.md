@@ -78,6 +78,25 @@ While reviewing a dataset performance, use the metric choice in the header to
 switch between Qijia2D and Viona2D. The selected performance and position in
 its full timeline carry across the switch.
 
+### Capture research screenshots
+
+With the local development server and research data available, capture the
+research browser, both metric inspectors, the source-records table, and the
+whole-video usability form:
+
+```bash
+pnpm exec playwright install chromium
+pnpm screenshots:research
+```
+
+The Playwright script follows the UI from `/research` to a Bartender performance,
+then visits the records table and opens the current unrated review. It does not
+submit a rating. Set `RESEARCH_SCREENSHOT_BASE_URL` to another loopback port, or
+pass `--base-url` and `--output-dir` to the script. Use `--skip-metrics` to
+omit the two metric-inspector captures. Screenshots, a contact sheet, and
+`manifest.json` go to the Git-ignored `artifacts/research-screenshots/` directory
+by default; they can contain participant imagery and should remain local.
+
 The explorer discovers the staged files under
 `../data/participant_motions/chi25_study{1,2}/` in a normal checkout. Set
 `MOTION_PIPELINE_USER_STUDY_DATA_DIR` to the `participant_motions` directory

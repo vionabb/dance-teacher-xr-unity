@@ -1,6 +1,6 @@
 # Research Workspace Direction
 
-Status: **local read-model slice implemented; further integration tracked in [issue #407](https://github.com/vionabb/dance-teacher-xr-unity/issues/407)**. This document defines ownership and acceptance for the first local slice. [Technical architecture](technical-architecture.md) describes the wider app; the [dated lab log](../lab-log/2026-10-02-unified-research-workspace.md) records Viona's reasons for this direction.
+Status: **local read model and whole-video usability authoring implemented; further integration tracked in [issue #407](https://github.com/vionabb/dance-teacher-xr-unity/issues/407)**. This document defines ownership and acceptance for the local research workspace. [Technical architecture](technical-architecture.md) describes the wider app; the [dated lab log](../lab-log/2026-10-02-unified-research-workspace.md) records Viona's reasons for this direction.
 
 ## Purpose and runtime
 
@@ -15,13 +15,13 @@ configurations.
 
 ## Data authority
 
-| Data | Authority and first-slice access |
-| --- | --- |
-| Original reference and participant videos | Existing access-controlled Drive dataset; staged local files are a read-only cache. Do not copy participant media into Git, application static assets, or the research database. |
-| Active manual judgments | The active annotation server's SQLite database remains the writer until a separate, checked cutover. Preserve append-only revisions and matching task manifest. |
-| Frozen manual-review release | Immutable manifest, exact raw/reviewed pose artifacts, and a rebuildable read-only catalog under the existing manual-review root. The catalog is not an authoring database. |
-| New research metadata and run records | A separate app-managed local SQLite database under a configured, Git-ignored local-data root. Back it up with a verified snapshot/restore procedure before it becomes authoritative for annotations. |
-| Large derived outputs | Versioned local files with content hashes and registry entries; do not store frame arrays or video bytes in SQLite. |
+| Data                                      | Authority and first-slice access                                                                                                                                                                                                                                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Original reference and participant videos | Existing access-controlled Drive dataset; staged local files are a read-only cache. Do not copy participant media into Git, application static assets, or the research database.                                                                                                                             |
+| Active manual judgments                   | The original annotation SQLite database remains the writer for its existing tasks and frame corrections. New whole-video usability ratings entered in SvelteKit are append-only revisions in the app-managed local research SQLite database. Preserve both provenance chains and the matching task manifest. |
+| Frozen manual-review release              | Immutable manifest, exact raw/reviewed pose artifacts, and a rebuildable read-only catalog under the existing manual-review root. The catalog is not an authoring database.                                                                                                                                  |
+| New research metadata and run records     | A separate app-managed local SQLite database under a configured, Git-ignored local-data root. Every new usability rating triggers a verified SQLite snapshot under `local-data/backups/`. Restore is a manual file replacement from a chosen verified snapshot while the server is stopped.                  |
+| Large derived outputs                     | Versioned local files with content hashes and registry entries; do not store frame arrays or video bytes in SQLite.                                                                                                                                                                                          |
 | Learner accounts and learner-facing state | Existing Supabase project. The first research slice is limited to local development on loopback. Before any remote research serving, reuse sign-in and add a server-side researcher authorization check on every research page, API, and media route. |
 
 The prior-study human similarity ratings and the new pose-tracking usability
@@ -39,8 +39,8 @@ reproduce its meaning:
 - **Segment:** recording identity plus the absolute source-frame interval.
   Keep timestamps and pairing/alignment policy separate from the identity.
 - **Pose artifact:** exact content hash, extraction run/model/configuration,
-  coordinate space, landmark schema, frame mapping, and raw, reviewed, or clean
-  status. Pixel-space overlays use the matching raw or reviewed 2D stream;
+  coordinate space, landmark schema, frame mapping, and raw, tracked/baseline,
+  reviewed, or clean status. Label overlays by the stream actually displayed;
   normalized clean data is an analytical input.
 - **Manual review:** source database and manifest identity, experiment, task,
   annotator, revision, review scope, and frozen release. The effective video
@@ -52,7 +52,7 @@ reproduce its meaning:
   configurations or inputs remain distinct.
 
 Historical metric scores do not need numerical parity as metrics evolve.
-Re-running a *recorded* version and configuration against its exact inputs
+Re-running a _recorded_ version and configuration against its exact inputs
 must, however, have a reproducible interpretation. The existing
 `motion_metrics.csv`/SQLite export remains a compatibility interface until
 its Python consumer is deliberately migrated.
@@ -73,8 +73,8 @@ its Python consumer is deliberately migrated.
    or source artifacts. Require researcher-role authorization before any remote
    research serving.
 
-Annotation authoring, batch metric jobs, and Python job orchestration are
-subsequent stacks; see the [living handoff](../lab-log/2026-10-02-unified-research-workspace-handoff.md).
+Frame-by-frame annotation authoring, batch metric jobs, and Python job
+orchestration are subsequent stacks; see the [living handoff](../lab-log/2026-10-02-unified-research-workspace-handoff.md).
 
 ## Current local read model
 
@@ -96,12 +96,50 @@ rating CSV, annotation database, or manual-review catalog. It stores review
 provenance and human similarity ratings as separate tables. Source media and
 per-frame arrays remain outside the database.
 
-Open `/research/records` on the local development server to inspect the first
-100 records of each source. This page is limited to development mode and
-loopback clients, consistent with the existing local metric inspectors. The
-current page does **not** join human ratings to manual reviews: those sources
-still need a verified recording/segment identity map. It also does not offer
-annotation authoring or metric calculations. Supabase researcher-role checks
-must be added to every research page, API, and media route before research
-access is served beyond the local development boundary. The currently deployed
-Vercel app is not a research-data server.
+Open `/research/records` on the local development server to inspect all
+whole-video usability reviews and the first 100 imported human-similarity
+ratings. The usability table exposes paper, study, participant ID, dance,
+condition, and segment. It joins similarity only on an exact study, dance,
+participant ID, segment, and condition identity. The known study 1 naming
+equivalence `sheetmotion` (video filename) = `sheet` (ratings CSV) is explicit;
+seven original reviews with a missing participant ID remain visible but cannot
+be joined to human ratings.
+
+## Local whole-video usability queue
+
+Set these variables on the local development server alongside
+`RESEARCH_SQLITE_PATH`:
+
+```sh
+RESEARCH_VIDEO_MANIFEST_PATH=/path/to/annotation_tasks.json
+RESEARCH_LEGACY_ANNOTATIONS_SQLITE_PATH=/path/to/annotations.sqlite3
+RESEARCH_ANNOTATOR=your-name
+```
+
+The manifest and legacy SQLite database must belong to the same experiment.
+The legacy database is opened read-only. The **Rate more videos’ usability**
+button takes the researcher to the highest-ranked unrated task. Eligibility
+requires an exact segment-level entry in the imported CHI25 ratings CSV with
+a human similarity mean and at least one of its three individual prior-study
+rater values. Whole-video aggregate rows, missing participant IDs, and clips
+without that match cannot be rated through this queue. The similarity score
+and task selection reason stay hidden on the rating form to avoid influencing
+the usability judgment.
+
+The current queue ranks the sparsest study × dance × segment × condition cell
+first, then participants with fewer existing reviews. Within those coverage
+tiers it alternates the suspected tracking-problem segments from the
+[October 1 lab log](../lab-log/2026-10-01-layered-pose-quality-and-segment-coverage.md)
+with comparison segments. A stable hash breaks remaining ties. Each saved
+rating records the frozen task-manifest, video, and tracked-landmarks hashes and
+creates a verified local database snapshot. The app checks the video and
+landmarks hashes again before writing. The overlay is the baseline tracked
+skeleton reconstructed into image coordinates from preprocessing-usable frames;
+it is not the original raw `pose2d` stream.
+
+All research pages, APIs, and media routes in this slice require development
+mode and a loopback client. Media is streamed from the local manifest root;
+neither participant videos nor research records are published by the deployed
+Vercel app. Add server-side researcher-role authorization to every research
+route before any remote serving. Metric calculations and frame-correction
+authoring are not part of this slice.
