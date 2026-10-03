@@ -17,6 +17,67 @@ afterEach(async () => {
 	);
 });
 
+test('concurrent first reads initialize one usable research schema', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-schema-'));
+	folders.push(folder);
+	const databasePath = path.join(folder, 'research.sqlite3');
+	await Promise.all([readResearchRecords(databasePath), readResearchRecords(databasePath)]);
+	await expect(readResearchRecords(databasePath)).resolves.toMatchObject({
+		sources: [],
+		reviews: [],
+		humanRatings: []
+	});
+});
+
+test('concurrent reads migrate an existing v1 database only once', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-migrate-'));
+	folders.push(folder);
+	const databasePath = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	await new Promise<void>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.exec(
+			'CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (1); CREATE TABLE human_similarity_ratings (study TEXT NOT NULL, dance TEXT NOT NULL, user_id TEXT NOT NULL, segment_id TEXT NOT NULL, condition TEXT NOT NULL, human_rating REAL, human_rating_percentile REAL, PRIMARY KEY (study, dance, user_id, segment_id))',
+			(error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+		);
+	});
+	await Promise.all([readResearchRecords(databasePath), readResearchRecords(databasePath)]);
+	await expect(readResearchRecords(databasePath)).resolves.toMatchObject({ humanRatings: [] });
+});
+
+test('rejects out-of-scale human ratings before registering a source', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-ratings-'));
+	folders.push(folder);
+	const releaseManifestPath = path.join(folder, 'release.json');
+	const humanRatingsPath = path.join(folder, 'ratings.csv');
+	const databasePath = path.join(folder, 'research.sqlite3');
+	await writeFile(
+		releaseManifestPath,
+		JSON.stringify({
+			schema_version: '1.0',
+			release_id: 'release-1',
+			video_reviews: [],
+			reviewed_segments: []
+		})
+	);
+	for (const [rating, percentile] of [
+		['0', '0.5'],
+		['6', '0.5'],
+		['4', '-0.1'],
+		['4', '1.2']
+	]) {
+		await writeFile(
+			humanRatingsPath,
+			`study,dance,userId,segmentId,condition,humanRating,humanRatingPercentile,rating1,rating2,rating3\n1,dance,42,1,segmented,${rating},${percentile},2,3,3\n`
+		);
+		await expect(
+			importResearchSources({ databasePath, releaseManifestPath, humanRatingsPath })
+		).rejects.toThrow('Invalid human similarity rating row');
+	}
+	await expect(readResearchRecords(databasePath)).resolves.toMatchObject({ sources: [] });
+});
+
 test('new usability ratings require an exact human-rated segment and create a verified snapshot', async () => {
 	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-review-'));
 	folders.push(folder);

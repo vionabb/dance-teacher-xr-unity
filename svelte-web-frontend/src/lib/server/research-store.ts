@@ -93,6 +93,13 @@ function sha256(bytes: Buffer): string {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
+function validOptionalRange(value: string | undefined, min: number, max: number): boolean {
+	if (value === '') return true;
+	if (!value?.trim()) return false;
+	const number = Number(value);
+	return Number.isFinite(number) && number >= min && number <= max;
+}
+
 function assertReview(review: Review): void {
 	for (const key of [
 		'segment_id',
@@ -188,25 +195,25 @@ async function withDatabase<T>(
 	try {
 		await run(db, 'PRAGMA foreign_keys = ON');
 		await run(db, 'PRAGMA busy_timeout = 5000');
-		await run(db, `CREATE TABLE IF NOT EXISTS schema_meta (version INTEGER NOT NULL)`);
-		const versions = await all<{ version: number }>(db, 'SELECT version FROM schema_meta');
-		if (versions.length === 0)
-			await run(db, 'INSERT INTO schema_meta VALUES (?)', [RESEARCH_SCHEMA_VERSION]);
-		else if (versions.length === 1 && versions[0].version === 1) {
-			await run(db, 'BEGIN IMMEDIATE');
-			try {
+		await run(db, 'BEGIN IMMEDIATE');
+		try {
+			await run(db, `CREATE TABLE IF NOT EXISTS schema_meta (version INTEGER NOT NULL)`);
+			const versions = await all<{ version: number }>(db, 'SELECT version FROM schema_meta');
+			if (versions.length === 0)
+				await run(db, 'INSERT INTO schema_meta VALUES (?)', [RESEARCH_SCHEMA_VERSION]);
+			else if (versions.length === 1 && versions[0].version === 1) {
 				for (const column of ['rating_1', 'rating_2', 'rating_3'])
 					await run(db, `ALTER TABLE human_similarity_ratings ADD COLUMN ${column} INTEGER`);
 				await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
-				await run(db, 'COMMIT');
-			} catch (migrationError) {
-				await run(db, 'ROLLBACK');
-				throw migrationError;
-			}
-		} else if (versions.length !== 1 || versions[0].version !== RESEARCH_SCHEMA_VERSION)
-			throw new Error(
-				`Unsupported research database schema version: ${versions.map((row) => row.version).join(', ')}`
-			);
+			} else if (versions.length !== 1 || versions[0].version !== RESEARCH_SCHEMA_VERSION)
+				throw new Error(
+					`Unsupported research database schema version: ${versions.map((row) => row.version).join(', ')}`
+				);
+			await run(db, 'COMMIT');
+		} catch (schemaError) {
+			await run(db, 'ROLLBACK');
+			throw schemaError;
+		}
 		await run(
 			db,
 			`CREATE TABLE IF NOT EXISTS source_imports (
@@ -313,8 +320,8 @@ export async function importResearchSources(input: {
 			!row.userId ||
 			!row.segmentId ||
 			!row.condition ||
-			(row.humanRating && !Number.isFinite(Number(row.humanRating))) ||
-			(row.humanRatingPercentile && !Number.isFinite(Number(row.humanRatingPercentile))) ||
+			!validOptionalRange(row.humanRating, 1, 5) ||
+			!validOptionalRange(row.humanRatingPercentile, 0, 1) ||
 			['rating1', 'rating2', 'rating3'].some(
 				(key) =>
 					row[key] &&

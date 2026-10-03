@@ -17,9 +17,8 @@ in an isolated checkout. [PR #408](https://github.com/vionabb/dance-teacher-xr-u
 records the direction; [PR #409](https://github.com/vionabb/dance-teacher-xr-unity/pull/409)
 adds the local read model on top of it. [PR #411](https://github.com/vionabb/dance-teacher-xr-unity/pull/411)
 adds the usability table and a local-only authoring queue on top of #409. All
-three are draft PRs. The original
-annotation SQLite database is outside this checkout and remains read-only to
-the SvelteKit process.
+three PRs are open for review. The original annotation SQLite database is
+outside this checkout and remains read-only to the SvelteKit process.
 On October 2, `origin/main` at `2b8212a` was merged into the top stack branch
 for #411. The Vercel preview build exposed a Linux `GLIBC_2.38` requirement
 when the local research SQLite module loaded during build. A separate mainline
@@ -89,7 +88,8 @@ data-producing stage versioned and preserve exact input identities.
   segments in the October 1 lab log with comparison segments within ties.
 - The original annotation DB is read-only to this app. New ratings live in
   `local-data/research.sqlite3`; a verified snapshot is made after each save.
-  The local rating page plays the frozen clip and raw pose overlay. Safari
+  The local rating page plays the frozen clip with a tracked baseline skeleton
+  overlay. Safari
   playback was checked. The Codex in-app browser crashed when playback was
   tried, although its read-only table and media HTTP endpoints worked.
 - Researcher role authorization, frame-correction authoring, pagination, and
@@ -97,7 +97,9 @@ data-producing stage versioned and preserve exact input identities.
 
 ## Next action
 
-Keep the interface local while testing new usability reviews. Compare the
-resulting balanced sample with the October 1 coverage targets. Before any
-remote serving, add researcher-role authorization to every research page,
-API, and media route. Frame-correction authoring remains a later stack.
+Review the open stack and test new usability reviews on eligible CHI25
+segments. Compare the resulting balanced sample with the October 1 coverage
+targets. Keep research routes on local loopback. Before any remote serving,
+add researcher-role authorization to every research page, API, and media route.
+Frame-correction authoring, metric batch jobs, and Python orchestration remain
+later work.

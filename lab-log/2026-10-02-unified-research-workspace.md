@@ -107,8 +107,10 @@ and alternates suspected and comparison segments within a coverage tier. The
 selection reason and similarity score are hidden while rating to reduce bias.
 
 New usability responses are append-only in the app's Git-ignored local SQLite
-database, with source-manifest, video, and raw-landmarks hashes and a verified
+database, with source-manifest, video, and tracked-landmarks hashes and a verified
 snapshot after each save. The existing Python annotation database and source
 artifacts are read-only to this interface. Research and media routes remain
 restricted to the local development server; this change does not publish
-participant data or research records.
+participant data or research records. The rating overlay displays a tracked
+baseline reconstructed into image coordinates after preprocessing; it is not
+the original raw `pose2d` stream.

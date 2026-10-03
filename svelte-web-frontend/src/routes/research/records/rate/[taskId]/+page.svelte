@@ -163,7 +163,7 @@
 					type="checkbox"
 					bind:checked={showOverlay}
 					onchange={drawOverlay}
-				/> Show raw pose overlay
+				/> Show tracked skeleton overlay
 			</label>
 			<label class="flex items-center gap-2"
 				>Playback speed
