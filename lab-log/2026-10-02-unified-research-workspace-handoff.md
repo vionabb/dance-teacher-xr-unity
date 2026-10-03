@@ -47,6 +47,20 @@ Later stacks can move the two current annotation workflows, extract a normal
 metric batch runner from Vitest, and add Python job orchestration. Keep each
 data-producing stage versioned and preserve exact input identities.
 
+## Validation and current limits
+
+- The frozen `20261002-first-manual-review` manifest and prior-study rating CSV
+  imported into the isolated checkout's ignored `local-data/research.sqlite3`:
+  154 video, 48 frame, and 1,570 human-rating records.
+- A synthetic Vitest case verifies repeatable import, source-file immutability,
+  frame-stage override provenance, and rejection of a changed source.
+- The full Vite build passed after restoring three existing Git LFS JSON/CSV
+  files from the original checkout into the isolated checkout for the build.
+  They were restored to pointer form afterward and are not part of the PR.
+- `/research/records` is local and development-only. Identity joins, pagination,
+  researcher role authorization, annotation authoring, and job orchestration
+  remain open. The active annotation database is still the writer.
+
 ## Next action
 
 Review the open stack and test the new usability queue with eligible CHI25
