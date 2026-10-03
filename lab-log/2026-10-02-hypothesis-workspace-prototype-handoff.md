@@ -1,7 +1,7 @@
 # Hypothesis workspace prototype handoff
 
-Status: local prototype on `codex/research-hypotheses-prototype`, based on PR
-#411 head `cdde8d8e`. The hypothesis index, five source-backed pages, local
+Status: local prototype on `codex/research-hypotheses-prototype`, rebased onto
+`main` after PR #411 merged (`05f2927`). The hypothesis index, five source-backed pages, local
 Codex conversation action, append-only SQLite events, and snapshot logic are
 implemented. The dated [entry](2026-10-02-hypothesis-workspace-prototype.md)
 records Viona's request and the claim boundary.
