@@ -22,7 +22,7 @@ configurations.
 | Frozen manual-review release | Immutable manifest, exact raw/reviewed pose artifacts, and a rebuildable read-only catalog under the existing manual-review root. The catalog is not an authoring database. |
 | New research metadata and run records | A separate app-managed local SQLite database under a configured, Git-ignored local-data root. Back it up with a verified snapshot/restore procedure before it becomes authoritative for annotations. |
 | Large derived outputs | Versioned local files with content hashes and registry entries; do not store frame arrays or video bytes in SQLite. |
-| Learner accounts and learner-facing state | Existing Supabase project. Reuse sign-in for the research app, with an additional server-side researcher authorization check on every research page, API, and media route. |
+| Learner accounts and learner-facing state | Existing Supabase project. The first research slice is limited to local development on loopback. Before any remote research serving, reuse sign-in and add a server-side researcher authorization check on every research page, API, and media route. |
 
 The prior-study human similarity ratings and the new pose-tracking usability
 reviews measure different constructs. Keep their source, rating scale, review
@@ -64,12 +64,14 @@ its Python consumer is deliberately migrated.
 2. Register one frozen manual-review release and the prior-study human-rating
    source without changing either source. Validate identities and hashes;
    show unmatched or ambiguous joins as such.
-3. Serve a researcher-authorized, read-only clip view that names both rating
-   constructs and links them to existing metric inspectors. Do not surface
-   unvalidated metric results as coaching conclusions.
+3. Serve a read-only clip view on the local development server, restricted to
+   loopback. Name both rating constructs and link them to existing metric
+   inspectors. Do not surface unvalidated metric results as coaching conclusions.
 4. Test source immutability, repeatable import, provenance, and rejection of
-   unauthorised requests with synthetic fixtures. Verify the app build without
-   copying participant media into test or source artifacts.
+   research requests outside the local development boundary with synthetic
+   fixtures. Verify the app build without copying participant media into test
+   or source artifacts. Require researcher-role authorization before any remote
+   research serving.
 
 Annotation authoring, batch metric jobs, and Python job orchestration are
 subsequent stacks; see the [living handoff](../lab-log/2026-10-02-unified-research-workspace-handoff.md).
