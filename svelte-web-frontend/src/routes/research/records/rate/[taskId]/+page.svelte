@@ -110,9 +110,12 @@
 <main class="mx-auto max-w-7xl px-3 py-2 sm:px-4">
 	<header class="mb-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
 		<div>
-			<a class="link link-primary text-xs" href={resolve('/research/records')}
-				>← Research source records</a
-			>
+			<div class="flex items-center gap-2 text-xs">
+				<a class="link link-primary" href={resolve('/research/records')}
+					>← Research source records</a
+				>
+				{#if data.recorded}<span role="status" class="text-success">✓ Previous saved</span>{/if}
+			</div>
 			<h1 class="text-lg leading-tight font-bold sm:text-xl">Rate pose-tracking usability</h1>
 			<p class="text-xs opacity-70">
 				CHI25 · {data.identity.study} · user {data.identity.userId} · {data.identity.dance} ·
@@ -121,9 +124,6 @@
 		</div>
 	</header>
 
-	{#if data.recorded}<p class="daisy-alert daisy-alert-success mb-2 text-sm">
-			Previous rating saved. Here is the next segment.
-		</p>{/if}
 	{#if form?.message}<p class="daisy-alert daisy-alert-error mb-2 text-sm">{form.message}</p>{/if}
 	{#if !data.annotator}<p class="daisy-alert daisy-alert-warning mb-2 text-sm">
 			Set RESEARCH_ANNOTATOR on the local server to enable saving.
