@@ -79,6 +79,10 @@ export async function loadFrameSource(): Promise<FrameSource | null> {
 			task.frame_count < 1 ||
 			!Number.isFinite(task.fps) ||
 			task.fps <= 0 ||
+			!Number.isFinite(task.source_dimensions?.width) ||
+			task.source_dimensions.width <= 0 ||
+			!Number.isFinite(task.source_dimensions?.height) ||
+			task.source_dimensions.height <= 0 ||
 			!task.source_artifact ||
 			!task.landmarks_artifact ||
 			![task.source_artifact, task.landmarks_artifact].every((artifact) =>

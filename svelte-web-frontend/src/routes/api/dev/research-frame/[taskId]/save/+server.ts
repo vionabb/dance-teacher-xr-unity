@@ -13,6 +13,8 @@ export const POST: RequestHandler = async ({ params, request, getClientAddress }
 	const task = source?.manifest.tasksById.get(params.taskId);
 	if (!source || !task) error(404);
 	const body = (await request.json()) as Record<string, unknown>;
+	if (body?.manifest_sha256 !== source.manifest.sha256)
+		error(409, 'Frame-review manifest changed. Reload this case before saving.');
 	if (
 		!body ||
 		typeof body !== 'object' ||

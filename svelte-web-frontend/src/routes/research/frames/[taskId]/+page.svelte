@@ -138,10 +138,17 @@
 		const resize = new ResizeObserver(draw);
 		if (stage) resize.observe(stage);
 		window.addEventListener('keydown', keydown);
+		const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (dirty === saved) return;
+			event.preventDefault();
+			event.returnValue = '';
+		};
+		window.addEventListener('beforeunload', warnBeforeUnload);
 		return () => {
 			cancelled = true;
 			resize.disconnect();
 			window.removeEventListener('keydown', keydown);
+			window.removeEventListener('beforeunload', warnBeforeUnload);
 			cancelAnimationFrame(animationFrame);
 			clearTimeout(saveTimer);
 		};
@@ -204,7 +211,7 @@
 			ctx.lineWidth = 2.5;
 			ctx.stroke();
 		}
-		for (const name of pose.landmarks ?? []) {
+		for (const name of parts) {
 			const point = locate(name);
 			if (!point) continue;
 			const marked = marks.some(
@@ -357,7 +364,7 @@
 		const image = imagePoint(event);
 		const radius = 20 / videoBox().scale / zoom;
 		let closest = radius;
-		for (const name of pose.landmarks ?? []) {
+		for (const name of parts) {
 			const point = positionFor(name);
 			if (!point) continue;
 			const distance = Math.hypot(point[0] - image.x, point[1] - image.y);
@@ -461,6 +468,7 @@
 		if (dirty === saved) return true;
 		const target = dirty;
 		const payload = {
+			manifest_sha256: data.manifestSha256,
 			expected_revision_id: revisionId,
 			status: pendingStatus,
 			frame_usability_response: {
@@ -516,6 +524,10 @@
 				data.nextTaskId ? `/research/frames/${data.nextTaskId}` : '/research/frames'
 			);
 	}
+	async function leaveToQueue(event: MouseEvent) {
+		event.preventDefault();
+		if (await flushSave()) window.location.assign('/research/frames');
+	}
 </script>
 
 <svelte:head><title>{data.displayLabel} · Research</title></svelte:head>
@@ -528,6 +540,7 @@
 			<a
 				class="daisy-btn daisy-btn-ghost daisy-btn-xs"
 				href="/research/frames"
+				onclick={leaveToQueue}
 				aria-label="Back to frame queue">←</a
 			>
 			<div class="min-w-0">
@@ -893,7 +906,7 @@
 					onclick={() => {
 						void flushSave();
 					}}>Save now</button
-				><a class="daisy-btn daisy-btn-sm" href="/research/frames">Queue</a>
+				><a class="daisy-btn daisy-btn-sm" href="/research/frames" onclick={leaveToQueue}>Queue</a>
 			</div>
 		</div>
 	</div>

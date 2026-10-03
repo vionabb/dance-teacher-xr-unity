@@ -12,6 +12,7 @@ export const load: PageServerLoad = async ({ getClientAddress, params }) => {
 	const latest = await latestFrameRevisions(source);
 	return {
 		taskId: task.task_id,
+		manifestSha256: source.manifest.sha256,
 		sourceCorpus: task.source_corpus,
 		sourceStem: task.source_stem,
 		displayLabel: task.display_label || task.task_id,
