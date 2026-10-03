@@ -196,3 +196,7 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Tracks the three open PRs, current local-only usability authoring, the
   October 2 main merge and Vercel preview repair, and remaining researcher
   authorization, frame-correction, metric-runner, and pipeline-job work.
+
+- [2026-10-03 — Bring frame corrections into the research workspace](2026-10-03-frame-review-in-svelte.md)
+  Ports the 49-case sparse frame review into the local Svelte interface while
+  retaining the original Python validator and SQLite revision history.

@@ -173,6 +173,45 @@ async function main() {
 		await page.evaluate((top) => window.scrollTo(0, Math.max(0, top - 90)), formTop);
 		await capture('usability-rating-form.png', 'Rate video usability: rating form');
 
+		await page.goto(`${options.baseUrl}/research/frames`, { waitUntil: 'domcontentloaded' });
+		await page.getByRole('heading', { name: 'Frame corrections' }).waitFor();
+		await capture('frame-corrections.png', 'Frame correction queue');
+		const referenceCase = page.locator(
+			'a[href="/research/frames/frame-usability-video-usability-002"]'
+		);
+		if (await referenceCase.count()) {
+			await referenceCase.first().click();
+			await page.waitForURL('**/research/frames/frame-usability-video-usability-002');
+			await page.waitForFunction(() => document.querySelector('video')?.readyState >= 2);
+			await capture('frame-review-desktop.png', 'Reference video frame review: desktop');
+			for (const [width, height, filename] of [
+				[375, 667, 'frame-review-phone-small.png'],
+				[390, 844, 'frame-review-phone.png'],
+				[994, 575, 'frame-review-landscape.png']
+			]) {
+				await page.setViewportSize({ width, height });
+				for (const name of ['Current frame', 'Previous frame', 'Unusable', 'Flawed', 'Good']) {
+					const control = page.getByRole(name === 'Current frame' ? 'slider' : 'button', {
+						name,
+						exact: true
+					});
+					const box = await control.boundingBox();
+					if (!box || box.y < 0 || box.y + box.height > height)
+						throw new Error(`${name} is outside the ${width}×${height} viewport`);
+				}
+				await capture(filename, `Reference video frame review: ${width}×${height}`);
+				if (width === 390) {
+					await page.getByRole('button', { name: 'More' }).first().click();
+					await page.getByRole('dialog', { name: 'Frame review tools' }).waitFor();
+					await capture(
+						'frame-review-phone-tools.png',
+						'Reference video frame review: mobile tools'
+					);
+					await page.getByRole('button', { name: 'Close' }).click();
+				}
+			}
+		}
+
 		await makeContactSheet(browser, options.outputDir, captures);
 		await writeFile(
 			path.join(options.outputDir, 'manifest.json'),

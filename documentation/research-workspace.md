@@ -137,9 +137,41 @@ landmarks hashes again before writing. The overlay is the baseline tracked
 skeleton reconstructed into image coordinates from preprocessing-usable frames;
 it is not the original raw `pose2d` stream.
 
+### Frame-by-frame follow-up
+
+`/research/frames` lists the 49 selected follow-up frame-review cases from the
+`20260929-frame-usability-correctable-203` manifest. The editor resumes the
+latest revision for the configured annotator and keeps the original sparse
+Good/Flawed/Unusable labels, automatically missing-pose frames, landmark marks,
+corrected positions, notes, completion, skip, and video-unusable override.
+The SvelteKit server passes saves to the original Python `AnnotationStore`,
+which remains the sole validator and append-only writer of its
+`judgment_revisions` history. The app-managed `research.sqlite3` stays a
+separate read model and whole-video rating store.
+
+Configure the source using `RESEARCH_FRAME_MANIFEST_PATH`,
+`RESEARCH_LEGACY_ANNOTATIONS_SQLITE_PATH`, and `RESEARCH_ANNOTATOR`, or create
+an ignored `local-data/research-frame-source.json` in the code repository:
+
+```json
+{
+  "manifest": "/absolute/path/to/20260929-frame-usability-correctable-203/annotation_tasks.json",
+  "database": "/absolute/path/to/20260923-video-first-001/annotations.sqlite3",
+  "annotator": "viona"
+}
+```
+
+Pair the manifest with the original source experiment's database. The route
+validates task and media identities, confines media paths to the manifest
+root, and checks the frozen video and landmark hashes before each save.
+Autosaves are serialized and pass the last revision ID so stale edits are
+rejected. The UI offers frame stepping, slow playback, a scrubber, sparse
+labels, direct landmark dragging, a per-landmark timeline, and a mobile
+video-first layout with an overflow tools panel. This tool requires local
+development and a loopback client; it is absent from the Vercel deployment.
+
 All research pages, APIs, and media routes in this slice require development
-mode and a loopback client. Media is streamed from the local manifest root;
-neither participant videos nor research records are published by the deployed
-Vercel app. Add server-side researcher-role authorization to every research
-route before any remote serving. Metric calculations and frame-correction
-authoring are not part of this slice.
+mode and a loopback client. Media is streamed from local manifests; neither
+participant videos nor research records are published by the deployed Vercel
+app. Add server-side researcher-role authorization to every research route
+before any remote serving. Metric calculations are still outside this slice.
