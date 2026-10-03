@@ -38,5 +38,20 @@ viewport; the shared navbar now truly hides when collapsed. The
 repository-wide Svelte check still reports existing errors outside the new
 frame-review files.
 
+During a later browser save probe, a service worker bypassed the intended
+request interception and wrote one unintended revision (1743) to the original
+annotation database. I immediately appended revision 1744 through the same
+validated, compare-and-swap path to restore the prior completed response.
+Read-only comparison confirmed that 1744 is active, its status and substantive
+annotation fields match the prior revision 742, and the only additional
+response fields are the new format's default `last_viewed_frame: 0` and
+`video_usability_rating_override: null`. Both probe and recovery remain in
+the append-only history. The probe also exposed a Svelte proxy serialization
+error; the editor now snapshots reactive labels and marks before saving.
+I verified the fix through a second loopback server backed by a temporary
+SQLite copy: a frame label saved, reloaded, and remained selected with no page
+error. I stopped that server and removed the copy. The production build and
+focused lint then passed with placeholder build credentials.
+
 A later pass can unify the legacy video usability authoring history and the
 new research rating store once the shared contracts settle.

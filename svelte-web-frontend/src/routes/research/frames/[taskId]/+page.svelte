@@ -60,6 +60,7 @@
 	let pendingStatus: 'started' | 'completed' | 'skipped' | 'unclear' = 'started';
 	let dirty = 0;
 	let saved = 0;
+	let savingTarget = 0;
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
 	let saveChain = Promise.resolve();
 	let pointers = new Map<number, { x: number; y: number }>();
@@ -103,12 +104,17 @@
 	onMount(() => {
 		let cancelled = false;
 		try {
-			const savedFrame = Number(localStorage.getItem(resumeKey));
+			const remembered = JSON.parse(localStorage.getItem(resumeKey) ?? 'null') as {
+				frame?: number;
+				revisionId?: number;
+			} | null;
+			const savedFrame = remembered?.frame;
 			if (
+				remembered?.revisionId === revisionId &&
 				Number.isInteger(savedFrame) &&
+				savedFrame !== undefined &&
 				savedFrame >= 0 &&
-				savedFrame <= maxFrame &&
-				savedFrame > frame
+				savedFrame <= maxFrame
 			)
 				frame = savedFrame;
 		} catch {
@@ -234,7 +240,7 @@
 		}
 		playing = false;
 		try {
-			localStorage.setItem(resumeKey, String(frame));
+			localStorage.setItem(resumeKey, JSON.stringify({ frame, revisionId }));
 		} catch {
 			/* optional */
 		}
@@ -467,13 +473,18 @@
 		clearTimeout(saveTimer);
 		if (dirty === saved) return true;
 		const target = dirty;
+		if (target <= savingTarget) {
+			await saveChain;
+			return saved >= target;
+		}
+		savingTarget = target;
 		const payload = {
 			manifest_sha256: data.manifestSha256,
 			expected_revision_id: revisionId,
 			status: pendingStatus,
 			frame_usability_response: {
-				labels: structuredClone(labels),
-				marks: structuredClone(marks),
+				labels: $state.snapshot(labels),
+				marks: $state.snapshot(marks),
 				note,
 				video_usability_rating_override: override,
 				last_viewed_frame: frame
@@ -497,6 +508,11 @@
 					);
 				const receipt = (await response.json()) as { revision_id: number };
 				revisionId = receipt.revision_id;
+				try {
+					localStorage.setItem(resumeKey, JSON.stringify({ frame, revisionId }));
+				} catch {
+					/* Local storage may be unavailable. */
+				}
 				saved = Math.max(saved, target);
 				status = payload.status;
 				saveState = dirty === saved ? 'Saved' : 'Unsaved';
@@ -508,25 +524,30 @@
 				}
 			})
 			.catch((caught: unknown) => {
+				savingTarget = saved;
 				saveError = caught instanceof Error ? caught.message : 'Save failed.';
 				saveState = 'Save failed';
 			});
 		await saveChain;
 		return saved >= target;
 	}
+	async function flushAll(): Promise<boolean> {
+		while (dirty > saved) if (!(await flushSave())) return false;
+		return true;
+	}
 	async function finish(kind: 'completed' | 'skipped' | 'unusable') {
 		confirmDialog.close();
 		if (kind === 'unusable') override = 'unusable';
 		else if (override) override = null;
 		scheduleSave(kind === 'skipped' ? 'skipped' : 'completed');
-		if (await flushSave())
+		if (await flushAll())
 			window.location.assign(
 				data.nextTaskId ? `/research/frames/${data.nextTaskId}` : '/research/frames'
 			);
 	}
 	async function leaveToQueue(event: MouseEvent) {
 		event.preventDefault();
-		if (await flushSave()) window.location.assign('/research/frames');
+		if (await flushAll()) window.location.assign('/research/frames');
 	}
 </script>
 
