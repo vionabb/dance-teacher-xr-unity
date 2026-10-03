@@ -37,7 +37,7 @@
 <nav
 	class="daisy-navbar bg-primary text-primary-content gap-4"
 	aria-label="main navigation"
-	class:collapsed={$navbarProps.collapsed}
+	class:hidden={$navbarProps.collapsed}
 >
 	<div class="flex-none">
 		<!-- Container for left-aligned content -->
@@ -101,10 +101,6 @@
 </nav>
 
 <style lang="scss">
-	nav.collapsed {
-		height: 0;
-	}
-
 	.settings {
 		transition: background-color 0.5s ease-in-out;
 	}
