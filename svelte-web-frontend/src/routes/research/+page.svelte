@@ -134,6 +134,9 @@
 			</h1>
 		</div>
 		<div class="flex gap-2">
+			<a class="daisy-btn daisy-btn-outline daisy-btn-sm" href="/research/frames"
+				>Frame corrections</a
+			>
 			<a class="daisy-btn daisy-btn-outline daisy-btn-sm" href="/research/records">Source records</a
 			>
 			<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href="/metrics/qijia2d?source=local"

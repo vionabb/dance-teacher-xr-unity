@@ -32,6 +32,7 @@ Do not load the full thesis or CHI paper unless the task requires primary-source
 - Check both sides of cross-project contracts when changing bundle schemas, metric exports, filenames, or artifact paths.
 - Use the smallest existing validation command that covers a change. Subproject `AGENTS.md` files list the canonical commands.
 - Browser automation (e.g. the Playwright MCP server) against the Svelte frontend or the annotation tool is token-expensive: it returns the page's full accessibility tree on every action. Reserve it for exploratory, interactive work and local UI debugging. For CI/CD or any repeated run, generate a static Playwright test script (e.g. via `npx playwright codegen`) instead of driving a persistent MCP loop headlessly.
+- For UI work that uses daisyUI, use the daisyUI Blueprint MCP tools or skills when available. Follow the current tool workflow and its returned guidance rather than guessing component syntax or treating "Blueprint" as a visual style. See `svelte-web-frontend/AGENTS.md` for the frontend sequence; report unavailable required tools instead of inventing their recommendations.
 - On macOS, MediaPipe pose-extraction tests require a GUI-authorized local
   process because the pinned wheel creates a native NSOpenGL context even when
   inference uses the CPU. Before running any pose smoke test, verify that the

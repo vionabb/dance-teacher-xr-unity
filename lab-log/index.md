@@ -189,8 +189,14 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 
 - [2026-10-02 — Toward one research workspace](2026-10-02-unified-research-workspace.md)
   Viona chose one SvelteKit interface for research and learner work, local
-  SQLite for research records, and shared versioned data contracts. The first
-  local read model imports frozen review and human-rating sources separately.
+  SQLite for research records, and shared versioned data contracts. The local
+  read model imports frozen reviews and CHI25 human ratings separately; the
+  usability queue selects rated segments to fill sparse coverage cells.
 - [2026-10-02 — Unified research workspace handoff](2026-10-02-unified-research-workspace-handoff.md)
-  Tracks the stacked implementation and the remaining verified identity join,
-  researcher authorization, annotation, metric-runner, and pipeline-job work.
+  Tracks the four open PRs, local usability and frame-correction authoring,
+  the October 2 main merge and Vercel preview repair, and remaining researcher
+  authorization, metric-runner, and pipeline-job work.
+
+- [2026-10-03 — Bring frame corrections into the research workspace](2026-10-03-frame-review-in-svelte.md)
+  Ports the 49-case sparse frame review into the local Svelte interface while
+  retaining the original Python validator and SQLite revision history.
