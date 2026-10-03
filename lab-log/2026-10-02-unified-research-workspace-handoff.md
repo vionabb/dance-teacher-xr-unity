@@ -12,10 +12,13 @@ The architecture direction is recorded in the [dated entry](2026-10-02-unified-r
 The owning [workspace direction](../documentation/research-workspace.md) and
 [issue #407](https://github.com/vionabb/dance-teacher-xr-unity/issues/407)
 record the accepted data boundary and first-slice acceptance.
-Implementation is starting from `main` at `b1a475eb72ee28fff659f4980fdb60c59771249c`
-in an isolated checkout. Use a stacked set of small reviewable PRs. The active
-annotation server and its SQLite database are outside this checkout and must
-not be modified as part of the initial read-only work.
+Implementation started from `main` at `b1a475eb72ee28fff659f4980fdb60c59771249c`
+in an isolated checkout. The open stack is [#408](https://github.com/vionabb/dance-teacher-xr-unity/pull/408)
+for the direction, [#409](https://github.com/vionabb/dance-teacher-xr-unity/pull/409)
+for the local SQLite read model, and [#411](https://github.com/vionabb/dance-teacher-xr-unity/pull/411)
+for the usability table and local whole-video authoring queue. The active
+annotation server and its SQLite database remain outside this checkout; the
+SvelteKit queue reads the legacy database without writing to it.
 
 ## Settled boundaries
 
@@ -36,8 +39,9 @@ not be modified as part of the initial read-only work.
 2. Add the local research store and a read-only adapter for a frozen review
    release and prior-study ratings. The first slice must not copy source media,
    change the active annotation database, or replace the current metric export.
-3. Add a researcher-only read path in the SvelteKit app with focused checks of
-   authorization, identity joins, and displayed provenance.
+3. Add a local development read path in the SvelteKit app with focused checks of
+   loopback access, identity joins, and displayed provenance. Add researcher-role
+   authorization before research routes are served remotely.
 
 Later stacks can move the two current annotation workflows, extract a normal
 metric batch runner from Vitest, and add Python job orchestration. Keep each
@@ -45,6 +49,8 @@ data-producing stage versioned and preserve exact input identities.
 
 ## Next action
 
-Complete and review the lab-log/contract PR, then implement the first
-functional local SQLite and read-only research slice on top of that branch.
-Update this status and next action before ending the work session.
+Review the open stack and test the new usability queue with eligible CHI25
+segments. Keep research routes on local loopback. Before any remote deployment,
+add researcher-role authorization to every research page, API, and media route.
+Frame-correction authoring, metric batch jobs, and Python orchestration remain
+later work.
