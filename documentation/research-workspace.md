@@ -160,21 +160,36 @@ The app-managed research SQLite database stores append-only conversation,
 status, and finding records. Each conversation save makes a verified local
 snapshot. Statuses describe the research workflow (`candidate`,
 `investigating`, `evidence-review`, `resolved`, `archived`) rather than an
-automatic scientific verdict. The local conversation panel invokes a separate
-read-only Codex CLI turn for each message, passing the cited lab-log entry and
-recent conversation; it is not the live Codex desktop task. The server accepts
-a structured response and allows
-status and finding records only for explicit requests, validates the returned
-values, and does the database write itself. The panel can discuss a prospective
-analysis; running that analysis or adding a custom tool still requires a Codex
-task with an implementation brief. The initial pages do not ingest the live
-annotation history or execute new hypothesis-specific analyses.
+automatic scientific verdict. The index conversation can create hypotheses,
+rename them, change workflow status, remove them from the index, and restore
+them. Removal is reversible: the URL, conversation, and findings remain.
+Renaming changes the displayed title but preserves the URL and history. New
+hypotheses begin as candidates with a draft overview stored in SQLite; the
+five seeded overviews continue to read their cited lab-log Markdown at request
+time. The index lists removed hypotheses separately so they can be found and
+restored.
+
+Both conversation panels invoke a separate read-only Codex CLI turn for each
+message; it is not the live Codex desktop task. The index assistant receives
+the current catalog and recent collection conversation; each detail assistant
+receives its overview and recent per-hypothesis conversation. The server
+validates structured operations against the catalog and explicit requests,
+then writes append-only records and a verified snapshot. For collection
+changes, name the exact current title or URL name and the
+requested action and value (for example, `Mark Recurring tracking risk by
+segment as investigating`). If the assistant proposes an ambiguous or
+mismatched operation, the entire turn is recorded as conversation without a
+collection change. The detail panel can
+save an explicitly requested finding and discuss a prospective analysis;
+running that analysis or adding a custom tool still requires a Codex task with
+an implementation brief. The initial pages do not ingest the live annotation
+history or execute new hypothesis-specific analyses.
 
 The local CLI call requires a working Codex sign-in on the serving machine.
 This prototype inherits the development-mode and loopback-client boundary.
 Before using it remotely, add researcher-role authorization to every page and
 action. Before treating these pages as the durable research record, review the
 initial hypothesis wording, decide whether lab-log prose should remain the
-canonical overview, and define an evidence-link and revision policy for saved
-findings. See the [dated prototype entry](../lab-log/2026-10-02-hypothesis-workspace-prototype.md)
+canonical overview for newly added hypotheses, and define an evidence-link
+and revision policy for saved findings. See the [dated prototype entry](../lab-log/2026-10-02-hypothesis-workspace-prototype.md)
 and its [handoff](../lab-log/2026-10-02-hypothesis-workspace-prototype-handoff.md).

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import type { HypothesisDefinition, HypothesisMetadataEvent } from './research-store';
 
 export const HYPOTHESIS_STATUSES = [
 	'candidate',
@@ -10,10 +11,12 @@ export const HYPOTHESIS_STATUSES = [
 ] as const;
 export type HypothesisStatus = (typeof HYPOTHESIS_STATUSES)[number];
 
-type Hypothesis = {
+export type Hypothesis = {
 	slug: string;
 	title: string;
 	question: string;
+	hidden?: boolean;
+	overviewMarkdown?: string;
 	sources: { file: string; label: string }[];
 	sections: {
 		title: string;
@@ -114,17 +117,47 @@ export const hypotheses: Hypothesis[] = [
 	}
 ];
 
-export function getHypothesis(slug: string): Hypothesis | undefined {
-	return hypotheses.find((item) => item.slug === slug);
+export function resolveHypotheses(input: {
+	definitions: HypothesisDefinition[];
+	metadata: HypothesisMetadataEvent[];
+}): Hypothesis[] {
+	const catalog: Hypothesis[] = [
+		...hypotheses.map((item) => ({ ...item })),
+		...input.definitions.map((item) => ({
+			slug: item.slug,
+			title: item.title,
+			question: item.question,
+			overviewMarkdown: item.overview,
+			sources: [],
+			sections: []
+		}))
+	];
+	for (const event of input.metadata) {
+		const item = catalog.find((hypothesis) => hypothesis.slug === event.slug);
+		if (!item) continue;
+		if (event.kind === 'rename' && event.value) item.title = event.value;
+		if (event.kind === 'remove') item.hidden = true;
+		if (event.kind === 'restore') item.hidden = false;
+	}
+	return catalog;
+}
+
+export function getHypothesis(
+	slug: string,
+	catalog: Hypothesis[] = hypotheses
+): Hypothesis | undefined {
+	return catalog.find((item) => item.slug === slug);
 }
 
 export async function hypothesisOverview(hypothesis: Hypothesis): Promise<{
 	paragraphs: string[];
-	source: string;
+	source: string | null;
 	markdown: string;
 }> {
-	const source = hypothesis.sources[0].file;
-	const markdown = await readFile(path.resolve(process.cwd(), '..', 'lab-log', source), 'utf8');
+	const source = hypothesis.sources[0]?.file ?? null;
+	const markdown = source
+		? await readFile(path.resolve(process.cwd(), '..', 'lab-log', source), 'utf8')
+		: (hypothesis.overviewMarkdown ?? '');
 	const body = markdown.replace(/^---\s*\n[\s\S]*?\n---\s*\n/, '');
 	const introduction = body.replace(/^# .+\n/, '').split(/^## /m)[0];
 	const paragraphs = introduction

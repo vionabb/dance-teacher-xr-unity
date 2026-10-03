@@ -6,10 +6,12 @@ import {
 	getHypothesis,
 	hypothesisOverview,
 	HYPOTHESIS_STATUSES,
+	resolveHypotheses,
 	type HypothesisStatus
 } from '$lib/server/research-hypotheses';
 import {
 	readHypothesisState,
+	readHypothesisCatalog,
 	recordHypothesisTurn,
 	researchDatabasePath
 } from '$lib/server/research-store';
@@ -17,7 +19,10 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ getClientAddress, params, url }) => {
 	if (!dev || !isLoopbackClientAddress(getClientAddress())) error(404);
-	const hypothesis = getHypothesis(params.slug);
+	const hypothesis = getHypothesis(
+		params.slug,
+		resolveHypotheses(await readHypothesisCatalog(researchDatabasePath()))
+	);
 	if (!hypothesis) error(404, 'Unknown hypothesis');
 	const [overview, state] = await Promise.all([
 		hypothesisOverview(hypothesis),
@@ -36,7 +41,10 @@ export const load: PageServerLoad = async ({ getClientAddress, params, url }) =>
 export const actions: Actions = {
 	default: async ({ request, getClientAddress, params }) => {
 		if (!isDevLocalRequestAllowed(request, getClientAddress(), dev)) error(404);
-		const hypothesis = getHypothesis(params.slug);
+		const hypothesis = getHypothesis(
+			params.slug,
+			resolveHypotheses(await readHypothesisCatalog(researchDatabasePath()))
+		);
 		if (!hypothesis) error(404, 'Unknown hypothesis');
 		const form = await request.formData();
 		const message = String(form.get('message') ?? '').trim();
