@@ -4,9 +4,9 @@ import path from 'node:path';
 import type sqlite3 from 'sqlite3';
 import Papa from 'papaparse';
 import { humanSimilarityCondition } from './research-identity.js';
-import { HYPOTHESIS_STATUSES, type HypothesisStatus } from './research-hypotheses';
+import { HYPOTHESIS_STATUSES, hypotheses, type HypothesisStatus } from './research-hypotheses';
 
-export const RESEARCH_SCHEMA_VERSION = 3;
+export const RESEARCH_SCHEMA_VERSION = 4;
 
 export type SourceRecord = {
 	kind: string;
@@ -207,7 +207,7 @@ async function withDatabase<T>(
 				for (const column of ['rating_1', 'rating_2', 'rating_3'])
 					await run(db, `ALTER TABLE human_similarity_ratings ADD COLUMN ${column} INTEGER`);
 				await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
-			} else if (versions.length === 1 && versions[0].version === 2)
+			} else if (versions.length === 1 && (versions[0].version === 2 || versions[0].version === 3))
 				await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
 			else if (versions.length !== 1 || versions[0].version !== RESEARCH_SCHEMA_VERSION)
 				throw new Error(
@@ -275,6 +275,19 @@ async function withDatabase<T>(
 			message_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
 			role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
 			content TEXT NOT NULL, created_at TEXT NOT NULL)`
+		);
+		await run(
+			db,
+			`CREATE TABLE IF NOT EXISTS hypothesis_definitions (
+			slug TEXT PRIMARY KEY, title TEXT NOT NULL, question TEXT NOT NULL,
+			overview TEXT NOT NULL, created_at TEXT NOT NULL)`
+		);
+		await run(
+			db,
+			`CREATE TABLE IF NOT EXISTS hypothesis_metadata_events (
+			event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
+			kind TEXT NOT NULL CHECK(kind IN ('rename', 'remove', 'restore')),
+			value TEXT, created_at TEXT NOT NULL)`
 		);
 		return await action(db);
 	} finally {
@@ -669,6 +682,202 @@ export type HypothesisChatMessage = {
 	content: string;
 	created_at: string;
 };
+
+export const HYPOTHESIS_COLLECTION_SLUG = 'hypothesis-collection';
+
+export type HypothesisDefinition = {
+	slug: string;
+	title: string;
+	question: string;
+	overview: string;
+	created_at: string;
+};
+
+export type HypothesisMetadataEvent = {
+	event_id: number;
+	slug: string;
+	kind: 'rename' | 'remove' | 'restore';
+	value: string | null;
+	created_at: string;
+};
+
+export type HypothesisCollectionChange = {
+	slug: string;
+	kind: 'status' | 'rename' | 'remove' | 'restore';
+	value: string | null;
+};
+
+export async function readHypothesisCatalog(file: string) {
+	return withDatabase(file, async (db) => ({
+		definitions: await all<HypothesisDefinition>(
+			db,
+			'SELECT slug, title, question, overview, created_at FROM hypothesis_definitions ORDER BY created_at, slug'
+		),
+		metadata: await all<HypothesisMetadataEvent>(
+			db,
+			'SELECT event_id, slug, kind, value, created_at FROM hypothesis_metadata_events ORDER BY event_id'
+		)
+	}));
+}
+
+export async function readHypothesisCollectionState(file: string) {
+	return withDatabase(file, async (db) => ({
+		definitions: await all<HypothesisDefinition>(
+			db,
+			'SELECT slug, title, question, overview, created_at FROM hypothesis_definitions ORDER BY created_at, slug'
+		),
+		metadata: await all<HypothesisMetadataEvent>(
+			db,
+			'SELECT event_id, slug, kind, value, created_at FROM hypothesis_metadata_events ORDER BY event_id'
+		),
+		events: await all<HypothesisEvent>(
+			db,
+			'SELECT event_id, slug, kind, value, created_at FROM hypothesis_events ORDER BY event_id'
+		),
+		messages: await all<HypothesisChatMessage>(
+			db,
+			'SELECT message_id, slug, role, content, created_at FROM hypothesis_chat_messages WHERE slug = ? ORDER BY message_id DESC LIMIT 30',
+			[HYPOTHESIS_COLLECTION_SLUG]
+		)
+	}));
+}
+
+function hypothesisSlug(title: string): string {
+	return title
+		.normalize('NFKD')
+		.toLowerCase()
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '')
+		.slice(0, 80)
+		.replace(/-$/g, '');
+}
+
+export async function recordHypothesisCollectionTurn(
+	file: string,
+	input: {
+		userMessage: string;
+		assistantReply: string;
+		create: { title: string; question: string; overview: string } | null;
+		changes: HypothesisCollectionChange[];
+	}
+): Promise<{
+	createdSlug: string | null;
+	snapshotPath: string | null;
+	backupError: string | null;
+}> {
+	const create = input.create && {
+		title: input.create.title.trim(),
+		question: input.create.question.trim(),
+		overview: input.create.overview.trim()
+	};
+	const createdSlug = create ? hypothesisSlug(create.title) : null;
+	if (
+		!input.userMessage.trim() ||
+		input.userMessage.length > 4000 ||
+		!input.assistantReply.trim() ||
+		input.assistantReply.length > 8000 ||
+		input.changes.length > 10 ||
+		(create &&
+			(!createdSlug ||
+				createdSlug === HYPOTHESIS_COLLECTION_SLUG ||
+				create.title.length < 4 ||
+				create.title.length > 120 ||
+				create.question.length < 10 ||
+				create.question.length > 300 ||
+				create.overview.length < 20 ||
+				create.overview.length > 2000))
+	)
+		throw new Error('Invalid hypothesis collection turn');
+	return withDatabase(file, async (db) => {
+		await run(db, 'BEGIN IMMEDIATE');
+		let messageId: number;
+		try {
+			const definitions = await all<HypothesisDefinition>(
+				db,
+				'SELECT slug, title, question, overview, created_at FROM hypothesis_definitions'
+			);
+			const existing = new Set([
+				...hypotheses.map((item) => item.slug),
+				...definitions.map((item) => item.slug)
+			]);
+			if (createdSlug && existing.has(createdSlug))
+				throw new Error('A hypothesis with this URL name already exists');
+			for (const change of input.changes) {
+				if (!existing.has(change.slug)) throw new Error(`Unknown hypothesis: ${change.slug}`);
+				if (
+					change.kind === 'status' &&
+					!HYPOTHESIS_STATUSES.includes(change.value as HypothesisStatus)
+				)
+					throw new Error('Invalid hypothesis status');
+				if (
+					change.kind === 'rename' &&
+					(typeof change.value !== 'string' ||
+						change.value.trim().length < 4 ||
+						change.value.length > 120)
+				)
+					throw new Error('Invalid hypothesis title');
+				if ((change.kind === 'remove' || change.kind === 'restore') && change.value !== null)
+					throw new Error('Invalid hypothesis visibility change');
+			}
+			const now = new Date().toISOString();
+			for (const [role, content] of [
+				['user', input.userMessage.trim()],
+				['assistant', input.assistantReply.trim()]
+			])
+				await run(
+					db,
+					'INSERT INTO hypothesis_chat_messages (slug, role, content, created_at) VALUES (?, ?, ?, ?)',
+					[HYPOTHESIS_COLLECTION_SLUG, role, content, now]
+				);
+			const [{ id }] = await all<{ id: number }>(db, 'SELECT last_insert_rowid() AS id');
+			messageId = id;
+			if (create && createdSlug) {
+				await run(
+					db,
+					'INSERT INTO hypothesis_definitions (slug, title, question, overview, created_at) VALUES (?, ?, ?, ?, ?)',
+					[createdSlug, create.title, create.question, create.overview, now]
+				);
+				await run(
+					db,
+					'INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES (?, ?, ?, ?)',
+					[createdSlug, 'status', 'candidate', now]
+				);
+			}
+			for (const change of input.changes) {
+				if (change.kind === 'status')
+					await run(
+						db,
+						'INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES (?, ?, ?, ?)',
+						[change.slug, 'status', change.value, now]
+					);
+				else
+					await run(
+						db,
+						'INSERT INTO hypothesis_metadata_events (slug, kind, value, created_at) VALUES (?, ?, ?, ?)',
+						[change.slug, change.kind, change.value?.trim() ?? null, now]
+					);
+			}
+			await run(db, 'COMMIT');
+		} catch (recordError) {
+			await run(db, 'ROLLBACK');
+			throw recordError;
+		}
+		try {
+			return {
+				createdSlug,
+				snapshotPath: await snapshotAfterRevision(db, file, messageId, 'hypothesis_chat_messages'),
+				backupError: null
+			};
+		} catch (snapshotError) {
+			return {
+				createdSlug,
+				snapshotPath: null,
+				backupError: snapshotError instanceof Error ? snapshotError.message : 'Snapshot failed'
+			};
+		}
+	});
+}
 
 export async function readHypothesisState(file: string, slug: string) {
 	return withDatabase(file, async (db) => ({

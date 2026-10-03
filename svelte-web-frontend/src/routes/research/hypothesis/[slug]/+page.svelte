@@ -18,6 +18,9 @@
 				<p class="text-primary text-xs font-bold tracking-[.16em] uppercase">Research hypothesis</p>
 				<h1 class="text-3xl font-bold">{data.hypothesis.title}</h1>
 				<p class="max-w-3xl text-base opacity-75">{data.hypothesis.question}</p>
+				{#if data.hypothesis.hidden}<p class="text-sm font-medium">
+						Removed from the index. Its history is preserved; ask Codex on the index to restore it.
+					</p>{/if}
 				<a class="daisy-btn daisy-btn-primary mt-2" href="#conversation">Discuss with Codex ↓</a>
 			</div>
 			<span class="daisy-badge daisy-badge-outline">{data.status}</span>
@@ -33,19 +36,21 @@
 				<div>
 					<h2 id="overview-heading" class="text-xl font-semibold">Hypothesis overview</h2>
 					<p class="text-xs opacity-60">
-						Opening prose from the lab log; updates there appear here.
+						{data.overview.source
+							? 'Opening prose from the lab log; updates there appear here.'
+							: 'Draft overview from the collection conversation; add source citations as the investigation develops.'}
 					</p>
 				</div>
 				{#each data.overview.paragraphs as paragraph (paragraph)}
 					<p class="text-sm leading-6">{paragraph}</p>
 				{/each}
-				<details class="text-sm">
-					<summary class="link link-primary cursor-pointer">Read the full lab log entry</summary>
-					<p class="mt-2 text-xs opacity-60">lab-log/{data.overview.source}</p>
-					<pre
-						class="bg-base-200 mt-2 max-h-96 overflow-auto rounded p-3 text-xs whitespace-pre-wrap">{data
-							.overview.markdown}</pre>
-				</details>
+				{#if data.overview.source}<details class="text-sm">
+						<summary class="link link-primary cursor-pointer">Read the full lab log entry</summary>
+						<p class="mt-2 text-xs opacity-60">lab-log/{data.overview.source}</p>
+						<pre
+							class="bg-base-200 mt-2 max-h-96 overflow-auto rounded p-3 text-xs whitespace-pre-wrap">{data
+								.overview.markdown}</pre>
+					</details>{/if}
 			</section>
 
 			{#each data.hypothesis.sections as section (section.title)}
