@@ -400,6 +400,10 @@ class AnnotationStore:
             )
         created_at = datetime.now(timezone.utc).isoformat()
         with self._connect() as connection:
+            if "expected_revision_id" in payload:
+                # Keep the optimistic check and append atomic even if the
+                # original annotation server writes to this database too.
+                connection.execute("BEGIN IMMEDIATE")
             previous = connection.execute(
                 """
                 SELECT revision_id FROM judgment_revisions
@@ -408,6 +412,13 @@ class AnnotationStore:
                 """,
                 (self.manifest["experiment_id"], annotator, task_id),
             ).fetchone()
+            if "expected_revision_id" in payload:
+                expected_revision = payload["expected_revision_id"]
+                if type(expected_revision) is not int or expected_revision < 0:
+                    raise ValueError("expected_revision_id must be a nonnegative integer")
+                current_revision = 0 if previous is None else int(previous["revision_id"])
+                if expected_revision != current_revision:
+                    raise ValueError("frame review revision conflict")
             cursor = connection.execute(
                 """
                 INSERT INTO judgment_revisions (

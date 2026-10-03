@@ -9,6 +9,7 @@ import { humanSimilarityCondition } from './research-identity.js';
 export type ReviewTask = {
 	task_id: string;
 	task_type: string;
+	display_label?: string;
 	source_corpus: string;
 	source_stem: string;
 	source_frame_start: number;
