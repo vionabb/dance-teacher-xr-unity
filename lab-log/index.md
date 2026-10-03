@@ -187,6 +187,15 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   19 reference-reviewed, and 8 fully reviewed human-rated pairs. The raw
   control matched exactly; whole-clip similarity correlations changed little.
 
+- [2026-10-02 — Hypothesis workspace prototype](2026-10-02-hypothesis-workspace-prototype.md)
+  Built a local, lab-log-backed hypothesis index and per-question pages with
+  Codex conversation, workflow status, findings, and SQLite snapshots. The
+  initial five threads remain candidate questions or design directions.
+
+- [2026-10-02 — Hypothesis workspace handoff](2026-10-02-hypothesis-workspace-prototype-handoff.md)
+  Tracks the prototype and collection management boundary, evidence and
+  authorization policy, and the next investigation decision.
+
 - [2026-10-02 — Toward one research workspace](2026-10-02-unified-research-workspace.md)
   Viona chose one SvelteKit interface for research and learner work, local
   SQLite for research records, and shared versioned data contracts. The local
@@ -196,3 +205,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Tracks the three open PRs, current local-only usability authoring, the
   October 2 main merge and Vercel preview repair, and remaining researcher
   authorization, frame-correction, metric-runner, and pipeline-job work.
+
+- [2026-10-03 — Hypothesis collection management](2026-10-03-hypothesis-collection-management.md)
+  Adds an index conversation for creating, renaming, moving workflow status,
+  removing, and restoring hypotheses. Removal preserves the research trail;
+  new entries start as candidate questions with draft overviews.

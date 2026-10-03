@@ -1,0 +1,31 @@
+{
+	"type": "object",
+	"properties": {
+		"reply": { "type": "string" },
+		"create": {
+			"type": ["object", "null"],
+			"properties": {
+				"title": { "type": "string" },
+				"question": { "type": "string" },
+				"overview": { "type": "string" }
+			},
+			"required": ["title", "question", "overview"],
+			"additionalProperties": false
+		},
+		"changes": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"slug": { "type": "string" },
+					"kind": { "type": "string", "enum": ["status", "rename", "remove", "restore"] },
+					"value": { "type": ["string", "null"] }
+				},
+				"required": ["slug", "kind", "value"],
+				"additionalProperties": false
+			}
+		}
+	},
+	"required": ["reply", "create", "changes"],
+	"additionalProperties": false
+}
