@@ -16,6 +16,7 @@
 		</div>
 		{#if open.length}<a
 				class="daisy-btn daisy-btn-primary daisy-btn-sm"
+				data-sveltekit-reload
 				href={`/research/frames/${open[0].taskId}`}>Resume next case</a
 			>{/if}
 	</div>
@@ -33,7 +34,11 @@
 			{#each data.tasks as task}
 				<li class="daisy-list-row items-center">
 					<div class="min-w-0">
-						<a class="link font-medium" href={`/research/frames/${task.taskId}`}>{task.label}</a>
+						<a
+							class="link font-medium"
+							data-sveltekit-reload
+							href={`/research/frames/${task.taskId}`}>{task.label}</a
+						>
 						<p class="text-xs opacity-60">
 							{#if task.identity}CHI25 {task.identity.study} · user {task.identity.userId} · {task
 									.identity.dance} · {task.identity.condition} · segment {task.identity

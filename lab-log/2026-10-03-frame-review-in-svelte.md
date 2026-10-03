@@ -53,5 +53,15 @@ SQLite copy: a frame label saved, reloaded, and remained selected with no page
 error. I stopped that server and removed the copy. The production build and
 focused lint then passed with placeholder build credentials.
 
+PR review then identified four integration details. The bridge now prefers the
+project Python environment when present, with an explicit interpreter override
+and a system fallback for a checkout without that environment. Queue links
+force a fresh document for each case, so editor state cannot carry between
+task IDs. The overlay now draws only editable upper-body edges and changes
+color with Good, Flawed, and Unusable; a missing-pose badge exposes the
+automatic reason when relevant. Existing leg marks remain in the stored
+response. The updated local queue and production build passed; focused lint
+passed and the repository-wide Svelte check reported no new-file diagnostics.
+
 A later pass can unify the legacy video usability authoring history and the
 new research rating store once the shared contracts settle.

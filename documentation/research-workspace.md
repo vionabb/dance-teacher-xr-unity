@@ -161,6 +161,13 @@ an ignored `local-data/research-frame-source.json` in the code repository:
 }
 ```
 
+The bridge uses `motion-pipeline/.venv/bin/python` (or the Windows virtualenv
+equivalent) when present, then falls back to `python3` (`python` on Windows)
+for the standard-library-only bridge in a checkout without a local venv. Set
+`RESEARCH_FRAME_PYTHON` to an executable Python path to override this choice;
+a missing or non-executable override produces a configuration error before
+the bridge starts.
+
 Pair the manifest with the original source experiment's database. The route
 validates task and media identities, confines media paths to the manifest
 root, and checks the frozen video and landmark hashes before each save.

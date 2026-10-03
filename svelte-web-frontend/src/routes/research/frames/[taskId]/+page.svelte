@@ -21,6 +21,7 @@
 		'LEFT_HIP',
 		'RIGHT_HIP'
 	];
+	const editableParts = new Set(parts);
 	const causes = ['occlusion', 'motion_blur', 'background_confusion', 'suboptimal_clothing'];
 	const source = $derived(`/api/dev/research-frame/${data.taskId}`);
 	const resumeKey = $derived(`research-frame:${data.taskId}:${data.annotator}`);
@@ -198,12 +199,15 @@
 		ctx.clearRect(0, 0, width, height);
 		if (!pose || !showPose) return;
 		const box = videoBox();
+		const skeletonColor =
+			currentLabel === 'unusable' ? '#e6453a' : currentLabel === 'flawed' ? '#eb8b2d' : '#5eead4';
 		const locate = (name: string) => {
 			const point = positionFor(name);
 			return point ? ([box.x + point[0] * box.scale, box.y + point[1] * box.scale] as const) : null;
 		};
 		ctx.lineCap = 'round';
 		for (const [a, b] of pose.pose_edges ?? []) {
+			if (!editableParts.has(a) || !editableParts.has(b)) continue;
 			const first = locate(a),
 				second = locate(b);
 			if (!first || !second) continue;
@@ -213,7 +217,7 @@
 			ctx.strokeStyle = 'rgba(0,0,0,.85)';
 			ctx.lineWidth = 5;
 			ctx.stroke();
-			ctx.strokeStyle = '#5eead4';
+			ctx.strokeStyle = skeletonColor;
 			ctx.lineWidth = 2.5;
 			ctx.stroke();
 		}
@@ -225,7 +229,7 @@
 			);
 			ctx.beginPath();
 			ctx.arc(point[0], point[1], marked ? 5.5 : 4.5, 0, 2 * Math.PI);
-			ctx.fillStyle = marked ? '#fbbf24' : '#5eead4';
+			ctx.fillStyle = marked ? '#fbbf24' : skeletonColor;
 			ctx.fill();
 			ctx.strokeStyle = '#111827';
 			ctx.lineWidth = 2;
@@ -304,6 +308,7 @@
 		if (override) override = null;
 		labels = { ...labels, [String(frame)]: label };
 		scheduleSave();
+		draw();
 	}
 	function markAt(part: string, at: number): FrameMark {
 		let mark = marks.find(
@@ -638,6 +643,13 @@
 						></canvas>
 					</div>
 				</div>
+				{#if autoMissing.includes(frame) && currentLabel === 'unusable'}
+					<div
+						class="bg-error text-error-content pointer-events-none absolute top-2 left-2 rounded-md px-2 py-1 text-xs font-semibold"
+					>
+						No pose detected
+					</div>
+				{/if}
 				{#if zoom > 1}<button
 						class="daisy-btn daisy-btn-xs absolute top-2 right-2"
 						onclick={() => {

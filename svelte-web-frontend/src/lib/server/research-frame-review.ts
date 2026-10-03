@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { readFile, stat } from 'node:fs/promises';
+import { access, readFile, stat } from 'node:fs/promises';
+import { constants } from 'node:fs';
 import path from 'node:path';
 import type { LoadedVideoReviewManifest, ReviewTask } from './research-video-manifest';
 
@@ -29,6 +30,31 @@ export type FrameSource = { manifest: LoadedVideoReviewManifest; config: FrameCo
 
 const configFile = path.resolve('..', 'local-data', 'research-frame-source.json');
 const bridgeCwd = path.resolve('..', 'motion-pipeline');
+
+async function frameBridgePython(): Promise<string> {
+	const configured = process.env.RESEARCH_FRAME_PYTHON?.trim();
+	const defaultInterpreter = path.join(
+		bridgeCwd,
+		'.venv',
+		process.platform === 'win32' ? 'Scripts' : 'bin',
+		process.platform === 'win32' ? 'python.exe' : 'python'
+	);
+	const interpreter = configured ? path.resolve(configured) : defaultInterpreter;
+	try {
+		const info = await stat(interpreter);
+		if (!info.isFile()) throw new Error('not a file');
+		await access(interpreter, constants.X_OK);
+	} catch {
+		// The bridge itself only needs the standard library. A checkout without a
+		// local venv can use the system interpreter; an explicit override must work.
+		if (!configured) return process.platform === 'win32' ? 'python' : 'python3';
+		throw new Error(
+			`Frame review Python interpreter from RESEARCH_FRAME_PYTHON is missing or not executable: ${interpreter}. ` +
+				`Set RESEARCH_FRAME_PYTHON to an executable Python interpreter, or create the project environment with uv sync --locked.`
+		);
+	}
+	return interpreter;
+}
 
 export async function loadFrameSource(): Promise<FrameSource | null> {
 	let config: FrameConfig;
@@ -123,8 +149,9 @@ async function bridge(
 		'--annotator',
 		source.config.annotator
 	];
+	const interpreter = await frameBridgePython();
 	return await new Promise((resolve, reject) => {
-		const child = spawn('python3', args, { cwd: bridgeCwd, stdio: ['pipe', 'pipe', 'pipe'] });
+		const child = spawn(interpreter, args, { cwd: bridgeCwd, stdio: ['pipe', 'pipe', 'pipe'] });
 		let stdout = '';
 		let stderr = '';
 		child.stdout.setEncoding('utf8');
