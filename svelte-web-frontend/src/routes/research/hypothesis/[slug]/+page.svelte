@@ -18,13 +18,14 @@
 				<p class="text-primary text-xs font-bold tracking-[.16em] uppercase">Research hypothesis</p>
 				<h1 class="text-3xl font-bold">{data.hypothesis.title}</h1>
 				<p class="max-w-3xl text-base opacity-75">{data.hypothesis.question}</p>
+				<a class="daisy-btn daisy-btn-primary mt-2" href="#conversation">Discuss with Codex ↓</a>
 			</div>
 			<span class="daisy-badge daisy-badge-outline">{data.status}</span>
 		</div>
 	</header>
 
 	<div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
-		<div class="space-y-7">
+		<div class="order-last space-y-7 lg:order-first">
 			<section
 				class="rounded-box border-base-300 space-y-4 border p-5"
 				aria-labelledby="overview-heading"
@@ -81,7 +82,7 @@
 
 		<aside
 			id="conversation"
-			class="space-y-4 lg:sticky lg:top-6 lg:self-start"
+			class="order-first space-y-4 lg:sticky lg:top-6 lg:order-last lg:self-start"
 			aria-labelledby="conversation-heading"
 		>
 			<div class="rounded-box border-base-300 space-y-4 border p-5">

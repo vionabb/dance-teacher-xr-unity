@@ -19,6 +19,13 @@
 			research workflow; evidence and uncertainty remain attached to each source.
 		</p>
 	</header>
+	<section class="rounded-box border-primary/30 bg-primary/10 space-y-2 border p-5">
+		<h2 class="text-lg font-semibold">Discuss a hypothesis with Codex</h2>
+		<p class="text-sm leading-6">
+			Open a hypothesis below to find its conversation panel. There you can ask Codex to update its
+			status, save a finding, or plan an investigation.
+		</p>
+	</section>
 	<div class="grid gap-4 md:grid-cols-2">
 		{#each data.hypotheses as hypothesis (hypothesis.slug)}
 			<a
@@ -31,6 +38,7 @@
 				</div>
 				<p class="text-sm opacity-75">{hypothesis.question}</p>
 				<p class="text-xs opacity-60">{hypothesis.findings} saved findings</p>
+				<p class="text-primary text-sm font-semibold">Open page and discuss with Codex →</p>
 			</a>
 		{/each}
 	</div>
