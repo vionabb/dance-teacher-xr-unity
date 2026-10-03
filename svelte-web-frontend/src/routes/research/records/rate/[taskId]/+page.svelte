@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import type { ActionData, PageData } from './$types';
 
@@ -106,127 +107,133 @@
 	/>
 </svelte:head>
 
-<main class="mx-auto max-w-5xl space-y-5 px-4 py-6 lg:px-8">
-	<header class="space-y-2">
-		<a class="link link-primary text-sm" href="/research/records">← Research source records</a>
-		<h1 class="text-2xl font-bold">Rate pose-tracking usability</h1>
-		<p class="text-sm opacity-70">
-			CHI25 · {data.identity.study} · user {data.identity.userId} · {data.identity.dance} ·
-			{data.identity.condition} · segment {data.identity.segmentNumber}
-		</p>
-		<p class="text-sm opacity-70">
-			This segment has a prior-study human similarity rating. Its value is hidden during this
-			review. {data.remaining} eligible unrated segments remain.
-		</p>
+<main class="mx-auto max-w-7xl px-3 py-2 sm:px-4">
+	<header class="mb-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+		<div>
+			<a class="link link-primary text-xs" href={resolve('/research/records')}
+				>← Research source records</a
+			>
+			<h1 class="text-lg leading-tight font-bold sm:text-xl">Rate pose-tracking usability</h1>
+			<p class="text-xs opacity-70">
+				CHI25 · {data.identity.study} · user {data.identity.userId} · {data.identity.dance} ·
+				{data.identity.condition} · segment {data.identity.segmentNumber}
+			</p>
+		</div>
 	</header>
 
-	{#if data.recorded}<p class="daisy-alert daisy-alert-success">
+	{#if data.recorded}<p class="daisy-alert daisy-alert-success mb-2 text-sm">
 			Previous rating saved. Here is the next segment.
 		</p>{/if}
-	{#if form?.message}<p class="daisy-alert daisy-alert-error">{form.message}</p>{/if}
-	{#if !data.annotator}<p class="daisy-alert daisy-alert-warning">
+	{#if form?.message}<p class="daisy-alert daisy-alert-error mb-2 text-sm">{form.message}</p>{/if}
+	{#if !data.annotator}<p class="daisy-alert daisy-alert-warning mb-2 text-sm">
 			Set RESEARCH_ANNOTATOR on the local server to enable saving.
 		</p>{/if}
 
-	<section class="space-y-3">
-		<div
-			class="rounded-box relative mx-auto w-full max-w-3xl overflow-hidden bg-black"
-			style={`aspect-ratio: ${data.width} / ${data.height};`}
-		>
-			<video
-				bind:this={videoElement}
-				class="absolute inset-0 h-full w-full object-contain"
-				src={`/api/dev/research-review/${data.taskId}/video`}
-				controls
-				playsinline
-				preload="metadata"
-				onplay={startDrawing}
-				onpause={stopDrawing}
-				ontimeupdate={drawOverlay}
-				onseeked={drawOverlay}
-				onloadedmetadata={drawOverlay}
-			>
-				<track kind="captions" />
-			</video>
-			<canvas
-				bind:this={canvasElement}
-				class="pointer-events-none absolute inset-0 h-full w-full"
-				width={data.width}
-				height={data.height}
-				aria-hidden="true"
-			></canvas>
-		</div>
-		<div class="flex flex-wrap items-center justify-between gap-3 text-sm">
-			<label class="flex cursor-pointer items-center gap-2">
-				<input
-					class="daisy-checkbox daisy-checkbox-sm"
-					type="checkbox"
-					bind:checked={showOverlay}
-					onchange={drawOverlay}
-				/> Show tracked skeleton overlay
-			</label>
-			<label class="flex items-center gap-2"
-				>Playback speed
-				<select
-					class="daisy-select daisy-select-sm"
-					value={playbackRate}
-					onchange={setPlaybackRate}
+	<div class="grid items-start gap-2 md:grid-cols-[minmax(0,1fr)_minmax(18rem,23rem)] md:gap-4">
+		<section class="min-w-0 space-y-2">
+			<div class="rounded-box relative mx-auto w-fit max-w-full overflow-hidden bg-black">
+				<video
+					bind:this={videoElement}
+					class="block h-auto max-h-[31dvh] w-auto max-w-full sm:max-h-[48dvh] md:max-h-[60dvh]"
+					width={data.width}
+					height={data.height}
+					src={`/api/dev/research-review/${data.taskId}/video`}
+					controls
+					playsinline
+					preload="metadata"
+					onplay={startDrawing}
+					onpause={stopDrawing}
+					ontimeupdate={drawOverlay}
+					onseeked={drawOverlay}
+					onloadedmetadata={drawOverlay}
 				>
-					<option value="0.25">0.25×</option><option value="0.5">0.5×</option>
-					<option value="1">1×</option><option value="1.5">1.5×</option>
-				</select>
-			</label>
-		</div>
-		{#if overlayError}<p class="daisy-alert daisy-alert-error text-sm">
-				{overlayError} Do not rate until the pose overlay is available.
-			</p>{/if}
-	</section>
-
-	<form method="POST" class="rounded-box border-base-300 space-y-4 border p-4">
-		<fieldset class="space-y-3" disabled={!data.annotator || !landmarks || !!overlayError}>
-			<legend class="text-lg font-semibold">Overall visible pose-tracking accuracy</legend>
-			<p class="text-sm opacity-70">
-				Rate the tracking, including missing poses and incorrect joints. Motion similarity and video
-				suitability for analysis are separate questions.
-			</p>
-			<div class="grid gap-2 sm:grid-cols-2">
-				{#each [{ value: 'unusable', label: 'Unusable', description: 'Exclude the whole video for pose tracking.' }, { value: 'marginal', label: 'Marginal', description: 'Usable only with substantial caveats.' }, { value: 'correctable', label: 'Correctable', description: 'Repair or discount localized problems.' }, { value: 'perfect', label: 'Perfect', description: 'No meaningful tracking-quality concerns.' }] as const as option (option.value)}
-					<label
-						class="border-base-300 has-[:checked]:border-primary has-[:checked]:bg-primary/10 rounded-box flex cursor-pointer gap-3 border p-3"
-					>
-						<input
-							type="radio"
-							name="rating"
-							value={option.value}
-							bind:group={rating}
-							required
-							class="daisy-radio daisy-radio-sm mt-0.5"
-						/>
-						<span
-							><strong>{option.label}</strong><span class="block text-sm opacity-70"
-								>{option.description}</span
-							></span
-						>
-					</label>
-				{/each}
+					<track kind="captions" />
+				</video>
+				<canvas
+					bind:this={canvasElement}
+					class="pointer-events-none absolute inset-0 h-full w-full"
+					width={data.width}
+					height={data.height}
+					aria-hidden="true"
+				></canvas>
 			</div>
-			<label class="block space-y-1 text-sm"
-				><span>Optional note</span>
-				<textarea
-					name="note"
-					class="daisy-textarea daisy-textarea-bordered w-full"
-					rows="3"
-					maxlength="2000"
-					placeholder="Describe tracking errors or missing poses; keep analysis suitability separate."
-				></textarea>
-			</label>
-			<p class="text-xs opacity-60">
-				Saving as {data.annotator}. Each new rating is stored with source hashes and a verified
-				local database snapshot.
-			</p>
-			<button class="daisy-btn daisy-btn-primary" type="submit" disabled={!rating}
-				>Save rating and open next</button
-			>
-		</fieldset>
-	</form>
+			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs sm:text-sm">
+				<label class="flex min-h-8 cursor-pointer items-center gap-1.5">
+					<input
+						class="daisy-checkbox daisy-checkbox-xs"
+						type="checkbox"
+						bind:checked={showOverlay}
+						onchange={drawOverlay}
+					/> Skeleton overlay
+				</label>
+				<div class="flex min-h-8 items-center gap-1.5">
+					<label for="playback-speed">Speed</label>
+					<select
+						id="playback-speed"
+						class="daisy-select daisy-select-xs w-20"
+						value={playbackRate}
+						onchange={setPlaybackRate}
+					>
+						<option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+						<option value="1">1×</option><option value="1.5">1.5×</option>
+					</select>
+				</div>
+			</div>
+			{#if overlayError}<p class="daisy-alert daisy-alert-error text-sm">
+					{overlayError} Do not rate until the pose overlay is available.
+				</p>{/if}
+		</section>
+
+		<form method="POST" class="rounded-box border-base-300 border p-2 sm:p-3">
+			<fieldset class="space-y-2" disabled={!data.annotator || !landmarks || !!overlayError}>
+				<legend class="text-sm font-semibold">Overall tracking accuracy</legend>
+				<div class="grid grid-cols-2 gap-1.5">
+					{#each [{ value: 'unusable', label: 'Unusable', description: 'Exclude the whole video for pose tracking.' }, { value: 'marginal', label: 'Marginal', description: 'Usable only with substantial caveats.' }, { value: 'correctable', label: 'Correctable', description: 'Repair or discount localized problems.' }, { value: 'perfect', label: 'Perfect', description: 'No meaningful tracking-quality concerns.' }] as const as option (option.value)}
+						<label
+							class="border-base-300 has-[:checked]:border-primary has-[:checked]:bg-primary/10 rounded-box flex min-h-11 cursor-pointer items-center gap-2 border px-2 text-sm"
+							title={option.description}
+						>
+							<input
+								type="radio"
+								name="rating"
+								value={option.value}
+								bind:group={rating}
+								required
+								class="daisy-radio daisy-radio-sm"
+							/>
+							<span>{option.label}<span class="sr-only">. {option.description}</span></span>
+						</label>
+					{/each}
+				</div>
+				<button
+					class="daisy-btn daisy-btn-primary daisy-btn-sm w-full"
+					type="submit"
+					disabled={!rating}>Save rating and open next</button
+				>
+				<details class="text-xs">
+					<summary class="cursor-pointer">Rating guide and optional note</summary>
+					<p class="mt-1 opacity-70">
+						Rate visible pose tracking, including missing poses and incorrect joints. The
+						prior-study human similarity rating is hidden during review. {data.remaining} eligible segments
+						remain.
+					</p>
+					<div class="mt-1 space-y-0.5 opacity-70">
+						<p>Unusable: exclude the whole video.</p>
+						<p>Marginal: usable with substantial caveats.</p>
+						<p>Correctable: repair or discount localized problems.</p>
+						<p>Perfect: no meaningful tracking concerns.</p>
+					</div>
+					<label class="mt-2 block" for="rating-note">Optional note</label>
+					<textarea
+						id="rating-note"
+						name="note"
+						class="daisy-textarea daisy-textarea-sm mt-1 w-full"
+						rows="2"
+						maxlength="2000"
+						placeholder="Describe tracking errors or missing poses."
+					></textarea>
+				</details>
+			</fieldset>
+		</form>
+	</div>
 </main>
