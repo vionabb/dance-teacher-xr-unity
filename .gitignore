@@ -18,6 +18,7 @@
 /data/participant_motions/
 
 /artifact-archive
+/local-data/
 
 secrets/*
 !secrets/example-*
