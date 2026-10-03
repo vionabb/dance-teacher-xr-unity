@@ -16,9 +16,11 @@ Implementation started from `main` at `b1a475eb72ee28fff659f4980fdb60c59771249c`
 in an isolated checkout. [PR #408](https://github.com/vionabb/dance-teacher-xr-unity/pull/408)
 records the direction; [PR #409](https://github.com/vionabb/dance-teacher-xr-unity/pull/409)
 adds the local read model on top of it. [PR #411](https://github.com/vionabb/dance-teacher-xr-unity/pull/411)
-adds the usability table and a local-only authoring queue on top of #409. All
-three PRs are open for review. The original annotation SQLite database is
-outside this checkout and remains read-only to the SvelteKit process.
+adds the usability table and a local-only authoring queue on top of #409.
+[PR #413](https://github.com/vionabb/dance-teacher-xr-unity/pull/413)
+adds the frame correction tool on top of #411. All four PRs are open for review.
+The original annotation SQLite database remains outside this checkout; #413
+writes frame revisions to it through the original Python validator.
 On October 2, `origin/main` at `2b8212a` was merged into the top stack branch
 for #411. The Vercel preview build exposed a Linux `GLIBC_2.38` requirement
 when the local research SQLite module loaded during build. A separate mainline
@@ -59,9 +61,11 @@ fix. Each layer can be reviewed and deployed independently.
 3. Add a researcher-only read path in the SvelteKit app with focused checks of
    authorization, identity joins, and displayed provenance.
 
-Later stacks can move the two current annotation workflows, extract a normal
-metric batch runner from Vitest, and add Python job orchestration. Keep each
-data-producing stage versioned and preserve exact input identities.
+The fourth stack moves frame correction authoring into Svelte while retaining
+the legacy revision store. Later work can reconcile both usability authoring
+paths, extract a normal metric batch runner from Vitest, and add Python job
+orchestration. Keep each data-producing stage versioned and preserve exact
+input identities.
 
 ## Validation and current limits
 
@@ -86,14 +90,22 @@ data-producing stage versioned and preserve exact input identities.
   It uses the explicit study 1 `sheetmotion`/`sheet` source-name equivalence.
   The queue fills sparse coverage cells and alternates the suspected problem
   segments in the October 1 lab log with comparison segments within ties.
-- The original annotation DB is read-only to this app. New ratings live in
-  `local-data/research.sqlite3`; a verified snapshot is made after each save.
+- Whole-video ratings live in `local-data/research.sqlite3`; a verified
+  snapshot is made after each save. Frame corrections in #413 use the original
+  annotation DB and its append-only `judgment_revisions` history.
   The local rating page plays the frozen clip with a tracked baseline skeleton
   overlay. Safari
   playback was checked. The Codex in-app browser crashed when playback was
   tried, although its read-only table and media HTTP endpoints worked.
-- Researcher role authorization, frame-correction authoring, pagination, and
-  job orchestration remain open. All research routes remain dev-loopback only.
+- #413 reads all 49 follow-up frame cases, resumes existing revisions, and
+  offers sparse labels and landmark correction at `/research/frames`. A
+  synthetic test verified an append and stale-revision rejection; the live
+  database was only read during validation. Playwright captures and viewport
+  assertions passed at 375×667, 390×844, 994×575, and desktop; production
+  build and focused lint pass. Repository-wide `svelte-check` still has 64
+  pre-existing errors and 12 warnings outside the new frame files.
+- Researcher role authorization, pagination, and job orchestration remain
+  open. All research routes remain dev-loopback only.
 
 ## Next action
 
@@ -101,5 +113,5 @@ Review the open stack and test new usability reviews on eligible CHI25
 segments. Compare the resulting balanced sample with the October 1 coverage
 targets. Keep research routes on local loopback. Before any remote serving,
 add researcher-role authorization to every research page, API, and media route.
-Frame-correction authoring, metric batch jobs, and Python orchestration remain
-later work.
+Try the frame editor in #413 with the paired local manifest and annotation
+database. Metric batch jobs and Python orchestration remain later work.

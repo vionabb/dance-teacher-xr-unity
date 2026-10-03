@@ -193,9 +193,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   read model imports frozen reviews and CHI25 human ratings separately; the
   usability queue selects rated segments to fill sparse coverage cells.
 - [2026-10-02 — Unified research workspace handoff](2026-10-02-unified-research-workspace-handoff.md)
-  Tracks the three open PRs, current local-only usability authoring, the
-  October 2 main merge and Vercel preview repair, and remaining researcher
-  authorization, frame-correction, metric-runner, and pipeline-job work.
+  Tracks the four open PRs, local usability and frame-correction authoring,
+  the October 2 main merge and Vercel preview repair, and remaining researcher
+  authorization, metric-runner, and pipeline-job work.
 
 - [2026-10-03 — Bring frame corrections into the research workspace](2026-10-03-frame-review-in-svelte.md)
   Ports the 49-case sparse frame review into the local Svelte interface while
