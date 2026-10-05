@@ -1,12 +1,15 @@
 # Hypothesis workspace prototype handoff
 
-Status: draft PR #414 on `codex/research-hypotheses-prototype`, based on merged
+Status: open PR #414 on `codex/research-hypotheses-prototype`, based on merged
 PR #411. The index and five source-backed pages have local Codex conversation
 actions, append-only SQLite events, and snapshot logic. The index also supports
 chat-driven add, rename, status changes, reversible removal, and restore. The
 [original entry](2026-10-02-hypothesis-workspace-prototype.md) and
 [collection update](2026-10-03-hypothesis-collection-management.md) record
-Viona's requests and the claim boundary.
+Viona's requests and the claim boundary. The
+[PR feedback fixes](2026-10-05-hypothesis-pr-review.md) cover intent checks,
+exact targets, Unicode titles, concurrent requests, subprocess errors, and
+atomic schema upgrades.
 
 Decided: lab-log Markdown supplies the seeded overview prose; newly added
 hypotheses have a draft SQLite overview until a source policy is settled.
@@ -23,13 +26,15 @@ saved findings as the authoritative record, define source citations and any
 review/revision procedure. The current thesis chapter has no settled result to
 incorporate from this interface work.
 
-Validation: nine focused hypothesis/store tests, a production build, desktop
-and 390-pixel loopback page checks, and an isolated live Codex structured
-creation response passed. A prior detail conversation request set a
+Validation on October 5: 31 focused regression tests, changed-file ESLint,
+and the production build passed. The original prototype and collection work
+also passed desktop and 390-pixel loopback page checks and an isolated live
+Codex structured creation response. A prior detail conversation request set a
 disposable hypothesis to `investigating` with verified snapshots. The full
 frontend suite has unrelated motion-metric fixture failures and one existing
-DTW expectation failure; repository-wide `svelte-check` reports 64 errors
-outside the changed files.
+DTW expectation failure. With placeholder environment values, the October 5
+repository-wide `svelte-check` reports 56 errors and 12 warnings outside the
+changed files.
 
 Next action: review the initial hypothesis list with Viona and choose one
 specific investigation tool and its evidence/acceptance contract.

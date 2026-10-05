@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { HYPOTHESIS_STATUSES, type HypothesisStatus } from './research-hypotheses';
 import type { HypothesisChatMessage, HypothesisCollectionChange } from './research-store';
 import { authorizeCollectionOperations } from './hypothesis-collection-intent';
+import { authorizeDetailOperations } from './hypothesis-detail-intent';
 
 const detailSchemaPath = fileURLToPath(
 	new URL('./hypothesis-assistant-output.schema.json', import.meta.url)
@@ -49,6 +50,11 @@ async function runCodexJson(prompt: string, schemaPath: string): Promise<unknown
 			events.on('error', (error) => {
 				clearTimeout(timer);
 				reject(error);
+			});
+			child.stdin.on('error', (error) => {
+				clearTimeout(timer);
+				child.kill();
+				reject(new Error(`Local Codex input failed: ${error.message}`));
 			});
 			events.on('close', (code) => {
 				clearTimeout(timer);
@@ -100,14 +106,17 @@ Respond in JSON matching the provided schema. Distinguish observed findings from
 			(typeof result.finding !== 'string' || result.finding.length > 2000))
 	)
 		throw new Error('Local Codex returned an invalid hypothesis response');
+	const authorized = authorizeDetailOperations({
+		message: input.message,
+		status: result.status as HypothesisStatus | null,
+		finding: result.finding as string | null
+	});
 	return {
-		reply: result.reply,
-		status: /\b(status|mark|move|set|change|archive|resolve)\b/i.test(input.message)
-			? (result.status as HypothesisStatus | null)
-			: null,
-		finding: /\b(save|record|add|log)\b.{0,50}\b(finding|observation|note)\b/i.test(input.message)
-			? (result.finding as string | null)
-			: null
+		reply: authorized.suppressed
+			? 'I did not change this hypothesis. Use an explicit command such as “Mark this as investigating” or “Save a finding: …”.'
+			: result.reply,
+		status: authorized.status,
+		finding: authorized.finding
 	};
 }
 

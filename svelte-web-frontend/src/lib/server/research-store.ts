@@ -201,32 +201,25 @@ async function withDatabase<T>(
 		try {
 			await run(db, `CREATE TABLE IF NOT EXISTS schema_meta (version INTEGER NOT NULL)`);
 			const versions = await all<{ version: number }>(db, 'SELECT version FROM schema_meta');
-			if (versions.length === 0)
-				await run(db, 'INSERT INTO schema_meta VALUES (?)', [RESEARCH_SCHEMA_VERSION]);
-			else if (versions.length === 1 && versions[0].version === 1) {
+			if (versions.length === 1 && versions[0].version === 1) {
 				for (const column of ['rating_1', 'rating_2', 'rating_3'])
 					await run(db, `ALTER TABLE human_similarity_ratings ADD COLUMN ${column} INTEGER`);
-				await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
-			} else if (versions.length === 1 && (versions[0].version === 2 || versions[0].version === 3))
-				await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
-			else if (versions.length !== 1 || versions[0].version !== RESEARCH_SCHEMA_VERSION)
+			} else if (
+				versions.length > 1 ||
+				(versions.length === 1 && ![2, 3, RESEARCH_SCHEMA_VERSION].includes(versions[0].version))
+			)
 				throw new Error(
 					`Unsupported research database schema version: ${versions.map((row) => row.version).join(', ')}`
 				);
-			await run(db, 'COMMIT');
-		} catch (schemaError) {
-			await run(db, 'ROLLBACK');
-			throw schemaError;
-		}
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS source_imports (
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS source_imports (
 			kind TEXT PRIMARY KEY, source_path TEXT NOT NULL, source_sha256 TEXT NOT NULL,
 			source_version TEXT NOT NULL, imported_at TEXT NOT NULL)`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS manual_reviews (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS manual_reviews (
 			release_id TEXT NOT NULL, scope TEXT NOT NULL, segment_id TEXT NOT NULL,
 			recording_id TEXT NOT NULL, source_id TEXT NOT NULL, source_manifest_sha256 TEXT NOT NULL,
 			experiment_id TEXT NOT NULL, task_id TEXT NOT NULL, annotator TEXT NOT NULL,
@@ -236,19 +229,19 @@ async function withDatabase<T>(
 			video_usability_rating_override TEXT, correction_count INTEGER NOT NULL,
 			reviewed_pose_sha256 TEXT,
 			PRIMARY KEY (release_id, scope, segment_id))`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS human_similarity_ratings (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS human_similarity_ratings (
 			study TEXT NOT NULL, dance TEXT NOT NULL, user_id TEXT NOT NULL,
 			segment_id TEXT NOT NULL, condition TEXT NOT NULL,
 			human_rating REAL, human_rating_percentile REAL,
 			rating_1 INTEGER, rating_2 INTEGER, rating_3 INTEGER,
 			PRIMARY KEY (study, dance, user_id, segment_id))`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS local_video_usability_revisions (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS local_video_usability_revisions (
 			revision_id INTEGER PRIMARY KEY AUTOINCREMENT,
 			manifest_sha256 TEXT NOT NULL, task_id TEXT NOT NULL,
 			source_corpus TEXT NOT NULL, source_stem TEXT NOT NULL,
@@ -256,39 +249,47 @@ async function withDatabase<T>(
 			source_video_sha256 TEXT NOT NULL, landmarks_sha256 TEXT NOT NULL,
 			annotator TEXT NOT NULL, rating TEXT NOT NULL, note TEXT NOT NULL,
 			created_at TEXT NOT NULL, supersedes_revision_id INTEGER)`
-		);
-		await run(
-			db,
-			`CREATE INDEX IF NOT EXISTS local_video_usability_task
+			);
+			await run(
+				db,
+				`CREATE INDEX IF NOT EXISTS local_video_usability_task
 			ON local_video_usability_revisions(task_id, revision_id DESC)`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS hypothesis_events (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS hypothesis_events (
 			event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
 			kind TEXT NOT NULL CHECK(kind IN ('status', 'finding')),
 			value TEXT NOT NULL, created_at TEXT NOT NULL)`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS hypothesis_chat_messages (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS hypothesis_chat_messages (
 			message_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
 			role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
 			content TEXT NOT NULL, created_at TEXT NOT NULL)`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS hypothesis_definitions (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS hypothesis_definitions (
 			slug TEXT PRIMARY KEY, title TEXT NOT NULL, question TEXT NOT NULL,
 			overview TEXT NOT NULL, created_at TEXT NOT NULL)`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS hypothesis_metadata_events (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS hypothesis_metadata_events (
 			event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
 			kind TEXT NOT NULL CHECK(kind IN ('rename', 'remove', 'restore')),
 			value TEXT, created_at TEXT NOT NULL)`
-		);
+			);
+			if (versions.length === 0)
+				await run(db, 'INSERT INTO schema_meta VALUES (?)', [RESEARCH_SCHEMA_VERSION]);
+			else await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
+			await run(db, 'COMMIT');
+		} catch (schemaError) {
+			await run(db, 'ROLLBACK');
+			throw schemaError;
+		}
 		return await action(db);
 	} finally {
 		await close(db);
@@ -707,6 +708,18 @@ export type HypothesisCollectionChange = {
 	value: string | null;
 };
 
+async function hypothesisCollectionRevision(db: sqlite3.Database): Promise<string> {
+	const [revision] = await all<{ events: number; metadata: number; messages: number }>(
+		db,
+		`SELECT
+		(SELECT COALESCE(MAX(event_id), 0) FROM hypothesis_events) AS events,
+		(SELECT COALESCE(MAX(event_id), 0) FROM hypothesis_metadata_events) AS metadata,
+		(SELECT COALESCE(MAX(message_id), 0) FROM hypothesis_chat_messages WHERE slug = ?) AS messages`,
+		[HYPOTHESIS_COLLECTION_SLUG]
+	);
+	return `${revision.events}:${revision.metadata}:${revision.messages}`;
+}
+
 export async function readHypothesisCatalog(file: string) {
 	return withDatabase(file, async (db) => ({
 		definitions: await all<HypothesisDefinition>(
@@ -721,41 +734,54 @@ export async function readHypothesisCatalog(file: string) {
 }
 
 export async function readHypothesisCollectionState(file: string) {
-	return withDatabase(file, async (db) => ({
-		definitions: await all<HypothesisDefinition>(
-			db,
-			'SELECT slug, title, question, overview, created_at FROM hypothesis_definitions ORDER BY created_at, slug'
-		),
-		metadata: await all<HypothesisMetadataEvent>(
-			db,
-			'SELECT event_id, slug, kind, value, created_at FROM hypothesis_metadata_events ORDER BY event_id'
-		),
-		events: await all<HypothesisEvent>(
-			db,
-			'SELECT event_id, slug, kind, value, created_at FROM hypothesis_events ORDER BY event_id'
-		),
-		messages: await all<HypothesisChatMessage>(
-			db,
-			'SELECT message_id, slug, role, content, created_at FROM hypothesis_chat_messages WHERE slug = ? ORDER BY message_id DESC LIMIT 30',
-			[HYPOTHESIS_COLLECTION_SLUG]
-		)
-	}));
+	return withDatabase(file, async (db) => {
+		await run(db, 'BEGIN');
+		try {
+			const state = {
+				definitions: await all<HypothesisDefinition>(
+					db,
+					'SELECT slug, title, question, overview, created_at FROM hypothesis_definitions ORDER BY created_at, slug'
+				),
+				metadata: await all<HypothesisMetadataEvent>(
+					db,
+					'SELECT event_id, slug, kind, value, created_at FROM hypothesis_metadata_events ORDER BY event_id'
+				),
+				events: await all<HypothesisEvent>(
+					db,
+					'SELECT event_id, slug, kind, value, created_at FROM hypothesis_events ORDER BY event_id'
+				),
+				messages: await all<HypothesisChatMessage>(
+					db,
+					'SELECT message_id, slug, role, content, created_at FROM hypothesis_chat_messages WHERE slug = ? ORDER BY message_id DESC LIMIT 30',
+					[HYPOTHESIS_COLLECTION_SLUG]
+				),
+				revision: await hypothesisCollectionRevision(db)
+			};
+			await run(db, 'COMMIT');
+			return state;
+		} catch (readError) {
+			await run(db, 'ROLLBACK');
+			throw readError;
+		}
+	});
 }
 
 function hypothesisSlug(title: string): string {
-	return title
+	const ascii = title
 		.normalize('NFKD')
 		.toLowerCase()
-		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/\p{M}/gu, '')
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-|-$/g, '')
 		.slice(0, 80)
 		.replace(/-$/g, '');
+	return ascii || `hypothesis-${sha256(Buffer.from(title.normalize('NFC'))).slice(0, 12)}`;
 }
 
 export async function recordHypothesisCollectionTurn(
 	file: string,
 	input: {
+		expectedRevision: string;
 		userMessage: string;
 		assistantReply: string;
 		create: { title: string; question: string; overview: string } | null;
@@ -765,14 +791,16 @@ export async function recordHypothesisCollectionTurn(
 	createdSlug: string | null;
 	snapshotPath: string | null;
 	backupError: string | null;
+	rejectionReason: 'stale' | 'duplicate' | null;
 }> {
-	const create = input.create && {
+	let create = input.create && {
 		title: input.create.title.trim(),
 		question: input.create.question.trim(),
 		overview: input.create.overview.trim()
 	};
-	const createdSlug = create ? hypothesisSlug(create.title) : null;
+	let createdSlug = create ? hypothesisSlug(create.title) : null;
 	if (
+		!/^\d+:\d+:\d+$/.test(input.expectedRevision) ||
 		!input.userMessage.trim() ||
 		input.userMessage.length > 4000 ||
 		!input.assistantReply.trim() ||
@@ -792,6 +820,7 @@ export async function recordHypothesisCollectionTurn(
 	return withDatabase(file, async (db) => {
 		await run(db, 'BEGIN IMMEDIATE');
 		let messageId: number;
+		let rejectionReason: 'stale' | 'duplicate' | null = null;
 		try {
 			const definitions = await all<HypothesisDefinition>(
 				db,
@@ -801,8 +830,6 @@ export async function recordHypothesisCollectionTurn(
 				...hypotheses.map((item) => item.slug),
 				...definitions.map((item) => item.slug)
 			]);
-			if (createdSlug && existing.has(createdSlug))
-				throw new Error('A hypothesis with this URL name already exists');
 			for (const change of input.changes) {
 				if (!existing.has(change.slug)) throw new Error(`Unknown hypothesis: ${change.slug}`);
 				if (
@@ -820,10 +847,29 @@ export async function recordHypothesisCollectionTurn(
 				if ((change.kind === 'remove' || change.kind === 'restore') && change.value !== null)
 					throw new Error('Invalid hypothesis visibility change');
 			}
+			let assistantReply = input.assistantReply.trim();
+			let changes = input.changes;
+			if (
+				(create || changes.length > 0) &&
+				(await hypothesisCollectionRevision(db)) !== input.expectedRevision
+			) {
+				rejectionReason = 'stale';
+				assistantReply =
+					'The hypothesis collection changed while I was responding. I saved this conversation but applied no changes. Please review the current list and retry your request.';
+			} else if (createdSlug && existing.has(createdSlug)) {
+				rejectionReason = 'duplicate';
+				assistantReply =
+					'I did not add the hypothesis because its URL name already exists. Please choose a distinct title, or manage the existing hypothesis. I applied no other changes.';
+			}
+			if (rejectionReason) {
+				create = null;
+				createdSlug = null;
+				changes = [];
+			}
 			const now = new Date().toISOString();
 			for (const [role, content] of [
 				['user', input.userMessage.trim()],
-				['assistant', input.assistantReply.trim()]
+				['assistant', assistantReply]
 			])
 				await run(
 					db,
@@ -844,7 +890,7 @@ export async function recordHypothesisCollectionTurn(
 					[createdSlug, 'status', 'candidate', now]
 				);
 			}
-			for (const change of input.changes) {
+			for (const change of changes) {
 				if (change.kind === 'status')
 					await run(
 						db,
@@ -866,12 +912,14 @@ export async function recordHypothesisCollectionTurn(
 		try {
 			return {
 				createdSlug,
+				rejectionReason,
 				snapshotPath: await snapshotAfterRevision(db, file, messageId, 'hypothesis_chat_messages'),
 				backupError: null
 			};
 		} catch (snapshotError) {
 			return {
 				createdSlug,
+				rejectionReason,
 				snapshotPath: null,
 				backupError: snapshotError instanceof Error ? snapshotError.message : 'Snapshot failed'
 			};

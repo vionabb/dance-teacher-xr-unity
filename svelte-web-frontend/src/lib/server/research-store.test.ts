@@ -102,6 +102,42 @@ test('a v3 research database keeps its hypothesis history after collection suppo
 	]);
 });
 
+test('a schema DDL failure rolls back the version marker and new tables together', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-schema-rollback-'));
+	folders.push(folder);
+	const databasePath = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	const exec = (sql: string) =>
+		new Promise<void>((resolve, reject) => {
+			const db = new sqlite3.Database(databasePath);
+			db.exec(sql, (error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+			);
+		});
+	await exec(
+		'CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (3); CREATE TABLE local_video_usability_revisions (task_id TEXT)'
+	);
+	await expect(readHypothesisCatalog(databasePath)).rejects.toThrow('revision_id');
+	const rows = await new Promise<{ version: number; new_tables: number }[]>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.all(
+			"SELECT version, (SELECT COUNT(*) FROM sqlite_master WHERE name IN ('source_imports', 'manual_reviews', 'hypothesis_definitions')) AS new_tables FROM schema_meta",
+			(error, rows) =>
+				db.close((closeError) =>
+					error || closeError
+						? reject(error || closeError)
+						: resolve(rows as { version: number; new_tables: number }[])
+				)
+		);
+	});
+	expect(rows).toEqual([{ version: 3, new_tables: 0 }]);
+	await exec('DROP TABLE local_video_usability_revisions');
+	await expect(readHypothesisCatalog(databasePath)).resolves.toEqual({
+		definitions: [],
+		metadata: []
+	});
+});
+
 test('rejects out-of-scale human ratings before registering a source', async () => {
 	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-ratings-'));
 	folders.push(folder);

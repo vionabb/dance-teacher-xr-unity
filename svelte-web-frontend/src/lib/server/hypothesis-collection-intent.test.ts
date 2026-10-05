@@ -12,6 +12,85 @@ const create = {
 };
 
 describe('collection intent authorization', () => {
+	it('short commands distinguish overlapping and duplicate titles', () => {
+		const overlapping = [
+			...catalog,
+			{ slug: 'coaching-plan', title: 'Confidence-aware coaching plan' },
+			{ slug: 'coaching-comma-plan', title: 'Confidence-aware coaching, a plan' }
+		];
+		for (const [verb, kind, value] of [
+			['remove', 'remove', null],
+			['restore', 'restore', null],
+			['archive', 'status', 'archived'],
+			['resolve', 'status', 'resolved']
+		] as const) {
+			for (const title of ['Confidence-aware coaching plan', 'Confidence-aware coaching, a plan']) {
+				expect(
+					authorizeCollectionOperations({
+						message: `${verb} ${title}`,
+						catalog: overlapping,
+						create: null,
+						changes: [{ slug: 'confidence-aware-coaching', kind, value }]
+					}).suppressed
+				).toBe(true);
+			}
+			expect(
+				authorizeCollectionOperations({
+					message: `${verb} Confidence-aware coaching plan`,
+					catalog: overlapping,
+					create: null,
+					changes: [{ slug: 'coaching-plan', kind, value }]
+				}).suppressed
+			).toBe(false);
+		}
+		const duplicate = [
+			...catalog,
+			{ slug: 'another-coaching', title: 'Confidence-aware coaching' }
+		];
+		expect(
+			authorizeCollectionOperations({
+				message: 'Remove Confidence-aware coaching',
+				catalog: duplicate,
+				create: null,
+				changes: [{ slug: 'confidence-aware-coaching', kind: 'remove', value: null }]
+			}).suppressed
+		).toBe(true);
+		expect(
+			authorizeCollectionOperations({
+				message: 'Remove confidence-aware-coaching',
+				catalog: duplicate,
+				create: null,
+				changes: [{ slug: 'confidence-aware-coaching', kind: 'remove', value: null }]
+			}).suppressed
+		).toBe(false);
+	});
+
+	it('a proposed shortened rename value cannot replace the full requested title', () => {
+		expect(
+			authorizeCollectionOperations({
+				message: 'Rename segment-tracking-risk to Tracking risk plan.',
+				catalog,
+				create: null,
+				changes: [{ slug: 'segment-tracking-risk', kind: 'rename', value: 'Tracking risk' }]
+			}).suppressed
+		).toBe(true);
+	});
+
+	it('explicit separate commands can manage multiple targets in one turn', () => {
+		const changes = [
+			{ slug: 'confidence-aware-coaching', kind: 'remove' as const, value: null },
+			{ slug: 'segment-tracking-risk', kind: 'status' as const, value: 'investigating' }
+		];
+		expect(
+			authorizeCollectionOperations({
+				message:
+					'Remove confidence-aware-coaching and mark segment-tracking-risk as investigating.',
+				catalog,
+				create: null,
+				changes
+			})
+		).toEqual({ create: null, changes, suppressed: false });
+	});
 	it('accepts an explicit named status request', () => {
 		const changes = [{ slug: catalog[0].slug, kind: 'status' as const, value: 'investigating' }];
 		expect(

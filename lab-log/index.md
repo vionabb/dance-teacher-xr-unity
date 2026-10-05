@@ -210,3 +210,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Adds an index conversation for creating, renaming, moving workflow status,
   removing, and restoring hypotheses. Removal preserves the research trail;
   new entries start as candidate questions with draft overviews.
+
+- [2026-10-05 — Hypothesis prototype PR feedback](2026-10-05-hypothesis-pr-review.md)
+  Addresses intent and exact-target checks, Unicode and duplicate creation,
+  concurrent responses, Codex input errors, and atomic schema upgrades.
+  Failed or stale operations retain the conversation without changing state.
