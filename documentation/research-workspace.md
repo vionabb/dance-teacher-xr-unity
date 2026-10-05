@@ -175,11 +175,18 @@ the current catalog and recent collection conversation; each detail assistant
 receives its overview and recent per-hypothesis conversation. The server
 validates structured operations against the catalog and explicit requests,
 then writes append-only records and a verified snapshot. For collection
-changes, name the exact current title or URL name and the
-requested action and value (for example, `Mark Recurring tracking risk by
+changes, name the exact current title or URL name and the requested action
+and value (for example, `Mark Recurring tracking risk by
 segment as investigating`). If the assistant proposes an ambiguous or
 mismatched operation, the entire turn is recorded as conversation without a
-collection change. The detail panel can
+collection change. A transaction-time revision check also suppresses changes
+if the collection changed while Codex was responding; the conversation is
+retained with a request to review and retry. Duplicate URL names produce a
+saved explanation without creating another hypothesis. Titles without an
+ASCII URL name receive a stable `hypothesis-<hash>` URL.
+
+The detail panel requires an explicit status command such as `Mark this as
+investigating`, or finding content introduced by `Save a finding: ...`. It can
 save an explicitly requested finding and discuss a prospective analysis;
 running that analysis or adding a custom tool still requires a Codex task with
 an implementation brief. The initial pages do not ingest the live annotation
@@ -193,3 +200,9 @@ initial hypothesis wording, decide whether lab-log prose should remain the
 canonical overview for newly added hypotheses, and define an evidence-link
 and revision policy for saved findings. See the [dated prototype entry](../lab-log/2026-10-02-hypothesis-workspace-prototype.md)
 and its [handoff](../lab-log/2026-10-02-hypothesis-workspace-prototype-handoff.md).
+
+Schema upgrades create all required tables and update the version marker in
+one SQLite transaction. Older code intentionally refuses a newer database
+version. Use a separate `RESEARCH_SQLITE_PATH` for an older checkout, or a
+verified snapshot made before the upgrade; do not change the version marker
+to make older code accept newer state.

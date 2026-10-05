@@ -24,7 +24,7 @@ async function collectionState(file: string) {
 			findings: events.filter((event) => event.kind === 'finding').length
 		};
 	});
-	return { listed, messages: state.messages.reverse() };
+	return { listed, messages: state.messages.reverse(), revision: state.revision };
 }
 
 export const load: PageServerLoad = async ({ getClientAddress, url }) => {
@@ -60,6 +60,7 @@ export const actions: Actions = {
 				message
 			});
 			const receipt = await recordHypothesisCollectionTurn(file, {
+				expectedRevision: state.revision,
 				userMessage: message,
 				assistantReply: response.reply,
 				create: response.create,
