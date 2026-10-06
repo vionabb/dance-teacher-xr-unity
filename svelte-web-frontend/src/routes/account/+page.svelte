@@ -1,6 +1,7 @@
 <!-- src/routes/account/+page.svelte -->
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
 	import { onMount } from 'svelte';
 
@@ -25,8 +26,7 @@
 	let loading = false;
 	let fullName: string = profile?.full_name ?? '';
 	let username: string = profile?.username ?? '';
-	/** @type {import('./$types').SubmitFunction} */
-	const handleSubmit = () => {
+	const handleSubmit: SubmitFunction = () => {
 		loading = true;
 		return async ({ update }) => {
 			update();
@@ -34,8 +34,7 @@
 		};
 	};
 
-	/** @type {import('./$types').SubmitFunction} */
-	const handleSignOut = () => {
+	const handleSignOut: SubmitFunction = () => {
 		loading = true;
 		return async ({ update }) => {
 			update();
