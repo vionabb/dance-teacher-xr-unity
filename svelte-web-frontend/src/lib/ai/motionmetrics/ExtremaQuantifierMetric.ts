@@ -2,6 +2,7 @@ import {
 	DerivedSeriesMotionQuantifierMetric,
 	type MotionMetricTimeSeries,
 	type QuantifierDerivedRow,
+	type QuantifierTimeSeriesRow,
 	type SingleTrackMetricTrack
 } from './MotionMetric';
 import { getFrameAlignedSeriesValues, getSeriesById } from './quantifierUtils';
@@ -10,7 +11,9 @@ export type ExtremaMode = 'min' | 'max' | 'both';
 
 export type ExtremaQuantifierOptions = {
 	sourceMetric: {
-		quantify(track: Readonly<SingleTrackMetricTrack>): MotionMetricTimeSeries[];
+		quantify(
+			track: Readonly<SingleTrackMetricTrack>
+		): MotionMetricTimeSeries<QuantifierTimeSeriesRow>[];
 	};
 	sourceSeriesId?: string;
 	sourceValueKey?: string;

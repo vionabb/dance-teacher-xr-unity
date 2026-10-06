@@ -7,8 +7,9 @@ import {
 	type MotionMetricTimeSeries,
 	type SummaryEvaluationMetric
 } from './MotionMetric';
-let writeFileSync: typeof import('fs').writeFileSync;
-let mkdirSync: typeof import('fs').mkdirSync;
+// No-ops until/unless we are running in Node.js (see initializeFilesystemFns).
+let writeFileSync: typeof import('fs').writeFileSync = () => {};
+let mkdirSync: typeof import('fs').mkdirSync = () => {};
 
 function initializeFilesystemFns() {
 	if (typeof process === 'undefined' || process.versions == null || process.versions.node == null) {
@@ -30,11 +31,6 @@ function initializeFilesystemFns() {
 		});
 }
 
-// Default to no-op functions until/unless we are running in Node.js.
-if (writeFileSync === undefined || mkdirSync === undefined) {
-	writeFileSync = () => {};
-	mkdirSync = () => {};
-}
 initializeFilesystemFns();
 
 type TemporalAlignmentEvaluationMetricOutput = ReturnType<

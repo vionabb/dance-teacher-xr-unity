@@ -27,8 +27,18 @@ declare const wasmFeatureDetect: {
 	typeReflection(): Promise<boolean>;
 	typedFunctionReferences(): Promise<boolean>;
 };
-// @ts-expect-error bundled worker shim assigns `wasmFeatureDetect` to the global scope
-(function (e, n) {
+// UMD globals the bundled shim probes for (neither exists in a module worker).
+declare const define: ((factory: () => unknown) => void) & { amd?: unknown };
+
+// WebAssembly.instantiate's JS string builtins options are missing from the TS lib typings.
+const instantiateWithOptions = WebAssembly.instantiate as unknown as (
+	bytes: BufferSource,
+	imports: WebAssembly.Imports,
+	options: { builtins: string[] }
+) => Promise<unknown>;
+
+// The bundled shim assigns `wasmFeatureDetect` to the global scope.
+(function (e: any, n: () => unknown) {
 	if ('object' == typeof exports && 'undefined' != typeof module) {
 		module.exports = n();
 	} else if ('function' == typeof define && define.amd) {
@@ -36,13 +46,17 @@ declare const wasmFeatureDetect: {
 	} else {
 		(e = 'undefined' != typeof globalThis ? globalThis : e || self).wasmFeatureDetect = n();
 	}
-})(this, function () {
+})(globalThis, function () {
 	'use strict';
 	return {
 		bigInt: () =>
 			(async (e) => {
 				try {
-					return (await WebAssembly.instantiate(e)).instance.exports.b(BigInt(0)) === BigInt(0);
+					return (
+						((await WebAssembly.instantiate(e)).instance.exports.b as (x: bigint) => bigint)(
+							BigInt(0)
+						) === BigInt(0)
+					);
 				} catch {
 					return !1;
 				}
@@ -71,8 +85,9 @@ declare const wasmFeatureDetect: {
 				try {
 					return (
 						new WebAssembly.Module(
-							Uint8Array.from(atob('AGFzbQEAAAABBAFgAAADAgEAChABDgACaR9AAQMAAAsACxoL'), (e) =>
-								e.codePointAt(0)
+							Uint8Array.from(
+								atob('AGFzbQEAAAABBAFgAAADAgEAChABDgACaR9AAQMAAAsACxoL'),
+								(e) => e.codePointAt(0) as number
 							)
 						),
 						!0
@@ -96,10 +111,10 @@ declare const wasmFeatureDetect: {
 			(async () => {
 				try {
 					return (
-						await WebAssembly.instantiate(
+						await instantiateWithOptions(
 							Uint8Array.from(
 								atob('AGFzbQEAAAABBgFgAW8BfwIXAQ53YXNtOmpzLXN0cmluZwR0ZXN0AAA='),
-								(e) => e.codePointAt(0)
+								(e) => e.codePointAt(0) as number
 							),
 							{},
 							{ builtins: ['js-string'] }
@@ -209,7 +224,7 @@ declare const wasmFeatureDetect: {
 								atob(
 									'AGFzbQEAAAABEANgAX8Bf2ABZAABf2AAAX8DBAMBAAIJBQEDAAEBChwDCwBBCkEqIAAUAGoLBwAgAEEBagsGANIBEAAL'
 								),
-								(e) => e.codePointAt(0)
+								(e) => e.codePointAt(0) as number
 							)
 						),
 						!0

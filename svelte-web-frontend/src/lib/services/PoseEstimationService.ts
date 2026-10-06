@@ -58,7 +58,7 @@ export class PoseEstimationService {
 			//     return;
 			// }
 
-			this.lastFrameEstimated = msg.data.frameId;
+			this.lastFrameEstimated = msg.data.frameId as number;
 			const landmarkerResult = msg.data.landmarkerResult as PoseLandmarkerResult | null;
 			const allDetectedPersonsNormalizedLandmarks = landmarkerResult?.landmarks ?? [];
 			const estimated2DPose = allDetectedPersonsNormalizedLandmarks[0] ?? null; // get the pose of the first detected person
@@ -68,7 +68,7 @@ export class PoseEstimationService {
 			this.lastEstimated2DPose = estimated2DPose;
 
 			const eventDetail: PoseEstimationResultDetail = {
-				frameId: msg.data.frameId ?? (NaN as number),
+				frameId: (msg.data.frameId as number | undefined) ?? NaN,
 				estimated2DPose: this.lastEstimated2DPose ?? (null as NormalizedLandmark[] | null),
 				estimated3DPose: estimated3DPose ?? (null as Pose3DLandmarkFrame | null),
 				srcWidth: msg.data.srcWidth as number,

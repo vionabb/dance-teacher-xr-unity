@@ -321,7 +321,7 @@ export async function load2DPoseInformation(
 	const pose2dCsvPathCandidates = getStoragePublicUrlCandidates(
 		supabase,
 		'pose2ddata',
-		motionVideo?.landmarks_pose_2d_src
+		motionVideo?.landmarks_pose_2d_src ?? undefined
 	);
 	if (pose2dCsvPathCandidates.length === 0) {
 		throw new Error('No 2D pose data source available for motionVideo id ' + motionVideo.id);
@@ -351,7 +351,7 @@ export async function load3DPoseInformation(
 	const pose3dCsvPathCandidates = getStoragePublicUrlCandidates(
 		supabase,
 		'holisticdata',
-		motionVideo?.landmarks_holistic_3d_src
+		motionVideo?.landmarks_holistic_3d_src ?? undefined
 	);
 	if (pose3dCsvPathCandidates.length === 0) {
 		throw new Error('No 3D pose data source available for motionVideo id ' + motionVideo.id);

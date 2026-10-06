@@ -61,11 +61,14 @@ export default class NetSpeedQuantifierMetric extends FrameAlignedMotionQuantifi
 						getMagnitude2DVec([current.x - previous.x, current.y - previous.y]) / deltaTimeSecs
 					);
 				}
+				// 3D mode only runs on poses with z coordinates.
+				const current3D = current as { x: number; y: number; z: number };
+				const previous3D = previous as { x: number; y: number; z: number };
 				return (
 					getMagnitude3DVec([
-						current.x - previous.x,
-						current.y - previous.y,
-						current.z - previous.z
+						current3D.x - previous3D.x,
+						current3D.y - previous3D.y,
+						current3D.z - previous3D.z
 					]) / deltaTimeSecs
 				);
 			});
