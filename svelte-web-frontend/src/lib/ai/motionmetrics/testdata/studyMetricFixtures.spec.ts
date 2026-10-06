@@ -1,4 +1,5 @@
 import { describe, it } from 'vitest';
+import { HAS_MEDIA_BUNDLE } from '../PoseDataTestFile';
 import { Study } from '../PoseDataTestFile';
 import {
 	buildTestTrackForStudyClip,
@@ -8,7 +9,7 @@ import {
 	loadStudyMetricFixturesContext
 } from './studyMetricFixtures';
 
-describe('studyMetricFixtures', {}, async () => {
+describe.skipIf(!HAS_MEDIA_BUNDLE)('studyMetricFixtures', {}, async () => {
 	const context = await loadStudyMetricFixturesContext();
 	const testTimeout = 60 * 1000;
 

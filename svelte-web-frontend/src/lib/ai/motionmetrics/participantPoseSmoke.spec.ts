@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { describe, it } from 'vitest';
+import { HAS_TIKTOK_CLIP_POSES } from './PoseDataTestFile';
 import { loadPoses, loadTikTokClipPoses, Study, type StudySegmentData } from './PoseDataTestFile';
 import { getReferenceClip } from '../EvaluationCommonUtils';
 import { buildTestTrackForStudyClip } from './testdata/studyMetricFixtures';
@@ -15,7 +16,7 @@ const participantPoseRoot = path.resolve(
 	'userstudydata'
 );
 
-describe('canonical participant pose smoke fixtures', () => {
+describe.skipIf(!HAS_TIKTOK_CLIP_POSES)('canonical participant pose smoke fixtures', () => {
 	it(
 		'loads paired canonical modalities and runs evaluation metrics',
 		{ timeout: 20000 },

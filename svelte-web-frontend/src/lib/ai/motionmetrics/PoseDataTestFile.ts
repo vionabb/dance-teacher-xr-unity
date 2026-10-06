@@ -924,3 +924,8 @@ export async function loadHumanRatings() {
 
 	return allRatings;
 }
+
+// These fixtures are gitignored (see the frontend README); data-dependent specs
+// skip themselves instead of failing on a checkout that does not have them.
+export const HAS_MEDIA_BUNDLE = existsSync(path.resolve(TIKTOK_WHOLE_POSES_FOLDER_2D));
+export const HAS_TIKTOK_CLIP_POSES = existsSync(path.resolve(TIKTOK_CLIPS_POSES_FOLDER));
