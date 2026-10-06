@@ -23,6 +23,13 @@ artifacts: []
   Existing Qijia, Viona2D, and 3D-angle features did not beat a training-fold
   constant baseline on the 95 selected clips. This is not an untouched
   external validation cohort.
+- A blinded 48-case first-pass adjudication manifest is prepared under
+  `motion-pipeline/temp/experiments/20261006-repair-adjudication-v1/`.
+  `blinded/first_pass_manifest.json` contains source cases in shuffled order;
+  the full candidate pool and answer key live under `sealed/`. Never expose
+  the sealed files during judging. The independent reviewer verified exact
+  regeneration, source hashes, and selection probabilities. Nothing was
+  added to the active annotation server or database.
 - No automatic usability exclusion or repair rule is validated. Current
   `calculationQuality` measures evidence sufficiency, not the chance a score
   matches human judgment. The fixed visibility gate loses substantial
@@ -63,15 +70,27 @@ fits preprocessing within each person-disjoint training fold, and trains on
 one study before testing on the other. Its non-identifying aggregate is
 linked from the lab entry.
 
+The private adjudication queue is reproduced with:
+
+```sh
+motion-pipeline/.venv/bin/python motion-pipeline/temp/experiments/20261006-repair-adjudication-v1/prepare.py
+```
+
+It writes the sealed pool/key, blinded first-pass manifest, and a
+non-identifying `selection_summary.json`. The aggregate summary is copied
+into the companion lab entry. Do not publish the private case files, which
+contain participant-derived frame and pose details.
+
 ## Decision and single next action
 
-Keep preprocessing and production similarity defaults unchanged. First,
-construct a frozen, person-separated adjudication set containing the 161
-unmarked positions selected by the exploratory isolated-jump rule and random
-unselected controls, with source-video review and a recorded tolerance for
-approximate landmark placement. Freeze the rule before using those judgments
-to estimate false-correction cost. Then compare repair and quality-aware
-similarity on a balanced direct-human-rating cohort, keeping both studies,
-reference windows, and current-code raw control explicit. Do not infer
-automatic exclusion or calibrated rating trust from the current selected
-annotations.
+Keep preprocessing and production similarity defaults unchanged. The single
+next action is to build a small, separate review screen with an append-only
+database for the prepared blinded 48 cases. Reuse source-video seeking and
+landmark dragging where possible, but display only the blinded manifest and
+record a distinct acceptable-as-is, incorrect/correctable, or unjudgeable
+response by blind ID. Do not reopen the completed active frame tasks for this
+protocol or alter their database. After source-video judgments, analyze arm
+and hip strata separately using the frozen inclusion probabilities; only then
+estimate the exploratory rule's false-correction cost. A later balanced
+direct-human-rating cohort must test any predeclared similarity metric with
+both studies, reference windows, and current-code raw control explicit.

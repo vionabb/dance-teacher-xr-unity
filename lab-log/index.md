@@ -205,11 +205,12 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   An opt-in quality-aware Qijia contract reports coverage, while a fixed
   visibility gate loses coverage without a reliable human-rating gain. A
   person-grouped combination of existing pose scores also fails to beat a
-  simple held-out baseline on the selected 95 clips.
+  simple held-out baseline on the selected 95 clips. A blinded 48-case
+  arm/hip/control review sample is ready in private experiment storage.
 
 - [2026-10-06 — Preprocessing and similarity handoff](2026-10-06-preprocessing-metric-validation-handoff.md)
   Records the frozen experiment commands, provenance checks, decisions, and
-  next adjudication set for safely continuing metric validation.
+  next separate review-screen action for safely continuing metric validation.
 
 - [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
   Records Viona's choice to serve both CHI25 studies to authorized accounts,

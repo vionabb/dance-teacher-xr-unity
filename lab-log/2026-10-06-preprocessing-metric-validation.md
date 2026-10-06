@@ -5,6 +5,7 @@ artifacts:
   - assets/2026-10-06-preprocessing-metric-validation/aggregate-results.json
   - assets/2026-10-06-preprocessing-metric-validation/quality-aware-95-aggregate.json
   - assets/2026-10-06-preprocessing-metric-validation/heldout-combination-aggregate.json
+  - assets/2026-10-06-preprocessing-metric-validation/repair-adjudication-selection.json
 ---
 
 # Testing correction signals and measurement-aware similarity
@@ -162,6 +163,31 @@ or dance; their target means range 3.456–4.544. This is an exploratory failure
 of the existing features, not proof that pose similarity cannot predict
 perception.
 
+## Frozen next review sample
+
+A private, deterministic adjudication pool now contains all 161 positions
+selected for isolated-jump repair that had no saved human correction, plus 30
+random eligible unselected controls. The fixed rule selected 90 unmarked hips
+but only nine of its 35 marked correction targets were hips. This asymmetry
+could reflect false hip alarms or different human correction priorities;
+unmarked positions cannot settle it. The [aggregate selection](assets/2026-10-06-preprocessing-metric-validation/repair-adjudication-selection.json)
+records counts, hashes, and sampling probabilities without identities or
+coordinates. A first pass samples 24 arm/shoulder flags, 12 hip flags, and
+12 controls across 22 recording groups. Its 48 cases are shuffled and blind
+to selection arm, midpoint proposal, and rule values. The response choices
+include acceptable as-is, incorrect/correctable with optional moved point,
+and unjudgeable. An independent replay verified every case and byte-identical
+regeneration. The sealed answer key and participant-derived cases remain only
+in `motion-pipeline/temp/experiments/20261006-repair-adjudication-v1/`.
+
+The active frame editor can display and scrub these clips but cannot run this
+blind protocol without revealing prior marks or mixing new answers into the
+active annotation history. A small dedicated review screen and separate
+append-only database are needed before collecting these judgments. No active
+server, database, or source data was changed. Arm and hip results should be
+reported separately and weighted by their recorded selection probabilities
+before an overall false-correction estimate.
+
 ## Decision and next step
 
 Use the temporal residual and visibility jointly to prioritize review, and
@@ -172,10 +198,12 @@ a demonstrated similarity improvement. Combining the current pose-shape
 descriptors has not supplied a short cut either. The shortest credible path is
 to retain the current raw score as control, validate localized temporal-error
 handling and conservative repair on held-out people, then test a predeclared
-metric design on a balanced, person-aware human-rating cohort. First,
-adjudicate selected-but-unmarked
-repair positions against source video alongside random controls; otherwise
-the rule's false-correction cost is unknown. The 95 selected clips do not
+metric design on a balanced, person-aware human-rating cohort. The blinded
+first-pass cases are prepared; the next implementation step is a separate
+review screen and database for their judgments. Source-video review must then
+decide whether each selected-but-unmarked position is acceptable,
+incorrect/correctable, or unjudgeable. Until then, the rule's false-correction
+cost is unknown. The 95 selected clips do not
 establish an automatic corpus gate or a generally valid similarity metric.
 The dissertation's implemented/planned claims were inspected; these
 exploratory results do not warrant changing the thesis chapter yet. The
