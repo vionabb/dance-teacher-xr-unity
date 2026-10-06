@@ -180,7 +180,8 @@ describe('calculateKinematicValues', () => {
 
 		// Test with no scaling
 		const noScaling = calculateKinematicValues(userPoses, referencePoses, frameTimes, {
-			scaleBehavior: 'none'
+			scaleBehavior2D: 'none',
+			scaleBehavior3D: 'none'
 		});
 
 		// Check velocities are calculated correctly with no scaling

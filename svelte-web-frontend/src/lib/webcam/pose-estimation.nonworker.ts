@@ -59,16 +59,19 @@ async function loadPoseLandmarkerModel() {
 
 function no_op() {}
 
+// Loosely typed on purpose: this class mimics a Web Worker's message protocol, where the payload
+// shape depends on the message type (and is validated at runtime in `postMessage`).
+type WorkerPayload = Record<string, any>;
+type WorkerResponse = MessageEvent<{ type: PostMessages; frameId: number; [key: string]: unknown }>;
+
 export default class PoseEstimationWorker {
 	private poseLandmarker: null | PoseLandmarker = null;
 
-	public onmessage: (
-		msg: MessageEvent<{ type: PostMessages; frameId: number; [key: string]: unknown }>
-	) => void = no_op;
+	public onmessage: (msg: WorkerResponse) => void = no_op;
 
 	public ready: Promise<void>;
 
-	private responseFunctions: Map<PostMessages, (id: number, msg: Record<string, unknown>) => void> =
+	private responseFunctions: Map<PostMessages, (id: number, msg: WorkerPayload) => void> =
 		new Map();
 
 	constructor() {
@@ -96,14 +99,14 @@ export default class PoseEstimationWorker {
 	 * ```
 	 * @param msg Message from the main thread. Should contain an image and a timestamp
 	 */
-	public postMessage(msg: MessageEvent<Record<string, unknown>> | Record<string, unknown>): void {
+	public postMessage(msg: MessageEvent<WorkerPayload> | WorkerPayload): void {
 		// Messages receieved as a WebWorker have the data object placed in `msg.data`, whereas
 		// when we're not loaded as a WebWorker and this function is called in the main thread, the
 		// data object will be the parameter itself. This is a bit of a hack to make it work in both
 		// cases.
-		let msgData = msg; // Not a WebWorker
+		let msgData = msg as WorkerPayload; // Not a WebWorker
 		if (IS_WEB_WORKER) {
-			msgData = msg.data; // WebWorker
+			msgData = (msg as MessageEvent<WorkerPayload>).data; // WebWorker
 		}
 		const frameId = msgData?.frameId ?? -1;
 
@@ -126,7 +129,7 @@ export default class PoseEstimationWorker {
 		this.responseFunctions.get(msgData.type)?.(frameId, msgData);
 	}
 
-	private handleReset(frameId: number, _msgData: Record<string, unknown>) {
+	private handleReset(frameId: number, _msgData: WorkerPayload) {
 		this.poseLandmarker?.close();
 		this.poseLandmarker = null;
 		this.ready = loadPoseLandmarkerModel().then(
@@ -142,7 +145,7 @@ export default class PoseEstimationWorker {
 		);
 	}
 
-	private handlePoseEstimationRequest(frameId: number, msgData: Record<string, unknown>) {
+	private handlePoseEstimationRequest(frameId: number, msgData: WorkerPayload) {
 		// Ensure poseLandmarker is initialized
 		if (!this.poseLandmarker) {
 			this.respondWithError(frameId, 'PoseLandmarker not initialized');
@@ -187,7 +190,7 @@ export default class PoseEstimationWorker {
 		frameId: number,
 		data: Record<string, unknown>
 	): void {
-		let msg = {
+		let msg: Record<string, unknown> = {
 			...data,
 			frameId,
 			type
@@ -202,7 +205,7 @@ export default class PoseEstimationWorker {
 			};
 		}
 
-		this.onmessage(msg);
+		this.onmessage(msg as unknown as WorkerResponse);
 	}
 
 	/**

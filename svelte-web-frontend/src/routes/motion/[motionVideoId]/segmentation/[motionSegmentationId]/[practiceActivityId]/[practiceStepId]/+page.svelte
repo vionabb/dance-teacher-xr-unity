@@ -7,6 +7,7 @@
 	import { page } from '$app/stores';
 	import type PracticeStep from '$lib/model/PracticeStep.js';
 	import type { PracticePlan, PracticePlanActivity } from '$lib/model/PracticePlan';
+	import type { TerminalFeedback } from '$lib/model/TerminalFeedback';
 	import type { Readable } from 'svelte/store';
 
 	import { GetTeachingAgent } from '$lib/ai/TeachingAgent/TeachingAgent.js';

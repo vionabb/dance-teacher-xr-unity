@@ -8,11 +8,11 @@
 	export const supportsSpeechSynthesis = readonly(supportingSpeechSynthesis);
 
 	if (browser) {
+		// SpeechRecognition is not in the TypeScript DOM lib; only feature detection is needed here.
 		const SpeechRecognitionConstructor =
-			(window as any).SpeechRecognition ??
-			((window as any).webkitSpeechRecognition as typeof SpeechRecognition | undefined);
+			(window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
 		const speechRecognition = SpeechRecognitionConstructor
-			? (new SpeechRecognitionConstructor() as SpeechRecognition)
+			? new SpeechRecognitionConstructor()
 			: null;
 		supportingSpeechRecognition.set(!!speechRecognition);
 
