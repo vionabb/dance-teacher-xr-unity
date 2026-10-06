@@ -1,4 +1,5 @@
 import { describe, it } from 'vitest';
+import { HAS_MEDIA_BUNDLE } from './PoseDataTestFile';
 import {
 	createTrackHistoryForClips,
 	fromAsync,
@@ -23,7 +24,7 @@ function runDTWMetricOnClips(userData: StudySegmentData, referenceClip: TiktokDa
 	return metric.formatSummary(summary);
 }
 
-describe('Skeleton3DAngleDistanceDTWEvaluationMetric', {}, async () => {
+describe.skipIf(!HAS_MEDIA_BUNDLE)('Skeleton3DAngleDistanceDTWEvaluationMetric', {}, async () => {
 	const tiktokClipPoses = await loadTikTokClipPoses();
 	const tiktokWholePoses = await loadTiktokWholePoses();
 
