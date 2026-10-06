@@ -271,7 +271,12 @@ export function computeQijia2DQualityAwareFrame(
 	};
 }
 
-/** Aggregate aligned frame results without changing the expected frame-vector denominator. */
+/**
+ * Pool weighted valid vector comparisons across aligned frames without changing the expected
+ * frame-vector denominator. This differs from legacy Qijia, which averages each frame's mean
+ * with equal frame weight even when frames have different numbers of valid vectors. Compare
+ * like-for-like aggregation arms when interpreting changes against human ratings.
+ */
 export function summarizeQijia2DQualityAware(
 	frames: readonly QijiaQualityFrame[]
 ): QijiaQualitySummary {

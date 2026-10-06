@@ -82,6 +82,26 @@ describe('opt-in Qijia2D quality contract', () => {
 		expect(frame.calculationQuality).toBeLessThan(1);
 	});
 
+	it('pools vectors rather than giving a partial frame the same weight as a complete frame', () => {
+		const complete = computeQijia2DQualityAwareFrame(pose(1), pose(1));
+		const reversed = pose(1).map((landmark) => ({
+			...landmark,
+			x: -landmark.x,
+			y: -landmark.y
+		}));
+		reversed[11].x = Number.NaN;
+		const partial = computeQijia2DQualityAwareFrame(pose(1), reversed);
+		const summary = summarizeQijia2DQualityAware([complete, partial]);
+		expect(complete.validComparisons).toBe(8);
+		expect(partial.validComparisons).toBeLessThan(8);
+		expect(partial.score).toBeCloseTo(0);
+		expect(summary.score).toBeCloseTo(
+			(complete.score! * complete.validComparisons + partial.score! * partial.validComparisons) /
+				(complete.validComparisons + partial.validComparisons)
+		);
+		expect(summary.score).toBeGreaterThan((complete.score! + partial.score!) / 2);
+	});
+
 	it('separates unknown visibility from low visibility and calibrated reliability', () => {
 		const unknown = computeQijia2DQualityAwareFrame(pose(), pose(), {
 			user: { predictedUsability: 0 }
