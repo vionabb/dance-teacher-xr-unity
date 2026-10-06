@@ -1,0 +1,13 @@
+{
+	"type": "object",
+	"properties": {
+		"reply": { "type": "string" },
+		"status": {
+			"type": ["string", "null"],
+			"enum": ["candidate", "investigating", "evidence-review", "resolved", "archived", null]
+		},
+		"finding": { "type": ["string", "null"] }
+	},
+	"required": ["reply", "status", "finding"],
+	"additionalProperties": false
+}

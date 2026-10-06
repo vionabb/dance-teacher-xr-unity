@@ -5,6 +5,8 @@ import path from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import {
 	importResearchSources,
+	readHypothesisCatalog,
+	readHypothesisState,
 	readResearchRecords,
 	readUsabilityData,
 	recordVideoUsabilityRating
@@ -44,6 +46,96 @@ test('concurrent reads migrate an existing v1 database only once', async () => {
 	});
 	await Promise.all([readResearchRecords(databasePath), readResearchRecords(databasePath)]);
 	await expect(readResearchRecords(databasePath)).resolves.toMatchObject({ humanRatings: [] });
+});
+
+test('a v2 research database gains hypothesis records without losing its existing ratings', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-v2-migrate-'));
+	folders.push(folder);
+	const databasePath = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	await new Promise<void>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.exec(
+			"CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (2); CREATE TABLE local_video_usability_revisions (revision_id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT); INSERT INTO local_video_usability_revisions (task_id) VALUES ('existing-rating')",
+			(error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+		);
+	});
+	await expect(readHypothesisState(databasePath, 'landmark-error-signals')).resolves.toMatchObject({
+		events: [],
+		messages: []
+	});
+	const migrated = await new Promise<{ version: number; task_id: string }[]>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.all(
+			'SELECT schema_meta.version, local_video_usability_revisions.task_id FROM schema_meta CROSS JOIN local_video_usability_revisions',
+			(error, rows) =>
+				db.close((closeError) =>
+					error || closeError
+						? reject(error || closeError)
+						: resolve(rows as { version: number; task_id: string }[])
+				)
+		);
+	});
+	expect(migrated).toEqual([{ version: 4, task_id: 'existing-rating' }]);
+});
+
+test('a v3 research database keeps its hypothesis history after collection support is added', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-v3-migrate-'));
+	folders.push(folder);
+	const databasePath = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	await new Promise<void>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.exec(
+			"CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (3); CREATE TABLE hypothesis_events (event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, created_at TEXT NOT NULL); INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES ('landmark-error-signals', 'status', 'investigating', '2026-10-03T00:00:00Z')",
+			(error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+		);
+	});
+	await expect(readHypothesisCatalog(databasePath)).resolves.toMatchObject({
+		definitions: [],
+		metadata: []
+	});
+	expect((await readHypothesisState(databasePath, 'landmark-error-signals')).events).toMatchObject([
+		{ kind: 'status', value: 'investigating' }
+	]);
+});
+
+test('a schema DDL failure rolls back the version marker and new tables together', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-schema-rollback-'));
+	folders.push(folder);
+	const databasePath = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	const exec = (sql: string) =>
+		new Promise<void>((resolve, reject) => {
+			const db = new sqlite3.Database(databasePath);
+			db.exec(sql, (error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+			);
+		});
+	await exec(
+		'CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (3); CREATE TABLE local_video_usability_revisions (task_id TEXT)'
+	);
+	await expect(readHypothesisCatalog(databasePath)).rejects.toThrow('revision_id');
+	const rows = await new Promise<{ version: number; new_tables: number }[]>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.all(
+			"SELECT version, (SELECT COUNT(*) FROM sqlite_master WHERE name IN ('source_imports', 'manual_reviews', 'hypothesis_definitions')) AS new_tables FROM schema_meta",
+			(error, rows) =>
+				db.close((closeError) =>
+					error || closeError
+						? reject(error || closeError)
+						: resolve(rows as { version: number; new_tables: number }[])
+				)
+		);
+	});
+	expect(rows).toEqual([{ version: 3, new_tables: 0 }]);
+	await exec('DROP TABLE local_video_usability_revisions');
+	await expect(readHypothesisCatalog(databasePath)).resolves.toEqual({
+		definitions: [],
+		metadata: []
+	});
 });
 
 test('rejects out-of-scale human ratings before registering a source', async () => {

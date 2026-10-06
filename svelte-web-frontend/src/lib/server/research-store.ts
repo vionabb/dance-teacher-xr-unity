@@ -4,8 +4,9 @@ import path from 'node:path';
 import type sqlite3 from 'sqlite3';
 import Papa from 'papaparse';
 import { humanSimilarityCondition } from './research-identity.js';
+import { HYPOTHESIS_STATUSES, hypotheses, type HypothesisStatus } from './research-hypotheses';
 
-export const RESEARCH_SCHEMA_VERSION = 2;
+export const RESEARCH_SCHEMA_VERSION = 4;
 
 export type SourceRecord = {
 	kind: string;
@@ -154,21 +155,22 @@ function close(db: sqlite3.Database): Promise<void> {
 	return new Promise((resolve, reject) => db.close((error) => (error ? reject(error) : resolve())));
 }
 
-async function snapshotAfterRating(
+async function snapshotAfterRevision(
 	db: sqlite3.Database,
 	databaseFile: string,
-	revisionId: number
+	revisionId: number,
+	table: 'local_video_usability_revisions' | 'hypothesis_chat_messages'
 ): Promise<string> {
 	const folder = path.join(path.dirname(databaseFile), 'backups');
 	await mkdir(folder, { recursive: true });
-	const snapshot = path.join(folder, `research-after-revision-${revisionId}-${Date.now()}.sqlite3`);
+	const snapshot = path.join(folder, `research-after-${table}-${revisionId}-${Date.now()}.sqlite3`);
 	await run(db, 'VACUUM INTO ?', [snapshot]);
 	const copy = await openDatabase(snapshot);
 	try {
 		const integrity = await all<{ integrity_check: string }>(copy, 'PRAGMA integrity_check');
 		const revision = await all(
 			copy,
-			'SELECT 1 FROM local_video_usability_revisions WHERE revision_id = ?',
+			`SELECT 1 FROM ${table} WHERE ${table === 'hypothesis_chat_messages' ? 'message_id' : 'revision_id'} = ?`,
 			[revisionId]
 		);
 		if (integrity.length !== 1 || integrity[0].integrity_check !== 'ok' || revision.length !== 1)
@@ -199,30 +201,25 @@ async function withDatabase<T>(
 		try {
 			await run(db, `CREATE TABLE IF NOT EXISTS schema_meta (version INTEGER NOT NULL)`);
 			const versions = await all<{ version: number }>(db, 'SELECT version FROM schema_meta');
-			if (versions.length === 0)
-				await run(db, 'INSERT INTO schema_meta VALUES (?)', [RESEARCH_SCHEMA_VERSION]);
-			else if (versions.length === 1 && versions[0].version === 1) {
+			if (versions.length === 1 && versions[0].version === 1) {
 				for (const column of ['rating_1', 'rating_2', 'rating_3'])
 					await run(db, `ALTER TABLE human_similarity_ratings ADD COLUMN ${column} INTEGER`);
-				await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
-			} else if (versions.length !== 1 || versions[0].version !== RESEARCH_SCHEMA_VERSION)
+			} else if (
+				versions.length > 1 ||
+				(versions.length === 1 && ![2, 3, RESEARCH_SCHEMA_VERSION].includes(versions[0].version))
+			)
 				throw new Error(
 					`Unsupported research database schema version: ${versions.map((row) => row.version).join(', ')}`
 				);
-			await run(db, 'COMMIT');
-		} catch (schemaError) {
-			await run(db, 'ROLLBACK');
-			throw schemaError;
-		}
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS source_imports (
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS source_imports (
 			kind TEXT PRIMARY KEY, source_path TEXT NOT NULL, source_sha256 TEXT NOT NULL,
 			source_version TEXT NOT NULL, imported_at TEXT NOT NULL)`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS manual_reviews (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS manual_reviews (
 			release_id TEXT NOT NULL, scope TEXT NOT NULL, segment_id TEXT NOT NULL,
 			recording_id TEXT NOT NULL, source_id TEXT NOT NULL, source_manifest_sha256 TEXT NOT NULL,
 			experiment_id TEXT NOT NULL, task_id TEXT NOT NULL, annotator TEXT NOT NULL,
@@ -232,19 +229,19 @@ async function withDatabase<T>(
 			video_usability_rating_override TEXT, correction_count INTEGER NOT NULL,
 			reviewed_pose_sha256 TEXT,
 			PRIMARY KEY (release_id, scope, segment_id))`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS human_similarity_ratings (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS human_similarity_ratings (
 			study TEXT NOT NULL, dance TEXT NOT NULL, user_id TEXT NOT NULL,
 			segment_id TEXT NOT NULL, condition TEXT NOT NULL,
 			human_rating REAL, human_rating_percentile REAL,
 			rating_1 INTEGER, rating_2 INTEGER, rating_3 INTEGER,
 			PRIMARY KEY (study, dance, user_id, segment_id))`
-		);
-		await run(
-			db,
-			`CREATE TABLE IF NOT EXISTS local_video_usability_revisions (
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS local_video_usability_revisions (
 			revision_id INTEGER PRIMARY KEY AUTOINCREMENT,
 			manifest_sha256 TEXT NOT NULL, task_id TEXT NOT NULL,
 			source_corpus TEXT NOT NULL, source_stem TEXT NOT NULL,
@@ -252,12 +249,47 @@ async function withDatabase<T>(
 			source_video_sha256 TEXT NOT NULL, landmarks_sha256 TEXT NOT NULL,
 			annotator TEXT NOT NULL, rating TEXT NOT NULL, note TEXT NOT NULL,
 			created_at TEXT NOT NULL, supersedes_revision_id INTEGER)`
-		);
-		await run(
-			db,
-			`CREATE INDEX IF NOT EXISTS local_video_usability_task
+			);
+			await run(
+				db,
+				`CREATE INDEX IF NOT EXISTS local_video_usability_task
 			ON local_video_usability_revisions(task_id, revision_id DESC)`
-		);
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS hypothesis_events (
+			event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
+			kind TEXT NOT NULL CHECK(kind IN ('status', 'finding')),
+			value TEXT NOT NULL, created_at TEXT NOT NULL)`
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS hypothesis_chat_messages (
+			message_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
+			role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
+			content TEXT NOT NULL, created_at TEXT NOT NULL)`
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS hypothesis_definitions (
+			slug TEXT PRIMARY KEY, title TEXT NOT NULL, question TEXT NOT NULL,
+			overview TEXT NOT NULL, created_at TEXT NOT NULL)`
+			);
+			await run(
+				db,
+				`CREATE TABLE IF NOT EXISTS hypothesis_metadata_events (
+			event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL,
+			kind TEXT NOT NULL CHECK(kind IN ('rename', 'remove', 'restore')),
+			value TEXT, created_at TEXT NOT NULL)`
+			);
+			if (versions.length === 0)
+				await run(db, 'INSERT INTO schema_meta VALUES (?)', [RESEARCH_SCHEMA_VERSION]);
+			else await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
+			await run(db, 'COMMIT');
+		} catch (schemaError) {
+			await run(db, 'ROLLBACK');
+			throw schemaError;
+		}
 		return await action(db);
 	} finally {
 		await close(db);
@@ -614,7 +646,12 @@ export async function recordVideoUsabilityRating(
 			try {
 				return {
 					revisionId: id,
-					snapshotPath: await snapshotAfterRating(db, file, id),
+					snapshotPath: await snapshotAfterRevision(
+						db,
+						file,
+						id,
+						'local_video_usability_revisions'
+					),
 					backupError: null
 				};
 			} catch (snapshotError) {
@@ -627,6 +664,349 @@ export async function recordVideoUsabilityRating(
 		} catch (recordError) {
 			await run(db, 'ROLLBACK');
 			throw recordError;
+		}
+	});
+}
+
+export type HypothesisEvent = {
+	event_id: number;
+	slug: string;
+	kind: 'status' | 'finding';
+	value: string;
+	created_at: string;
+};
+
+export type HypothesisChatMessage = {
+	message_id: number;
+	slug: string;
+	role: 'user' | 'assistant';
+	content: string;
+	created_at: string;
+};
+
+export const HYPOTHESIS_COLLECTION_SLUG = 'hypothesis-collection';
+
+export type HypothesisDefinition = {
+	slug: string;
+	title: string;
+	question: string;
+	overview: string;
+	created_at: string;
+};
+
+export type HypothesisMetadataEvent = {
+	event_id: number;
+	slug: string;
+	kind: 'rename' | 'remove' | 'restore';
+	value: string | null;
+	created_at: string;
+};
+
+export type HypothesisCollectionChange = {
+	slug: string;
+	kind: 'status' | 'rename' | 'remove' | 'restore';
+	value: string | null;
+};
+
+async function hypothesisCollectionRevision(db: sqlite3.Database): Promise<string> {
+	const [revision] = await all<{ events: number; metadata: number; messages: number }>(
+		db,
+		`SELECT
+		(SELECT COALESCE(MAX(event_id), 0) FROM hypothesis_events) AS events,
+		(SELECT COALESCE(MAX(event_id), 0) FROM hypothesis_metadata_events) AS metadata,
+		(SELECT COALESCE(MAX(message_id), 0) FROM hypothesis_chat_messages WHERE slug = ?) AS messages`,
+		[HYPOTHESIS_COLLECTION_SLUG]
+	);
+	return `${revision.events}:${revision.metadata}:${revision.messages}`;
+}
+
+export async function readHypothesisCatalog(file: string) {
+	return withDatabase(file, async (db) => ({
+		definitions: await all<HypothesisDefinition>(
+			db,
+			'SELECT slug, title, question, overview, created_at FROM hypothesis_definitions ORDER BY created_at, slug'
+		),
+		metadata: await all<HypothesisMetadataEvent>(
+			db,
+			'SELECT event_id, slug, kind, value, created_at FROM hypothesis_metadata_events ORDER BY event_id'
+		)
+	}));
+}
+
+export async function readHypothesisCollectionState(file: string) {
+	return withDatabase(file, async (db) => {
+		await run(db, 'BEGIN');
+		try {
+			const state = {
+				definitions: await all<HypothesisDefinition>(
+					db,
+					'SELECT slug, title, question, overview, created_at FROM hypothesis_definitions ORDER BY created_at, slug'
+				),
+				metadata: await all<HypothesisMetadataEvent>(
+					db,
+					'SELECT event_id, slug, kind, value, created_at FROM hypothesis_metadata_events ORDER BY event_id'
+				),
+				events: await all<HypothesisEvent>(
+					db,
+					'SELECT event_id, slug, kind, value, created_at FROM hypothesis_events ORDER BY event_id'
+				),
+				messages: await all<HypothesisChatMessage>(
+					db,
+					'SELECT message_id, slug, role, content, created_at FROM hypothesis_chat_messages WHERE slug = ? ORDER BY message_id DESC LIMIT 30',
+					[HYPOTHESIS_COLLECTION_SLUG]
+				),
+				revision: await hypothesisCollectionRevision(db)
+			};
+			await run(db, 'COMMIT');
+			return state;
+		} catch (readError) {
+			await run(db, 'ROLLBACK');
+			throw readError;
+		}
+	});
+}
+
+function hypothesisSlug(title: string): string {
+	const ascii = title
+		.normalize('NFKD')
+		.toLowerCase()
+		.replace(/\p{M}/gu, '')
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '')
+		.slice(0, 80)
+		.replace(/-$/g, '');
+	return ascii || `hypothesis-${sha256(Buffer.from(title.normalize('NFC'))).slice(0, 12)}`;
+}
+
+export async function recordHypothesisCollectionTurn(
+	file: string,
+	input: {
+		expectedRevision: string;
+		userMessage: string;
+		assistantReply: string;
+		create: { title: string; question: string; overview: string } | null;
+		changes: HypothesisCollectionChange[];
+	}
+): Promise<{
+	createdSlug: string | null;
+	snapshotPath: string | null;
+	backupError: string | null;
+	rejectionReason: 'stale' | 'duplicate' | null;
+}> {
+	let create = input.create && {
+		title: input.create.title.trim(),
+		question: input.create.question.trim(),
+		overview: input.create.overview.trim()
+	};
+	let createdSlug = create ? hypothesisSlug(create.title) : null;
+	if (
+		!/^\d+:\d+:\d+$/.test(input.expectedRevision) ||
+		!input.userMessage.trim() ||
+		input.userMessage.length > 4000 ||
+		!input.assistantReply.trim() ||
+		input.assistantReply.length > 8000 ||
+		input.changes.length > 10 ||
+		(create &&
+			(!createdSlug ||
+				createdSlug === HYPOTHESIS_COLLECTION_SLUG ||
+				create.title.length < 4 ||
+				create.title.length > 120 ||
+				create.question.length < 10 ||
+				create.question.length > 300 ||
+				create.overview.length < 20 ||
+				create.overview.length > 2000))
+	)
+		throw new Error('Invalid hypothesis collection turn');
+	return withDatabase(file, async (db) => {
+		await run(db, 'BEGIN IMMEDIATE');
+		let messageId: number;
+		let rejectionReason: 'stale' | 'duplicate' | null = null;
+		try {
+			const definitions = await all<HypothesisDefinition>(
+				db,
+				'SELECT slug, title, question, overview, created_at FROM hypothesis_definitions'
+			);
+			const existing = new Set([
+				...hypotheses.map((item) => item.slug),
+				...definitions.map((item) => item.slug)
+			]);
+			for (const change of input.changes) {
+				if (!existing.has(change.slug)) throw new Error(`Unknown hypothesis: ${change.slug}`);
+				if (
+					change.kind === 'status' &&
+					!HYPOTHESIS_STATUSES.includes(change.value as HypothesisStatus)
+				)
+					throw new Error('Invalid hypothesis status');
+				if (
+					change.kind === 'rename' &&
+					(typeof change.value !== 'string' ||
+						change.value.trim().length < 4 ||
+						change.value.length > 120)
+				)
+					throw new Error('Invalid hypothesis title');
+				if ((change.kind === 'remove' || change.kind === 'restore') && change.value !== null)
+					throw new Error('Invalid hypothesis visibility change');
+			}
+			let assistantReply = input.assistantReply.trim();
+			let changes = input.changes;
+			if (
+				(create || changes.length > 0) &&
+				(await hypothesisCollectionRevision(db)) !== input.expectedRevision
+			) {
+				rejectionReason = 'stale';
+				assistantReply =
+					'The hypothesis collection changed while I was responding. I saved this conversation but applied no changes. Please review the current list and retry your request.';
+			} else if (createdSlug && existing.has(createdSlug)) {
+				rejectionReason = 'duplicate';
+				assistantReply =
+					'I did not add the hypothesis because its URL name already exists. Please choose a distinct title, or manage the existing hypothesis. I applied no other changes.';
+			}
+			if (rejectionReason) {
+				create = null;
+				createdSlug = null;
+				changes = [];
+			}
+			const now = new Date().toISOString();
+			for (const [role, content] of [
+				['user', input.userMessage.trim()],
+				['assistant', assistantReply]
+			])
+				await run(
+					db,
+					'INSERT INTO hypothesis_chat_messages (slug, role, content, created_at) VALUES (?, ?, ?, ?)',
+					[HYPOTHESIS_COLLECTION_SLUG, role, content, now]
+				);
+			const [{ id }] = await all<{ id: number }>(db, 'SELECT last_insert_rowid() AS id');
+			messageId = id;
+			if (create && createdSlug) {
+				await run(
+					db,
+					'INSERT INTO hypothesis_definitions (slug, title, question, overview, created_at) VALUES (?, ?, ?, ?, ?)',
+					[createdSlug, create.title, create.question, create.overview, now]
+				);
+				await run(
+					db,
+					'INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES (?, ?, ?, ?)',
+					[createdSlug, 'status', 'candidate', now]
+				);
+			}
+			for (const change of changes) {
+				if (change.kind === 'status')
+					await run(
+						db,
+						'INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES (?, ?, ?, ?)',
+						[change.slug, 'status', change.value, now]
+					);
+				else
+					await run(
+						db,
+						'INSERT INTO hypothesis_metadata_events (slug, kind, value, created_at) VALUES (?, ?, ?, ?)',
+						[change.slug, change.kind, change.value?.trim() ?? null, now]
+					);
+			}
+			await run(db, 'COMMIT');
+		} catch (recordError) {
+			await run(db, 'ROLLBACK');
+			throw recordError;
+		}
+		try {
+			return {
+				createdSlug,
+				rejectionReason,
+				snapshotPath: await snapshotAfterRevision(db, file, messageId, 'hypothesis_chat_messages'),
+				backupError: null
+			};
+		} catch (snapshotError) {
+			return {
+				createdSlug,
+				rejectionReason,
+				snapshotPath: null,
+				backupError: snapshotError instanceof Error ? snapshotError.message : 'Snapshot failed'
+			};
+		}
+	});
+}
+
+export async function readHypothesisState(file: string, slug: string) {
+	return withDatabase(file, async (db) => ({
+		events: await all<HypothesisEvent>(
+			db,
+			'SELECT event_id, slug, kind, value, created_at FROM hypothesis_events WHERE slug = ? ORDER BY event_id',
+			[slug]
+		),
+		messages: await all<HypothesisChatMessage>(
+			db,
+			'SELECT message_id, slug, role, content, created_at FROM hypothesis_chat_messages WHERE slug = ? ORDER BY message_id DESC LIMIT 30',
+			[slug]
+		)
+	}));
+}
+
+export async function recordHypothesisTurn(
+	file: string,
+	input: {
+		slug: string;
+		userMessage: string;
+		assistantReply: string;
+		status: HypothesisStatus | null;
+		finding: string | null;
+	}
+): Promise<{ snapshotPath: string | null; backupError: string | null }> {
+	if (
+		!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.slug) ||
+		!input.userMessage.trim() ||
+		input.userMessage.length > 4000 ||
+		!input.assistantReply.trim() ||
+		input.assistantReply.length > 8000 ||
+		(input.status && !HYPOTHESIS_STATUSES.includes(input.status)) ||
+		(input.finding && input.finding.length > 2000)
+	)
+		throw new Error('Invalid hypothesis conversation turn');
+	return withDatabase(file, async (db) => {
+		await run(db, 'BEGIN IMMEDIATE');
+		let messageId: number;
+		try {
+			const now = new Date().toISOString();
+			for (const [role, content] of [
+				['user', input.userMessage.trim()],
+				['assistant', input.assistantReply.trim()]
+			])
+				await run(
+					db,
+					'INSERT INTO hypothesis_chat_messages (slug, role, content, created_at) VALUES (?, ?, ?, ?)',
+					[input.slug, role, content, now]
+				);
+			const [{ id: lastMessageId }] = await all<{ id: number }>(
+				db,
+				'SELECT last_insert_rowid() AS id'
+			);
+			messageId = lastMessageId;
+			for (const [kind, value] of [
+				['status', input.status],
+				['finding', input.finding?.trim() || null]
+			] as const) {
+				if (!value) continue;
+				await run(
+					db,
+					'INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES (?, ?, ?, ?)',
+					[input.slug, kind, value, now]
+				);
+			}
+			await run(db, 'COMMIT');
+		} catch (recordError) {
+			await run(db, 'ROLLBACK');
+			throw recordError;
+		}
+		try {
+			return {
+				snapshotPath: await snapshotAfterRevision(db, file, messageId, 'hypothesis_chat_messages'),
+				backupError: null
+			};
+		} catch (snapshotError) {
+			return {
+				snapshotPath: null,
+				backupError: snapshotError instanceof Error ? snapshotError.message : 'Snapshot failed'
+			};
 		}
 	});
 }
