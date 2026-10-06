@@ -203,7 +203,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   review ranking. Exploratory isolated-jump repair helps a narrow subset but
   lacks verified false-correction cost; blanket smoothing alters motion peaks.
   An opt-in quality-aware Qijia contract reports coverage, while a fixed
-  visibility gate loses coverage without a reliable human-rating gain.
+  visibility gate loses coverage without a reliable human-rating gain. A
+  person-grouped combination of existing pose scores also fails to beat a
+  simple held-out baseline on the selected 95 clips.
 
 - [2026-10-06 — Preprocessing and similarity handoff](2026-10-06-preprocessing-metric-validation-handoff.md)
   Records the frozen experiment commands, provenance checks, decisions, and

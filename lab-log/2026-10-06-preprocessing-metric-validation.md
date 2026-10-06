@@ -4,6 +4,7 @@ tags: [pose-preprocessing, human-annotation, motion-metrics, technical-validatio
 artifacts:
   - assets/2026-10-06-preprocessing-metric-validation/aggregate-results.json
   - assets/2026-10-06-preprocessing-metric-validation/quality-aware-95-aggregate.json
+  - assets/2026-10-06-preprocessing-metric-validation/heldout-combination-aggregate.json
 ---
 
 # Testing correction signals and measurement-aware similarity
@@ -135,16 +136,44 @@ that change alone does not explain their different metric behavior. A
 descriptive coverage split leaves only 35 clips with at least 0.8 coverage
 after the visibility gate; it is too small and selected to set a threshold.
 
+## Can the current pose metrics be combined instead?
+
+A final small pilot joined current-code Qijia to the historical Viona2D and
+3D-angle exports on the same 95 exact pairs. The latter two implementations
+and their shared utilities are unchanged since the frozen export. A fixed
+five-fold test held out entire study-plus-person groups (83 groups). Median
+imputation, standardization, and ridge fitting happened inside each training
+fold; the comparison also included training-fold grand-mean and dance-mean
+baselines. The [non-identifying aggregate](assets/2026-10-06-preprocessing-metric-validation/heldout-combination-aggregate.json)
+records all arms and the two leave-one-study-out tests. An independent rerun
+matched the prediction CSV byte for byte and checked person-disjoint folds.
+
+The constant baseline had mean absolute rating error 0.966 and held-out
+R² −0.055. Qijia, Viona2D, and 3D angle alone had errors 0.991, 0.985,
+and 0.999; a three-pose ridge combination was worse at 1.030 and R² −0.168.
+Adding dance indicators was worse still (1.037). No tested model beat the
+constant baseline. Training on one study and testing on the other also gave
+no substantive gain over a dance-mean baseline. Pooled out-of-fold rank
+correlations are not interpreted: even the fold-constant model has a negative
+pooled rank correlation because fold means differ. The fixed small sample and
+repeated historical inspection mean this is not an untouched external test of
+metric design. The five person-disjoint folds were not also balanced by study
+or dance; their target means range 3.456–4.544. This is an exploratory failure
+of the existing features, not proof that pose similarity cannot predict
+perception.
+
 ## Decision and next step
 
 Use the temporal residual and visibility jointly to prioritize review, and
 keep the isolated-jump repair and smoothing out of normal preprocessing.
 The quality-aware contract is useful for abstaining or requesting a better
 recording when evidence coverage is poor, but a blanket visibility gate is not
-a demonstrated similarity improvement. The short path is to retain the
-current raw score as control, validate a localized temporal-error signal and
-conservative repair on held-out people, and compare candidates on a balanced,
-person-aware human-rating cohort. First, adjudicate selected-but-unmarked
+a demonstrated similarity improvement. Combining the current pose-shape
+descriptors has not supplied a short cut either. The shortest credible path is
+to retain the current raw score as control, validate localized temporal-error
+handling and conservative repair on held-out people, then test a predeclared
+metric design on a balanced, person-aware human-rating cohort. First,
+adjudicate selected-but-unmarked
 repair positions against source video alongside random controls; otherwise
 the rule's false-correction cost is unknown. The 95 selected clips do not
 establish an automatic corpus gate or a generally valid similarity metric.

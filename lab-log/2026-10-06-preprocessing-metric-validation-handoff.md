@@ -18,6 +18,11 @@ artifacts: []
   [lab entry](2026-10-06-preprocessing-metric-validation.md). An independent
   reviewer reproduced the calculations and checked frozen pose hashes,
   manifest joins, and person-group splits.
+- A fixed person-grouped combination pilot is complete under
+  `motion-pipeline/temp/experiments/20261006-heldout-metric-combination/`.
+  Existing Qijia, Viona2D, and 3D-angle features did not beat a training-fold
+  constant baseline on the 95 selected clips. This is not an untouched
+  external validation cohort.
 - No automatic usability exclusion or repair rule is validated. Current
   `calculationQuality` measures evidence sufficiency, not the chance a score
   matches human judgment. The fixed visibility gate loses substantial
@@ -45,6 +50,18 @@ The Python scripts write `landmark_signal_results.json` and
 pose files are read-only inputs; the scripts write only to this experiment
 directory. The copied aggregate assets in the lab entry do not include
 participant rows or machine-specific source paths.
+
+The final held-out fitting pilot runs from the code repository root with:
+
+```sh
+motion-pipeline/.venv/bin/python motion-pipeline/temp/experiments/20261006-heldout-metric-combination/analyze.py
+```
+
+It writes `results.json` and private `grouped_predictions.csv` in its own
+experiment directory. It checks the frozen joins and metric source versions,
+fits preprocessing within each person-disjoint training fold, and trains on
+one study before testing on the other. Its non-identifying aggregate is
+linked from the lab entry.
 
 ## Decision and single next action
 
