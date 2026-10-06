@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { beforeAll, describe, it } from 'vitest';
+import { HAS_MEDIA_BUNDLE } from './PoseDataTestFile';
 import type {
 	LiveEvaluationMetric,
 	MotionMetricTimeSeries,
@@ -83,7 +84,7 @@ async function loadSelectedFixtures() {
 	);
 }
 
-describe('AllMetricsTimeSeriesInvestigations', {}, async () => {
+describe.skipIf(!HAS_MEDIA_BUNDLE)('AllMetricsTimeSeriesInvestigations', {}, async () => {
 	const selectedFixtures = await loadSelectedFixtures();
 	const testTimeout = 20 * 60 * 1000;
 
