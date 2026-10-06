@@ -26,18 +26,18 @@ dependencies = [
     "protobuf>=4.25.3,<5",
     "psutil==7.2.2",
     "pydub==0.25.1",
-    "tqdm==4.67.1",
+    "tqdm==4.70.0",
 ]
 
 [dependency-groups]
 dev = [
-    "debugpy==1.8.0",
-    "pytest>=8,<9",
+    "debugpy==1.8.21",
+    "pytest>=8,<10",
 ]
 # Historical BVH, Mecanim, and NAO work is intentionally not installed by
 # default.  It remains runnable by opting into this group.
 legacy-robotics = [
-    "pytransform3d==3.14.0",
+    "pytransform3d==3.16.0",
 ]
 # Real-browser tests for the annotation tool (motion_extraction/tests/
 # test_annotation_tool_browser.py) drive an actual Chromium instance, which
