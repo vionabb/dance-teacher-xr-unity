@@ -10,6 +10,7 @@ const studies = [
 const bucket = 'research-chi25';
 const root = path.resolve(process.env.RESEARCH_DATA_ROOT ?? '../data/participant_motions');
 const upload = process.argv.includes('--upload');
+const pilot = process.argv.includes('--pilot');
 const sourceDescription = process.env.RESEARCH_SOURCE_DESCRIPTION?.trim();
 
 function hash(bytes) {
@@ -50,7 +51,7 @@ async function findPairs() {
 				`${study.id}: ${videoOnly.length} videos and ${poseOnly.length} poses are unpaired`
 			);
 		}
-		for (const [stem, videoFile] of videos) {
+		for (const [stem, videoFile] of [...videos].sort(([a], [b]) => a.localeCompare(b))) {
 			const poseFile = poses.get(stem);
 			if (!poseFile) throw new Error('Unpaired pose');
 			const id = createHash('sha256').update(`${study.id}\0${stem}`).digest('hex').slice(0, 24);
@@ -83,7 +84,11 @@ async function ensureObject(client, objectPath, bytes, contentType) {
 }
 
 async function main() {
-	const pairs = await findPairs();
+	const allPairs = await findPairs();
+	const pairs = pilot
+		? studies.map(({ id }) => allPairs.find((pair) => pair.study === id)).filter(Boolean)
+		: allPairs;
+	if (pilot) console.log(`Pilot selection: ${pairs.length} pairs, one per study`);
 	if (!upload) {
 		console.log('Dry run only. Set the service credentials and pass --upload to transfer files.');
 		return;
