@@ -45,9 +45,9 @@ playback. Viona declined an additional Safari sign-in, so cross-browser
 confirmation was not pursued.
 
 Before the branch's landing fix, both the production app and PR preview sent
-sign-ins to `/menu`, which returns 500 because this Supabase project lacks
-`public.motion_video` in its PostgREST schema cache. The branch now routes
-accounts with research access through `/auth/landing` to
+sign-ins to `/menu`, which returns 500; the production Supabase API reports
+`public.motion_video` missing from its PostgREST schema cache. The branch now
+routes accounts with research access through `/auth/landing` to
 `/research/studies`, leaving learner accounts on their existing path. This
 does not repair the missing learner-app table.
 The redeployed preview sent the signed-in research account from
