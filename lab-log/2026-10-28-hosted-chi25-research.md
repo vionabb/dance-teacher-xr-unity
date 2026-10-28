@@ -36,8 +36,17 @@ not recorded in this production project's history, so a future general
 account does not yet exist in this project's Auth users; it must sign up before
 viewer membership can be granted. An existing account nominated subsequently
 received viewer membership for both studies, confirmed as two access rows.
-Positive signed-in and ordinary-account tests, PR merge/deploy, and browser
-acceptance remain open.
+On the PR preview, the authorized account opened both study catalogs and a
+Study 2 video, and downloaded the paired raw pose CSV. The in-app browser's
+on-page pose overlay reported `Failed to fetch` even though that same CSV
+downloaded successfully; cross-browser confirmation remains open. Both the
+production app and PR preview redirect a normal sign-in to `/menu`, which
+returns 500 because this Supabase project lacks `public.motion_video` in its
+PostgREST schema cache. The branch now routes accounts with research access
+through `/auth/landing` to `/research/studies`, leaving learner accounts on
+their existing path. This does not repair the missing learner-app table.
+Ordinary-account access testing, post-change preview acceptance, and PR
+merge/deploy remain open.
 The existing local research SQLite and annotation workflow remain authoritative
 for their current tasks. Additional materials, including reference videos,
 human ratings, and reviewed poses, need a separate inventory and release

@@ -2,7 +2,6 @@
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
 	import { onMount } from 'svelte';
 	import EmailAuthView from '$lib/elements/auth/EmailAuthView.svelte';
-	import { goto } from '$app/navigation';
 
 	export let data;
 
@@ -32,11 +31,10 @@
 		view={state}
 		{forgotPasswordRedirectPath}
 		on:signedup={() => {
-			goto('/menu');
-			// goto("/account")
+			window.location.assign('/auth/landing');
 		}}
 		on:signedin={() => {
-			goto('/menu');
+			window.location.assign('/auth/landing');
 		}}
 	/>
 </div>
