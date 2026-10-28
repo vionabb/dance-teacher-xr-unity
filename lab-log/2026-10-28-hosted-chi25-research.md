@@ -55,13 +55,28 @@ routes accounts with research access through `/auth/landing` to
 `/research/studies`, leaving learner accounts on their existing path. This
 does not repair the missing learner-app table.
 The redeployed preview sent the signed-in research account from
-`/auth/landing` to `/research/studies`. A live browser test with the newly
-registered account and PR merge/deploy remain open.
+`/auth/landing` to `/research/studies`. Viona confirmed the newly registered
+account could use the browser, and PR #428 was merged on 2026-10-28.
 
 The existing local research SQLite and annotation workflow remain authoritative
-for their current tasks. Additional materials, including reference videos,
-human ratings, and reviewed poses, need a separate inventory and release
-boundary before joining this hosted catalog.
+for their current tasks. The next branch, `codex/chi25-materials-menu-fix`,
+inventoried five CHI study reference videos in the Drive source, 1,570
+checked-in human-rating rows, and the immutable first manual-review release.
+The release supplies 19 Study 1, 25 Study 2, and four reference reviewed pose
+segments; it does not supply complete reviewed poses for all recordings.
+The branch adds a study-scoped read-only companion catalog and browser route.
+Migration `20261028191953_hosted_chi25_materials` was applied in production;
+the 55 source artifacts were SHA-256 checked against their frozen inputs and
+the stored copies. Production catalog/object counts match exactly. An
+authenticated nonmember saw zero companion rows and objects under RLS,
+while a member saw 55 of each; `anon` has no catalog SELECT grant. No active
+annotation database or participant video copy was added to Git.
+
+The same branch addresses `/menu`: production still has zero rows in its old
+`dancedemo` tables and no `motion_video` table. It redirects research members
+to the hosted collection and treats the absent learner table as an empty
+catalog while surfacing other database errors. It does not create learner
+content. The branch's UI and menu fix await PR review and deployment.
 
 The AI Dance Coach chapter currently describes the learner web application and
 pose evaluation, not a hosted research collection or its access policy. This
