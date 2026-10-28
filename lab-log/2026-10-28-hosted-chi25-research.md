@@ -19,15 +19,29 @@ poses. No participant files were added to Git. The existing broad Storage
 SELECT policy was identified as covering future private buckets and must be
 replaced before the research bucket is used.
 
-This is code preparation, not a live hosted release. The production migration,
-account grant, transfer, direct-RLS checks, and signed-in browser acceptance
-still require the correct production project credentials and deployment. The
-existing local research SQLite and annotation workflow remain authoritative
+The production Supabase project was confirmed on Pro. On 2026-10-28 the
+research migration was applied through its SQL editor as one transaction.
+Verification showed a private bucket, empty membership/catalog tables, and
+SELECT-only grants to authenticated clients. A pilot transfer uploaded one
+video/raw-pose pair from each study. The full transfer then verified 675
+Study 1 pairs and 1,081 Study 2 pairs by hash, with the same counts in the
+production catalog. Direct anonymous requests to the catalog and a pilot
+video were denied.
+
+The migration was applied manually and its `20261028120000` version was then
+recorded in Supabase migration history after verifying both tables' RLS and
+all three research policies. The repository's older 2025 migration files are
+not recorded in this production project's history, so a future general
+`db push` still requires a separate history/schema audit. The first nominated
+account does not yet exist in this project's Auth users; it must sign up before
+viewer membership can be granted. An existing account nominated subsequently
+received viewer membership for both studies, confirmed as two access rows.
+Positive signed-in and ordinary-account tests, PR merge/deploy, and browser
+acceptance remain open.
+The existing local research SQLite and annotation workflow remain authoritative
 for their current tasks. Additional materials, including reference videos,
 human ratings, and reviewed poses, need a separate inventory and release
-boundary before joining this hosted catalog. The next action is to review the
-code and target project, then apply the migration and test a small paired
-recording before uploading the full two-study corpus.
+boundary before joining this hosted catalog.
 
 The AI Dance Coach chapter currently describes the learner web application and
 pose evaluation, not a hosted research collection or its access policy. This
