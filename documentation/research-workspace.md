@@ -144,15 +144,15 @@ Vercel app. Add server-side researcher-role authorization to every research
 route before any remote serving. Metric calculations and frame-correction
 authoring are not part of this slice.
 
-## Hosted CHI25 read-only slice (in development)
+## Hosted CHI25 read-only collection
 
 Viona requested that the existing production instance serve research materials
 for both CHI25 user studies to explicitly authorized accounts. The first slice
 provides a separate `/research/studies` route for participant videos and
-canonical raw `pose2d` files. The earlier local research workspace, its SQLite
-database, annotation authoring, and metric inspectors remain local. The hosted
-route is not live until its migration, media import, access grants, and deploy
-have been validated.
+canonical raw `pose2d` files. PR #428 was merged after production migration,
+hash-verified import of 675 Study 1 and 1,081 Study 2 pairs, access grants, and
+browser acceptance. The earlier local research workspace, its SQLite database,
+annotation authoring, and metric inspectors remain local.
 
 `supabase/migrations/20261028120000_hosted_chi25_research.sql` creates a private
 `research-chi25` bucket, a study-scoped `research_access` membership table, and
@@ -192,3 +192,32 @@ catalog rows or private objects, including direct Supabase requests; a member
 of only one study cannot read the other; an authorized member can browse,
 play, seek, see an image-space raw-pose overlay, and download the paired CSV;
 the imported catalog has exactly the reviewed pair counts for both studies.
+
+### Companion materials
+
+The next hosted slice adds `/research/materials` for five shared CHI study
+reference videos, a study-specific human-ratings CSV for each study, and 48
+reviewed pose segments from the immutable `20261002-first-manual-review`
+release (19 Study 1, 25 Study 2, four shared reference segments). The ratings
+source has 821 Study 1 and 749 Study 2 rows. These are companion research
+artifacts, not full-recording automatic poses, and the active annotation
+database is not transferred. `research_material` and the private Storage
+object policy use the same study membership gate as the recording catalog;
+shared references require membership in at least one study. The collection
+remains read-only through the browser. The database migration and all 55
+hash-verified objects are in production; the route is on the next PR branch
+until deployed.
+
+`scripts/importChi25Materials.mjs` checks all sources in a dry run. Set
+`REFERENCE_VIDEO_ROOT` to a staged copy of
+`dataset:referencevideos/chi-studyvideos`, `MANUAL_REVIEW_ROOT` to the
+staged frozen review corpus, and `MANUAL_REVIEW_RELEASE_MANIFEST` to its
+immutable release manifest. The ratings source defaults to the checked-in
+`src/lib/ai/motionmetrics/testdata/humanratings.csv`; override it with
+`HUMAN_RATINGS_PATH` only for a deliberate source change. Set
+`NEXT_PUBLIC_SUPABASE_URL` and a temporary server-side
+`SUPABASE_SERVICE_ROLE_KEY` for `--upload`; add `--pilot` for one material per
+scope and kind. The importer verifies every released reviewed-pose SHA-256,
+then hashes each uploaded object after downloading it. Existing catalog rows
+must match all source fields. A new frozen release needs its own reviewed
+import contract rather than silently replacing this one.
