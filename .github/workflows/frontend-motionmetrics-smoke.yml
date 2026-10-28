@@ -53,5 +53,5 @@ jobs:
       - name: Verify hosted research contracts and isolated authorization schema
         working-directory: svelte-web-frontend
         run: |
-          pnpm test -- --run src/lib/server/hosted-analysis.test.ts src/lib/server/chi25-analysis-contract.test.ts 'src/routes/api/research/discrepancy/[segmentId]/discrepancy.server.test.ts' src/lib/research/discrepancy.test.ts src/lib/research/discrepancy-client.test.ts src/lib/research/review-playback.test.ts src/lib/server/research-store.test.ts
+          pnpm test -- --run src/lib/server/hosted-analysis.test.ts src/lib/server/chi25-analysis-contract.test.ts 'src/routes/api/research/discrepancy/[segmentId]/discrepancy.server.test.ts' src/lib/research/discrepancy.test.ts src/lib/research/discrepancy-client.test.ts src/lib/research/review-playback.test.ts src/lib/research/video-recovery.test.ts src/lib/server/research-store.test.ts
           pnpm test:research-schema

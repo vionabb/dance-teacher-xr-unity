@@ -14,6 +14,8 @@ const routeDir = path.resolve('src/routes/research', routeName);
 const output = path.resolve('artifacts/hosted-discrepancy-ui');
 const scratch = await mkdtemp(path.join(tmpdir(), 'discrepancy-ui-'));
 const errors = [];
+const failedRequests = [];
+let serverLog = '';
 let server;
 let browser;
 try {
@@ -84,9 +86,11 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	let log = '';
 	server.stdout.on('data', (value) => {
 		log += value;
+		serverLog += value;
 	});
 	server.stderr.on('data', (value) => {
 		log += value;
+		serverLog += value;
 	});
 	for (let i = 0; i < 100; i++) {
 		if (server.exitCode !== null) throw new Error(log);
@@ -99,6 +103,9 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	}
 	browser = await chromium.launch({ headless: true });
 	const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+	page.on('requestfailed', (request) =>
+		failedRequests.push({ url: request.url(), failure: request.failure() })
+	);
 	page.on('pageerror', (error) => errors.push(error.message));
 	let ownerId = 'account-a',
 		inputVersion = 'version-1',
@@ -252,6 +259,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 		return route.fulfill({ status: 404, body: 'Synthetic endpoint unavailable' });
 	});
 	const visit = async (query = '') => {
+		await page.mouse.move(1, 1);
 		await page.goto(`${base}/research/${routeName}${query}`);
 		await page.waitForFunction(() => document.documentElement.dataset.discrepancyProof === 'ready');
 	};
@@ -516,6 +524,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	await page.getByRole('button', { name: /Show 50 more/ }).click();
 	await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 60);
 	assert.equal(await page.getByRole('link', { name: 'Review', exact: true }).count(), 60);
+	if (errors.length) console.error({ failedRequests, serverLog });
 	assert.deepEqual(errors, []);
 	console.log(
 		'PASS: hosted/local transport, draft isolation, viewer access, failed/reloaded/changed retries, success receipt/focus, both metric pages at tablet portrait/landscape and phone widths, expired/denied video reload preserving playhead/draft without autoplay, queue pagination. Synthetic evidence:',

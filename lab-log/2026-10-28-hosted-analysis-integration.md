@@ -47,9 +47,30 @@ PR #430's code checks pass, but Vercel reports a deployment rate limit and a
 it does not establish that the hosted analysis feature is live. No thesis
 claims or evaluated outcomes changed.
 
+## Validation
+
+Final local validation passes: 31 focused tests across eight files, the isolated
+Postgres schema/role suite, `pnpm check` (zero errors, 12 existing warnings),
+`pnpm lint` and the production build. The combined synthetic browser script
+covers both metric components, the root catalog links, queue pagination,
+owner/input draft separation, viewer controls, failed/reloaded/changed retries,
+media reload/denial, crop metadata and portrait/landscape tablet plus phone
+widths. A rapid-navigation run initially recorded canceled dynamic imports;
+moving the pointer away before navigation prevents unintended hover prefetch,
+and the combined suite passes without discarding page errors. Diagnostics are
+retained in the script for future failures. Temporary synthetic configuration
+was removed afterward.
+
+Svelte autofixer passes on the portable UI and recovery components. The root
+catalog's resolved path-plus-query expressions still receive navigation
+warnings from the analyzer; type checking and browser link checks pass. Required
+daisyUI Blueprint tools were unavailable. These are synthetic browser and local
+database checks, not production or actual iPad acceptance.
+
 ## Resumption
 
-Review the canonical rollout steps. Finish media-source reload integration and
-its focused checks, publish the hosted-analysis PR on the newly merged main, and keep
+Review the canonical rollout steps. Media-source recovery is integrated and
+synthetically verified; production HEAD/CORS and actual iPad acceptance remain.
+Publish the hosted-analysis PR on the newly merged main, and keep
 production data and access unchanged until the targeted import and backup gates
 are ready. Never push the old discrepancy branch ancestry.
