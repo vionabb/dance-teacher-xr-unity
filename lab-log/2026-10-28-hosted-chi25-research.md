@@ -61,7 +61,7 @@ account could use the browser, and PR #428 was merged on 2026-10-28.
 The existing local research SQLite and annotation workflow remain authoritative
 for their current tasks. The next branch, `codex/chi25-materials-menu-fix`,
 inventoried five CHI study reference videos in the Drive source, 1,570
-checked-in human-rating rows, and the immutable first manual-review release.
+human-rating rows, and the immutable first manual-review release.
 The release supplies 19 Study 1, 25 Study 2, and four reference reviewed pose
 segments; it does not supply complete reviewed poses for all recordings.
 The branch adds a study-scoped read-only companion catalog and browser route.
@@ -77,6 +77,16 @@ The same branch addresses `/menu`: production still has zero rows in its old
 to the hosted collection and treats the absent learner table as an empty
 catalog while surfacing other database errors. It does not create learner
 content. The branch's UI and menu fix await PR review and deployment.
+
+The original full human-ratings CSV was found in this public repository's
+history. Viona requested its removal from both the current tree and Git
+history. The full 143,554-byte source was uploaded to a private, owner-only
+Google Drive file named `chi25-humanratings-source.csv`; the two scoped
+study exports were already hash-verified in private Supabase Storage. The
+local source is staged at the ignored `local-data/chi25-humanratings-source.csv`
+path, and the frontend importer and metric-fixture loader now read that path
+or `HUMAN_RATINGS_PATH`. Git history cleanup follows PR #429's merge; old
+clones, forks, and GitHub pull-request caches need separate handling.
 
 The AI Dance Coach chapter currently describes the learner web application and
 pose evaluation, not a hosted research collection or its access policy. This

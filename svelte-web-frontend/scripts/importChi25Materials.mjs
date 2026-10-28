@@ -11,7 +11,7 @@ const referenceRoot = process.env.REFERENCE_VIDEO_ROOT;
 const reviewRoot = process.env.MANUAL_REVIEW_ROOT;
 const releasePath = process.env.MANUAL_REVIEW_RELEASE_MANIFEST;
 const ratingsPath = path.resolve(
-	process.env.HUMAN_RATINGS_PATH ?? 'src/lib/ai/motionmetrics/testdata/humanratings.csv'
+	process.env.HUMAN_RATINGS_PATH ?? '../local-data/chi25-humanratings-source.csv'
 );
 const references = [
 	'attention_zoom_out.mp4',
@@ -103,7 +103,7 @@ async function collect() {
 				`humanratings.csv:study${study}`,
 				bytes,
 				'text/csv',
-				`Derived study-only rows from repo humanratings.csv; source sha256=${hash(ratingBytes)}`
+				`Private Drive source chi25-humanratings-source.csv; sha256=${hash(ratingBytes)}`
 			)
 		);
 	}

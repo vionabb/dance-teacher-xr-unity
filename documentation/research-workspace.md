@@ -212,9 +212,10 @@ until deployed.
 `REFERENCE_VIDEO_ROOT` to a staged copy of
 `dataset:referencevideos/chi-studyvideos`, `MANUAL_REVIEW_ROOT` to the
 staged frozen review corpus, and `MANUAL_REVIEW_RELEASE_MANIFEST` to its
-immutable release manifest. The ratings source defaults to the checked-in
-`src/lib/ai/motionmetrics/testdata/humanratings.csv`; override it with
-`HUMAN_RATINGS_PATH` only for a deliberate source change. Set
+immutable release manifest. The ratings source is private in Google Drive.
+Stage it at the ignored `../local-data/chi25-humanratings-source.csv` path
+(relative to the frontend), or set `HUMAN_RATINGS_PATH` to another private
+local copy. Set
 `NEXT_PUBLIC_SUPABASE_URL` and a temporary server-side
 `SUPABASE_SERVICE_ROLE_KEY` for `--upload`; add `--pilot` for one material per
 scope and kind. The importer verifies every released reviewed-pose SHA-256,

@@ -830,7 +830,9 @@ export function getClipHumanRatings(args: {
  * ```
  */
 export async function loadHumanRatings() {
-	const filepath = 'src/lib/ai/motionmetrics/testdata/humanratings.csv';
+	const filepath = path.resolve(
+		process.env.HUMAN_RATINGS_PATH ?? '../local-data/chi25-humanratings-source.csv'
+	);
 
 	const file = await readFile(filepath, { encoding: 'utf-8' });
 	const data = await (new Promise((resolve, reject) => {
