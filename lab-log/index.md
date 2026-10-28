@@ -215,3 +215,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Chromium validates save flows, replay and tablet/phone layouts; the hosting
   chat owns hosted backend integration and production/device acceptance. A follow-up
   restores the loopback-only local discrepancy backend and snapshot checks.
+
+- [2026-10-28 — Hosted analysis integration](2026-10-28-hosted-analysis-integration.md)
+  Integrates cloud catalog/notes with the portable desk and metric viewers;
+  records strict import coverage and isolated Postgres authorization tests.
+  Production import/device acceptance and subscription registration remain gates.

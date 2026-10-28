@@ -10,14 +10,14 @@ records the verified feature branch, schema, sources, and portability limits.
 
 ## Proposed deployment
 
-| Component | Host and responsibility |
-| --- | --- |
-| Website | Existing SvelteKit/Vercel app: sign-in, learner menu, research navigation, visualizers, observations, and chat UI |
-| Research authority | Existing Supabase Postgres: memberships, normalized catalog/ratings, append-only observations, analysis runs, conversation ownership and durable event cursors |
-| Immutable files | Private Supabase Storage: existing videos/raw poses/materials, additional reference inputs, versioned analysis outputs and source manifests; Drive remains the archive |
-| Interactive visual metrics | Tablet browser using existing TypeScript implementations; load the active segment and a small prefetch window; profile parsing/curves before adding a browser worker |
+| Component                      | Host and responsibility                                                                                                                                                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Website                        | Existing SvelteKit/Vercel app: sign-in, learner menu, research navigation, visualizers, observations, and chat UI                                                                                                            |
+| Research authority             | Existing Supabase Postgres: memberships, normalized catalog/ratings, append-only observations, analysis runs, conversation ownership and durable event cursors                                                               |
+| Immutable files                | Private Supabase Storage: existing videos/raw poses/materials, additional reference inputs, versioned analysis outputs and source manifests; Drive remains the archive                                                       |
+| Interactive visual metrics     | Tablet browser using existing TypeScript implementations; load the active segment and a small prefetch window; profile parsing/curves before adding a browser worker                                                         |
 | Codex conversation and compute | Viona prefers investigating ChatGPT subscription access: an isolated persistent Node/Linux worker with Codex app-server is the candidate, subject to sign-in eligibility; website backend authorizes session and data access |
-| Specialized processing | A separate worker/sandbox only for jobs requiring custom native dependencies or resources; ordinary visual inspection needs no Python server |
+| Specialized processing         | A separate worker/sandbox only for jobs requiring custom native dependencies or resources; ordinary visual inspection needs no Python server                                                                                 |
 
 This design must operate with Viona's Mac off. A local preview or workstation
 Codex process does not meet the cafe use case. Vercel dispatches durable work;
@@ -32,15 +32,15 @@ five reference videos, two study-specific ratings CSVs, and 48 reviewed-pose
 samples. It supports source browsing but does not replace the local metric
 catalog yet.
 
-| Input | Required work |
-| --- | --- |
-| Legacy reference segment poses | Register/upload 20 exact CSVs (9,461,451 bytes): Bartender 5, Last Christmas 4, Mad at Disney 5, Pajama Party 6. Use the hash-only inventory linked from the audit; reviewed poses are different artifacts. |
-| Reference timing | Register dance/clip mapping, tutorial video identity, start/spacing, timestamps, mirroring and 30 FPS assumptions. Preserve row-index pairing and gaps. |
-| Recording metadata | Add immutable recording/performance/segment metadata, ordered segments, durations and dimensions. Compute ffprobe/thumbnail metadata during import, not on web requests. Thumbnails can be deferred. |
-| Identity aliases | Local segment IDs hash `study1`/`study2`; hosted IDs hash `chi25_study1`/`chi25_study2`. Join through study/source stem and verified video/pose hashes; preserve legacy IDs as aliases. |
-| Normalized human ratings | Import exact study/dance/participant/segment/condition rows into study-scoped relations, preserving missingness, original scales, source-row identity and original/split-file hashes. Preserve `sheetmotion` = `sheet`. |
-| Build/metric manifest | Version modules/configuration, coordinate space, pairing, coverage and input hashes. Browser-computed values remain diagnostic context until independently reproduced. |
-| Optional analysis sources | Import frozen usability/review snapshots only for analyses needing those constructs. Discrepancy review does not require a usability judgment or the active legacy annotation DB. |
+| Input                          | Required work                                                                                                                                                                                                           |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Legacy reference segment poses | Register/upload 20 exact CSVs (9,461,451 bytes): Bartender 5, Last Christmas 4, Mad at Disney 5, Pajama Party 6. Use the hash-only inventory linked from the audit; reviewed poses are different artifacts.             |
+| Reference timing               | Register dance/clip mapping, tutorial video identity, start/spacing, timestamps, mirroring and 30 FPS assumptions. Preserve row-index pairing and gaps.                                                                 |
+| Recording metadata             | Add immutable recording/performance/segment metadata, ordered segments, durations and dimensions. Compute ffprobe/thumbnail metadata during import, not on web requests. Thumbnails can be deferred.                    |
+| Identity aliases               | Local segment IDs hash `study1`/`study2`; hosted IDs hash `chi25_study1`/`chi25_study2`. Join through study/source stem and verified video/pose hashes; preserve legacy IDs as aliases.                                 |
+| Normalized human ratings       | Import exact study/dance/participant/segment/condition rows into study-scoped relations, preserving missingness, original scales, source-row identity and original/split-file hashes. Preserve `sheetmotion` = `sheet`. |
+| Build/metric manifest          | Version modules/configuration, coordinate space, pairing, coverage and input hashes. Browser-computed values remain diagnostic context until independently reproduced.                                                  |
+| Optional analysis sources      | Import frozen usability/review snapshots only for analyses needing those constructs. Discrepancy review does not require a usability judgment or the active legacy annotation DB.                                       |
 
 The inspected discrepancy database has zero observations. Recheck immediately
 before import; later local work must be preserved. Existing source/annotation
@@ -111,10 +111,12 @@ If that route qualifies, host a pinned Codex app-server on an isolated
 Node/Linux worker, with Python/analysis dependencies and durable state. The
 [subscription app-server guide](https://developers.openai.com/siwc/token-sharing-open-source/codex-app-server)
 documents supplying the dedicated OAuth token and resuming threads after
-renewal. Use **stdio** behind the authenticated backend; general
-[app-server documentation](https://learn.chatgpt.com/docs/app-server) marks its
-WebSocket transport experimental/unsupported. Do not expose it as the public
-website API. The VM/container's operating cost is separate from model usage.
+renewal. Use **stdio** behind the authenticated backend. The
+[app-server authentication guidance](https://learn.chatgpt.com/docs/app-server#auth-endpoints)
+explicitly excludes commercial or hosted services from native app-server
+ChatGPT authentication. Its headless/device-code login instructions do not
+authorize using that login as a website service. Use the supported SIWC
+registration path if eligible; do not expose app-server as the public website API. The VM/container's operating cost is separate from model usage.
 
 Bind a Supabase owner to the validated ChatGPT registration subject/workspace
 and its threads; do not identify registrations by email alone. Keep tokens
@@ -186,12 +188,57 @@ renewal. Verify the workflow with the Mac off. Keep the accepted read-only
 collection usable throughout. Routes, direct data requests, exports, writes
 and agent sessions must enforce study/account scope.
 
+## Implementation checkpoint (2026-10-28)
+
+The menu change is PR #430, pending merge authorization. Its GitHub code checks
+pass; Vercel reports a deployment rate limit with a 24-hour retry. Production
+has not yet received the new menu, visualizers or discrepancy authoring.
+
+The next branch integrates both metric viewers and the discrepancy desk with
+hosted catalog/reference adapters. It preserves the loopback-only local backend.
+Hosted notes use study-specific editor/admin access, account ownership,
+append-only rows, UUID retry receipts, explicit JSON-origin checks and bounded
+request bodies. A database trigger records authoritative source and metric
+provenance; submitted display context is labeled diagnostic. Input versions
+and the built metric fingerprint must match before a save is allowed. A changed
+metric release needs an explicit registry migration; inputs are not silently
+replaced after observations reference them.
+
+The importer dry run validates 20 additional reference CSVs, all 1,570 original
+rating rows and 1,724 identified recordings. It finds 743 exact eligible
+recording/rating/reference joins (591 Study 1, 152 Study 2). Of Study 2's
+identified recordings, 450 match participant/dance/segment but differ in the
+condition, and 447 have no such rating row. Do not drop condition from the join
+or infer a correction. The 32 videos with missing participant identifiers stay
+in the accepted raw collection. These counts describe data availability, not
+metric validity or a representative review sample.
+
+The migration and role matrix pass against isolated Postgres WASM with
+synthetic accounts. Tests cover owner/study isolation, editor/viewer/revocation,
+append-only permissions, interval/input-version validation, authoritative
+provenance and retry uniqueness. The synthetic note JSON export/restore check
+preserves every column. This is not a production backup or restore drill.
+
 ## Next action
 
-Finish review/merge of the menu PR, then implement the hosted catalog/reference
-adapter. Production's older migration-history gap needs an audit before a
-general `db push`; use reviewed targeted migrations for the new relations.
-Before the Codex stage, resolve the OSS self-hosted-worker versus hosted-partner
-registration boundary. Confirm licensing/eligibility and prepare a dedicated
-OAuth registration; no token is needed in chat. No new compute service,
-subscription authorization or API spending was provisioned by this plan.
+1. Merge the authorized menu PR and verify its production deployment once
+   Vercel permits it. Review the hosted-analysis PR with its data/schema gates.
+2. Apply only `20261028210107_hosted_discrepancy_review.sql` through the reviewed
+   targeted workflow. Do not use general `db push` across production's older
+   migration-history gap. Run `scripts/importChi25Analysis.mjs` with approved
+   local source roots, first dry-run, then `--upload` with a temporary server-side
+   admin configuration. It verifies existing video/pose/material hashes and
+   downloads the 20 newly uploaded poses to verify their hashes.
+3. Reconcile hosted counts and test authenticated read access and viewer denial
+   before enabling editors. Confirm managed backup retention and perform a
+   separate staging restore drill. `RESEARCH_ROLE=editor` with
+   `scripts/manageResearchAccess.mjs` grants note authoring; its default preserves
+   existing roles and creates new memberships as viewers. Media remain read-only.
+4. Finish preview/production account tests, actual iPad Safari portrait/landscape,
+   interrupted Wi-Fi, source refresh after tab sleep and large-performance
+   profiling. Synthetic responsive Chromium tests do not establish device acceptance.
+5. For the Codex stage, resolve hosted SIWC registration/eligibility and the
+   repository's licensing decision. Native app-server ChatGPT login does not
+   authorize a hosted website. No compute service, subscription authorization or
+   API spending has been provisioned. The candidate architecture remains an
+   isolated persistent worker behind the authenticated website and Supabase.

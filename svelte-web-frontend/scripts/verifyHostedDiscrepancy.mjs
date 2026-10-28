@@ -33,11 +33,13 @@ import Review from '$lib/elements/DiscrepancyReview.svelte';
 import Qijia from '../../metrics/qijia2d/+page.svelte';
 import Viona from '../../metrics/viona2d/+page.svelte';
 import Queue from '../discrepancy/+page.svelte';
+import Catalog from '../+page.svelte';
 let time = $state(0);
 const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',segmentId:'segment-'+i,participantLabel:'Synthetic participant',study:'synthetic-study',dance:'Synthetic dance',condition:'test',phase:null,clipNumber:i+1,referenceAvailable:true,human:{human_rating:3,rating_1:1,rating_2:2,rating_3:3},observations:[]}));
 </script>
 {#if page.url.searchParams.get('mode') === 'qijia2d'}<Qijia/>
 {:else if page.url.searchParams.get('mode') === 'viona2d'}<Viona/>
+{:else if page.url.searchParams.get('mode') === 'catalog'}<Catalog/>
 {:else if page.url.searchParams.get('mode') === 'queue'}<Queue data={{tasks}}/>
 {:else}<main style="max-width:600px;margin:20px auto"><Review segmentId="study-segment" researchBackend={page.data.researchBackend} metric="qijia2d" localTime={time} duration={2} context={{synthetic:true}} samples={[{time:0,value:1},{time:1,value:2}]} onseek={(value)=>time=value} onpreview={()=>{}} onpause={()=>{}} onrate={()=>{}} onrangechange={()=>{}} playing={false} playbackRate={1}/></main>{/if}`
 	);
@@ -367,6 +369,32 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 			});
 		}
 	}
+
+	await visit('?mode=catalog');
+	await page.getByRole('button', { name: /Synthetic dance/ }).waitFor();
+	for (const [name, href] of [
+		['Discrepancy review', '/research/discrepancy'],
+		['Recordings', '/research/studies'],
+		['Materials', '/research/materials'],
+		['App menu', '/menu']
+	])
+		assert.equal(await page.getByRole('link', { name, exact: true }).getAttribute('href'), href);
+	for (const viewport of [
+		{ width: 820, height: 1180 },
+		{ width: 1180, height: 820 },
+		{ width: 390, height: 844 }
+	]) {
+		await page.setViewportSize(viewport);
+		assert.equal(
+			await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+			true
+		);
+		await page.screenshot({
+			path: path.join(output, `catalog-${viewport.width}x${viewport.height}.png`)
+		});
+	}
+	await visit('?mode=catalog&dance=Synthetic%20dance');
+	await page.getByRole('button', { name: /Synthetic participant/ }).waitFor();
 	await visit('?mode=queue');
 	assert.equal(await page.getByRole('link', { name: 'Review', exact: true }).count(), 50);
 	await page.getByRole('button', { name: /Show 50 more/ }).click();
