@@ -83,6 +83,40 @@ async function ensureObject(client, objectPath, bytes, contentType) {
 	}
 }
 
+async function ensurePair(client, pair) {
+	const video = await safeRead(pair.videoFile, pair.rootReal);
+	const pose = await safeRead(pair.poseFile, pair.rootReal);
+	const prefix = `${pair.study}/${pair.id}`;
+	const row = {
+		id: pair.id,
+		study: pair.study,
+		source_stem: pair.stem,
+		video_path: `${prefix}/video.mp4`,
+		pose_path: `${prefix}/pose2d.raw.csv`,
+		video_sha256: hash(video),
+		pose_sha256: hash(pose),
+		video_bytes: video.length,
+		pose_bytes: pose.length,
+		source_description: sourceDescription
+	};
+	const { data: existing, error: lookupError } = await client
+		.from('research_media')
+		.select('*')
+		.eq('id', pair.id)
+		.maybeSingle();
+	if (lookupError) throw lookupError;
+	if (existing) {
+		for (const [field, value] of Object.entries(row)) {
+			if (existing[field] !== value) throw new Error(`Existing catalog entry differs: ${pair.id}`);
+		}
+		return;
+	}
+	await ensureObject(client, row.video_path, video, 'video/mp4');
+	await ensureObject(client, row.pose_path, pose, 'text/csv');
+	const { error: insertError } = await client.from('research_media').insert(row);
+	if (insertError) throw insertError;
+}
+
 async function main() {
 	const allPairs = await findPairs();
 	const pairs = pilot
@@ -99,41 +133,24 @@ async function main() {
 	const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 	if (!url || !key) throw new Error('Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
 	const client = createClient(url, key, { auth: { persistSession: false } });
-	for (const [index, pair] of pairs.entries()) {
-		const video = await safeRead(pair.videoFile, pair.rootReal);
-		const pose = await safeRead(pair.poseFile, pair.rootReal);
-		const prefix = `${pair.study}/${pair.id}`;
-		const row = {
-			id: pair.id,
-			study: pair.study,
-			source_stem: pair.stem,
-			video_path: `${prefix}/video.mp4`,
-			pose_path: `${prefix}/pose2d.raw.csv`,
-			video_sha256: hash(video),
-			pose_sha256: hash(pose),
-			video_bytes: video.length,
-			pose_bytes: pose.length,
-			source_description: sourceDescription
-		};
-		const { data: existing, error: lookupError } = await client
-			.from('research_media')
-			.select('*')
-			.eq('id', pair.id)
-			.maybeSingle();
-		if (lookupError) throw lookupError;
-		if (existing) {
-			for (const [field, value] of Object.entries(row)) {
-				if (existing[field] !== value)
-					throw new Error(`Existing catalog entry differs: ${pair.id}`);
+	let next = 0;
+	let completed = 0;
+	let failure;
+	async function worker() {
+		while (!failure) {
+			const index = next++;
+			if (index >= pairs.length) return;
+			try {
+				await ensurePair(client, pairs[index]);
+				completed++;
+				if (completed % 50 === 0) console.log(`Verified ${completed}/${pairs.length}`);
+			} catch (problem) {
+				failure ??= problem;
 			}
-			continue;
 		}
-		await ensureObject(client, row.video_path, video, 'video/mp4');
-		await ensureObject(client, row.pose_path, pose, 'text/csv');
-		const { error: insertError } = await client.from('research_media').insert(row);
-		if (insertError) throw insertError;
-		if ((index + 1) % 50 === 0) console.log(`Verified ${index + 1}/${pairs.length}`);
 	}
+	await Promise.all(Array.from({ length: Math.min(6, pairs.length) }, () => worker()));
+	if (failure) throw failure;
 	console.log(`Verified ${pairs.length} paired recordings`);
 }
 
