@@ -14,7 +14,10 @@
 </svelte:head>
 
 <main class="mx-auto max-w-5xl space-y-6 p-4 sm:p-8">
-	<a class="link" href={resolve('/research/studies')}>Back to recordings</a>
+	<nav aria-label="App navigation" class="flex flex-wrap gap-4">
+		<a class="link" href={resolve('/research/studies')}>Back to recordings</a>
+		<a class="link" href={resolve('/menu')}>App menu</a>
+	</nav>
 	<h1 class="text-2xl font-semibold">CHI25 research materials</h1>
 	<p class="text-sm">Read-only source references, human ratings, and frozen reviewed pose files.</p>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
 	import MainMenuPage from '$lib/pages/MainMenuPage.svelte';
 	import { onMount } from 'svelte';
@@ -22,6 +23,16 @@
 	class="mx-auto max-w-screen-2xl sm:mt-4 md:mt-8 lg:mt-12
     xl:mt-16 2xl:mt-20"
 >
+	{#if data.hasResearchAccess}
+		<nav aria-label="Research" class="mx-4 mb-4 flex flex-wrap gap-3 sm:justify-center">
+			<a class="daisy-btn daisy-btn-outline" href={resolve('/research/studies')}
+				>Research recordings</a
+			>
+			<a class="daisy-btn daisy-btn-outline" href={resolve('/research/materials')}
+				>Research materials</a
+			>
+		</nav>
+	{/if}
 	<h2
 		class="mx-4 mt-4 mb-2
         text-xl sm:mb-4 sm:text-center md:mb-8
