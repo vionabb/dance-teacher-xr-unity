@@ -16,7 +16,7 @@ records the verified feature branch, schema, sources, and portability limits.
 | Research authority | Existing Supabase Postgres: memberships, normalized catalog/ratings, append-only observations, analysis runs, conversation ownership and durable event cursors |
 | Immutable files | Private Supabase Storage: existing videos/raw poses/materials, additional reference inputs, versioned analysis outputs and source manifests; Drive remains the archive |
 | Interactive visual metrics | Tablet browser using existing TypeScript implementations; load the active segment and a small prefetch window; profile parsing/curves before adding a browser worker |
-| Codex conversation and compute | Recommended: OpenAI Agents API managed Codex sessions with hosted sandboxes for Node/Python analysis; website backend authorizes session and data access |
+| Codex conversation and compute | Viona prefers investigating ChatGPT subscription access: an isolated persistent Node/Linux worker with Codex app-server is the candidate, subject to sign-in eligibility; website backend authorizes session and data access |
 | Specialized processing | A separate worker/sandbox only for jobs requiring custom native dependencies or resources; ordinary visual inspection needs no Python server |
 
 This design must operate with Viona's Mac off. A local preview or workstation
@@ -88,26 +88,57 @@ state. Reuse explicit mutation semantics/UI where useful, replacing those
 local dependencies. A web conversation is a hosted research session; it does
 not automatically become this desktop chat or inherit its credentials/tools.
 
-Recommended provider: the [Agents API](https://developers.openai.com/api/docs/guides/agents-api/overview),
-which exposes a managed Codex harness, durable sessions and streaming. Its
-[hosted sandboxes](https://developers.openai.com/api/docs/guides/agents-api/environments/openai-hosted)
-can run pinned Node/Python tools and publish artifacts. Register accepted
-outputs back in Supabase; expiring sandbox files are not the research archive.
-The API is beta: verify project access and a minimal authenticated session
-before selecting it. API model/container usage is a separate operating cost;
-desktop subscription coverage is not assumed.
-The current API documentation also specifies US-only data residency and no
-Zero Data Retention support. Confirm that boundary for the selected research
-inputs before enabling it; a self-hosted executor does not change the harness
-retention policy.
+### Subscription route: preferred investigation
 
-Fallback for access/custom-compute requirements: an isolated persistent
-Node/container service using Codex app-server over **stdio**, behind our
-authenticated backend. Official [app-server documentation](https://learn.chatgpt.com/docs/app-server)
-supports custom clients but marks WebSocket transport experimental/unsupported;
-do not expose that listener directly as the website API. Subscription sign-in
-would need a separately supported registration/token flow; never copy
-workstation login credentials into the website.
+Viona selected **investigate ChatGPT subscription access** on 2026-10-28.
+The official [plan-usage overview](https://developers.openai.com/siwc/token-sharing-open-source)
+documents an optional OAuth capability for open-source/local tools; it directs
+paid or remotely hosted apps to an interest process. Public repository
+visibility alone does not establish eligibility; no repository license file
+was found in this audit. The [hosted client-ID process](https://developers.openai.com/siwc/request-client-id)
+is limited to selected partners. Availability for this website is unverified.
+
+There is a documented [self-hosted VM route](https://developers.openai.com/siwc/token-sharing-open-source/self-hosted-vms)
+for an OSS tool: register that tool/account with its own protected credentials,
+authenticate locally, transfer that registration securely to the VM, and let
+the VM own refreshes with a distinct stable host ID. This is not reuse of the
+existing Codex desktop credential file. Whether a personal VM worker behind
+this website qualifies needs confirmation; it is not a workaround for hosted
+app eligibility. A multi-researcher hosted sign-in must have supported app
+registration, with each researcher supplying their own account authorization.
+
+If that route qualifies, host a pinned Codex app-server on an isolated
+Node/Linux worker, with Python/analysis dependencies and durable state. The
+[subscription app-server guide](https://developers.openai.com/siwc/token-sharing-open-source/codex-app-server)
+documents supplying the dedicated OAuth token and resuming threads after
+renewal. Use **stdio** behind the authenticated backend; general
+[app-server documentation](https://learn.chatgpt.com/docs/app-server) marks its
+WebSocket transport experimental/unsupported. Do not expose it as the public
+website API. The VM/container's operating cost is separate from model usage.
+
+Bind a Supabase owner to the validated ChatGPT registration subject/workspace
+and its threads; do not identify registrations by email alone. Keep tokens
+encrypted outside the agent workspace. Serialize rotating-token refreshes and
+stop requests on disconnect, following [account/session guidance](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions).
+Do not share Viona's subscription across other app users. Persist/replay
+conversation state through the worker, and register durable outputs in
+Supabase rather than relying on the sandbox filesystem.
+
+Plan usage supports eligible Responses requests and local execution tools;
+its [preview limits](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)
+are not the same as the managed Agents API. Test a complete inference turn,
+token renewal, cancellation and thread resume before committing to the adapter.
+The documented restrictions include `store: false`/streaming and no hosted
+Code Interpreter or Files upload API on that route. The worker can run its own
+Node/Python tools against authorized inputs instead.
+
+### API alternative: not selected or provisioned
+
+If Viona later chooses API billing, the [Agents API](https://developers.openai.com/api/docs/guides/agents-api/overview)
+offers managed Codex sessions; [hosted sandboxes](https://developers.openai.com/api/docs/guides/agents-api/environments/openai-hosted)
+can provide Node/Python execution without our own worker. Project API access,
+model/container costs and the current US-only/non-ZDR data boundary require
+verification. Do not silently fall back to API billing from subscription auth.
 
 Expose bounded backend tools: authorized catalog lookup, selected artifact
 retrieval, observation lookup, reproducible metric jobs and explicit finding
@@ -140,9 +171,10 @@ deployment continues through repository review.
    current command always grants `viewer`. Verify save/reload/export,
    retries, owner spoofing, cross-study/source-version denial, viewer denial
    and restore/export recovery.
-4. **Codex conversation.** Verify API access, implement provider/session adapter
-   and panel, then bounded data tools and persistent messages. Prove account
-   isolation, cancellation, reconnect, visible failures and spending limits.
+4. **Codex conversation.** Resolve supported subscription registration/hosting,
+   verify a dedicated sign-in and complete inference/refresh/resume, then
+   implement the worker/session adapter, panel and bounded data tools. Prove
+   account isolation, cancellation, reconnect, visible failures and usage limits.
 5. **Reproducible remote analysis.** Enable small Node/Python jobs and output
    registration. Reproduce a browser metric, export a plot, reconnect after
    tab closure and save an explicitly requested finding with lineage. Larger
@@ -159,6 +191,7 @@ and agent sessions must enforce study/account scope.
 Finish review/merge of the menu PR, then implement the hosted catalog/reference
 adapter. Production's older migration-history gap needs an audit before a
 general `db push`; use reviewed targeted migrations for the new relations.
-Before the Codex stage, configure a project-specific server-side
-OpenAI credential and verify Agents API access; no key is needed in chat.
-No new compute service or API spending was provisioned by this plan.
+Before the Codex stage, resolve the OSS self-hosted-worker versus hosted-partner
+registration boundary. Confirm licensing/eligibility and prepare a dedicated
+OAuth registration; no token is needed in chat. No new compute service,
+subscription authorization or API spending was provisioned by this plan.

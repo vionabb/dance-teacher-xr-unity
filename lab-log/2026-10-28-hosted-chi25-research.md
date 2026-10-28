@@ -107,6 +107,13 @@ type/Svelte checking passed (zero errors, 12 existing warnings). Synthetic-data
 browser renders verified links and no horizontal overflow at 820×1180,
 1180×820 and 390×844; this is not a new real-tablet acceptance claim. The
 broader hosted authoring and agent work remains planned.
+Viona chose to investigate using her ChatGPT subscription for the website's
+agent rather than planning around API billing. Current official documentation
+distinguishes OSS self-hosted VM authorization from remotely hosted app partner
+registration. The plan now records an isolated subscription worker as a
+candidate subject to eligibility, separate account-bound credentials and
+refresh handling. No OAuth registration, service purchase or inference charge
+was initiated.
 
 The AI Dance Coach chapter currently describes the learner web application and
 pose evaluation, not a hosted research collection or its access policy. This
