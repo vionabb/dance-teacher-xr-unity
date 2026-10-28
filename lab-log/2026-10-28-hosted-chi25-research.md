@@ -38,15 +38,22 @@ viewer membership can be granted. An existing account nominated subsequently
 received viewer membership for both studies, confirmed as two access rows.
 On the PR preview, the authorized account opened both study catalogs and a
 Study 2 video, and downloaded the paired raw pose CSV. The in-app browser's
-on-page pose overlay reported `Failed to fetch` even though that same CSV
-downloaded successfully; cross-browser confirmation remains open. Both the
-production app and PR preview redirect a normal sign-in to `/menu`, which
-returns 500 because this Supabase project lacks `public.motion_video` in its
-PostgREST schema cache. The branch now routes accounts with research access
-through `/auth/landing` to `/research/studies`, leaving learner accounts on
-their existing path. This does not repair the missing learner-app table.
-Ordinary-account access testing, post-change preview acceptance, and PR
-merge/deploy remain open.
+on-page pose overlay initially reported `Failed to fetch` even though that
+same CSV downloaded successfully. After the next preview deployment, the
+overlay rendered for recordings from both studies and moved with Study 2
+playback. Viona declined an additional Safari sign-in, so cross-browser
+confirmation was not pursued.
+
+Before the branch's landing fix, both the production app and PR preview sent
+sign-ins to `/menu`, which returns 500 because this Supabase project lacks
+`public.motion_video` in its PostgREST schema cache. The branch now routes
+accounts with research access through `/auth/landing` to
+`/research/studies`, leaving learner accounts on their existing path. This
+does not repair the missing learner-app table.
+The redeployed preview sent the signed-in research account from
+`/auth/landing` to `/research/studies`. Ordinary-account access testing and
+PR merge/deploy remain open.
+
 The existing local research SQLite and annotation workflow remain authoritative
 for their current tasks. Additional materials, including reference videos,
 human ratings, and reviewed poses, need a separate inventory and release
