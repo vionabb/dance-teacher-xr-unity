@@ -52,7 +52,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 		'-f',
 		'lavfi',
 		'-i',
-		'color=c=slategray:s=640x480:r=30:d=2',
+		'color=c=slategray:s=800x600:r=30:d=2',
 		'-c:v',
 		'libx264',
 		'-pix_fmt',
@@ -105,12 +105,28 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 		canAnnotate = true,
 		fail = true;
 	const submissions = [];
+	let mediaAccess = 'ready';
+	let expireInitialMedia = false;
+	const mediaRequests = [];
 	let observations = [];
 	const human = { human_rating: 3, rating_1: 1, rating_2: 2, rating_3: 3 };
 	await page.route('**/api/**', async (route) => {
 		const request = route.request();
 		const pathname = new URL(request.url()).pathname;
 		if (pathname.endsWith('.mp4')) {
+			mediaRequests.push({ method: request.method(), url: request.url() });
+			if (
+				pathname.endsWith('/expired.mp4') ||
+				(expireInitialMedia &&
+					request.method() === 'GET' &&
+					!new URL(request.url()).searchParams.has('__research_reload')) ||
+				(request.method() === 'HEAD' && mediaAccess === 'forbidden')
+			)
+				return route.fulfill({
+					status: 403,
+					json: { message: 'Synthetic expired or denied access' }
+				});
+
 			const range = request.headers().range?.match(/^bytes=(\d+)-(\d*)$/);
 			if (range) {
 				const start = Number(range[1]);
@@ -318,10 +334,39 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	assert.equal(submissions.at(-1).mutationId, undefined);
 	assert.equal(submissions.at(-1).inputVersion, undefined);
 	for (const mode of ['qijia2d', 'viona2d']) {
+		expireInitialMedia = true;
+		await visit(`?mode=${mode}&performance=performance&segment=study-segment&review=discrepancy`);
+		await note.waitFor();
+		for (const side of ['participant', 'reference']) {
+			const panel = page.locator(`[data-review-video="${side}"]`);
+			await panel.getByRole('button', { name: 'Reload video', exact: true }).click();
+			await panel
+				.getByText('Video reloaded. Press play or replay the interval to continue.', {
+					exact: true
+				})
+				.waitFor();
+		}
+		await page.waitForFunction(() =>
+			[...document.querySelectorAll('video')].every(
+				(video) => video.readyState >= 2 && video.videoWidth === 800
+			)
+		);
+		const recoveredCrops = await page
+			.locator('.pose-overlay')
+			.evaluateAll((overlays) => overlays.map((overlay) => overlay.getAttribute('viewBox')));
+		expireInitialMedia = false;
+
 		await visit(`?mode=${mode}&performance=performance&segment=study-segment&review=discrepancy`);
 		await note.waitFor();
 		await page.waitForFunction(() =>
 			[...document.querySelectorAll('video')].every((video) => video.readyState >= 2)
+		);
+		assert.deepEqual(
+			await page
+				.locator('.pose-overlay')
+				.evaluateAll((overlays) => overlays.map((overlay) => overlay.getAttribute('viewBox'))),
+			recoveredCrops,
+			'Recovered metadata produces the same crop as a fresh successful load'
 		);
 		await page.getByRole('spinbutton', { name: /^Start/ }).fill('0.2');
 		await page.getByRole('spinbutton', { name: /^End/ }).fill('0.65');
@@ -348,6 +393,77 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 			);
 			throw error;
 		}
+		// Fault injection: a media 403 after seeking models a long-paused signed source failing.
+		await note.fill('Keep this draft while renewing the video');
+		const participantPanel = page.locator('[data-review-video="participant"]');
+		await participantPanel.locator('video').evaluate((video) => {
+			video.src = '/api/synthetic/expired.mp4';
+		});
+		await participantPanel.getByRole('button', { name: 'Reload video', exact: true }).waitFor();
+		const requestCount = mediaRequests.length;
+		await page.waitForTimeout(200);
+		assert.equal(
+			mediaRequests.length,
+			requestCount,
+			'A media error does not trigger an automatic retry'
+		);
+		await participantPanel.getByRole('button', { name: 'Reload video', exact: true }).click();
+		await participantPanel
+			.getByText('Video reloaded. Press play or replay the interval to continue.', { exact: true })
+			.waitFor();
+		await page.waitForFunction(() => {
+			const video = document.querySelector('[data-review-video="participant"] video');
+			return (
+				video?.readyState >= 2 &&
+				video.paused &&
+				video.currentTime >= 0.6 &&
+				video.currentTime < 0.85
+			);
+		});
+		assert.equal(await note.inputValue(), 'Keep this draft while renewing the video');
+		assert.ok(
+			mediaRequests.some(
+				(request) => request.method === 'HEAD' && !request.url.includes('__research_reload')
+			),
+			'Access check uses the stable endpoint'
+		);
+		assert.ok(
+			mediaRequests.some(
+				(request) => request.method === 'GET' && request.url.includes('__research_reload')
+			),
+			'Explicit reload requests a fresh redirect'
+		);
+		const referencePanel = page.locator('[data-review-video="reference"]');
+		await referencePanel.locator('video').evaluate((video) => {
+			video.src = '/api/synthetic/expired.mp4';
+		});
+		await referencePanel.getByRole('button', { name: 'Reload video', exact: true }).waitFor();
+		mediaAccess = 'forbidden';
+		const beforeDenied = mediaRequests.length;
+		await referencePanel.getByRole('button', { name: 'Reload video', exact: true }).click();
+		await referencePanel
+			.getByText(
+				'Your account cannot access this video. Check your research access before retrying.',
+				{ exact: true }
+			)
+			.waitFor();
+		assert.equal(
+			mediaRequests.length,
+			beforeDenied + 1,
+			'Denied recovery checks once without loading a video'
+		);
+		assert.equal(await note.inputValue(), 'Keep this draft while renewing the video');
+		await page.screenshot({ path: path.join(output, `${mode}-video-denied.png`) });
+		mediaAccess = 'ready';
+		await referencePanel.getByRole('button', { name: 'Reload video', exact: true }).click();
+		await referencePanel
+			.getByText('Video reloaded. Press play or replay the interval to continue.', { exact: true })
+			.waitFor();
+		await page.getByRole('button', { name: 'Replay interval', exact: true }).click();
+		await page.waitForFunction(() => {
+			const video = document.querySelector('[data-review-video="participant"] video');
+			return video?.paused && video.currentTime >= 0.6 && video.currentTime < 0.85;
+		});
 		for (const viewport of [
 			{ width: 820, height: 1180 },
 			{ width: 1180, height: 820 },
@@ -402,7 +518,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	assert.equal(await page.getByRole('link', { name: 'Review', exact: true }).count(), 60);
 	assert.deepEqual(errors, []);
 	console.log(
-		'PASS: hosted/local transport, draft isolation, viewer access, failed/reloaded/changed retries, success receipt/focus, both metric pages at tablet portrait/landscape and phone widths, queue pagination. Synthetic evidence:',
+		'PASS: hosted/local transport, draft isolation, viewer access, failed/reloaded/changed retries, success receipt/focus, both metric pages at tablet portrait/landscape and phone widths, expired/denied video reload preserving playhead/draft without autoplay, queue pagination. Synthetic evidence:',
 		output
 	);
 } finally {

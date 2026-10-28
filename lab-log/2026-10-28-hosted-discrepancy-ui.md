@@ -4,6 +4,7 @@ tags: [research-studio, discrepancy-review, hosting, annotation, ui]
 artifacts:
   - assets/2026-10-28-hosted-discrepancy-ui/tablet-landscape-synthetic.png
   - assets/2026-10-28-hosted-discrepancy-ui/tablet-portrait-notes-synthetic.png
+  - assets/2026-10-28-hosted-discrepancy-ui/video-access-denied-synthetic.png
 ---
 
 # Portable discrepancy review UI for hosted integration
@@ -61,3 +62,16 @@ The hosting chat found that the portable composer also needs the existing loopba
 Focused validation covers append-only observations, verified snapshots, separation from video-usability revisions, invalid intervals, and a forced backup-directory failure that returns a saved-row receipt with a warning rather than losing the committed observation. The three focused files (store, client-address boundary and observation validation) pass 13 tests; type checking remains zero errors and 12 baseline warnings; lint and build pass. Tests use disposable SQLite databases only.
 
 The media audit found no displayed-video error/reload path in either visualizer; their existing error listener and `load()` calls belong only to detached metadata probes. The hosting chat confirmed that hosted video DTOs contain stable authorized paths, which can issue fresh redirects. It requested a separate explicit-reload UI follow-up that preserves the playhead and drafts, performs no automatic retries, and resumes playback only following a user gesture. That follow-up is distinct from restoring the local backend.
+
+
+## Explicit video recovery follow-up
+
+Both visualizers now show a per-video recovery notice after a displayed video fails. **Reload video** checks the stable authenticated media endpoint with a no-cache HEAD request, then assigns the same endpoint with a fresh cache-busting query parameter so the media request obtains a new redirect. The recording/material identity and pose inputs do not change. Existing clip/global review position and the current note remain in place. Successful reload stays paused until the next play/replay gesture; neither errors nor permission failures trigger automatic retries. Loading has a bounded timeout, and navigation invalidates pending recovery work.
+
+HTTP 401 and an HTML sign-in response request sign-in; 403 reports missing research access. Other HTTP/network failures offer manual retry. These checks require the hosting backend's HEAD handling to retain its GET authorization boundary and fresh redirect behavior. Cached or failed initial video-dimension probes no longer prevent recovered metadata from updating crop geometry.
+
+Six focused recovery tests cover stable URL identity, rejection of directly modifying a cross-origin signed URL, HEAD-only access checking, sign-in/denied/missing responses, and network failure without retries. Together with the earlier focused tests, 23 tests in six files pass; type checking remains zero errors and 12 baseline warnings; lint/build pass; the Svelte autofixer reports no issues in the new notice or updated visualizers.
+
+The synthetic Chromium suite additionally injects media HTTP 403s after seeking and tests both participant and reference recovery in both metric components. It verifies retained playhead/draft, paused state until a subsequent replay gesture, a denied check that makes no new video GET, and explicit successful retry. A separate initial-expiry case fails both metadata probes and displayed videos, reloads them, and compares crop view boxes with a subsequent successful fresh performance load. All checks pass with generated 800×600 video and synthetic poses. The [synthetic access-denied screenshot](assets/2026-10-28-hosted-discrepancy-ui/video-access-denied-synthetic.png) shows the permission message beside the retained 0.65s playhead and note.
+
+This is fault-injection evidence, not an actual production signed-URL expiration or real iPad Safari test. Those deployment/device checks remain with the hosting integration.

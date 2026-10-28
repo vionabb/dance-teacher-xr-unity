@@ -15,6 +15,13 @@
 		(page.data as { researchBackend?: ResearchBackend }).researchBackend ?? 'local'
 	);
 	const apiPrefix = $derived(researchApiPrefix(researchBackend));
+	import VideoRecoveryNotice from '$lib/elements/VideoRecoveryNotice.svelte';
+	import {
+		checkVideoReload,
+		refreshedVideoUrl,
+		type VideoSide,
+		type VideoRecovery
+	} from '$lib/research/video-recovery';
 	import DiscrepancyReview from '$lib/elements/DiscrepancyReview.svelte';
 	import MetricSwitcher from '$lib/elements/MetricSwitcher.svelte';
 	import {
@@ -119,6 +126,67 @@
 	let reviewSelection = $state<{ start: number; end: number } | null>(null);
 	let reviewPlaying = $state(false);
 	let reviewSpeed = $state(1);
+	let videoRecovery = $state<Record<VideoSide, VideoRecovery>>({
+		participant: { state: 'idle', message: '' },
+		reference: { state: 'idle', message: '' }
+	});
+	const videoReloadTimers: Partial<Record<VideoSide, ReturnType<typeof setTimeout>>> = {};
+	function clearVideoReloadTimer(side: VideoSide) {
+		if (videoReloadTimers[side]) clearTimeout(videoReloadTimers[side]);
+		delete videoReloadTimers[side];
+	}
+	function videoFailed(side: VideoSide) {
+		clearVideoReloadTimer(side);
+		if (!datasetMode) return;
+		autoAdvance = false;
+		pauseReview();
+		videoRecovery[side] = {
+			state: 'error',
+			message: 'Video could not load. Reload to renew access and keep your review position.'
+		};
+	}
+	async function reloadVideo(side: VideoSide) {
+		if (!datasetMode || ['checking', 'loading'].includes(videoRecovery[side].state)) return;
+		const segmentId = activeLoadedSegment.segment.id;
+		const requestToken = loadToken;
+		const url =
+			side === 'participant'
+				? activeLoadedSegment.segment.videoUrl
+				: activeLoadedSegment.segment.referenceVideoUrl;
+		if (!url) return;
+		autoAdvance = false;
+		pauseReview();
+		videoRecovery[side] = { state: 'checking', message: 'Checking video access…' };
+		const access = await checkVideoReload(url);
+		if (requestToken !== loadToken || activeLoadedSegment?.segment.id !== segmentId) return;
+		if (!access.allowed) {
+			videoRecovery[side] = { state: 'denied', message: access.message };
+			return;
+		}
+		try {
+			const freshUrl = refreshedVideoUrl(url, window.location.origin, crypto.randomUUID());
+			videoRecovery[side] = {
+				state: 'loading',
+				message: 'Reloading video at your review position…'
+			};
+			clearVideoReloadTimer(side);
+			videoReloadTimers[side] = setTimeout(() => {
+				if (
+					requestToken === loadToken &&
+					activeLoadedSegment?.segment.id === segmentId &&
+					videoRecovery[side].state === 'loading'
+				)
+					videoFailed(side);
+			}, 15_000);
+			if (side === 'participant') participant = { ...participant, url: freshUrl };
+			else reference = { ...reference, url: freshUrl };
+		} catch {
+			videoRecovery[side] = {
+				state: 'error',
+				message: 'This video source cannot be refreshed. Reopen the performance to try again.'
+			};
+		}
+	}
 	let showMetricDetails = $state(false);
 	let showReviewOverlay = $state(true);
 	function setReviewSelection(start: number, end: number) {
@@ -641,6 +709,12 @@
 		);
 	}
 	function activateDatasetSegment(index: number) {
+		clearVideoReloadTimer('participant');
+		clearVideoReloadTimer('reference');
+		videoRecovery = {
+			participant: { state: 'idle', message: '' },
+			reference: { state: 'idle', message: '' }
+		};
 		reviewRange = null;
 		reviewSelection = null;
 		reviewPlaying = false;
@@ -703,6 +777,7 @@
 	function onParticipantTimeUpdate(event: Event) {
 		if (!datasetMode) return;
 		const video = event.currentTarget as HTMLVideoElement;
+		if (video.error || video.readyState < 1) return;
 		const active = timeline[activeSegmentIndex];
 		if (!active) return;
 		if (discrepancyMode && reviewRange) {
@@ -825,6 +900,14 @@
 			reference.video.currentTime = Math.max(0, refTime);
 	}
 	function loaded(side: 'participant' | 'reference', event: Event) {
+		const recovering = videoRecovery[side].state === 'loading';
+		clearVideoReloadTimer(side);
+		if (recovering) {
+			videoRecovery[side] = {
+				state: 'ready',
+				message: 'Video reloaded. Press play or replay the interval to continue.'
+			};
+		}
 		const video = event.currentTarget as HTMLVideoElement;
 		if (side === 'participant') video.playbackRate = reviewSpeed;
 		if (video.videoWidth > 0 && video.videoHeight > 0) {
@@ -838,7 +921,8 @@
 					side === 'participant' ? active?.participantVideoHeight : active?.referenceVideoHeight;
 				if (
 					active &&
-					sourceUrl === (side === 'participant' ? participant.url : reference.url) &&
+					(sourceUrl === (side === 'participant' ? participant.url : reference.url) ||
+						recovering) &&
 					(dimensionWidth !== video.videoWidth || dimensionHeight !== video.videoHeight)
 				) {
 					loadedSegments = loadedSegments.map((segment, index) =>
@@ -965,6 +1049,9 @@
 		seek(frameIndex);
 	}
 	onDestroy(() => {
+		loadToken++;
+		clearVideoReloadTimer('participant');
+		clearVideoReloadTimer('reference');
 		loadController?.abort();
 		if (participant.url) URL.revokeObjectURL(participant.url);
 		if (reference.url) URL.revokeObjectURL(reference.url);
@@ -1245,6 +1332,13 @@
 									>frame {panel.pose?.frame ?? '—'}</span
 								>{/if}
 						</div>
+						{#if datasetMode}
+							<VideoRecoveryNotice
+								label={panel.label}
+								recovery={videoRecovery[panel.side]}
+								onreload={() => void reloadVideo(panel.side)}
+							/>
+						{/if}
 						<div
 							class="pose-window mx-3 my-3"
 							style={`aspect-ratio:${panel.crop.w}/${panel.crop.h};--crop-ratio:${panel.crop.w / panel.crop.h}`}
@@ -1261,6 +1355,7 @@
 									playsinline
 									preload="metadata"
 									onloadedmetadata={(event) => loaded(panel.side, event)}
+									onerror={() => videoFailed(panel.side)}
 									ontimeupdate={panel.side === 'participant' ? onParticipantTimeUpdate : undefined}
 									onseeked={panel.side === 'participant' ? onParticipantSeeked : undefined}
 									onended={panel.side === 'participant' ? onParticipantEnded : undefined}

@@ -210,11 +210,10 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   data adapter, account-owned authoring and tablet acceptance boundaries.
 
 - [2026-10-28 — Hosted discrepancy review browser UI](2026-10-28-hosted-discrepancy-ui.md)
-  Transplanted the portable review desk and metric UI onto rewritten main, with
-  authenticated draft scopes, viewer access and stable retry IDs. Synthetic
-  Chromium validates save flows, replay and tablet/phone layouts; the hosting
-  chat owns hosted backend integration and production/device acceptance. A follow-up
-  restores the loopback-only local discrepancy backend and snapshot checks.
+  Ported the review desk and visualizers onto rewritten main with scoped drafts,
+  viewer controls, retry IDs, local persistence and explicit video recovery.
+  Synthetic Chromium checks save flows, replay, expired/denied media and responsive
+  layouts; the hosting chat owns production integration and device acceptance.
 
 - [2026-10-28 — Hosted analysis integration](2026-10-28-hosted-analysis-integration.md)
   Integrates cloud catalog/notes with the portable desk and metric viewers;
