@@ -143,3 +143,48 @@ neither participant videos nor research records are published by the deployed
 Vercel app. Add server-side researcher-role authorization to every research
 route before any remote serving. Metric calculations and frame-correction
 authoring are not part of this slice.
+
+## Hosted CHI25 read-only slice (in development)
+
+Viona requested that the existing production instance serve research materials
+for both CHI25 user studies to explicitly authorized accounts. The first slice
+provides a separate `/research/studies` route for participant videos and
+canonical raw `pose2d` files. The earlier local research workspace, its SQLite
+database, annotation authoring, and metric inspectors remain local. The hosted
+route is not live until its migration, media import, access grants, and deploy
+have been validated.
+
+`supabase/migrations/20261028120000_hosted_chi25_research.sql` creates a private
+`research-chi25` bucket, a study-scoped `research_access` membership table, and
+read-only `research_media` catalog. It also replaces the older Storage read
+policy, which matched every bucket except `userPerformanceVideos`, with one
+restricted to buckets actually marked public. The new bucket's object policy
+requires both a catalog entry and a research membership for that study. Only
+server-side service-role administration can write membership and media rows;
+the browser receives no write policy. Video playback uses a ten-minute signed
+URL after route authorization; a URL already issued can remain usable until it
+expires even after membership is revoked. Pose downloads are proxied through
+the authenticated route.
+
+From `svelte-web-frontend/`, run `node scripts/importChi25Research.mjs` to check
+pairing for both studies without transferring data. For a reviewed transfer,
+set `RESEARCH_DATA_ROOT` to the staged participant-motions directory,
+`RESEARCH_SOURCE_DESCRIPTION` to an immutable source-release identifier,
+`NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to the target project,
+then pass `--upload`. The tool uses immutable study/recording object keys,
+verifies each remote object by hashing its downloaded content, and inserts the
+catalog row only after both objects pass. It can resume after interruption and
+rejects a conflicting catalog row or object. Confirm the target project's
+storage capacity and upload limit first.
+
+To grant or revoke access after an account exists, set `RESEARCH_ACCOUNT_EMAIL`,
+`NEXT_PUBLIC_SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`, then run
+`node scripts/manageResearchAccess.mjs` or append `--revoke`. The email is an
+administrative input and is not stored in source code. The default grant covers
+both studies; `RESEARCH_STUDIES` can restrict it to one or both.
+
+Acceptance: anonymous visitors and ordinary learner accounts cannot read
+catalog rows or private objects, including direct Supabase requests; a member
+of only one study cannot read the other; an authorized member can browse,
+play, seek, see an image-space raw-pose overlay, and download the paired CSV;
+the imported catalog has exactly the reviewed pair counts for both studies.
