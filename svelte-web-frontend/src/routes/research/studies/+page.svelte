@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 </script>
@@ -15,7 +16,7 @@
 		{#each data.studies as study (study)}
 			<a
 				class="btn btn-sm {data.study === study ? 'btn-primary' : 'btn-ghost'}"
-				href="?study={study}"
+				href={`${resolve('/research/studies')}?study=${study}`}
 			>
 				{study === 'chi25_study1' ? 'Study 1' : 'Study 2'}
 			</a>
@@ -27,18 +28,22 @@
 	{#each data.media as item (item.id)}
 		<article class="card border-base-300 bg-base-100 border p-4">
 			<h2 class="mb-2 font-medium break-all">
-				<a class="link" href="/research/studies/{item.id}">{item.source_stem}</a>
+				<a class="link" href={resolve('/research/studies/[id]', { id: item.id })}
+					>{item.source_stem}</a
+				>
 			</h2>
 			<p class="text-sm">Video and raw 2D pose available for inspection</p>
 		</article>
 	{/each}
 	<nav aria-label="Pages" class="flex gap-3">
-		{#if data.page > 1}<a class="btn btn-sm" href="?study={data.study}&page={data.page - 1}"
+		{#if data.page > 1}<a
+				class="btn btn-sm"
+				href={`${resolve('/research/studies')}?study=${data.study}&page=${data.page - 1}`}
 				>Previous</a
 			>{/if}
 		{#if data.page < data.pages}<a
 				class="btn btn-sm"
-				href="?study={data.study}&page={data.page + 1}">Next</a
+				href={`${resolve('/research/studies')}?study=${data.study}&page=${data.page + 1}`}>Next</a
 			>{/if}
 	</nav>
 </main>
