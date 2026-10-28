@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "legacy-reference-pose-csv",
+  "pairingPolicy": "row-index-truncate-shorter",
+  "files": [
+    {
+      "file": "bartender.clip-1.pose.csv",
+      "sha256": "ada10f747bbf26a19e589345dd909ca1ce6a0ea37ddb88dd32391c0caed081ca",
+      "bytes": 679068
+    },
+    {
+      "file": "bartender.clip-2.pose.csv",
+      "sha256": "3943fbe845a4a45d4154701c0622a413fc588e8872b8998fab34097dffd08262",
+      "bytes": 682010
+    },
+    {
+      "file": "bartender.clip-3.pose.csv",
+      "sha256": "3315ba31714cb9b0208d8856b69014b8f38578e416b32ff89fbf418fbcdd077a",
+      "bytes": 679656
+    },
+    {
+      "file": "bartender.clip-4.pose.csv",
+      "sha256": "486e7bf7e845b17846386d65924c73148f26664eb742f1c8648ec7e2afb77ecd",
+      "bytes": 236460
+    },
+    {
+      "file": "bartender.clip-5.pose.csv",
+      "sha256": "9b8ff1e757965187f3d35e39799efc9bc1ca2339621f31e4bffb9dfc00b9b0e8",
+      "bytes": 12317
+    },
+    {
+      "file": "last-christmas.clip-1.pose.csv",
+      "sha256": "590331f8291f9204af1d29dd2223f13de3ab9222b398ba81851553468bd32674",
+      "bytes": 660313
+    },
+    {
+      "file": "last-christmas.clip-2.pose.csv",
+      "sha256": "b1e451c1825bea579a31816a3698c7912f7e422ba68bb53db658d9549679232d",
+      "bytes": 665148
+    },
+    {
+      "file": "last-christmas.clip-3.pose.csv",
+      "sha256": "9780ad84ca18f90792077d3322d8a117f6144fa0f67bbd3c38c6b6734a3704f3",
+      "bytes": 655810
+    },
+    {
+      "file": "last-christmas.clip-4.pose.csv",
+      "sha256": "4d9299d05391fb7470744ec9e47e9a55d4297f1807a4836d2e9ad9656e812089",
+      "bytes": 307088
+    },
+    {
+      "file": "mad-at-disney.clip-1.pose.csv",
+      "sha256": "cb641cf6dedf8eeeaf13a6094773b961819db94430592ce6da8eeea0e3c1b29d",
+      "bytes": 617978
+    },
+    {
+      "file": "mad-at-disney.clip-2.pose.csv",
+      "sha256": "2392c4a6f29b2d46a6635ab2ffa94a67275c79cede04e6b739019a42efabdd9e",
+      "bytes": 610147
+    },
+    {
+      "file": "mad-at-disney.clip-3.pose.csv",
+      "sha256": "9ebb86a4ddd67b88db35b5943036dbf0028a220ee6e37b0c55e99b3505818821",
+      "bytes": 612836
+    },
+    {
+      "file": "mad-at-disney.clip-4.pose.csv",
+      "sha256": "00eb4b4ba0cf1aec26f3c44e90af71bd99430875b8a71a1345dcf03e9be306ef",
+      "bytes": 612467
+    },
+    {
+      "file": "mad-at-disney.clip-5.pose.csv",
+      "sha256": "330400fa4575e6d81c18e0fd956b51a32aeca9518edb41191dbb90db6ea3d884",
+      "bytes": 300322
+    },
+    {
+      "file": "pajama-party.clip-1.pose.csv",
+      "sha256": "731f039709f5a967c312b179539fc0c288ca0cee1199bf5571174393f5e7f550",
+      "bytes": 411368
+    },
+    {
+      "file": "pajama-party.clip-2.pose.csv",
+      "sha256": "20e66e4a83eb2c702c3b837216b4c787ecef0011cdece40fa6d45c778af8f044",
+      "bytes": 401911
+    },
+    {
+      "file": "pajama-party.clip-3.pose.csv",
+      "sha256": "f6069acaff04ca7f6f6aed9017a21c24a19b528b23c21db79705fca011bbb0ab",
+      "bytes": 411254
+    },
+    {
+      "file": "pajama-party.clip-4.pose.csv",
+      "sha256": "13d3a885462e5471a252ee93f7f5c2e9973421b70cf4993f92448c8490e02f58",
+      "bytes": 407013
+    },
+    {
+      "file": "pajama-party.clip-5.pose.csv",
+      "sha256": "3dd632bf418672dde10bb0390774137e2164b8380f52f13a4c2083175a1e1b6a",
+      "bytes": 413151
+    },
+    {
+      "file": "pajama-party.clip-6.pose.csv",
+      "sha256": "cb0ae05a710b5d08a670d8030c9cd659879465a03bf7757cae6a22a9686b7d85",
+      "bytes": 85134
+    }
+  ]
+}

@@ -7,8 +7,9 @@ Status: **local read model and whole-video usability authoring implemented; furt
 The existing SvelteKit application will become one interface for research
 inspection and the learner experience. A local persistent Node runtime will
 serve research routes and can invoke Python workers for stages that remain in
-the motion pipeline. The current Vercel deployment remains learner-facing
-unless a later deployment decision explicitly expands it. Metric mathematics
+the motion pipeline. Vercel now also serves the authorized, read-only CHI25
+collection described below. The broader tablet analysis and Codex integration
+is planned in [hosted research workspace](hosted-research-workspace.md). Metric mathematics
 will have one JavaScript/TypeScript implementation shared by live evaluation,
 batch execution, and visual inspection; each metric may accept versioned
 configurations.
@@ -195,7 +196,7 @@ the imported catalog has exactly the reviewed pair counts for both studies.
 
 ### Companion materials
 
-The next hosted slice adds `/research/materials` for five shared CHI study
+PR #429 added `/research/materials` for five shared CHI study
 reference videos, a study-specific human-ratings CSV for each study, and 48
 reviewed pose segments from the immutable `20261002-first-manual-review`
 release (19 Study 1, 25 Study 2, four shared reference segments). The ratings
@@ -205,8 +206,10 @@ database is not transferred. `research_material` and the private Storage
 object policy use the same study membership gate as the recording catalog;
 shared references require membership in at least one study. The collection
 remains read-only through the browser. The database migration and all 55
-hash-verified objects are in production; the route is on the next PR branch
-until deployed.
+hash-verified objects and the browser route are in production. Viona accepted
+the read-only release on 2026-10-28. Research sign-in defaults to the study
+collection; the next navigation change also allows researchers to open the
+learner menu with the same account.
 
 `scripts/importChi25Materials.mjs` checks all sources in a dry run. Set
 `REFERENCE_VIDEO_ROOT` to a staged copy of

@@ -76,7 +76,10 @@ The same branch addresses `/menu`: production still has zero rows in its old
 `dancedemo` tables and no `motion_video` table. It redirects research members
 to the hosted collection and treats the absent learner table as an empty
 catalog while surfacing other database errors. It does not create learner
-content. The branch's UI and menu fix await PR review and deployment.
+content. PR #429 was merged and its production deployment succeeded. Viona
+accepted the current production release on 2026-10-28. She subsequently asked
+to access the menu as a researcher too; that navigation change is being made
+in `codex/tablet-research-hosting`.
 
 The original full human-ratings CSV was found in this public repository's
 history. Viona requested its removal from both the current tree and Git
@@ -85,8 +88,32 @@ Google Drive file named `chi25-humanratings-source.csv`; the two scoped
 study exports were already hash-verified in private Supabase Storage. The
 local source is staged at the ignored `local-data/chi25-humanratings-source.csv`
 path, and the frontend importer and metric-fixture loader now read that path
-or `HUMAN_RATINGS_PATH`. Git history cleanup follows PR #429's merge; old
-clones, forks, and GitHub pull-request caches need separate handling.
+or `HUMAN_RATINGS_PATH`. After PR #429 merged, the 25 affected branch heads
+were rewritten from the file's introduction commit; branch-tip comparisons
+showed only removal of that file, and remote heads matched the rewritten tips.
+Viona inspected the CSV, stated that it contains no PII, and declined a GitHub
+Support purge. The current repository excludes it; older GitHub PR refs may
+retain it. No Support request was sent.
+
+Viona now wants research analysis from her tablet at a cafe: the discrepancy
+review desk, metric visualizers and a Codex conversation component on the
+website. The new [hosted workspace plan](../documentation/hosted-research-workspace.md)
+records the deployment boundary and sequence. Coordination with the discrepancy
+chat produced a [dependency handoff](2026-10-28-discrepancy-hosting-handoff.md),
+including the 20 missing legacy reference poses and the local/hosted ID mapping.
+The menu change removes its research-only redirect and adds navigation in both
+directions. Five focused menu/access tests, lint, a production build, and
+type/Svelte checking passed (zero errors, 12 existing warnings). Synthetic-data
+browser renders verified links and no horizontal overflow at 820×1180,
+1180×820 and 390×844; this is not a new real-tablet acceptance claim. The
+broader hosted authoring and agent work remains planned.
+Viona chose to investigate using her ChatGPT subscription for the website's
+agent rather than planning around API billing. Current official documentation
+distinguishes OSS self-hosted VM authorization from remotely hosted app partner
+registration. The plan now records an isolated subscription worker as a
+candidate subject to eligibility, separate account-bound credentials and
+refresh handling. No OAuth registration, service purchase or inference charge
+was initiated.
 
 The AI Dance Coach chapter currently describes the learner web application and
 pose evaluation, not a hosted research collection or its access policy. This

@@ -12,11 +12,12 @@
 <main class="mx-auto max-w-5xl space-y-6 p-4 sm:p-8">
 	<h1 class="text-2xl font-semibold">CHI25 research recordings</h1>
 	<p class="text-sm">Read-only participant videos and raw 2D pose files.</p>
-	<p>
+	<nav aria-label="App navigation" class="flex flex-wrap gap-4">
+		<a class="link" href={resolve('/menu')}>App menu</a>
 		<a class="link" href={resolve('/research/materials')}
 			>Reference videos, ratings, and reviewed poses</a
 		>
-	</p>
+	</nav>
 	<nav aria-label="Studies" class="flex flex-wrap gap-3">
 		{#each data.studies as study (study)}
 			<a
