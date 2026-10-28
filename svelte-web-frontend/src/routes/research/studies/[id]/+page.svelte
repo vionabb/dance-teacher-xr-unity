@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import {
 		parseRawPoseCsv,
 		reindexFramesByRowIndex,
@@ -19,7 +20,10 @@
 
 	onMount(() => {
 		let active = true;
-		void fetch(`/research/studies/media/${data.media.id}/pose`, { cache: 'no-store' })
+		void fetch(
+			resolve('/research/studies/media/[id]/[kind]', { id: data.media.id, kind: 'pose' }),
+			{ cache: 'no-store' }
+		)
 			.then(async (response) => {
 				if (!response.ok) throw new Error('Could not load the raw pose file.');
 				return response.text();
@@ -61,7 +65,9 @@
 </svelte:head>
 
 <main class="mx-auto max-w-5xl space-y-4 p-4 sm:p-8">
-	<a class="link" href="/research/studies?study={data.media.study}">Back to recordings</a>
+	<a class="link" href={`${resolve('/research/studies')}?study=${data.media.study}`}
+		>Back to recordings</a
+	>
 	<h1 class="text-xl font-semibold break-all">{data.media.source_stem}</h1>
 	<p class="text-sm">
 		{data.media.study === 'chi25_study1' ? 'Study 1' : 'Study 2'} · Raw image-space pose at 30 frames
@@ -74,7 +80,7 @@
 			bind:this={videoElement}
 			controls
 			preload="metadata"
-			src="/research/studies/media/{data.media.id}/video"
+			src={resolve('/research/studies/media/[id]/[kind]', { id: data.media.id, kind: 'video' })}
 			onloadedmetadata={onMetadata}
 			ontimeupdate={syncPose}
 			onseeked={syncPose}
@@ -108,7 +114,9 @@
 		><input type="checkbox" class="checkbox" bind:checked={showPose} /> Show raw pose</label
 	>
 	{#if poseError}<p class="text-error" role="alert">{poseError}</p>{/if}
-	<a class="link" href="/research/studies/media/{data.media.id}/pose" download
-		>Download raw 2D pose CSV</a
+	<a
+		class="link"
+		href={resolve('/research/studies/media/[id]/[kind]', { id: data.media.id, kind: 'pose' })}
+		download>Download raw 2D pose CSV</a
 	>
 </main>
