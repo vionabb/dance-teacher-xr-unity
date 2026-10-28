@@ -21,7 +21,7 @@ dependencies = [
     # SciPy 1.17 ports PROPACK to C, avoiding the malformed Fortran Mach-O
     # extension rejected by macOS 27's dynamic loader.
     "scipy==1.17.1",
-    "opencv-contrib-python==4.8.1.78",
+    "opencv-contrib-python==5.0.0.93",
     "pandas==2.3.3",
     "protobuf>=4.25.3,<5",
     "psutil==7.2.2",
