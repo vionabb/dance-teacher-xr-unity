@@ -16,7 +16,7 @@ dependencies = [
     # MediaPipe 1.0.0's Holistic task graph aborts on macOS when its Metal
     # service is unavailable, even when CPU inference is requested. The 0.10.x
     # Tasks runtime is compatible with the current Holistic pipeline.
-    "mediapipe==0.10.21",
+    "mediapipe==1.1.0",
     "numpy==1.26.4",
     # SciPy 1.17 ports PROPACK to C, avoiding the malformed Fortran Mach-O
     # extension rejected by macOS 27's dynamic loader.
