@@ -71,6 +71,8 @@ database checks, not production or actual iPad acceptance.
 
 Review the canonical rollout steps. Media-source recovery is integrated and
 synthetically verified; production HEAD/CORS and actual iPad acceptance remain.
-Publish the hosted-analysis PR on the newly merged main, and keep
-production data and access unchanged until the targeted import and backup gates
-are ready. Never push the old discrepancy branch ancestry.
+Draft [PR #431](https://github.com/vionabb/dance-teacher-xr-unity/pull/431) is
+published on the newly merged main. Its first CI run is pending. Keep production
+data and access unchanged until the targeted import and backup gates are ready.
+The single next action is to prepare that reviewed targeted import and verify
+managed backups; Vercel deployment remains rate-limited. Never push the old discrepancy branch ancestry.

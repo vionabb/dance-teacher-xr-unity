@@ -221,7 +221,7 @@ preserves every column. This is not a production backup or restore drill.
 
 ## Next action
 
-1. Verify PR #430's production deployment once Vercel permits it. Review the hosted-analysis PR with its data/schema gates.
+1. Verify PR #430's production deployment once Vercel permits it. Review [draft PR #431](https://github.com/vionabb/dance-teacher-xr-unity/pull/431) with its data/schema gates.
 2. Apply only `20261028210107_hosted_discrepancy_review.sql` through the reviewed
    targeted workflow. Do not use general `db push` across production's older
    migration-history gap. Run `scripts/importChi25Analysis.mjs` with approved
