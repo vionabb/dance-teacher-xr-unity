@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import type { DiscrepancyObservation } from '../research/discrepancy';
 import type sqlite3 from 'sqlite3';
 import Papa from 'papaparse';
 import { humanSimilarityCondition } from './research-identity.js';
@@ -257,6 +258,14 @@ async function withDatabase<T>(
 			db,
 			`CREATE INDEX IF NOT EXISTS local_video_usability_task
 			ON local_video_usability_revisions(task_id, revision_id DESC)`
+		);
+		await run(
+			db,
+			`CREATE TABLE IF NOT EXISTS discrepancy_observations (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, segment_id TEXT NOT NULL,
+ annotator TEXT NOT NULL, created_at TEXT NOT NULL, start_seconds REAL NOT NULL,
+ end_seconds REAL NOT NULL, note TEXT NOT NULL, direction TEXT NOT NULL,
+ tags_json TEXT NOT NULL, metric TEXT NOT NULL, context_json TEXT NOT NULL)`
 		);
 		return await action(db);
 	} finally {
@@ -628,5 +637,79 @@ export async function recordVideoUsabilityRating(
 			await run(db, 'ROLLBACK');
 			throw recordError;
 		}
+	});
+}
+
+export async function readDiscrepancyObservations(file: string, segmentId?: string) {
+	return withDatabase(file, async (db) => {
+		const rows = await all<
+			Omit<DiscrepancyObservation, 'tags' | 'context'> & { tags_json: string; context_json: string }
+		>(
+			db,
+			`SELECT * FROM discrepancy_observations ${segmentId ? 'WHERE segment_id = ?' : ''} ORDER BY id DESC`,
+			segmentId ? [segmentId] : []
+		);
+		return rows.map(({ tags_json, context_json, ...row }) => ({
+			...row,
+			tags: JSON.parse(tags_json) as string[],
+			context: JSON.parse(context_json) as unknown
+		}));
+	});
+}
+
+export async function saveDiscrepancyObservation(
+	file: string,
+	input: Omit<DiscrepancyObservation, 'id' | 'created_at'>
+) {
+	if (
+		!input.annotator.trim() ||
+		!/^[a-f0-9]{24}$/.test(input.segment_id) ||
+		!Number.isFinite(input.start_seconds) ||
+		!Number.isFinite(input.end_seconds) ||
+		input.start_seconds < 0 ||
+		input.end_seconds < input.start_seconds ||
+		!input.note.trim() ||
+		input.note.length > 4000
+	)
+		throw new Error('Invalid discrepancy observation');
+	return withDatabase(file, async (db) => {
+		await run(
+			db,
+			`INSERT INTO discrepancy_observations
+ (segment_id, annotator, created_at, start_seconds, end_seconds, note, direction, tags_json, metric, context_json)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				input.segment_id,
+				input.annotator,
+				new Date().toISOString(),
+				input.start_seconds,
+				input.end_seconds,
+				input.note,
+				input.direction,
+				JSON.stringify(input.tags),
+				input.metric,
+				JSON.stringify(input.context)
+			]
+		);
+		const [{ id }] = await all<{ id: number }>(db, 'SELECT last_insert_rowid() AS id');
+		let backupError: string | null = null;
+		try {
+			const folder = path.join(path.dirname(file), 'backups');
+			await mkdir(folder, { recursive: true });
+			const snapshot = path.join(folder, `research-after-observation-${id}-${Date.now()}.sqlite3`);
+			await run(db, 'VACUUM INTO ?', [snapshot]);
+			const copy = await openDatabase(snapshot);
+			try {
+				const integrity = await all<{ integrity_check: string }>(copy, 'PRAGMA integrity_check');
+				const saved = await all(copy, 'SELECT id FROM discrepancy_observations WHERE id = ?', [id]);
+				if (integrity[0]?.integrity_check !== 'ok' || saved.length !== 1)
+					throw new Error('Snapshot verification failed');
+			} finally {
+				await close(copy);
+			}
+		} catch (caught) {
+			backupError = caught instanceof Error ? caught.message : 'Snapshot failed';
+		}
+		return { id, backupError };
 	});
 }

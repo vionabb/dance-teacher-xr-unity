@@ -53,3 +53,11 @@ The test's video endpoint must implement byte ranges for seek assertions. It als
 ## Integration gates
 
 The hosting chat must supply compatible authenticated loaders/endpoints, immutable media and input provenance, owner-scoped durable writes and retry uniqueness, the missing reference-pose imports, and study/segment identity mapping. Real iPad Safari playback, long-paused signed media expiry/reseek, session/access changes and large-performance load/compute behavior remain unverified by this synthetic Chromium proof. No research findings or thesis claims changed.
+
+## Local backend restoration follow-up
+
+The hosting chat found that the portable composer also needs the existing loopback-only local backend when used in local mode. A separate textual transplant restores only the discrepancy table and store functions, task/identity join, `/api/dev/discrepancy/[segmentId]` handlers, and the hooks endpoint guard. The hosting chat retains ownership of the queue page's hosted/local server loader. Unrelated older whole-aggregate CSV import changes were excluded.
+
+Focused validation covers append-only observations, verified snapshots, separation from video-usability revisions, invalid intervals, and a forced backup-directory failure that returns a saved-row receipt with a warning rather than losing the committed observation. The three focused files (store, client-address boundary and observation validation) pass 13 tests; type checking remains zero errors and 12 baseline warnings; lint and build pass. Tests use disposable SQLite databases only.
+
+The media audit found no displayed-video error/reload path in either visualizer; their existing error listener and `load()` calls belong only to detached metadata probes. The hosting chat confirmed that hosted video DTOs contain stable authorized paths, which can issue fresh redirects. It requested a separate explicit-reload UI follow-up that preserves the playhead and drafts, performs no automatic retries, and resumes playback only following a user gesture. That follow-up is distinct from restoring the local backend.

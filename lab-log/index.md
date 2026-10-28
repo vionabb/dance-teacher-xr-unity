@@ -200,7 +200,6 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 - [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
   Records Viona's choice to serve both CHI25 studies to authorized accounts,
   with read-only participant videos and raw poses first. PR #428 merged after
-<<<<<<< HEAD
   browser acceptance; #429 added the 55 companion materials and menu repair.
   Viona accepted production and requested tablet analysis, discrepancy notes,
   metric visualizers and Codex chat; the hosted workspace plan defines that next stage.
@@ -209,14 +208,10 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Inventories the local review desk's runtime, schema, identity and alignment
   dependencies, including 20 additional reference poses. Defines the hosted
   data adapter, account-owned authoring and tablet acceptance boundaries.
-=======
-  browser acceptance; production holds 1,756 verified pairs and 55 scoped
-  companion materials. The next branch adds their browser route, repairs
-  `/menu`, and prepares removal of the human-ratings source from public Git history.
 
 - [2026-10-28 — Hosted discrepancy review browser UI](2026-10-28-hosted-discrepancy-ui.md)
   Transplanted the portable review desk and metric UI onto rewritten main, with
   authenticated draft scopes, viewer access and stable retry IDs. Synthetic
   Chromium validates save flows, replay and tablet/phone layouts; the hosting
-  chat owns backend integration and production/device acceptance.
->>>>>>> fc8bfe0 (Verify hosted discrepancy save flows and tablet layouts with synthetic data)
+  chat owns hosted backend integration and production/device acceptance. A follow-up
+  restores the loopback-only local discrepancy backend and snapshot checks.
