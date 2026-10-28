@@ -82,4 +82,16 @@ do $$ begin
  if (select count(*) from public.research_discrepancy_observation) <> 0 or (select count(*) from public.research_analysis_recording) <> 0 then raise exception 'Revoked membership retains access'; end if;
 end $$;
 reset role;
+set local role anon;
+do $$ begin
+ begin
+  perform 1 from public.research_analysis_recording;
+  raise exception 'Anonymous registry access allowed'; exception when insufficient_privilege then null;
+ end;
+ begin
+  perform 1 from public.research_discrepancy_observation;
+  raise exception 'Anonymous observation access allowed'; exception when insufficient_privilege then null;
+ end;
+end $$;
+reset role;
 select 'owner isolation, editor/viewer/revocation, study scope, version/interval checks, append-only permissions, authoritative provenance and retry uniqueness passed' as test_result;

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { getClipInfo, Study } from '$lib/ai/motionmetrics/PoseDataTestFile';
 import {
@@ -37,6 +38,17 @@ describe('hosted CHI25 analysis identities', () => {
 			prior.study1phase ?? null
 		]);
 		expect(hosted.legacyId).not.toBe(hosted.id);
+		const identity = [
+			prior.studyName,
+			prior.userId,
+			prior.danceName,
+			prior.workflowId,
+			prior.condition,
+			prior.study1phase ?? ''
+		].join('\0');
+		expect(hosted.performanceId).toBe(
+			createHash('sha256').update(`performance\0${identity}`).digest('hex').slice(0, 24)
+		);
 	});
 	it('does not invent a participant for an unidentified recording', () => {
 		expect(
