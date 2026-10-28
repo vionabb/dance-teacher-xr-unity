@@ -32,10 +32,14 @@ The migration was applied manually and its `20261028120000` version was then
 recorded in Supabase migration history after verifying both tables' RLS and
 all three research policies. The repository's older 2025 migration files are
 not recorded in this production project's history, so a future general
-`db push` still requires a separate history/schema audit. The first nominated
-account does not yet exist in this project's Auth users; it must sign up before
-viewer membership can be granted. An existing account nominated subsequently
-received viewer membership for both studies, confirmed as two access rows.
+`db push` still requires a separate history/schema audit. An existing account
+nominated subsequently received viewer membership for both studies, confirmed
+as two access rows. The initially nominated account later registered and also
+received viewer membership for both studies. Before that grant, a SQL-editor
+check with its authenticated user ID and role showed zero visible memberships
+and zero visible recordings under RLS; afterward it showed two memberships and
+all 1,756 catalog records. The administrative credential used for the grant
+was held only temporarily and cleared afterward.
 On the PR preview, the authorized account opened both study catalogs and a
 Study 2 video, and downloaded the paired raw pose CSV. The in-app browser's
 on-page pose overlay initially reported `Failed to fetch` even though that
@@ -51,8 +55,8 @@ routes accounts with research access through `/auth/landing` to
 `/research/studies`, leaving learner accounts on their existing path. This
 does not repair the missing learner-app table.
 The redeployed preview sent the signed-in research account from
-`/auth/landing` to `/research/studies`. Ordinary-account access testing and
-PR merge/deploy remain open.
+`/auth/landing` to `/research/studies`. A live browser test with the newly
+registered account and PR merge/deploy remain open.
 
 The existing local research SQLite and annotation workflow remain authoritative
 for their current tasks. Additional materials, including reference videos,
