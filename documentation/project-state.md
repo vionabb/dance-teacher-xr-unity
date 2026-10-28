@@ -102,11 +102,13 @@ Status: **in progress**
 - Keep raw `pose2d` for source-aligned overlays.
 - Maintain parity between tested metric behavior and live frontend use.
 - Integrate self-report, performance history, and coaching decisions without hiding uncertainty.
-- Build a local researcher workspace within the Svelte application so dataset,
-  annotation, metric, and pipeline inspection can share versioned identities
-  and provenance. The first local SQLite/read-only integration is planned, not
-  yet an implemented replacement for the annotation server or metric exports;
-  see the [research workspace direction](research-workspace.md).
+- The Svelte researcher workspace has local SQLite read/whole-video usability
+  flows and a separate hosted, authorized CHI25 source collection. Viona
+  accepted the read-only production release on 2026-10-28. Her next priority is
+  tablet-based discrepancy annotation, metric visualization and Codex-assisted
+  analysis; see the [hosted workspace plan](hosted-research-workspace.md).
+  Those interactive hosted workflows remain planned, and the existing annotation
+  server and metric exports retain their current authority.
 
 ### Adaptive coaching
 

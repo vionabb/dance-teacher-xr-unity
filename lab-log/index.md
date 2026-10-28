@@ -200,6 +200,11 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 - [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
   Records Viona's choice to serve both CHI25 studies to authorized accounts,
   with read-only participant videos and raw poses first. PR #428 merged after
-  browser acceptance; production holds 1,756 verified pairs and 55 scoped
-  companion materials. The next branch adds their browser route, repairs
-  `/menu`, and prepares removal of the human-ratings source from public Git history.
+  browser acceptance; #429 added the 55 companion materials and menu repair.
+  Viona accepted production and requested tablet analysis, discrepancy notes,
+  metric visualizers and Codex chat; the hosted workspace plan defines that next stage.
+
+- [2026-10-28 — Discrepancy hosting handoff](2026-10-28-discrepancy-hosting-handoff.md)
+  Inventories the local review desk's runtime, schema, identity and alignment
+  dependencies, including 20 additional reference poses. Defines the hosted
+  data adapter, account-owned authoring and tablet acceptance boundaries.
