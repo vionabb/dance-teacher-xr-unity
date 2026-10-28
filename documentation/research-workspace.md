@@ -177,6 +177,10 @@ catalog row only after both objects pass. It can resume after interruption and
 rejects a conflicting catalog row or object. Confirm the target project's
 storage capacity and upload limit first.
 
+For an initial production check, append `--pilot` to select one deterministic
+video/pose pair from each study. Run the same command without `--pilot` after
+verifying both pilot rows, direct Storage access controls, and playback.
+
 To grant or revoke access after an account exists, set `RESEARCH_ACCOUNT_EMAIL`,
 `NEXT_PUBLIC_SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`, then run
 `node scripts/manageResearchAccess.mjs` or append `--revoke`. The email is an
