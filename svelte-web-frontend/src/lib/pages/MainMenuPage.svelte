@@ -23,6 +23,9 @@
 </script>
 
 <section>
+	{#if danceTiles.length === 0}
+		<p class="mx-auto max-w-xl text-center">No dances are available to learn right now.</p>
+	{/if}
 	<div
 		class="
         grid grid-cols-[repeat(auto-fit,_minmax(18rem,1fr))]
