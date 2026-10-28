@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ url, locals: { session }, depends }
 
 	// if the user is already logged in return them to the account page
 	if (session) {
-		redirect(302, '/menu');
+		redirect(302, '/auth/landing');
 	}
 
 	return { server_url: url.origin, session };

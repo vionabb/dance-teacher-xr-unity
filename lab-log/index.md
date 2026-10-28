@@ -196,3 +196,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Tracks the three open PRs, current local-only usability authoring, the
   October 2 main merge and Vercel preview repair, and remaining researcher
   authorization, frame-correction, metric-runner, and pipeline-job work.
+
+- [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
+  Records Viona's choice to serve both CHI25 studies to authorized accounts,
+  with read-only participant videos and raw poses first. Production Storage
+  holds 1,756 verified pairs; the draft PR awaits final browser access checks
+  and deployment.

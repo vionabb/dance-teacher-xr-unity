@@ -17,6 +17,7 @@ This document owns data provenance, sensitivity, storage, and transfer rules. Go
 | Generated metric outputs | `svelte-web-frontend/testResults/` | Local/generated results and browser profiles |
 | Reference motion cache | `data/reference_motions/` | Videos/raw poses ignored; `db.csv` committed; downstream outputs generated locally |
 | Participant motion cache | `data/participant_motions/{chi25_study1,chi25_study2}/` | Access-controlled videos/raw poses ignored; processed outputs generated locally |
+| Hosted CHI25 serving copy (planned) | Private Supabase `research-chi25` bucket | Read-only to authorized research accounts after migration and verified import; Drive remains the source of truth |
 
 Never infer consent, redistribution permission, or de-identification from the existence of a local file. Treat raw participant videos as sensitive and access-controlled.
 
