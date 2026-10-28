@@ -59,6 +59,9 @@ class SupabaseDataBackend implements IDataBackend {
 	async getMotionVideos(): Promise<MotionVideo[]> {
 		const { data, error } = await this.supabase.from('motion_video').select('*');
 		if (error) {
+			// The hosted research instance can exist before the older learner schema
+			// is installed. Keep the menu navigable while that catalog is absent.
+			if (['PGRST205', '42P01'].includes(error.code)) return [];
 			throw error;
 		}
 		return data || [];

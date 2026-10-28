@@ -199,6 +199,7 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 
 - [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
   Records Viona's choice to serve both CHI25 studies to authorized accounts,
-  with read-only participant videos and raw poses first. Production Storage
-  holds 1,756 verified pairs; the draft PR awaits final browser access checks
-  and deployment.
+  with read-only participant videos and raw poses first. PR #428 merged after
+  browser acceptance; production holds 1,756 verified pairs and 55 scoped
+  companion materials. The next branch adds their browser route, repairs
+  `/menu`, and prepares removal of the human-ratings source from public Git history.

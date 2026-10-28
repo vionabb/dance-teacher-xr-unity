@@ -13,11 +13,12 @@ This document owns data provenance, sensitivity, storage, and transfer rules. Go
 | Processed frontend media | Drive `processed-media-bundle/` | Writable cache; replace only after frontend validation |
 | Generated local analysis | `artifact-archive/`, subproject artifact/temp folders | Local working outputs; often ignored by git |
 | Research narrative assets | `lab-log/assets/` | Committed copies used by lab-log entries |
-| Checked-in metric fixtures | `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/` | Small durable fixtures and human-rating metadata |
+| Checked-in metric fixtures | `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/` | Small nonsensitive fixtures; human ratings are private |
+| CHI25 human ratings source | Private Google Drive file `chi25-humanratings-source.csv`; ignored local copy `local-data/chi25-humanratings-source.csv` | Full source for offline analysis and imports; two study-specific authorized exports are in private Supabase Storage |
 | Generated metric outputs | `svelte-web-frontend/testResults/` | Local/generated results and browser profiles |
 | Reference motion cache | `data/reference_motions/` | Videos/raw poses ignored; `db.csv` committed; downstream outputs generated locally |
 | Participant motion cache | `data/participant_motions/{chi25_study1,chi25_study2}/` | Access-controlled videos/raw poses ignored; processed outputs generated locally |
-| Hosted CHI25 serving copy (planned) | Private Supabase `research-chi25` bucket | Read-only to authorized research accounts after migration and verified import; Drive remains the source of truth |
+| Hosted CHI25 serving copy | Private Supabase `research-chi25` bucket | Authorized, read-only serving copy of both studies' participant videos/raw poses and selected companion materials; Drive and the frozen review release remain authoritative |
 
 Never infer consent, redistribution permission, or de-identification from the existence of a local file. Treat raw participant videos as sensitive and access-controlled.
 
@@ -34,7 +35,7 @@ The earlier CHI studies provide participant performances, reference videos, huma
 
 - Reference videos/raw poses: `data/reference_motions/{videos,pose-raw}/`
 - Participant videos/raw poses: `data/participant_motions/<study>/{videos,pose-raw}/`
-- Human ratings and fixture definitions: `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
+- Human ratings: private Drive source, staged locally at `local-data/chi25-humanratings-source.csv` (or `HUMAN_RATINGS_PATH`); fixture definitions remain in `svelte-web-frontend/src/lib/ai/motionmetrics/testdata/`
 - Aggregate metric outputs: `svelte-web-frontend/artifacts/motion_metrics.csv` and `.db`
 
 Historical raw-video path on the primary workstation:
