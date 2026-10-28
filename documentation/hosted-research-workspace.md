@@ -190,7 +190,7 @@ and agent sessions must enforce study/account scope.
 
 ## Implementation checkpoint (2026-10-28)
 
-The menu change is PR #430, pending merge authorization. Its GitHub code checks
+The menu change merged as PR #430 (main `bc26597`) after Viona authorized the merge. Its GitHub code checks
 pass; Vercel reports a deployment rate limit with a 24-hour retry. Production
 has not yet received the new menu, visualizers or discrepancy authoring.
 
@@ -221,8 +221,7 @@ preserves every column. This is not a production backup or restore drill.
 
 ## Next action
 
-1. Merge the authorized menu PR and verify its production deployment once
-   Vercel permits it. Review the hosted-analysis PR with its data/schema gates.
+1. Verify PR #430's production deployment once Vercel permits it. Review the hosted-analysis PR with its data/schema gates.
 2. Apply only `20261028210107_hosted_discrepancy_review.sql` through the reviewed
    targeted workflow. Do not use general `db push` across production's older
    migration-history gap. Run `scripts/importChi25Analysis.mjs` with approved

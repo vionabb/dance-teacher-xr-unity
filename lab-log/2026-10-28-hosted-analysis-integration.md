@@ -43,13 +43,13 @@ gate; the documented OSS VM procedure does not bypass it. No credentials were
 moved and no model/compute billing was enabled.
 
 PR #430's code checks pass, but Vercel reports a deployment rate limit and a
-24-hour retry. It is still awaiting merge authorization. This limits deployment;
+24-hour retry. Viona authorized merging it, and it merged as `bc26597`. This limits deployment;
 it does not establish that the hosted analysis feature is live. No thesis
 claims or evaluated outcomes changed.
 
 ## Resumption
 
 Review the canonical rollout steps. Finish media-source reload integration and
-its focused checks, publish the hosted-analysis PR stacked on #430, and keep
+its focused checks, publish the hosted-analysis PR on the newly merged main, and keep
 production data and access unchanged until the targeted import and backup gates
 are ready. Never push the old discrepancy branch ancestry.
