@@ -201,5 +201,5 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Records Viona's choice to serve both CHI25 studies to authorized accounts,
   with read-only participant videos and raw poses first. PR #428 merged after
   browser acceptance; production holds 1,756 verified pairs and 55 scoped
-  companion materials. The next branch adds their browser route and repairs
-  the missing-table `/menu` failure.
+  companion materials. The next branch adds their browser route, repairs
+  `/menu`, and prepares removal of the human-ratings source from public Git history.

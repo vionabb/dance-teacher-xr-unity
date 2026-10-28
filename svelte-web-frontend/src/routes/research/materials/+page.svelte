@@ -23,7 +23,7 @@
 		{#each references as item (item.id)}
 			<article class="card border-base-300 bg-base-100 border p-4">
 				<h3 class="font-medium">{item.label}</h3>
-				<!-- svelte-ignore a11y_media_has_caption: Source reference videos have no caption tracks. -->
+				<!-- svelte-ignore a11y_media_has_caption -->
 				<video
 					class="mt-3 max-h-96 w-full bg-black"
 					controls
