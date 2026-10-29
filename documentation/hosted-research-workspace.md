@@ -170,7 +170,7 @@ deployment continues through repository review.
 3. **Discrepancy authoring.** Add schema/RLS/API and account-scoped drafts, then
    extend the access command with validated role selection and preservation of
    existing grants, and grant intended editor access administratively. The
-   current command always grants `viewer`. Verify save/reload/export,
+   command validates `RESEARCH_ROLE` and preserves existing roles when omitted. Verify save/reload/export,
    retries, owner spoofing, cross-study/source-version denial, viewer denial
    and restore/export recovery.
 4. **Codex conversation.** Resolve supported subscription registration/hosting,
@@ -190,54 +190,129 @@ and agent sessions must enforce study/account scope.
 
 ## Implementation checkpoint (2026-10-28)
 
-The menu change merged as PR #430 (main `bc26597`) after Viona authorized the merge. Its GitHub code checks
-pass; Vercel reports a deployment rate limit with a 24-hour retry. Production
-has not yet received the new menu, visualizers or discrepancy authoring.
+PR #430 merged at main `bc26597`. The signed-in Vercel dashboard still identifies
+production as `9b130fd` (#429); the new menu is therefore not live yet.
+[PR #431](https://github.com/vionabb/dance-teacher-xr-unity/pull/431) contains the
+hosted viewers, review desk and cloud adapters. The browser now sends its compiled
+metric release and the input version from the loaded performance; newer server
+metadata cannot silently relabel an old tab or its draft.
 
-The next branch integrates both metric viewers and the discrepancy desk with
-hosted catalog/reference adapters. It preserves the loopback-only local backend.
-Hosted notes use study-specific editor/admin access, account ownership,
-append-only rows, UUID retry receipts, explicit JSON-origin checks and bounded
-request bodies. A database trigger records authoritative source and metric
-provenance; submitted display context is labeled diagnostic. Input versions
-and the built metric fingerprint must match before a save is allowed. A changed
-metric release needs an explicit registry migration; inputs are not silently
-replaced after observations reference them.
+The targeted production migration is applied. Supabase assigned version
+`20261029031032`; the byte-identical repository migration was renamed to match
+that recorded version. Do not apply the older filename again or run a general
+`db push` across the project's older migration-history gap.
 
-The importer dry run validates 20 additional reference CSVs, all 1,570 original
-rating rows and 1,724 identified recordings. It finds 743 exact eligible
-recording/rating/reference joins (591 Study 1, 152 Study 2). Of Study 2's
-identified recordings, 450 match participant/dance/segment but differ in the
-condition, and 447 have no such rating row. Do not drop condition from the join
-or infer a correction. The 32 videos with missing participant identifiers stay
-in the accepted raw collection. These counts describe data availability, not
-metric validity or a representative review sample.
+The insert-only production import is complete:
 
-The migration and role matrix pass against isolated Postgres WASM with
-synthetic accounts. Tests cover owner/study isolation, editor/viewer/revocation,
-append-only permissions, interval/input-version validation, authoritative
-provenance and retry uniqueness. The synthetic note JSON export/restore check
-preserves every column. This is not a production backup or restore drill.
+| Registry                         | Imported rows |
+| -------------------------------- | ------------: |
+| Legacy reference poses/clip maps |            20 |
+| Original rating rows             |         1,570 |
+| Identified recordings            |         1,724 |
+| Exact reviewable joins           |           743 |
+| Research observations            |             0 |
 
-## Next action
+The raw collection remains 1,756 video/pose pairs. All original media/material
+catalog rows are unchanged. The 20 new pose objects (9,461,451 bytes) were
+read back and hash/size verified. The existing 55 materials remain, giving 75
+materials in total. The current compiled metric fingerprint matches the registry.
 
-1. Verify PR #430's production deployment once Vercel permits it. Review [draft PR #431](https://github.com/vionabb/dance-teacher-xr-unity/pull/431) with its data/schema gates.
-2. Apply only `20261028210107_hosted_discrepancy_review.sql` through the reviewed
-   targeted workflow. Do not use general `db push` across production's older
-   migration-history gap. Run `scripts/importChi25Analysis.mjs` with approved
-   local source roots, first dry-run, then `--upload` with a temporary server-side
-   admin configuration. It verifies existing video/pose/material hashes and
-   downloads the 20 newly uploaded poses to verify their hashes.
-3. Reconcile hosted counts and test authenticated read access and viewer denial
-   before enabling editors. Confirm managed backup retention and perform a
-   separate staging restore drill. `RESEARCH_ROLE=editor` with
-   `scripts/manageResearchAccess.mjs` grants note authoring; its default preserves
-   existing roles and creates new memberships as viewers. Media remain read-only.
-4. Finish preview/production account tests, actual iPad Safari portrait/landscape,
-   interrupted Wi-Fi, source refresh after tab sleep and large-performance
-   profiling. Synthetic responsive Chromium tests do not establish device acceptance.
-5. For the Codex stage, resolve hosted SIWC registration/eligibility and the
-   repository's licensing decision. Native app-server ChatGPT login does not
-   authorize a hosted website. No compute service, subscription authorization or
-   API spending has been provisioned. The candidate architecture remains an
-   isolated persistent worker behind the authenticated website and Supabase.
+Exact review coverage is 591 Study 1 and 152 Study 2 recordings. Of Study 2's
+identified recordings, 450 match participant/dance/segment but differ in
+condition, and 447 have no such rating row. Preserve condition in the join.
+The 32 missing-participant-ID videos remain in the raw collection. These counts
+are availability boundaries, not metric validation or representative sampling.
+
+Live production read-only checks confirm both authorized accounts can read their
+two studies; an unlisted account sees no registry, ratings, references, media or
+private Storage objects. Anonymous registry reads/note inserts/source updates
+are denied. Signed Storage HEAD returns 200 with CORS, byte-range reads return
+206, and the public-object path is denied. These checks do not establish the
+not-yet-deployed website's end-to-end acceptance or actual tablet expiry recovery.
+
+## Backup and authoring gate
+
+Supabase Pro retains seven daily database backups. At inspection the dashboard
+showed **No backups yet / Check again tomorrow**. Database backups exclude
+Storage object bytes; keep the independent source/archive copies. See
+[Supabase backup coverage](https://supabase.com/docs/guides/platform/backups).
+
+Private before/after snapshots cover all eight research tables after import
+(three existed before import). Every captured row restores identically into an
+isolated Postgres WASM database. The restore recipe repairs the note identity
+sequence and verifies that a restored nonzero ID permits the next append.
+Auth identity stubs in that isolated test are referential placeholders, not
+restored sign-in accounts. This is a scoped logical row-restore proof, not a
+full managed-project/Auth/Storage disaster-recovery drill.
+
+Snapshots and detailed verification live under ignored
+`local-data/research-cloud-backups/` with private filesystem permissions. The
+production import created no test observations. Local discrepancy data were
+rechecked read-only before import: 1,570 ratings and zero observations.
+
+Viona authorized the research Drive destination through rclone. The before-import,
+after-import and post-editor-grant snapshots, their restore reports and the cloud
+verification report are archived at
+`agentoutput:2026-10-28-hosted-chi25-backups/`. A download-based rclone check
+verified all seven files with zero differences. No credentials or Storage bytes
+are in these snapshots.
+
+The primary research account now has editor access to both studies; the older
+account retains viewer access. The final access snapshot restores identically
+and is included in that verified archive. Source media remain read-only, and
+observations remain append-only: authenticated users cannot update/delete notes
+or update the media table. Production still contains zero observations.
+
+## Personal ChatGPT subscription path
+
+Viona clarified that the agent should use **her own ChatGPT subscription**,
+with no expected use by other researchers. Gate the agent separately from
+study membership: one configured owner UUID, one validated ChatGPT
+subject/workspace and one isolated worker. Do not make her plan available to
+another portal account, including a future research editor.
+
+The official [self-hosted VM guide](https://developers.openai.com/siwc/token-sharing-open-source/self-hosted-vms)
+documents SIWC for an open-source tool on a personal VM. It requires a dedicated
+app registration, distinct persistent VM host ID, local OAuth completion,
+protected transfer of that registration and worker-owned token refresh. The
+[overview](https://developers.openai.com/siwc/token-sharing-open-source) separately
+directs remotely hosted applications to its interest process. A private portal's
+precise eligibility needs confirmation; a single user does not itself prove
+that the hosted-app restriction is waived. Native app-server ChatGPT login is
+not the supported authentication path for a hosted service.
+
+The concrete next steps are: confirm the personal VM/portal classification
+and the app's open-source/licensing status; obtain supported SIWC registration;
+complete the owner's OAuth consent; then choose and approve a private Linux
+worker's hosting cost. Keep tokens outside Vercel, Supabase tables, Git and the
+agent's working directory. The worker supplies Node/Python tools and persistent
+threads behind the existing authenticated website. Prove account binding,
+refresh, cancellation, quota errors and thread resume before enabling it.
+No model API billing, compute purchase or subscription registration has been
+provisioned. API billing is not a fallback selected by Viona.
+
+The [interest form](https://openai.com/form/sign-in-with-chatgpt-interest/) asks
+for contact/name, organization, website, desired capabilities and a product
+description. A truthful request is a private academic motion-analysis portal
+for one researcher using her own plan and user-controlled worker; ask whether
+the documented personal VM route covers it or a hosted client ID is required.
+Submitting that external request and its contact details needs Viona's explicit
+authorization. Do not represent an academic affiliation or commercial company
+that she has not supplied.
+
+## Deployment/operator steps
+
+1. Scoped off-site snapshots, isolated row restores, editor grants and post-grant
+   read-only verification are complete. Inspect the first managed daily backup
+   when available; a full managed-project restore is not established by these checks.
+2. Require passing code CI and inspect the exact PR head. Vercel's owner limit
+   is 100 deployments per 86,400 seconds. Dashboard inspection did not expose
+   an absolute reset time; GitHub recorded only a 24-hour/one-day retry hint.
+   Do not present that as an exact reset timestamp or repeatedly retry blocked
+   deployments. [Vercel rate limits](https://vercel.com/docs/limits#rate-limits).
+3. Once deployment is permitted, verify an authorized account's catalog,
+   exact review context, save/retry/export and viewer denial against the actual
+   preview. Merge/deploy only through the authorized repository workflow.
+4. Complete actual iPad Safari portrait/landscape, interrupted Wi-Fi, keyboard,
+   tab sleep/signed-source renewal and large-performance profiling. Keep these
+   manual/device checks distinct from the passing synthetic Chromium suite.

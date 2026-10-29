@@ -217,5 +217,6 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 
 - [2026-10-28 — Hosted analysis integration](2026-10-28-hosted-analysis-integration.md)
   Integrates cloud catalog/notes with the portable desk and metric viewers;
-  records strict import coverage and isolated Postgres authorization tests.
-  Production import/device acceptance and subscription registration remain gates.
+  records the completed production import, strict rating coverage, live access
+  checks, exact scoped row restores, verified research Drive backups and scoped
+  editor grants. Deployment/device acceptance and personal SIWC eligibility remain gates.

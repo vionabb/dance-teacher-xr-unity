@@ -23,7 +23,7 @@ try {
 	for (const migration of [
 		'20261028120000_hosted_chi25_research.sql',
 		'20261028191953_hosted_chi25_materials.sql',
-		'20261028210107_hosted_discrepancy_review.sql'
+		'20261029031032_hosted_discrepancy_review.sql'
 	])
 		await db.exec(await readFile(`supabase/migrations/${migration}`, 'utf8'));
 	await db.exec(`
@@ -52,6 +52,22 @@ try {
 		[exported]
 	);
 	assert.deepEqual((await db.query('select * from restored_notes')).rows, notes);
+	// Logical restores must repair identity sequences before accepting another note.
+	await db.exec(
+		'create temporary table restored_identity (id bigint generated always as identity primary key, note text)'
+	);
+	await db.exec(
+		"insert into restored_identity(id,note) overriding system value values (42,'restored note')"
+	);
+	await db.exec(
+		"select setval(pg_get_serial_sequence('restored_identity','id'),(select max(id) from restored_identity),true)"
+	);
+	assert.equal(
+		(await db.query("insert into restored_identity(note) values ('next note') returning id::text"))
+			.rows[0].id,
+		'43'
+	);
+
 	await db.exec('rollback');
 	assert.equal(
 		(await db.query('select count(*)::int as count from public.research_discrepancy_observation'))

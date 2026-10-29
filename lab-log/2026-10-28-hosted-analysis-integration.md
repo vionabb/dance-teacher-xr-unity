@@ -1,7 +1,8 @@
 ---
 date: 2026-10-28
 tags: [research-studio, hosting, discrepancy-review, supabase, codex]
-artifacts: []
+artifacts:
+  - assets/2026-10-28-hosted-cloud-readiness/verification.json
 ---
 
 # Hosted analysis integration checkpoint
@@ -76,3 +77,64 @@ published on the newly merged main. Its first CI run is pending. Keep production
 data and access unchanged until the targeted import and backup gates are ready.
 The single next action is to prepare that reviewed targeted import and verify
 managed backups; Vercel deployment remains rate-limited. Never push the old discrepancy branch ancestry.
+
+## Authorized production import and readiness follow-up
+
+Viona explicitly requested finishing production import and backup verification
+while Vercel is blocked, and clarified that the web agent should use her own
+ChatGPT subscription; she does not anticipate another portal user. The hosting
+chat continues to own cloud mutations and deployment preparation.
+
+Applied the reviewed schema through Supabase MCP. Its recorded migration version
+is `20261029031032`; the SQL file was renamed byte-for-byte to align with remote
+history. The insert-only importer completed: 20 additional private reference
+poses/maps, 1,570 ratings, one metric manifest and 1,724 analysis recordings.
+There are 743 exact review tasks (591 Study 1,152 Study 2). The 1,756 original
+media pairs and all 55 prior material rows remain unchanged; materials now total 75.
+No production test observations were written.
+
+The before/after snapshots restore every research row identically in isolated
+Postgres WASM. Snapshot SHA-256 values are respectively
+`83abc62f80b738224f35a88cceba81d4f565401959e7ebeee4f21b5f48046656`
+and `b08e014a732c56ba811af5786da5fd4ebec24db3d04dc1691e74bee3e7e77d2b`.
+These private snapshots cover research rows only; they do not back up Auth
+credentials or Storage bytes. The restore recipe now advances the note identity
+sequence and proves that a restored nonzero ID permits the next append.
+
+Production read-only checks verified authorized study visibility, zero rows and
+zero private objects for an unlisted account, anonymous denial, all 20 reference
+pose hashes/byte counts, current metric-manifest agreement and signed video
+HEAD 200/CORS plus 206 byte ranges. The public Storage URL remains denied.
+Pro shows daily backup scheduling with seven-day retention, but no first backup
+available yet. Automatic review rejected the initial Drive attempt before upload;
+Viona subsequently authorized the research Drive via rclone. Seven files now
+match on download-based verification at
+`agentoutput:2026-10-28-hosted-chi25-backups/`: before/after/post-grant snapshots,
+their restore reports and the cloud verification report. The primary account is
+now editor for both studies, while the older account remains viewer. Source
+updates and observation updates/deletes remain denied. The post-grant snapshot
+SHA-256 is `7b15cdbdffa008ea0651d605e4706e7dc913aa560a832d039596377e194a726f`;
+its isolated restore and next-append identity proof pass. No production test
+notes were created.
+
+The other chat independently reviewed the boundary and found a stale-tab
+provenance gap. Imported its fix as `dbb3bb4`: the composer binds notes/drafts to
+the loaded performance input version and the browser's compiled metric release;
+missing or changed bindings are rejected. Current retries remain idempotent.
+All 35 focused tests pass after integration; the combined synthetic browser suite
+also passes with stale-draft retention and source-recovery cases. Schema/RLS,
+`pnpm check` (zero errors, 12 existing warnings), lint and production build pass.
+
+Signed-in Vercel dashboard inspection still identifies production as 9b130fd
+(#429). The owner 100/day quota is documented; neither the inspected dashboard
+nor GitHub's 24-hour retry hint establishes an absolute reset timestamp. No
+manual deployment attempts were made. Existing advisor warnings concern the
+legacy signup function/Auth settings and intentional authenticated GraphQL
+schema discoverability; all research tables have RLS and live denial checks pass.
+
+The canonical hosted-workspace document now records the single-owner SIWC/VM
+path, its unresolved hosted-app eligibility/licensing boundary, the external
+interest-request content needed if required, and the remaining operator/device
+gates. No subscription credentials or API/compute billing were provisioned.
+
+[Production verification summary](assets/2026-10-28-hosted-cloud-readiness/verification.json) contains counts/statuses only, with no credentials or account identifiers.
