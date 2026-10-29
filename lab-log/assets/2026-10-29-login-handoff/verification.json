@@ -1,0 +1,11 @@
+{
+  "syntheticOnly": true,
+  "productionBuild": true,
+  "sessionCookieAndRedirect": true,
+  "requestedPathAndQueryPreserved": true,
+  "survivesReload": true,
+  "javaScriptDisabled": true,
+  "alreadySignedInRedirect": true,
+  "invalidCredentialsStayOnForm": true,
+  "authRedirectNotCacheable": true
+}
