@@ -221,3 +221,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   checks, exact scoped row restores, verified research Drive backups and scoped
   editor grants. Live preview reads and account controls pass; note-save/device
   acceptance and personal SIWC eligibility remain gates.
+
+- [2026-10-29 — Password login handoff](2026-10-29-login-handoff.md)
+  Repairs the post-login bounce through server-set cookies and safe preserved
+  destinations. Production-mode synthetic browser checks cover reloads,
+  JavaScript-disabled sign-in, errors and non-cacheable redirects.

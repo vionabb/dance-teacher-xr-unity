@@ -321,3 +321,21 @@ that she has not supplied.
 4. Complete actual iPad Safari portrait/landscape, interrupted Wi-Fi, keyboard,
    tab sleep/signed-source renewal and large-performance profiling. Keep these
    manual/device checks distinct from the passing synthetic Chromium suite.
+
+## Login handoff follow-up (2026-10-29)
+
+Viona reported that password sign-in succeeded but returned to login; manually
+opening `/research` then worked. The repair keeps `/login` dynamic and posts
+password sign-in to a SvelteKit server action. Supabase writes session cookies
+onto the same redirect response; the browser no longer races a client-side Auth
+notification/invalidation against a separate navigation. Anonymous page requests
+carry their path/query in `next`, validated to reject external and authentication
+loop destinations. Direct sign-in retains the role-aware landing default. Login
+and landing responses and anonymous redirects are private/no-store. Account
+creation and password-reset UI keep their existing client flows.
+
+A production-mode local browser regression uses synthetic Auth responses only.
+It verifies sign-in returns to the requested research query, survives reload,
+works without JavaScript, redirects already signed-in visitors, and keeps invalid
+credentials on the form. Real production credentials are never used by the test.
+The fix has no study-data, access-role or thesis-result changes.
