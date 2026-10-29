@@ -228,7 +228,7 @@ two studies; an unlisted account sees no registry, ratings, references, media or
 private Storage objects. Anonymous registry reads/note inserts/source updates
 are denied. Signed Storage HEAD returns 200 with CORS, byte-range reads return
 206, and the public-object path is denied. These checks do not establish the
-not-yet-deployed website's end-to-end acceptance or actual tablet expiry recovery.
+website's save/retry acceptance or actual tablet expiry recovery.
 
 ## Backup and authoring gate
 
@@ -305,14 +305,19 @@ that she has not supplied.
 1. Scoped off-site snapshots, isolated row restores, editor grants and post-grant
    read-only verification are complete. Inspect the first managed daily backup
    when available; a full managed-project restore is not established by these checks.
-2. Require passing code CI and inspect the exact PR head. Vercel's owner limit
-   is 100 deployments per 86,400 seconds. Dashboard inspection did not expose
-   an absolute reset time; GitHub recorded only a 24-hour/one-day retry hint.
-   Do not present that as an exact reset timestamp or repeatedly retry blocked
-   deployments. [Vercel rate limits](https://vercel.com/docs/limits#rate-limits).
-3. Once deployment is permitted, verify an authorized account's catalog,
-   exact review context, save/retry/export and viewer denial against the actual
-   preview. Merge/deploy only through the authorized repository workflow.
+2. All checks passed at `5be82a4`, and Vercel successfully deployed that preview
+   as `8FqhxKTj3tQyTmCfVeYzzz9FRpSu`. The earlier deployment quota rejection no
+   longer blocks this preview. PR #431 is ready for review, with production
+   unchanged. Do not infer merge approval from signing in to the preview.
+3. Live in-app-browser checks at that head confirm catalog access, both metric
+   visualizers, loaded participant/reference videos, 743 review tasks (152 in
+   Study 2), primary-account editing controls and secondary-account viewer
+   controls. Next-segment navigation preserves the clip/timeline context. The
+   app menu renders its empty learner catalog without a 500. No artificial
+   production notes were created; live save/reload/retry with a real observation
+   remains acceptance work. Transient fetch failures also exposed a Retry
+   restoration bug; the focused follow-up adds recovery for the selected
+   performance and a failed observation GET, with retained browser drafts.
 4. Complete actual iPad Safari portrait/landscape, interrupted Wi-Fi, keyboard,
    tab sleep/signed-source renewal and large-performance profiling. Keep these
    manual/device checks distinct from the passing synthetic Chromium suite.

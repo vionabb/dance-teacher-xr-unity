@@ -138,3 +138,30 @@ interest-request content needed if required, and the remaining operator/device
 gates. No subscription credentials or API/compute billing were provisioned.
 
 [Production verification summary](assets/2026-10-28-hosted-cloud-readiness/verification.json) contains counts/statuses only, with no credentials or account identifiers.
+
+### Live preview acceptance follow-up
+
+Final preparation head `5be82a4` passed all GitHub checks and Vercel successfully
+deployed preview `8FqhxKTj3tQyTmCfVeYzzz9FRpSu`; PR #431 was marked ready for
+review. Production was not promoted. The primary and older accounts were both
+checked after Viona signed in herself. The older account exposes read-only
+review controls; the primary account exposes an enabled editor with no stale
+binding warning. Both studies load participant/reference videos (readyState 4),
+pose-derived metrics and human-rating context. Next-segment navigation advances
+the clip and global timeline correctly. The queue has 743 tasks, including 152
+Study 2 matches. The app menu renders the empty learner catalog without a 500.
+The export control was exercised; the browser download payload was not separately
+inspected. No test notes or draft text were added to production.
+
+A transient performance fetch failure exposed a Retry bug: reserving the URL
+restoration key before the failed load prevented Retry from reopening that
+performance. Integrated the annotations chat's follow-up as `ea048ad` and `9ba9744`: both
+visualizers now release failed URL restorations for Retry, hosted picker copy
+identifies the account-backed catalog, and the composer can retry a failed
+context GET while retaining its owner/input-bound draft. The synthetic browser
+regressions recover the same URL's later segment after an initial performance
+failure and prove draft retention after a failed context GET, without an extra
+POST. Combined browser checks, 35 focused tests, typecheck, lint, build and Svelte
+autofixers pass in the isolated integration clone. No remaining autofixer approval
+gate: inspected local handler evidence resolved automatic review's initial rejection.
+Actual research-note saving and physical iPad/long-pause acceptance remain gates.

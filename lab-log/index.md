@@ -219,4 +219,5 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Integrates cloud catalog/notes with the portable desk and metric viewers;
   records the completed production import, strict rating coverage, live access
   checks, exact scoped row restores, verified research Drive backups and scoped
-  editor grants. Deployment/device acceptance and personal SIWC eligibility remain gates.
+  editor grants. Live preview reads and account controls pass; note-save/device
+  acceptance and personal SIWC eligibility remain gates.
