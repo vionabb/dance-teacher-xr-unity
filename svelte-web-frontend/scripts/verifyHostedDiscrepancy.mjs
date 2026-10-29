@@ -115,6 +115,8 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 		fail = true;
 	let serverMetricReleaseId = metricReleaseId;
 	const submissions = [];
+	let failReviewRequests = 0;
+	let reviewRequests = 0;
 	let failPerformanceRequests = 0;
 	let performanceRequests = 0;
 	let retryMultiSegment = false;
@@ -196,6 +198,11 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 				return route.fulfill({
 					json: { id: 1, observations, ...(hosted ? { backend: 'hosted' } : {}) }
 				});
+			}
+			reviewRequests++;
+			if (failReviewRequests > 0) {
+				failReviewRequests--;
+				return route.abort('failed');
 			}
 			return route.fulfill({
 				json: {
@@ -316,8 +323,19 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	assert.equal(submissions[0].inputVersion, 'a'.repeat(64));
 	assert.equal(submissions[0].metricReleaseId, metricReleaseId);
 	assert.match(submissions[0].mutationId, /^[0-9a-f-]{36}$/);
+	failReviewRequests = 1;
+	const requestsBeforeRetry = reviewRequests;
 	await page.reload();
+	const failedReviewUrl = page.url();
+	await page.getByRole('button', { name: 'Retry rating context', exact: true }).click();
 	await page.getByText('Draft restored from this browser', { exact: true }).waitFor();
+	assert.equal(
+		reviewRequests,
+		requestsBeforeRetry + 2,
+		'Context Retry refetches after a network failure'
+	);
+	assert.equal(page.url(), failedReviewUrl, 'Context Retry preserves the current URL');
+	assert.equal(submissions.length, 1, 'Context Retry never submits an observation');
 	assert.equal(await note.inputValue(), 'Synthetic observation for account A');
 	await save.click();
 	await page
@@ -638,7 +656,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	if (errors.length) console.error({ failedRequests, serverLog });
 	assert.deepEqual(errors, []);
 	console.log(
-		'PASS: hosted/local transport, draft isolation, viewer access, failed/reloaded/changed retries, success receipt/focus, both metric pages at tablet portrait/landscape and phone widths, expired/denied video reload preserving playhead/draft without autoplay, queue pagination, loaded-input and compiled-metric binding with stale-draft retention, same-URL performance Retry recovery into a later review segment. Synthetic evidence:',
+		'PASS: hosted/local transport, draft isolation, viewer access, failed/reloaded/changed retries, success receipt/focus, both metric pages at tablet portrait/landscape and phone widths, expired/denied video reload preserving playhead/draft without autoplay, queue pagination, loaded-input and compiled-metric binding with stale-draft retention, same-URL performance Retry recovery into a later review segment, annotation context network Retry restoring the retained draft. Synthetic evidence:',
 		output
 	);
 } finally {

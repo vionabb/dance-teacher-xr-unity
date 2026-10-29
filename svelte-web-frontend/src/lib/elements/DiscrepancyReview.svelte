@@ -119,11 +119,13 @@
 	function formatTime(time: number) {
 		return Number.isFinite(time) ? `${time.toFixed(2)}s` : '—';
 	}
-	onMount(() => {
+	let reviewController: AbortController | undefined;
+	async function loadReview() {
+		reviewController?.abort();
 		const controller = new AbortController();
-		end = duration;
-		onrangechange(start, end);
-		void fetch(endpoint, { signal: controller.signal, cache: 'no-store' })
+		reviewController = controller;
+		loadError = '';
+		await fetch(endpoint, { signal: controller.signal, cache: 'no-store' })
 			.then(async (response) => {
 				if (!response.ok) throw new Error((await response.json()).message ?? 'Review unavailable.');
 				const result = await response.json();
@@ -136,7 +138,12 @@
 				if (!controller.signal.aborted)
 					loadError = caught instanceof Error ? caught.message : 'Review unavailable.';
 			});
-		return () => controller.abort();
+	}
+	onMount(() => {
+		end = duration;
+		onrangechange(start, end);
+		void loadReview();
+		return () => reviewController?.abort();
 	});
 	function restoreDraft() {
 		if (!draftKey) return;
@@ -607,12 +614,14 @@
 				shortcuts stay inactive while typing or using a control.
 			</p>
 		</details>
-	{:else if loadError}<p class="daisy-alert daisy-alert-error" role="alert">{loadError}</p>{:else}<p
-			role="status"
-			class="loading-context"
-		>
-			Loading rating context…
-		</p>{/if}
+	{:else if loadError}
+		<div class="daisy-alert daisy-alert-error" role="alert">
+			<p>{loadError}</p>
+			<button type="button" class="daisy-btn daisy-btn-sm" onclick={() => void loadReview()}
+				>Retry rating context</button
+			>
+		</div>
+	{:else}<p role="status" class="loading-context">Loading rating context…</p>{/if}
 </section>
 
 <style>
