@@ -25,7 +25,7 @@
 		"@anthropic-ai/sdk": "^0.91.1",
 		"@electric-sql/pglite": "0.5.13",
 		"@eslint/js": "^10.0.1",
-		"@iconify/json": "^2.2.458",
+		"@iconify/json": "^2.2.547",
 		"@iconify/svelte": "^5.2.1",
 		"@iconify/tailwind": "^1.2.0",
 		"@langchain/core": "^1.1.38",
