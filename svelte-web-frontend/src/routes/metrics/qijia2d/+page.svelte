@@ -512,7 +512,9 @@
 			);
 			return;
 		}
-		await openPerformance(target, timeSeconds);
+		const restored = await openPerformance(target, timeSeconds);
+		// Failed/canceled loads must remain retryable at this same URL.
+		if (!restored && lastRestoreKey === key) lastRestoreKey = '';
 	}
 	function probeVideoDimensions(url: string | undefined): Promise<VideoDimensions | null> {
 		if (!url) return Promise.resolve(null);
@@ -650,6 +652,7 @@
 						? (timeline[targetIndex]?.startSeconds ?? restoreTimeSeconds)
 						: restoreTimeSeconds
 				);
+				return true;
 			}
 		} catch (caught) {
 			if (requestToken !== loadToken) return;
@@ -1078,7 +1081,9 @@
 	{#if view === 'dataset'}
 		<header class="flex items-center gap-3">
 			<h1 class="text-lg font-semibold">Choose a performance</h1>
-			<span class="daisy-badge daisy-badge-outline daisy-badge-sm">Qijia2D · local</span>
+			<span class="daisy-badge daisy-badge-outline daisy-badge-sm"
+				>Qijia2D · {researchBackend === 'hosted' ? 'hosted' : 'local'}</span
+			>
 		</header>
 	{/if}
 
@@ -1100,12 +1105,15 @@
 					<div class="rounded-box bg-base-200/70 border-base-300 space-y-2 border p-5">
 						<h3 class="font-semibold">No paired participant data found</h3>
 						<p class="max-w-2xl text-sm opacity-75">
-							The local cache may be missing, or no video currently has a matching canonical pose2d
-							CSV. Set <code>MOTION_PIPELINE_USER_STUDY_DATA_DIR</code> to the participant cache root
-							and restart the dev server.
+							{#if researchBackend === 'hosted'}No paired recordings are available to your research
+								account.{:else}The local cache may be missing, or no video currently has a matching
+								canonical pose2d CSV. Set <code>MOTION_PIPELINE_USER_STUDY_DATA_DIR</code> to the participant
+								cache root and restart the dev server.{/if}
 						</p>
 						<p class="text-xs opacity-60">
-							Only files in the known study video and segmented pose folders are listed.
+							{#if researchBackend === 'hosted'}Only recordings covered by your research access
+								appear here.{:else}Only files in the known study video and segmented pose folders
+								are listed.{/if}
 						</p>
 						<a
 							class="daisy-btn daisy-btn-outline daisy-btn-sm mt-2"

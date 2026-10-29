@@ -115,6 +115,9 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 		fail = true;
 	let serverMetricReleaseId = metricReleaseId;
 	const submissions = [];
+	let failPerformanceRequests = 0;
+	let performanceRequests = 0;
+	let retryMultiSegment = false;
 	let mediaAccess = 'ready';
 	let expireInitialMedia = false;
 	const mediaRequests = [];
@@ -196,7 +199,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 			}
 			return route.fulfill({
 				json: {
-					task: { clipNumber: 1, human, observations },
+					task: { clipNumber: pathname.endsWith('/retry-segment') ? 2 : 1, human, observations },
 					annotator: ownerId,
 					navigation: { previous: null, next: null, position: 1, total: 1 },
 					...(hosted
@@ -247,6 +250,17 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 			});
 		}
 		if (pathname.includes('/participant-catalog')) {
+			if (pathname.endsWith('/performance/performance')) {
+				performanceRequests++;
+				if (failPerformanceRequests > 0) {
+					failPerformanceRequests--;
+					return route.fulfill({
+						status: 503,
+						json: { message: 'Synthetic transient performance failure' }
+					});
+				}
+			}
+
 			const performance = {
 				id: 'performance',
 				participantLabel: 'Synthetic participant',
@@ -271,6 +285,12 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 					}
 				]
 			};
+			if (retryMultiSegment)
+				performance.segments.push({
+					...performance.segments[0],
+					id: 'retry-segment',
+					clipNumber: 2
+				});
 			return route.fulfill({
 				json: pathname.endsWith('/performance/performance')
 					? performance
@@ -392,6 +412,38 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	assert.equal(submissions.at(-1).inputVersion, undefined);
 	assert.equal(submissions.at(-1).metricReleaseId, undefined);
 	for (const mode of ['qijia2d', 'viona2d']) {
+		retryMultiSegment = true;
+		failPerformanceRequests = 1;
+		performanceRequests = 0;
+		const retryQuery = `?mode=${mode}&performance=performance&segment=retry-segment&review=discrepancy`;
+		await visit(retryQuery);
+		await page
+			.getByRole('alert')
+			.filter({ hasText: 'Performance request failed (503).' })
+			.waitFor();
+		await page
+			.getByText(`${mode === 'qijia2d' ? 'Qijia2D' : 'Viona2D'} · hosted`, { exact: true })
+			.waitFor();
+		assert.equal(performanceRequests, 1);
+		const failedUrl = page.url();
+		await page.getByRole('button', { name: 'Retry', exact: true }).click();
+		await note.waitFor();
+		await page
+			.locator('[aria-label="Discrepancy annotation"]')
+			.getByText(/Discrepancy review\s*· Segment 2/)
+			.waitFor();
+		assert.equal(page.url(), failedUrl, 'Retry keeps the performance/segment/review intent URL');
+		assert.equal(performanceRequests, 2, 'Retry requests the failed performance again');
+		assert.equal(
+			await page
+				.getByRole('slider', { name: 'Seek participant timeline', exact: true })
+				.inputValue(),
+			'2',
+			'Retry restores the later requested segment'
+		);
+		assert.equal(await page.getByRole('alert').count(), 0, 'Successful Retry clears the failure');
+		retryMultiSegment = false;
+
 		expireInitialMedia = true;
 		await visit(`?mode=${mode}&performance=performance&segment=study-segment&review=discrepancy`);
 		await note.waitFor();
@@ -586,7 +638,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	if (errors.length) console.error({ failedRequests, serverLog });
 	assert.deepEqual(errors, []);
 	console.log(
-		'PASS: hosted/local transport, draft isolation, viewer access, failed/reloaded/changed retries, success receipt/focus, both metric pages at tablet portrait/landscape and phone widths, expired/denied video reload preserving playhead/draft without autoplay, queue pagination, loaded-input and compiled-metric binding with stale-draft retention. Synthetic evidence:',
+		'PASS: hosted/local transport, draft isolation, viewer access, failed/reloaded/changed retries, success receipt/focus, both metric pages at tablet portrait/landscape and phone widths, expired/denied video reload preserving playhead/draft without autoplay, queue pagination, loaded-input and compiled-metric binding with stale-draft retention, same-URL performance Retry recovery into a later review segment. Synthetic evidence:',
 		output
 	);
 } finally {
