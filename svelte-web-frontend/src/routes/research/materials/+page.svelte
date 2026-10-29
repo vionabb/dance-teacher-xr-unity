@@ -17,6 +17,7 @@
 	<nav aria-label="App navigation" class="flex flex-wrap gap-4">
 		<a class="link" href={resolve('/research/studies')}>Back to recordings</a>
 		<a class="link" href={resolve('/menu')}>App menu</a>
+		<a class="link" href={resolve('/research')}>Research analysis</a>
 	</nav>
 	<h1 class="text-2xl font-semibold">CHI25 research materials</h1>
 	<p class="text-sm">Read-only source references, human ratings, and frozen reviewed pose files.</p>

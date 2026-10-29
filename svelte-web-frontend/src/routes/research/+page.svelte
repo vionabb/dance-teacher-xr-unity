@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import { researchApiPrefix } from '$lib/research/discrepancy-client';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -22,6 +24,8 @@
 		'mad-at-disney': 'Mad at Disney',
 		'pajama-party': 'Pajama Party'
 	};
+	const researchBackend = $derived(page.data.researchBackend === 'hosted' ? 'hosted' : 'local');
+	const apiPrefix = $derived(researchApiPrefix(researchBackend));
 	let performances = $state<Performance[]>([]);
 	let loading = $state(true);
 	let error = $state('');
@@ -63,7 +67,7 @@
 		loading = true;
 		error = '';
 		try {
-			const response = await fetch('/api/dev/participant-catalog', { cache: 'no-store' });
+			const response = await fetch(`${apiPrefix}/participant-catalog`, { cache: 'no-store' });
 			if (!response.ok)
 				throw new Error(`Could not load the participant dataset (${response.status}).`);
 			const result = (await response.json()) as { performances: Performance[] };
@@ -80,13 +84,21 @@
 		query = '';
 		const url = new URL(page.url);
 		url.searchParams.set('dance', dance);
-		void goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+		void goto(resolve('/research') + url.search, {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
 	}
 	function showDances() {
 		selectedDance = '';
 		const url = new URL(page.url);
 		url.searchParams.delete('dance');
-		void goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+		void goto(resolve('/research') + url.search, {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
 	}
 	function phaseLabel(phase: string | null) {
 		return phase ? phase.charAt(0).toUpperCase() + phase.slice(1) : 'Segmented';
@@ -111,7 +123,9 @@
 		openingId = performance.id;
 		const metric = getLastMetric();
 		try {
-			await goto(`/metrics/${metric}?performance=${encodeURIComponent(performance.id)}&time=0`);
+			await goto(
+				resolve(`/metrics/${metric}`) + `?performance=${encodeURIComponent(performance.id)}&time=0`
+			);
 		} catch {
 			error = 'Could not open this performance.';
 		} finally {
@@ -133,23 +147,37 @@
 				{selectedDance ? danceLabel(selectedDance) : 'Choose a dance'}
 			</h1>
 		</div>
-		<div class="flex gap-2">
-			<a class="daisy-btn daisy-btn-outline daisy-btn-sm" href="/research/records">Source records</a
+		<nav class="flex flex-wrap gap-2" aria-label="Research tools">
+			<a class="daisy-btn daisy-btn-outline daisy-btn-sm" href={resolve('/research/discrepancy')}
+				>Discrepancy review</a
 			>
-			<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href="/metrics/qijia2d?source=local"
-				>Qijia2D local</a
-			>
-			<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href="/metrics/viona2d?source=local"
-				>Viona2D local</a
-			>
-		</div>
+			{#if researchBackend === 'hosted'}
+				<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href={resolve('/research/studies')}
+					>Recordings</a
+				>
+				<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href={resolve('/research/materials')}
+					>Materials</a
+				>
+				<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href={resolve('/menu')}>App menu</a>
+			{:else}
+				<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href={resolve('/research/records')}
+					>Source records</a
+				>
+				<a
+					class="daisy-btn daisy-btn-ghost daisy-btn-sm"
+					href={resolve('/metrics/qijia2d') + '?source=local'}>Qijia2D local</a
+				>
+				<a
+					class="daisy-btn daisy-btn-ghost daisy-btn-sm"
+					href={resolve('/metrics/viona2d') + '?source=local'}>Viona2D local</a
+				>
+			{/if}
+		</nav>
 	</header>
 
 	{#if loading}
 		<div class="flex items-center gap-3 py-12" role="status">
-			<span class="daisy-loading daisy-loading-spinner"></span><span
-				>Loading local performances…</span
-			>
+			<span class="daisy-loading daisy-loading-spinner"></span><span>Loading performances…</span>
 		</div>
 	{:else if error}
 		<div class="daisy-alert daisy-alert-error">
@@ -158,11 +186,11 @@
 		</div>
 	{:else if performances.length === 0}
 		<div class="rounded-box bg-base-200 p-6 text-sm">
-			<p>No participant performances were found in the local dataset.</p>
-			<p class="mt-1 opacity-70">
-				Set <code>MOTION_PIPELINE_USER_STUDY_DATA_DIR</code> to the participant cache and restart the
-				development server.
-			</p>
+			<p>No participant performances are available.</p>
+			{#if researchBackend === 'local'}<p class="mt-1 opacity-70">
+					Set <code>MOTION_PIPELINE_USER_STUDY_DATA_DIR</code> to the participant cache and restart the
+					development server.
+				</p>{/if}
 		</div>
 	{:else if !selectedDance}
 		<section class="grid gap-4 sm:grid-cols-2" aria-label="Choose a dance">
@@ -175,12 +203,16 @@
 					onclick={() => chooseDance(dance)}
 				>
 					<div class="relative">
-						<img
-							class="aspect-video w-full object-cover"
-							src={`/api/dev/reference-clips/${dance}/thumbnail`}
-							alt={`${danceLabel(dance)} reference dance`}
-							loading="lazy"
-						/>
+						{#if researchBackend === 'local'}<img
+								class="aspect-video w-full object-cover"
+								src={`/api/dev/reference-clips/${dance}/thumbnail`}
+								alt={`${danceLabel(dance)} reference dance`}
+								loading="lazy"
+							/>{:else}<div
+								class="bg-base-200 flex aspect-video items-center justify-center text-xl font-semibold"
+							>
+								{danceLabel(dance)}
+							</div>{/if}
 						<span class="daisy-badge daisy-badge-neutral absolute right-3 bottom-3"
 							>{count} performances</span
 						>
@@ -223,7 +255,7 @@
 						<div class="relative">
 							<img
 								class="aspect-video w-full object-cover"
-								src={`/api/dev/participant-catalog/performance/${performance.id}/thumbnail`}
+								src={`${apiPrefix}/participant-catalog/performance/${performance.id}/thumbnail`}
 								alt=""
 								loading="lazy"
 							/>

@@ -14,6 +14,7 @@
 	<p class="text-sm">Read-only participant videos and raw 2D pose files.</p>
 	<nav aria-label="App navigation" class="flex flex-wrap gap-4">
 		<a class="link" href={resolve('/menu')}>App menu</a>
+		<a class="link" href={resolve('/research')}>Research analysis</a>
 		<a class="link" href={resolve('/research/materials')}
 			>Reference videos, ratings, and reviewed poses</a
 		>

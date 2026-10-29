@@ -7,7 +7,9 @@ import {
 	importResearchSources,
 	readResearchRecords,
 	readUsabilityData,
-	recordVideoUsabilityRating
+	recordVideoUsabilityRating,
+	readDiscrepancyObservations,
+	saveDiscrepancyObservation
 } from './research-store';
 
 const folders: string[] = [];
@@ -244,4 +246,59 @@ test('frozen sources import repeatedly without changing files or duplicating rec
 	);
 	await expect(importResearchSources(input)).rejects.toThrow('changed');
 	expect((await readResearchRecords(databasePath)).humanRatings[0].human_rating).toBe(4);
+});
+
+test('persists separate append-only discrepancy observations with verified backups', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-discrepancy-'));
+	folders.push(folder);
+	const file = path.join(folder, 'research.sqlite3');
+	const input = {
+		segment_id: 'a'.repeat(24),
+		annotator: 'test',
+		start_seconds: 0.5,
+		end_seconds: 1.5,
+		note: 'The pose lags the visible arm.',
+		direction: 'Metric seems too harsh',
+		tags: ['Timing / alignment'],
+		metric: 'qijia2d' as const,
+		context: { videoSha256: 'b'.repeat(64), configuration: { visibility: 'none' } }
+	};
+	const receipt = await saveDiscrepancyObservation(file, input);
+	expect(receipt.backupError).toBeNull();
+	await saveDiscrepancyObservation(file, { ...input, note: 'A comparison observation.' });
+	const rows = await readDiscrepancyObservations(file, input.segment_id);
+	expect(rows).toHaveLength(2);
+	expect(rows[1]).toMatchObject(input);
+	expect(await readDiscrepancyObservations(file, 'c'.repeat(24))).toEqual([]);
+	expect((await readUsabilityData(file)).localRatings).toEqual([]);
+	await expect(saveDiscrepancyObservation(file, { ...input, end_seconds: -1 })).rejects.toThrow(
+		'Invalid discrepancy observation'
+	);
+	const { readdir } = await import('node:fs/promises');
+	expect((await readdir(path.join(folder, 'backups'))).length).toBe(2);
+});
+
+test('reports a discrepancy backup failure without losing the saved observation', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-discrepancy-backup-'));
+	folders.push(folder);
+	const file = path.join(folder, 'research.sqlite3');
+	// An ordinary file at the backup directory path simulates an unavailable backup destination.
+	await writeFile(path.join(folder, 'backups'), 'blocked');
+	const input = {
+		segment_id: 'b'.repeat(24),
+		annotator: 'test',
+		start_seconds: 0,
+		end_seconds: 0,
+		note: 'A single-moment observation remains saved.',
+		direction: 'Uncertain',
+		tags: [],
+		metric: 'viona2d' as const,
+		context: {}
+	};
+	const receipt = await saveDiscrepancyObservation(file, input);
+	expect(receipt.id).toBeGreaterThan(0);
+	expect(receipt.backupError).toBeTruthy();
+	expect(await readDiscrepancyObservations(file, input.segment_id)).toMatchObject([
+		{ ...input, id: receipt.id }
+	]);
 });

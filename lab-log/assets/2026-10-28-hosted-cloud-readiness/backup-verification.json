@@ -1,0 +1,39 @@
+{
+  "destination": "agentoutput:2026-10-28-hosted-chi25-backups/",
+  "downloadCheck": {
+    "matchingFiles": 7,
+    "differences": 0
+  },
+  "scope": "research database rows only; no Auth credentials or Storage bytes",
+  "snapshots": [
+    {
+      "file": "20261029T0310-before-import.json",
+      "sha256": "83abc62f80b738224f35a88cceba81d4f565401959e7ebeee4f21b5f48046656",
+      "isolatedRestore": "all captured rows match exactly"
+    },
+    {
+      "file": "20261029T0315-after-import.json",
+      "sha256": "b08e014a732c56ba811af5786da5fd4ebec24db3d04dc1691e74bee3e7e77d2b",
+      "isolatedRestore": "all captured rows match exactly"
+    },
+    {
+      "file": "20261029T0328-after-editor-grant.json",
+      "sha256": "7b15cdbdffa008ea0651d605e4706e7dc913aa560a832d039596377e194a726f",
+      "isolatedRestore": "all captured rows match exactly"
+    }
+  ],
+  "memberships": {
+    "primary": {
+      "chi25_study1": "editor",
+      "chi25_study2": "editor"
+    },
+    "secondary": {
+      "chi25_study1": "viewer",
+      "chi25_study2": "viewer"
+    }
+  },
+  "sourceUpdateDenied": true,
+  "noteUpdateDeleteDenied": true,
+  "productionObservations": 0,
+  "firstManagedBackupAvailable": false
+}
