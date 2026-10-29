@@ -11,6 +11,7 @@ vi.mock('$lib/server/hosted-analysis', async (load) => ({
 	hostedTask: async () => ({
 		canAnnotate: state.canAnnotate,
 		inputVersion: 'a'.repeat(64),
+		metricReleaseId: __RESEARCH_METRIC_RELEASE__,
 		task: { study: 'study1' }
 	})
 }));
@@ -26,9 +27,10 @@ const body = () => ({
 	context: { selectedView: 'audit' },
 	mutationId,
 	inputVersion: 'a'.repeat(64),
+	metricReleaseId: __RESEARCH_METRIC_RELEASE__,
 	owner_id: 'forged-owner'
 });
-function event(payload = body()) {
+function event(payload: Record<string, unknown> = body()) {
 	const chain = {
 		select: () => chain,
 		eq: () => chain,
@@ -94,3 +96,19 @@ test('viewers and stale inputs cannot insert', async () => {
 	});
 	expect(state.inserted).toBeNull();
 });
+
+test('old browser math cannot use a new GET input version to claim the current metric release', async () => {
+	await expect(POST(event({ ...body(), metricReleaseId: '0'.repeat(64) }))).rejects.toMatchObject({
+		status: 409
+	});
+	expect(state.inserted).toBeNull();
+});
+test.each(['inputVersion', 'metricReleaseId'])(
+	'missing loaded binding %s is rejected before insert',
+	async (field) => {
+		const payload: Record<string, unknown> = body();
+		delete payload[field];
+		await expect(POST(event(payload))).rejects.toMatchObject({ status: 400 });
+		expect(state.inserted).toBeNull();
+	}
+);

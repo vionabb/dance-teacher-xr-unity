@@ -5,6 +5,8 @@
 	import { observationTags, discrepancyDirections } from '$lib/research/discrepancy';
 	import {
 		discrepancyDraftKey,
+		loadedAnalysisBindingError,
+		type LoadedAnalysisBinding,
 		prepareObservationMutation,
 		readPendingObservation,
 		researchApiPrefix,
@@ -16,6 +18,7 @@
 	let {
 		segmentId,
 		researchBackend = 'local',
+		loadedAnalysis,
 		metric,
 		localTime,
 		duration,
@@ -31,6 +34,7 @@
 	}: {
 		segmentId: string;
 		researchBackend?: ResearchBackend;
+		loadedAnalysis?: LoadedAnalysisBinding;
 		metric: 'qijia2d' | 'viona2d';
 		localTime: number;
 		duration: number;
@@ -74,12 +78,22 @@
 	let pendingMutation: PendingObservation | null = null;
 	const endpoint = $derived(`${researchApiPrefix(researchBackend)}/discrepancy/${segmentId}`);
 	const draftKey = $derived(
-		review ? discrepancyDraftKey(researchBackend, segmentId, review) : null
+		review
+			? discrepancyDraftKey(researchBackend, segmentId, {
+					ownerId: review.ownerId,
+					inputVersion: loadedAnalysis?.inputVersion
+				})
+			: null
+	);
+	const bindingError = $derived(
+		researchBackend === 'hosted' && review
+			? loadedAnalysisBindingError(loadedAnalysis, review, __RESEARCH_METRIC_RELEASE__)
+			: null
 	);
 	const mayAnnotate = $derived(
 		!!review &&
 			(researchBackend === 'hosted'
-				? review.backend === 'hosted' && review.canAnnotate === true && !!draftKey
+				? review.backend === 'hosted' && review.canAnnotate === true && !!review.ownerId
 				: !!review.annotator)
 	);
 	const selectedSamples = $derived(
@@ -99,7 +113,7 @@
 	const invalid = $derived(
 		!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start || end > duration
 	);
-	const canSave = $derived(mayAnnotate && !invalid && !!note.trim() && !saving);
+	const canSave = $derived(mayAnnotate && !bindingError && !invalid && !!note.trim() && !saving);
 	const wholeSegment = $derived(start === 0 && Math.abs(end - duration) < 0.002);
 	const selectedLength = $derived(Math.max(0, end - start));
 	function formatTime(time: number) {
@@ -247,7 +261,12 @@
 					validSamples: validSamples.length,
 					totalSamples: selectedSamples.length
 				},
-				...(researchBackend === 'hosted' ? { inputVersion: review?.inputVersion } : {})
+				...(researchBackend === 'hosted'
+					? {
+							inputVersion: loadedAnalysis?.inputVersion,
+							metricReleaseId: __RESEARCH_METRIC_RELEASE__
+						}
+					: {})
 			});
 			if (researchBackend === 'hosted') {
 				pendingMutation = prepareObservationMutation(payload, pendingMutation, () =>
@@ -525,6 +544,9 @@
 				</details>
 			</fieldset>
 			<footer class="save-footer">
+				{#if bindingError && mayAnnotate}<p class="text-warning text-sm" role="alert">
+						{bindingError}
+					</p>{/if}
 				<button type="submit" class="daisy-btn daisy-btn-primary save-button" disabled={!canSave}
 					>{saving ? 'Saving…' : 'Save observation'}</button
 				>

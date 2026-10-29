@@ -6,6 +6,8 @@ import { mkdir, mkdtemp, writeFile, rm, readFile } from 'node:fs/promises';
 import { spawn, execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { readMetricRelease } from '../src/lib/server/chi25-metric-release.js';
+const metricReleaseId = readMetricRelease(process.cwd()).id;
 
 const port = Number(process.env.DISCREPANCY_PROOF_PORT ?? 5197);
 const base = `http://127.0.0.1:${port}`;
@@ -23,7 +25,7 @@ try {
 	await mkdir(routeDir);
 	await writeFile(
 		path.join(routeDir, '+page.ts'),
-		`export const load = ({ url }) => ({ researchBackend: url.searchParams.get('backend') ?? 'hosted' });`
+		`export const load = ({ url }) => ({ researchBackend: url.searchParams.get('backend') ?? 'hosted', loadedAnalysis: url.searchParams.has('missingBinding') ? undefined : { inputVersion: url.searchParams.get('inputVersion') ?? '${'a'.repeat(64)}', metricReleaseId: url.searchParams.get('metricReleaseId') ?? __RESEARCH_METRIC_RELEASE__ } });`
 	);
 	await writeFile(
 		path.join(routeDir, '+page.svelte'),
@@ -43,7 +45,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 {:else if page.url.searchParams.get('mode') === 'viona2d'}<Viona/>
 {:else if page.url.searchParams.get('mode') === 'catalog'}<Catalog/>
 {:else if page.url.searchParams.get('mode') === 'queue'}<Queue data={{tasks}}/>
-{:else}<main style="max-width:600px;margin:20px auto"><Review segmentId="study-segment" researchBackend={page.data.researchBackend} metric="qijia2d" localTime={time} duration={2} context={{synthetic:true}} samples={[{time:0,value:1},{time:1,value:2}]} onseek={(value)=>time=value} onpreview={()=>{}} onpause={()=>{}} onrate={()=>{}} onrangechange={()=>{}} playing={false} playbackRate={1}/></main>{/if}`
+{:else}<main style="max-width:600px;margin:20px auto"><Review segmentId="study-segment" researchBackend={page.data.researchBackend} loadedAnalysis={page.data.loadedAnalysis} metric="qijia2d" localTime={time} duration={2} context={{synthetic:true}} samples={[{time:0,value:1},{time:1,value:2}]} onseek={(value)=>time=value} onpreview={()=>{}} onpause={()=>{}} onrate={()=>{}} onrangechange={()=>{}} playing={false} playbackRate={1}/></main>{/if}`
 	);
 	// Generate an entirely synthetic playable clip for the actual metric components.
 	const videoPath = path.join(scratch, 'synthetic.mp4');
@@ -108,9 +110,10 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	);
 	page.on('pageerror', (error) => errors.push(error.message));
 	let ownerId = 'account-a',
-		inputVersion = 'version-1',
+		inputVersion = 'a'.repeat(64),
 		canAnnotate = true,
 		fail = true;
+	let serverMetricReleaseId = metricReleaseId;
 	const submissions = [];
 	let mediaAccess = 'ready';
 	let expireInitialMedia = false;
@@ -159,6 +162,14 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 			if (request.method() === 'POST') {
 				const body = request.postDataJSON();
 				submissions.push(body);
+				if (
+					hosted &&
+					(body.inputVersion !== inputVersion || body.metricReleaseId !== serverMetricReleaseId)
+				)
+					return route.fulfill({
+						status: 409,
+						json: { message: 'Synthetic loaded binding is stale' }
+					});
 				if (fail)
 					return route.fulfill({
 						status: 503,
@@ -188,7 +199,15 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 					task: { clipNumber: 1, human, observations },
 					annotator: ownerId,
 					navigation: { previous: null, next: null, position: 1, total: 1 },
-					...(hosted ? { backend: 'hosted', ownerId, inputVersion, canAnnotate } : {})
+					...(hosted
+						? {
+								backend: 'hosted',
+								ownerId,
+								inputVersion,
+								metricReleaseId: serverMetricReleaseId,
+								canAnnotate
+							}
+						: {})
 				}
 			});
 		}
@@ -241,6 +260,8 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 						clipNumber: 1,
 						referencePoseAvailable: true,
 						durationSeconds: 2,
+						inputVersion,
+						metricReleaseId: serverMetricReleaseId,
 						videoUrl: '/api/synthetic/participant.mp4',
 						poseUrl: '/api/synthetic/participant.csv',
 						referencePoseUrl: '/api/synthetic/reference.csv',
@@ -272,7 +293,8 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 		.getByText('Synthetic lost response. Your draft is retained.', { exact: true })
 		.waitFor();
 	assert.equal(submissions.length, 1);
-	assert.equal(submissions[0].inputVersion, 'version-1');
+	assert.equal(submissions[0].inputVersion, 'a'.repeat(64));
+	assert.equal(submissions[0].metricReleaseId, metricReleaseId);
 	assert.match(submissions[0].mutationId, /^[0-9a-f-]{36}$/);
 	await page.reload();
 	await page.getByText('Draft restored from this browser', { exact: true }).waitFor();
@@ -301,17 +323,44 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	await note.waitFor();
 	assert.equal(await note.inputValue(), '', 'Another account cannot restore account A draft');
 	ownerId = 'account-a';
-	inputVersion = 'version-2';
+	inputVersion = 'b'.repeat(64);
 	await page.reload();
+	await page.getByRole('alert').filter({ hasText: 'Analysis inputs changed.' }).waitFor();
+	assert.equal(
+		await note.inputValue(),
+		'Changed synthetic observation',
+		'A newer GET cannot relabel or clear the loaded-input draft'
+	);
+	assert.equal(await save.isDisabled(), true);
+	await page.screenshot({ path: path.join(output, 'stale-loaded-input-draft.png') });
+	const beforeBlocked = submissions.length;
+	await visit(`?inputVersion=${inputVersion}`);
 	await note.waitFor();
 	assert.equal(
 		await note.inputValue(),
 		'',
-		'Changed immutable inputs cannot restore the old draft'
+		'A genuinely new loaded input has its own draft namespace'
 	);
-	inputVersion = 'version-1';
+	inputVersion = 'a'.repeat(64);
+	serverMetricReleaseId = 'c'.repeat(64);
+	await visit(`?metricReleaseId=${serverMetricReleaseId}`);
+	await page.getByRole('alert').filter({ hasText: 'loaded metric version differs' }).waitFor();
+	assert.equal(await note.inputValue(), 'Changed synthetic observation');
+	assert.equal(
+		await save.isDisabled(),
+		true,
+		'Old compiled client cannot save under a newer metric release'
+	);
+	await visit('?missingBinding=1');
+	await page
+		.getByRole('alert')
+		.filter({ hasText: 'Loaded analysis details are missing' })
+		.waitFor();
+	assert.equal(await save.isDisabled(), true);
+	assert.equal(submissions.length, beforeBlocked, 'Binding mismatches send no observation POST');
+	serverMetricReleaseId = metricReleaseId;
 	canAnnotate = false;
-	await page.reload();
+	await visit();
 	await page
 		.getByText(
 			'Your current access allows viewing. Editor access is required to save observations.'
@@ -341,6 +390,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 		.waitFor();
 	assert.equal(submissions.at(-1).mutationId, undefined);
 	assert.equal(submissions.at(-1).inputVersion, undefined);
+	assert.equal(submissions.at(-1).metricReleaseId, undefined);
 	for (const mode of ['qijia2d', 'viona2d']) {
 		expireInitialMedia = true;
 		await visit(`?mode=${mode}&performance=performance&segment=study-segment&review=discrepancy`);
@@ -492,6 +542,15 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 				path: path.join(output, `${mode}-${viewport.width}x${viewport.height}.png`)
 			});
 		}
+		assert.equal(
+			await save.isEnabled(),
+			true,
+			`${mode} passes its loaded performance binding to the composer`
+		);
+		await save.click();
+		await page.getByText('Observation saved to your research account.', { exact: true }).waitFor();
+		assert.equal(submissions.at(-1).inputVersion, inputVersion);
+		assert.equal(submissions.at(-1).metricReleaseId, metricReleaseId);
 	}
 
 	await visit('?mode=catalog');
@@ -527,7 +586,7 @@ const tasks = Array.from({length: 60}, (_, i) => ({performanceId:'performance',s
 	if (errors.length) console.error({ failedRequests, serverLog });
 	assert.deepEqual(errors, []);
 	console.log(
-		'PASS: hosted/local transport, draft isolation, viewer access, failed/reloaded/changed retries, success receipt/focus, both metric pages at tablet portrait/landscape and phone widths, expired/denied video reload preserving playhead/draft without autoplay, queue pagination. Synthetic evidence:',
+		'PASS: hosted/local transport, draft isolation, viewer access, failed/reloaded/changed retries, success receipt/focus, both metric pages at tablet portrait/landscape and phone widths, expired/denied video reload preserving playhead/draft without autoplay, queue pagination, loaded-input and compiled-metric binding with stale-draft retention. Synthetic evidence:',
 		output
 	);
 } finally {

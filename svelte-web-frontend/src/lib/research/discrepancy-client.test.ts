@@ -42,3 +42,25 @@ describe('hosted discrepancy transport and draft boundary', () => {
 		expect(readPendingObservation({ mutationId: 'invalid', payload: '{}' })).toBeNull();
 	});
 });
+
+describe('loaded browser analysis binding', () => {
+	it('cannot be upgraded by a newer review GET and keeps the old draft namespace', async () => {
+		const { loadedAnalysisBindingError } = await import('./discrepancy-client');
+		const loaded = { inputVersion: 'old-input', metricReleaseId: 'old-code' };
+		const review = { inputVersion: 'new-input', metricReleaseId: 'new-code', ownerId: 'account-a' };
+		expect(loadedAnalysisBindingError(loaded, review, 'old-code')).toContain(
+			'Analysis inputs changed'
+		);
+		expect(loadedAnalysisBindingError(loaded, loaded, 'new-code')).toContain(
+			'metric version differs'
+		);
+		expect(loadedAnalysisBindingError(undefined, review, 'new-code')).toContain('missing');
+		expect(loadedAnalysisBindingError(loaded, loaded, 'old-code')).toBeNull();
+		expect(
+			discrepancyDraftKey('hosted', 'study-segment', {
+				ownerId: review.ownerId,
+				inputVersion: loaded.inputVersion
+			})
+		).not.toBe(discrepancyDraftKey('hosted', 'study-segment', review));
+	});
+});

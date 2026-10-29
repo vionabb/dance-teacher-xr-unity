@@ -83,6 +83,8 @@
 		id: string;
 		clipNumber: number;
 		referencePoseAvailable: boolean;
+		inputVersion?: string;
+		metricReleaseId?: string;
 		videoUrl?: string;
 		poseUrl?: string;
 		referencePoseUrl?: string | null;
@@ -1500,8 +1502,9 @@
 			</div>
 			<div class="review-notes md:col-span-12">
 				{#if datasetMode && activeLoadedSegment && page.url.searchParams.get('review') === 'discrepancy'}
-					{#key `${researchBackend}:${activeLoadedSegment.segment.id}`}
+					{#key `${researchBackend}:${activeLoadedSegment.segment.id}:${activeLoadedSegment.segment.inputVersion ?? ''}:${activeLoadedSegment.segment.metricReleaseId ?? ''}`}
 						<DiscrepancyReview
+							loadedAnalysis={activeLoadedSegment.segment}
 							{researchBackend}
 							playing={reviewPlaying}
 							playbackRate={reviewSpeed}

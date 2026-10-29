@@ -9,6 +9,7 @@ import { error } from '@sveltejs/kit';
 import { validObservation } from '$lib/research/discrepancy';
 import {
 	analysisAccess,
+	assertLoadedAnalysisBinding,
 	observationColumns,
 	publicObservation,
 	readAnalysisMutation
@@ -17,7 +18,11 @@ import { stableJson } from '$lib/server/chi25-analysis-contract.js';
 export const POST: RequestHandler = async ({ locals, params, request }) => {
 	const body = await readAnalysisMutation(request);
 	if (!validObservation(body)) error(400, 'Invalid observation');
-	const extra = body as typeof body & { mutationId?: string; inputVersion?: string };
+	const extra = body as typeof body & {
+		mutationId?: string;
+		inputVersion?: string;
+		metricReleaseId?: string;
+	};
 	if (
 		!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
 			extra.mutationId ?? ''
@@ -28,8 +33,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 	const access = await analysisAccess(locals);
 	const review = await hostedTask(locals, params.segmentId);
 	if (!review.canAnnotate) error(403, 'Editor access is required to save observations.');
-	if (extra.inputVersion !== review.inputVersion)
-		error(409, 'Analysis inputs changed. Reload before saving.');
+	assertLoadedAnalysisBinding(extra, review);
 	const row = {
 		owner_id: access.user.id,
 		recording_id: params.segmentId,

@@ -33,6 +33,7 @@ export type DiscrepancyReviewData = {
 	ownerId?: string;
 	canAnnotate?: boolean;
 	inputVersion?: string;
+	metricReleaseId?: string;
 };
 export type PendingObservation = { mutationId: string; payload: string };
 
@@ -71,4 +72,23 @@ export function readPendingObservation(value: unknown): PendingObservation | nul
 		)
 		? { mutationId: candidate.mutationId, payload: candidate.payload }
 		: null;
+}
+
+export type LoadedAnalysisBinding = { inputVersion?: string; metricReleaseId?: string };
+
+export function loadedAnalysisBindingError(
+	loaded: LoadedAnalysisBinding | undefined,
+	review: LoadedAnalysisBinding,
+	compiledMetricRelease: string
+): string | null {
+	if (!loaded?.inputVersion || !loaded.metricReleaseId)
+		return 'Loaded analysis details are missing. Reload this performance before saving.';
+	if (loaded.metricReleaseId !== compiledMetricRelease)
+		return 'The loaded metric version differs from this page. Reload the page before saving.';
+	if (
+		loaded.inputVersion !== review.inputVersion ||
+		loaded.metricReleaseId !== review.metricReleaseId
+	)
+		return 'Analysis inputs changed. Reload this performance before saving. Your current note is retained.';
+	return null;
 }

@@ -184,6 +184,8 @@ export async function hostedPerformance(locals: RequestEvent['locals'], id: stri
 					? `/research/materials/file/${reference.pose_material_id}`
 					: null,
 				durationSeconds: recording.duration_seconds,
+				inputVersion: recording.input_version,
+				metricReleaseId: recording.metric_release_id,
 				referenceVideoUrl: reference
 					? `/research/materials/file/${reference.video_material_id}`
 					: null,
@@ -248,6 +250,7 @@ export async function hostedTask(locals: RequestEvent['locals'], id: string) {
 		ownerId: access.user.id,
 		canAnnotate: access.canWrite(recording.study),
 		inputVersion: recording.input_version,
+		metricReleaseId: recording.metric_release_id,
 		navigation: {
 			previous: destination(position - 1),
 			next: destination(position + 1),
@@ -288,4 +291,27 @@ export async function readAnalysisMutation(request: Request) {
 	} catch {
 		error(400, 'Invalid JSON');
 	}
+}
+
+/** A current GET response cannot vouch for the code or inputs already loaded in a browser. */
+export function assertLoadedAnalysisBinding(
+	value: { inputVersion?: unknown; metricReleaseId?: unknown },
+	expected: { inputVersion: string; metricReleaseId: string }
+) {
+	if (
+		typeof value.inputVersion !== 'string' ||
+		!/^[a-f0-9]{64}$/.test(value.inputVersion) ||
+		typeof value.metricReleaseId !== 'string' ||
+		!/^[a-f0-9]{64}$/.test(value.metricReleaseId)
+	)
+		error(400, 'Missing loaded analysis binding. Reload this performance before saving.');
+	if (
+		value.inputVersion !== expected.inputVersion ||
+		value.metricReleaseId !== expected.metricReleaseId ||
+		value.metricReleaseId !== __RESEARCH_METRIC_RELEASE__
+	)
+		error(
+			409,
+			'The loaded metric or analysis inputs changed. Reload this performance before saving.'
+		);
 }
