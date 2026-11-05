@@ -4,6 +4,8 @@
 	import '../app.pcss';
 	import { onMount, setContext } from 'svelte';
 	import NavBar, { navbarProps } from '$lib/elements/NavBar.svelte';
+	import ResearchNavigation from '$lib/elements/ResearchNavigation.svelte';
+	import { page } from '$app/state';
 	import './styles.scss';
 	import SettingsPage from '$lib/pages/SettingsPage.svelte';
 	import { invalidate } from '$app/navigation';
@@ -72,6 +74,9 @@
 
 <NavBar on:settingsButtonClicked={() => toggleSettings()} settingsActive={showingSettings} />
 <div class="app-content" class:noNavBar={$navbarProps.collapsed}>
+	{#if (data.hasResearchAccess || data.localResearchAccess) && (page.route.id?.startsWith('/research') || page.route.id?.startsWith('/metrics/'))}
+		<ResearchNavigation hosted={data.hasResearchAccess} local={data.localResearchAccess} />
+	{/if}
 	{@render children?.()}
 </div>
 

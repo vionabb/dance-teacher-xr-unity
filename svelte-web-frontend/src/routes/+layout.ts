@@ -42,5 +42,12 @@ export const load: LayoutLoad = async ({ fetch, data, depends }) => {
 
 	const databackend: IDataBackend = new SupabaseDataBackend(supabase, user?.id ?? null);
 
-	return { supabase, session, user, databackend };
+	return {
+		supabase,
+		session,
+		user,
+		databackend,
+		hasResearchAccess: data.hasResearchAccess,
+		localResearchAccess: data.localResearchAccess
+	};
 };
