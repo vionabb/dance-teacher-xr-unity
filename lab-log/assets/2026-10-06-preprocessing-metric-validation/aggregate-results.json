@@ -1,0 +1,157 @@
+{
+  "annotation_snapshot_max_revision": 1744,
+  "completed_clips": 48,
+  "person_or_recording_groups": 43,
+  "eligible_landmark_frame_pairs": 43456,
+  "saved_position_corrections_evaluated": 735,
+  "signals": {
+    "low_visibility": {
+      "n": 43456,
+      "positive": 735,
+      "roc_auc": 0.803,
+      "average_precision": 0.0639,
+      "top_5pct_recall": 0.2395,
+      "top_5pct_precision": 0.081
+    },
+    "midpoint_residual": {
+      "n": 42552,
+      "positive": 715,
+      "roc_auc": 0.8837,
+      "average_precision": 0.1612,
+      "top_5pct_recall": 0.5133,
+      "top_5pct_precision": 0.1725
+    },
+    "maximum_neighbor_motion": {
+      "n": 43000,
+      "positive": 727,
+      "roc_auc": 0.8777,
+      "average_precision": 0.1365,
+      "top_5pct_recall": 0.4649,
+      "top_5pct_precision": 0.1572
+    },
+    "bone_length_deviation": {
+      "n": 32592,
+      "positive": 690,
+      "roc_auc": 0.6796,
+      "average_precision": 0.0575,
+      "top_5pct_recall": 0.1754,
+      "top_5pct_precision": 0.0742
+    },
+    "visibility_plus_residual_fixed": {
+      "n": 42552,
+      "positive": 715,
+      "roc_auc": 0.8575,
+      "average_precision": 0.1433,
+      "top_5pct_recall": 0.3441,
+      "top_5pct_precision": 0.1156
+    },
+    "group_held_out_logistic": {
+      "n": 43456,
+      "positive": 735,
+      "roc_auc": 0.904,
+      "average_precision": 0.1733,
+      "top_5pct_recall": 0.5034,
+      "top_5pct_precision": 0.1703
+    }
+  },
+  "repair": {
+    "rule": {
+      "midpoint_residual_min_torso": 0.15,
+      "flank_distance_max_torso": 0.3,
+      "both_flank_visibility_min": 0.8
+    },
+    "completed_clips": 48,
+    "recording_groups": 43,
+    "saved_marks_all_parts": 745,
+    "marks_outside_eight_joint_scope": 8,
+    "marks_on_unusable_frames": 2,
+    "marked_positions": 735,
+    "marks_eligible_neighbors": 715,
+    "marks_selected_for_repair": 35,
+    "unmarked_positions": 42721,
+    "unmarked_selected_for_repair": 161,
+    "marked_error_torso": {
+      "raw_error": {
+        "n": 735,
+        "mean": 0.32664,
+        "median": 0.25269,
+        "p95": 0.8008
+      },
+      "repair_error": {
+        "n": 735,
+        "mean": 0.31968,
+        "median": 0.24037,
+        "p95": 0.80712
+      },
+      "smooth_error": {
+        "n": 735,
+        "mean": 0.28357,
+        "median": 0.23029,
+        "p95": 0.66694
+      }
+    },
+    "selected_marked_error_torso": {
+      "raw_error": {
+        "n": 35,
+        "mean": 0.31119,
+        "median": 0.2846,
+        "p95": 0.57183
+      },
+      "repair_error": {
+        "n": 35,
+        "mean": 0.16504,
+        "median": 0.1062,
+        "p95": 0.5363
+      },
+      "smooth_error": {
+        "n": 35,
+        "mean": 0.21583,
+        "median": 0.18904,
+        "p95": 0.37555
+      }
+    },
+    "unmarked_shift_torso": {
+      "repair_shift": {
+        "n": 42721,
+        "mean": 0.00129,
+        "median": 0.0,
+        "p95": 0.0
+      },
+      "smooth_shift": {
+        "n": 42721,
+        "mean": 0.01522,
+        "median": 0.00816,
+        "p95": 0.04578
+      }
+    },
+    "selected_unmarked_repair_shift_torso": {
+      "n": 161,
+      "mean": 0.34338,
+      "median": 0.21761,
+      "p95": 1.01183
+    },
+    "selected_repair_improved": 29,
+    "selected_repair_worsened": 6,
+    "unmarked_speed_peak_diagnostic": {
+      "paired_frame_steps": 41849,
+      "raw_speed_p95_torso_per_frame": 0.15221,
+      "smooth_speed_p95_torso_per_frame": 0.129,
+      "mean_speed_on_raw_top_5pct_steps": 0.27887,
+      "mean_smoothed_speed_same_steps": 0.17283
+    },
+    "cluster_bootstrap_mean_delta_error_95pct": {
+      "repair_minus_raw": [
+        -0.01122,
+        -0.00273
+      ],
+      "smooth_minus_raw": [
+        -0.05502,
+        -0.03444
+      ]
+    },
+    "cluster_bootstrap_selected_repair_minus_raw_95pct": [
+      -0.19638,
+      -0.10058
+    ]
+  }
+}

@@ -1,0 +1,398 @@
+{
+  "n": 95,
+  "people": 83,
+  "reviews": {
+    "participant": 30,
+    "reference": 19,
+    "both": 8
+  },
+  "correlations": {
+    "rawLegacyScore": {
+      "all": {
+        "n": 95,
+        "pearson": 0.0804,
+        "spearman": 0.1247
+      },
+      "study1": {
+        "n": 54,
+        "pearson": -0.0256,
+        "spearman": 0.0182
+      },
+      "study2": {
+        "n": 41,
+        "pearson": 0.2342,
+        "spearman": 0.2458
+      },
+      "dance_centered_all": 0.1068
+    },
+    "currentLegacyScore": {
+      "all": {
+        "n": 95,
+        "pearson": 0.0559,
+        "spearman": 0.1154
+      },
+      "study1": {
+        "n": 54,
+        "pearson": 0.0143,
+        "spearman": 0.0886
+      },
+      "study2": {
+        "n": 41,
+        "pearson": 0.1177,
+        "spearman": 0.1614
+      },
+      "dance_centered_all": 0.0717
+    },
+    "diagnostic_score": {
+      "all": {
+        "n": 95,
+        "pearson": 0.0559,
+        "spearman": 0.1154
+      },
+      "study1": {
+        "n": 54,
+        "pearson": 0.0143,
+        "spearman": 0.0886
+      },
+      "study2": {
+        "n": 41,
+        "pearson": 0.1177,
+        "spearman": 0.1614
+      },
+      "dance_centered_all": 0.0717
+    },
+    "visibility05_score": {
+      "all": {
+        "n": 95,
+        "pearson": 0.1113,
+        "spearman": 0.1645
+      },
+      "study1": {
+        "n": 54,
+        "pearson": 0.1591,
+        "spearman": 0.2556
+      },
+      "study2": {
+        "n": 41,
+        "pearson": 0.0455,
+        "spearman": 0.1008
+      },
+      "dance_centered_all": 0.1206
+    },
+    "manual_mask_score": {
+      "all": {
+        "n": 95,
+        "pearson": 0.0561,
+        "spearman": 0.1156
+      },
+      "study1": {
+        "n": 54,
+        "pearson": 0.0135,
+        "spearman": 0.0822
+      },
+      "study2": {
+        "n": 41,
+        "pearson": 0.1192,
+        "spearman": 0.1648
+      },
+      "dance_centered_all": 0.0717
+    },
+    "visibility05_manual_mask_score": {
+      "all": {
+        "n": 95,
+        "pearson": 0.1111,
+        "spearman": 0.1625
+      },
+      "study1": {
+        "n": 54,
+        "pearson": 0.1578,
+        "spearman": 0.2475
+      },
+      "study2": {
+        "n": 41,
+        "pearson": 0.0467,
+        "spearman": 0.1008
+      },
+      "dance_centered_all": 0.1203
+    },
+    "visibility05_legacyMeanScore": {
+      "all": {
+        "n": 95,
+        "pearson": 0.1099,
+        "spearman": 0.1515
+      },
+      "study1": {
+        "n": 54,
+        "pearson": 0.1511,
+        "spearman": 0.2023
+      },
+      "study2": {
+        "n": 41,
+        "pearson": 0.0506,
+        "spearman": 0.1011
+      },
+      "dance_centered_all": 0.1263
+    },
+    "manual_mask_legacyMeanScore": {
+      "all": {
+        "n": 95,
+        "pearson": 0.0561,
+        "spearman": 0.1156
+      },
+      "study1": {
+        "n": 54,
+        "pearson": 0.0135,
+        "spearman": 0.0822
+      },
+      "study2": {
+        "n": 41,
+        "pearson": 0.1192,
+        "spearman": 0.1648
+      },
+      "dance_centered_all": 0.0717
+    },
+    "visibility05_manual_mask_legacyMeanScore": {
+      "all": {
+        "n": 95,
+        "pearson": 0.1101,
+        "spearman": 0.1512
+      },
+      "study1": {
+        "n": 54,
+        "pearson": 0.1501,
+        "spearman": 0.1992
+      },
+      "study2": {
+        "n": 41,
+        "pearson": 0.0525,
+        "spearman": 0.1011
+      },
+      "dance_centered_all": 0.1262
+    }
+  },
+  "score_change": {
+    "rawLegacyScore": {
+      "n": 95,
+      "changed_gt_1e-8": 23,
+      "mean": 0.00754,
+      "mean_absolute": 0.00754,
+      "max_absolute": 0.186897
+    },
+    "currentLegacyScore": {
+      "n": 95,
+      "changed_gt_1e-8": 0,
+      "mean": 0.0,
+      "mean_absolute": 0.0,
+      "max_absolute": 0.0
+    },
+    "diagnostic_score": {
+      "n": 95,
+      "changed_gt_1e-8": 0,
+      "mean": -0.0,
+      "mean_absolute": 0.0,
+      "max_absolute": 0.0
+    },
+    "visibility05_score": {
+      "n": 95,
+      "changed_gt_1e-8": 94,
+      "mean": 0.058405,
+      "mean_absolute": 0.058587,
+      "max_absolute": 0.219426
+    },
+    "manual_mask_score": {
+      "n": 95,
+      "changed_gt_1e-8": 5,
+      "mean": 0.000118,
+      "mean_absolute": 0.000142,
+      "max_absolute": 0.007885
+    },
+    "visibility05_manual_mask_score": {
+      "n": 95,
+      "changed_gt_1e-8": 94,
+      "mean": 0.058511,
+      "mean_absolute": 0.058693,
+      "max_absolute": 0.219426
+    },
+    "visibility05_legacyMeanScore": {
+      "n": 95,
+      "changed_gt_1e-8": 94,
+      "mean": 0.066555,
+      "mean_absolute": 0.06665,
+      "max_absolute": 0.223294
+    },
+    "manual_mask_legacyMeanScore": {
+      "n": 95,
+      "changed_gt_1e-8": 5,
+      "mean": 0.000118,
+      "mean_absolute": 0.000142,
+      "max_absolute": 0.007885
+    },
+    "visibility05_manual_mask_legacyMeanScore": {
+      "n": 95,
+      "changed_gt_1e-8": 94,
+      "mean": 0.066689,
+      "mean_absolute": 0.066784,
+      "max_absolute": 0.223294
+    }
+  },
+  "coverage": {
+    "diagnostic": {
+      "mean": 0.9684,
+      "min": 0.186,
+      "median": 1.0,
+      "below_half": 1,
+      "mean_calculation_quality": 0.6806,
+      "mean_score_bound_width": 0.0316,
+      "max_score_bound_width": 0.814
+    },
+    "visibility05": {
+      "mean": 0.7017,
+      "min": 0.1594,
+      "median": 0.7287,
+      "below_half": 12,
+      "mean_calculation_quality": 0.6257,
+      "mean_score_bound_width": 0.2983,
+      "max_score_bound_width": 0.8406
+    },
+    "manual_mask": {
+      "mean": 0.9672,
+      "min": 0.186,
+      "median": 1.0,
+      "below_half": 1,
+      "mean_calculation_quality": 0.6798,
+      "mean_score_bound_width": 0.0328,
+      "max_score_bound_width": 0.814
+    },
+    "visibility05_manual_mask": {
+      "mean": 0.7009,
+      "min": 0.1594,
+      "median": 0.7287,
+      "below_half": 12,
+      "mean_calculation_quality": 0.625,
+      "mean_score_bound_width": 0.2991,
+      "max_score_bound_width": 0.8406
+    }
+  },
+  "manual_mask_coverage_changed": 5,
+  "historical_vs_current": {
+    "changed_gt_1e-8": 23,
+    "max_absolute": 0.186897,
+    "mean_absolute": 0.00754
+  },
+  "study_diagnostics": {
+    "study1": {
+      "n": 54,
+      "human_min": 1.0,
+      "human_max": 5.0,
+      "human_std": 1.1321,
+      "current_score_min": 0.5441,
+      "current_score_max": 0.9031,
+      "current_score_std": 0.0752,
+      "historical_code_changed_clips": 10,
+      "unchanged_clips_current_correlation": {
+        "n": 44,
+        "pearson": 0.0204,
+        "spearman": 0.0613
+      }
+    },
+    "study2": {
+      "n": 41,
+      "human_min": 1.0,
+      "human_max": 5.0,
+      "human_std": 1.1524,
+      "current_score_min": 0.6277,
+      "current_score_max": 0.9025,
+      "current_score_std": 0.0666,
+      "historical_code_changed_clips": 13,
+      "unchanged_clips_current_correlation": {
+        "n": 28,
+        "pearson": 0.1654,
+        "spearman": 0.1703
+      }
+    }
+  },
+  "broad_coverage_diagnostic": {
+    "diagnostic_coverage": {
+      "at_least_0_8": {
+        "n": 90,
+        "study1": 52,
+        "study2": 38,
+        "current_raw": {
+          "n": 90,
+          "pearson": 0.0719,
+          "spearman": 0.1262
+        },
+        "visibility05_per_frame": {
+          "n": 90,
+          "pearson": 0.1195,
+          "spearman": 0.175
+        }
+      },
+      "below_0_8": {
+        "n": 5,
+        "study1": 2,
+        "study2": 3,
+        "current_raw": {
+          "n": 5,
+          "pearson": -0.1331,
+          "spearman": -0.3354
+        },
+        "visibility05_per_frame": {
+          "n": 5,
+          "pearson": 0.1463,
+          "spearman": -0.2236
+        }
+      }
+    },
+    "visibility05_coverage": {
+      "at_least_0_8": {
+        "n": 35,
+        "study1": 23,
+        "study2": 12,
+        "current_raw": {
+          "n": 35,
+          "pearson": 0.1761,
+          "spearman": 0.2151
+        },
+        "visibility05_per_frame": {
+          "n": 35,
+          "pearson": 0.198,
+          "spearman": 0.3778
+        }
+      },
+      "below_0_8": {
+        "n": 60,
+        "study1": 31,
+        "study2": 29,
+        "current_raw": {
+          "n": 60,
+          "pearson": -0.016,
+          "spearman": 0.042
+        },
+        "visibility05_per_frame": {
+          "n": 60,
+          "pearson": 0.0737,
+          "spearman": 0.0713
+        }
+      }
+    }
+  },
+  "person_cluster_bootstrap_delta_pearson_95pct": {
+    "visibility05_legacyMeanScore": [
+      -0.0608,
+      0.1726
+    ],
+    "manual_mask_legacyMeanScore": [
+      -0.0009,
+      0.0015
+    ],
+    "visibility05_manual_mask_legacyMeanScore": [
+      -0.0602,
+      0.1721
+    ],
+    "diagnostic_score": [
+      0.0,
+      0.0
+    ]
+  }
+}

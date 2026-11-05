@@ -1,0 +1,85 @@
+{
+  "case_count": 191,
+  "selected_count": 161,
+  "control_count": 30,
+  "selected_clip_count": 25,
+  "control_clip_count": 24,
+  "selected_recording_count": 24,
+  "control_recording_count": 24,
+  "selected_by_corpus": {
+    "chi_reference": 4,
+    "chi25_study1": 33,
+    "chi25_study2": 124
+  },
+  "control_by_corpus": {
+    "chi25_study2": 14,
+    "chi_reference": 4,
+    "chi25_study1": 12
+  },
+  "selected_by_joint": {
+    "LEFT_HIP": 44,
+    "RIGHT_HIP": 46,
+    "LEFT_WRIST": 8,
+    "RIGHT_WRIST": 9,
+    "RIGHT_ELBOW": 12,
+    "LEFT_SHOULDER": 18,
+    "RIGHT_SHOULDER": 13,
+    "LEFT_ELBOW": 11
+  },
+  "repair_selected_marked_by_joint": {
+    "LEFT_WRIST": 10,
+    "LEFT_ELBOW": 9,
+    "RIGHT_HIP": 5,
+    "LEFT_HIP": 4,
+    "RIGHT_ELBOW": 3,
+    "RIGHT_WRIST": 2,
+    "RIGHT_SHOULDER": 2
+  },
+  "control_by_joint": {
+    "LEFT_ELBOW": 5,
+    "LEFT_WRIST": 2,
+    "RIGHT_SHOULDER": 4,
+    "RIGHT_WRIST": 3,
+    "LEFT_HIP": 8,
+    "RIGHT_HIP": 6,
+    "LEFT_SHOULDER": 2
+  },
+  "first_pass": {
+    "count": 48,
+    "selected_arm_or_shoulder": 24,
+    "selected_hip": 12,
+    "controls": 12,
+    "distinct_clips": 23,
+    "distinct_groups": 22,
+    "control_distinct_groups": 12,
+    "by_corpus": {
+      "chi_reference": 3,
+      "chi25_study1": 10,
+      "chi25_study2": 35
+    },
+    "by_joint": {
+      "LEFT_HIP": 8,
+      "RIGHT_HIP": 6,
+      "LEFT_WRIST": 4,
+      "RIGHT_SHOULDER": 7,
+      "LEFT_SHOULDER": 12,
+      "RIGHT_WRIST": 3,
+      "RIGHT_ELBOW": 4,
+      "LEFT_ELBOW": 4
+    },
+    "arm_selected_inclusion_probability": 0.3380281690140845,
+    "hip_selected_inclusion_probability": 0.13333333333333333,
+    "control_probability_condition": "conditional on frozen 30-control pool; exact value per case in sealed/first_pass_answer_key.json"
+  },
+  "selection_seed": 20261006,
+  "control_pool_size": 27789,
+  "eligible_control_clips": 25,
+  "manifest_sha256": "e97aa45bb38a39da0d0f4265ec52e92d7745b6cf9c32bcf0a3f60e1a97289185",
+  "first_pass_answer_key_sha256": "fe98ce7eb72b9dde5ceef32c16ec6a38879953f67490d19de9b19874793d5202",
+  "blinded_first_pass_sha256": "90ed9ca394b517e7816987461ac3a6c7f7c488621d7d846423299f1f76a28783",
+  "input_sha256": {
+    "release_manifest": "00695156d6a5f49bb20bf6d944c7a3d1b8f2e0d37f61bf8b2e3b0255b159d94a",
+    "frame_task_manifest": "b0157a0214988aafa2572a01ffd22952c9683de11ea0129059a33de9421ec916"
+  },
+  "note": "Aggregate counts only. Private manifest includes source identities and coordinates; never commit it."
+}

@@ -150,6 +150,18 @@ When adding or changing a metric:
 4. check Python normalization/model-fitting assumptions;
 5. distinguish technical correlation from validated coaching usefulness.
 
+The opt-in `qijia2d-quality-v1` evaluator in
+`svelte-web-frontend/src/lib/ai/motionmetrics/Qijia2DQualityAware.ts` accepts
+explicit per-frame usability, landmark visibility/provenance, and optional
+calibrated reliability metadata. It reports similarity separately from valid
+comparison coverage, visibility evidence, and an unweighted missing-comparison
+range. Its calculation-quality value describes measurement sufficiency; it is
+not a calibrated probability that the similarity score is correct. Provisional
+video-usability predictions are diagnostic inputs only. This research API does
+not change the live Qijia metric or the cross-language CSV export. Its summary
+pools valid vector comparisons across frames, whereas the legacy Qijia summary
+averages frame means, so validation must isolate that aggregation difference.
+
 ## Data locations
 
 - Persistent reference inputs: `data/reference_motions/{videos,pose-raw}/`.
