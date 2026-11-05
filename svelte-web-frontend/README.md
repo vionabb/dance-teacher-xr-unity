@@ -53,6 +53,20 @@ pnpm dev
 
 Open <http://localhost:5173>.
 
+### Research navigation
+
+Accounts with CHI25 research access see a **Research workspace** on the app
+homepage (`/menu`), with links to performance analysis, discrepancy review,
+recordings, and materials. Research pages and both metric inspectors share a
+navigation bar with the current tool highlighted and a **Home** link back to
+dance practice. Source records and video usability review links appear only
+in loopback development, matching their existing route restrictions.
+
+Run `node scripts/verifyResearchNavigation.mjs` to check the production build
+with a synthetic local backend and capture desktop/mobile screenshots. It
+requires Playwright Chromium; set `RESEARCH_NAV_BROWSER_CHANNEL=chrome` to use
+installed Chrome instead. No real accounts or participant media are used.
+
 ### Local motion-metric inspector
 
 With the development server running on loopback, open

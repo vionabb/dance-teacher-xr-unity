@@ -147,22 +147,8 @@
 				{selectedDance ? danceLabel(selectedDance) : 'Choose a dance'}
 			</h1>
 		</div>
-		<nav class="flex flex-wrap gap-2" aria-label="Research tools">
-			<a class="daisy-btn daisy-btn-outline daisy-btn-sm" href={resolve('/research/discrepancy')}
-				>Discrepancy review</a
-			>
-			{#if researchBackend === 'hosted'}
-				<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href={resolve('/research/studies')}
-					>Recordings</a
-				>
-				<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href={resolve('/research/materials')}
-					>Materials</a
-				>
-				<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href={resolve('/menu')}>App menu</a>
-			{:else}
-				<a class="daisy-btn daisy-btn-ghost daisy-btn-sm" href={resolve('/research/records')}
-					>Source records</a
-				>
+		{#if researchBackend === 'local'}
+			<nav class="flex flex-wrap gap-2" aria-label="Local metric tools">
 				<a
 					class="daisy-btn daisy-btn-ghost daisy-btn-sm"
 					href={resolve('/metrics/qijia2d') + '?source=local'}>Qijia2D local</a
@@ -171,8 +157,8 @@
 					class="daisy-btn daisy-btn-ghost daisy-btn-sm"
 					href={resolve('/metrics/viona2d') + '?source=local'}>Viona2D local</a
 				>
-			{/if}
-		</nav>
+			</nav>
+		{/if}
 	</header>
 
 	{#if loading}
