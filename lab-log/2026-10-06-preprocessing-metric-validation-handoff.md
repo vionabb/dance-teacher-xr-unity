@@ -98,11 +98,38 @@ non-identifying `selection_summary.json`. The aggregate summary is copied
 into the companion lab entry. Do not publish the private case files, which
 contain participant-derived frame and pose details.
 
+## Review screen (2026-11-05)
+
+- A separate screen now exists at
+  `motion-pipeline/motion_extraction/repair_adjudication/` (see its README).
+  It has its own server and its own append-only SQLite file; triggers reject
+  `UPDATE`/`DELETE`, and it refuses any database it did not create, including
+  the active annotation database. It loads only the blinded manifest, refuses
+  any input path with a `sealed` component, checks the frozen
+  `blinded_first_pass_sha256` by default, and sends the browser only blind
+  ID, frame, fps, landmark, tracked point, and optional context points. It
+  records `acceptable_as_is`, `incorrect_correctable` (optional dragged
+  point), or `unjudgeable`, with a note and the frames viewed.
+- Validated with synthetic cases only: 19 focused tests, the existing
+  annotation-tool tests, and a headless Chromium dry run at desktop and 375px
+  width (landscape and portrait clips, drag-to-correct, save, export).
+- Not yet run on the real cases. On 2026-11-05 the private
+  `20261006-repair-adjudication-v1/` folder was not in Viona's main checkout,
+  the other local worktrees, `~/.codex/worktrees`, or the Drive remotes. Its
+  field names were never seen, so the loader's case contract
+  (`blind_id`, `video`, `frame_index`, `fps`, `landmark`, `point`) is an
+  assumption to check against the real `blinded/first_pass_manifest.json`.
+  The media root for case videos also needs to be confirmed.
+- No judgments have been collected. They need Viona's own source-video review.
+
 ## Decision and single next action
 
 Keep preprocessing and production similarity defaults unchanged. The single
-next action is to build a small, separate review screen with an append-only
-database for the prepared blinded 48 cases. Reuse source-video seeking and
+next action is to locate the private blinded manifest, check its fields and
+video paths against the review screen's loader, then run the screen for
+Viona's judgments. The original brief for the screen follows: build a small,
+separate review screen with an append-only database for the prepared blinded
+48 cases. Reuse source-video seeking and
 landmark dragging where possible, but display only the blinded manifest and
 record a distinct acceptable-as-is, incorrect/correctable, or unjudgeable
 response by blind ID. Do not reopen the completed active frame tasks for this
