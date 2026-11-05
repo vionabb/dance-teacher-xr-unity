@@ -195,6 +195,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 - [2026-10-02 — Hypothesis workspace handoff](2026-10-02-hypothesis-workspace-prototype-handoff.md)
   Gives the next agent the reconciled PR, implemented scope, validation and
   setup commands, database precautions, and the next investigation decision.
+  Records an independent review of the reconciled migration and local access
+  boundary (no blocking issues; one possibly flaky local UI check).
 
 - [2026-10-02 — Toward one research workspace](2026-10-02-unified-research-workspace.md)
   Viona chose one SvelteKit interface for research and learner work, local

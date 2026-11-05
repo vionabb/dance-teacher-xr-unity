@@ -69,6 +69,33 @@ main/checkouts reject schema v4: use a separate database or a verified
 pre-upgrade snapshot rather than changing the version marker. This PR adds
 no hosted database migration and does not migrate local hypotheses to Supabase.
 
+## Review of the reconciliation (2026-11-05, Claude)
+
+Reviewed head `00bc925` against `abd836a`. Main has since gained only #435
+(domain references in `verifyChi25Cloud.mjs` and `static/CNAME`), which merges
+cleanly, so the branch was not re-merged.
+
+- Migration: versions 1, 2 (main), and 3 (earlier prototype) all upgrade to v4
+  inside the single `BEGIN IMMEDIATE` schema transaction; other versions are
+  rejected. Existing tests cover v1, populated v2 with discrepancy notes, v3
+  with hypothesis events, DDL rollback, and concurrent first opens. Optional
+  nit: `UPDATE schema_meta` now runs on every open even at v4; it is harmless
+  but could be skipped when the version already matches.
+- Access boundary: both hypothesis routes return 404 unless `dev` and a
+  loopback client; actions additionally use `isDevLocalRequestAllowed`
+  (same-origin/Sec-Fetch-Site). `hooks.server.ts` only bypasses auth for
+  `/research/*` under the same condition. The navigation link is inside the
+  existing `local` block. This matches records/rate/discrepancy routes.
+- Reproduced in a Linux cloud checkout (Node 24.22.1, pnpm 9.12.2, placeholder
+  env): 34/34 focused tests, `pnpm lint`, `pnpm test:research-schema`,
+  `verifyResearchNavigation.mjs` all pass. `pnpm check` gives 0 errors only
+  after `git lfs pull --include='svelte-web-frontend/src/lib/data/bundle/dances.json'`;
+  with that file as an LFS pointer it reports 29 errors (environmental).
+  `verifyHypothesisWorkspace.mjs` passed 5 of 6 runs; the first run, started
+  right after `pnpm check`, failed one `strictEqual` assertion that was not
+  captured and did not recur. Treat it as possibly flaky on a cold dev server.
+- No real Codex turn and no private-ratings suites were run.
+
 ## Next agent's task
 
 First review PR #414's shared-store migration and local navigation against the
