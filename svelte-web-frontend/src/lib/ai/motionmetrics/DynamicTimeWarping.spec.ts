@@ -15,7 +15,8 @@ describe('DynamicTimeWarping', () => {
 		const series2 = [2, 3, 4];
 		// Cost function: absolute difference.
 		const dtw = new DynamicTimeWarping<number, number>(series1, series2, (a, b) => Math.abs(a - b));
-		expect(dtw.getDistance()).toBe(3);
+		// Optimal warping aligns (1,2),(2,2),(3,3),(3,4) for a cost of 1+0+0+1; a rigid diagonal alignment would cost 3.
+		expect(dtw.getDistance()).toBe(2);
 	});
 
 	// Test that the warping path is properly computed.

@@ -76,7 +76,7 @@
 							<li class="rounded-box border-base-300 border p-4">
 								<p class="text-sm leading-6">{finding.value}</p>
 								<time class="mt-2 block text-xs opacity-60" datetime={finding.created_at}
-									>{new Date(finding.created_at).toLocaleString()}</time
+									>{finding.created_at}</time
 								>
 							</li>
 						{/each}

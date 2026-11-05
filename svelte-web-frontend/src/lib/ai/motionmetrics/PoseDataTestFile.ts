@@ -830,7 +830,9 @@ export function getClipHumanRatings(args: {
  * ```
  */
 export async function loadHumanRatings() {
-	const filepath = 'src/lib/ai/motionmetrics/testdata/humanratings.csv';
+	const filepath = path.resolve(
+		process.env.HUMAN_RATINGS_PATH ?? '../local-data/chi25-humanratings-source.csv'
+	);
 
 	const file = await readFile(filepath, { encoding: 'utf-8' });
 	const data = await (new Promise((resolve, reject) => {
@@ -924,3 +926,8 @@ export async function loadHumanRatings() {
 
 	return allRatings;
 }
+
+// These fixtures are gitignored (see the frontend README); data-dependent specs
+// skip themselves instead of failing on a checkout that does not have them.
+export const HAS_MEDIA_BUNDLE = existsSync(path.resolve(TIKTOK_WHOLE_POSES_FOLDER_2D));
+export const HAS_TIKTOK_CLIP_POSES = existsSync(path.resolve(TIKTOK_CLIPS_POSES_FOLDER));

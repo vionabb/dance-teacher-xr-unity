@@ -7,8 +7,9 @@ Status: **local read model and whole-video usability authoring implemented; furt
 The existing SvelteKit application will become one interface for research
 inspection and the learner experience. A local persistent Node runtime will
 serve research routes and can invoke Python workers for stages that remain in
-the motion pipeline. The current Vercel deployment remains learner-facing
-unless a later deployment decision explicitly expands it. Metric mathematics
+the motion pipeline. Vercel now also serves the authorized, read-only CHI25
+collection described below. The broader tablet analysis and Codex integration
+is planned in [hosted research workspace](hosted-research-workspace.md). Metric mathematics
 will have one JavaScript/TypeScript implementation shared by live evaluation,
 batch execution, and visual inspection; each metric may accept versioned
 configurations.
@@ -156,6 +157,12 @@ opening prose from its cited lab-log Markdown file at request time; the full
 source entry is available on the page. Hypothesis-specific investigation
 sections and links can differ by slug.
 
+The shared research navigation exposes **Hypotheses** only for development
+sessions on loopback. Hosted research accounts retain their existing tools;
+the hypothesis pages and actions reject production requests. The current
+[agent handoff](../lab-log/2026-10-02-hypothesis-workspace-prototype-handoff.md)
+records setup, validation, data prerequisites, and the next investigation step.
+
 The app-managed research SQLite database stores append-only conversation,
 status, and finding records. Each conversation save makes a verified local
 snapshot. Statuses describe the research workflow (`candidate`,
@@ -206,3 +213,84 @@ one SQLite transaction. Older code intentionally refuses a newer database
 version. Use a separate `RESEARCH_SQLITE_PATH` for an older checkout, or a
 verified snapshot made before the upgrade; do not change the version marker
 to make older code accept newer state.
+
+## Hosted CHI25 read-only collection
+
+Viona requested that the existing production instance serve research materials
+for both CHI25 user studies to explicitly authorized accounts. The first slice
+provides a separate `/research/studies` route for participant videos and
+canonical raw `pose2d` files. PR #428 was merged after production migration,
+hash-verified import of 675 Study 1 and 1,081 Study 2 pairs, access grants, and
+browser acceptance. The earlier local research workspace, its SQLite database,
+annotation authoring, and metric inspectors remain local.
+
+`supabase/migrations/20261028120000_hosted_chi25_research.sql` creates a private
+`research-chi25` bucket, a study-scoped `research_access` membership table, and
+read-only `research_media` catalog. It also replaces the older Storage read
+policy, which matched every bucket except `userPerformanceVideos`, with one
+restricted to buckets actually marked public. The new bucket's object policy
+requires both a catalog entry and a research membership for that study. Only
+server-side service-role administration can write membership and media rows;
+the browser receives no write policy. Video playback uses a ten-minute signed
+URL after route authorization; a URL already issued can remain usable until it
+expires even after membership is revoked. Pose downloads are proxied through
+the authenticated route.
+
+From `svelte-web-frontend/`, run `node scripts/importChi25Research.mjs` to check
+pairing for both studies without transferring data. For a reviewed transfer,
+set `RESEARCH_DATA_ROOT` to the staged participant-motions directory,
+`RESEARCH_SOURCE_DESCRIPTION` to an immutable source-release identifier,
+`NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to the target project,
+then pass `--upload`. The tool uses immutable study/recording object keys,
+verifies each remote object by hashing its downloaded content, and inserts the
+catalog row only after both objects pass. It can resume after interruption and
+rejects a conflicting catalog row or object. Confirm the target project's
+storage capacity and upload limit first.
+
+For an initial production check, append `--pilot` to select one deterministic
+video/pose pair from each study. Run the same command without `--pilot` after
+verifying both pilot rows, direct Storage access controls, and playback.
+
+To grant or revoke access after an account exists, set `RESEARCH_ACCOUNT_EMAIL`,
+`NEXT_PUBLIC_SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`, then run
+`node scripts/manageResearchAccess.mjs` or append `--revoke`. The email is an
+administrative input and is not stored in source code. The default grant covers
+both studies; `RESEARCH_STUDIES` can restrict it to one or both.
+
+Acceptance: anonymous visitors and ordinary learner accounts cannot read
+catalog rows or private objects, including direct Supabase requests; a member
+of only one study cannot read the other; an authorized member can browse,
+play, seek, see an image-space raw-pose overlay, and download the paired CSV;
+the imported catalog has exactly the reviewed pair counts for both studies.
+
+### Companion materials
+
+PR #429 added `/research/materials` for five shared CHI study
+reference videos, a study-specific human-ratings CSV for each study, and 48
+reviewed pose segments from the immutable `20261002-first-manual-review`
+release (19 Study 1, 25 Study 2, four shared reference segments). The ratings
+source has 821 Study 1 and 749 Study 2 rows. These are companion research
+artifacts, not full-recording automatic poses, and the active annotation
+database is not transferred. `research_material` and the private Storage
+object policy use the same study membership gate as the recording catalog;
+shared references require membership in at least one study. The collection
+remains read-only through the browser. The database migration and all 55
+hash-verified objects and the browser route are in production. Viona accepted
+the read-only release on 2026-10-28. Research sign-in defaults to the study
+collection; the next navigation change also allows researchers to open the
+learner menu with the same account.
+
+`scripts/importChi25Materials.mjs` checks all sources in a dry run. Set
+`REFERENCE_VIDEO_ROOT` to a staged copy of
+`dataset:referencevideos/chi-studyvideos`, `MANUAL_REVIEW_ROOT` to the
+staged frozen review corpus, and `MANUAL_REVIEW_RELEASE_MANIFEST` to its
+immutable release manifest. The ratings source is private in Google Drive.
+Stage it at the ignored `../local-data/chi25-humanratings-source.csv` path
+(relative to the frontend), or set `HUMAN_RATINGS_PATH` to another private
+local copy. Set
+`NEXT_PUBLIC_SUPABASE_URL` and a temporary server-side
+`SUPABASE_SERVICE_ROLE_KEY` for `--upload`; add `--pilot` for one material per
+scope and kind. The importer verifies every released reviewed-pose SHA-256,
+then hashes each uploaded object after downloading it. Existing catalog rows
+must match all source fields. A new frozen release needs its own reviewed
+import contract rather than silently replacing this one.

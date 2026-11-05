@@ -1,0 +1,15 @@
+{
+  "referenceHashesVerified": 20,
+  "referenceBytes": 9461451,
+  "currentMetricReleaseMatchesRegistry": true,
+  "originalMediaAndMaterialsUnchanged": true,
+  "anonymousRegistryDenied": true,
+  "storage": {
+    "signedHead": 200,
+    "corsAllowsOrigin": true,
+    "rangeStatus": 206,
+    "rangeBytes": 100,
+    "publicObjectReadDenied": true
+  },
+  "checkedAt": "2026-10-29T03:27:28.120Z"
+}

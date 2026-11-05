@@ -2,16 +2,21 @@ import {
 	getSegmentFrameRanges,
 	type MotionMetricTimeSeries,
 	type QuantifierDerivedRow,
+	type QuantifierTimeSeriesRow,
 	type SingleTrackMetricTrack
 } from './MotionMetric';
 import { getFrameAlignedSeriesValues, getSeriesById, pearsonCorrelation } from './quantifierUtils';
 
 export type CorrelationQuantifierOptions = {
 	metricA: {
-		quantify(track: Readonly<SingleTrackMetricTrack>): MotionMetricTimeSeries[];
+		quantify(
+			track: Readonly<SingleTrackMetricTrack>
+		): MotionMetricTimeSeries<QuantifierTimeSeriesRow>[];
 	};
 	metricB: {
-		quantify(track: Readonly<SingleTrackMetricTrack>): MotionMetricTimeSeries[];
+		quantify(
+			track: Readonly<SingleTrackMetricTrack>
+		): MotionMetricTimeSeries<QuantifierTimeSeriesRow>[];
 	};
 	seriesIdA?: string;
 	seriesIdB?: string;

@@ -7,6 +7,9 @@
 	export let supabaseClient: SupabaseClient;
 	export let view: 'sign_in' | 'sign_up' | 'forgot_password';
 	export let forgotPasswordRedirectPath = '';
+	export let signInAction: string | undefined = undefined;
+	export let signInError = '';
+	export let returnTo = '';
 
 	let error = '';
 	let message = '';
@@ -72,7 +75,19 @@
 	}
 </script>
 
-<form on:submit|preventDefault={submit}>
+<form
+	method={view === 'sign_in' && signInAction ? 'POST' : undefined}
+	action={view === 'sign_in' ? signInAction : undefined}
+	on:submit={(event) => {
+		if (view === 'sign_in' && signInAction) {
+			loading = true;
+			return;
+		}
+		event.preventDefault();
+		void submit();
+	}}
+>
+	<input type="hidden" name="next" value={returnTo} />
 	<h3 class="text-xl">
 		{#if view === 'sign_in'}
 			Sign In
@@ -140,17 +155,22 @@
 
 	<div class="flex flex-col gap-2">
 		{#if view !== 'sign_in'}
-			<button class="daisy-btn daisy-btn-link daisy-btn-sm" on:click={() => (view = 'sign_in')}
-				>Sign In</button
+			<button
+				type="button"
+				class="daisy-btn daisy-btn-link daisy-btn-sm"
+				on:click={() => (view = 'sign_in')}>Sign In</button
 			>
 		{/if}
 		{#if view !== 'sign_up'}
-			<button class="daisy-btn daisy-btn-link daisy-btn-sm" on:click={() => (view = 'sign_up')}
-				>Create Account</button
+			<button
+				type="button"
+				class="daisy-btn daisy-btn-link daisy-btn-sm"
+				on:click={() => (view = 'sign_up')}>Create Account</button
 			>
 		{/if}
 		{#if view !== 'forgot_password'}
 			<button
+				type="button"
 				class="daisy-btn daisy-btn-link daisy-btn-sm"
 				on:click={() => (view = 'forgot_password')}>Forgot Password</button
 			>
@@ -163,6 +183,9 @@
 
 	{#if error}
 		<p class="text-red">{error}</p>
+	{/if}
+	{#if view === 'sign_in' && signInError}
+		<p class="text-red" role="alert">{signInError}</p>
 	{/if}
 </form>
 

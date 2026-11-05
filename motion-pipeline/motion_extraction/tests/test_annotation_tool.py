@@ -104,7 +104,7 @@ def test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker() -> None:
     assert 'class="user-menu"' in html
     assert '<div class="navbar-end">' in html
     assert 'id="landmark-panel" class="card card-border p-4" popover="auto" aria-labelledby="landmark-dialog-title"' in html
-    assert 'class="card card-border flex flex-row items-center justify-between' in html
+    assert 'class="progress-card card card-border flex flex-row items-center justify-between' in html
     # daisyUI v5 dropdowns use the popover API, not the legacy details/summary +
     # dropdown-content pattern (deprecated -- see the header user-menu).
     assert "dropdown-content" not in html
@@ -131,10 +131,10 @@ def test_annotation_ui_uses_two_screen_workflow_and_no_profile_picker() -> None:
     assert "if (rememberedAnnotator && (rememberedToken || !info.access_token_required)) loadState();" in (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert '$("previous").onclick' not in (STATIC_ROOT / "app.js").read_text(encoding="utf-8")
     assert ".remember-token { display: inline-flex" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
-    assert "padding: 1rem 1rem 5rem" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
+    assert "padding-bottom: 7rem" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert ".case-picker select { width: 100%; min-width: 0; color: var(--ink);" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert ".case-picker { min-width: 0; max-width: 52%; }" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
-    assert ".progress-card { min-height: 4.25rem;" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
+    assert ".progress-card { min-height: 3.25rem;" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert ".progress-card.card { flex-direction: row; }" in (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
 
 
@@ -1213,7 +1213,7 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     assert 'id="error-marking-overlay"' in html
     assert 'id="error-marking-video-wrap"' in html
-    assert 'id="error-marking-mark-frame-usable"' in html
+    assert 'id="error-marking-mark-frame-good"' in html
     assert 'id="error-marking-mark-frame-unusable"' in html
     assert 'id="error-marking-frame-usability-toggle"' in html
     assert 'class="segmented-control-handle"' in html
@@ -1270,7 +1270,7 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert "width + 2 * bufferX" in js
     assert "height + 2 * bufferY" in js
     assert "const viewBox = svg.viewBox.baseVal;" in js
-    assert "1 / (1 + 2 * ERROR_MARKING_CANVAS_BUFFER_RATIO)" in js
+    assert "zoom / (1 + 2 * errorMarkingCanvasBufferRatio())" in js
     assert "transform-origin: center;" in css
     assert ".timeline-bad-frame-track" in css
     assert ".timeline-bad-frame-track { overflow: hidden;" in css
@@ -1279,7 +1279,7 @@ def test_error_marking_ui_declares_the_skeleton_overlay_and_click_drag_contract(
     assert ".timeline-bad-frame-auto" in css
     assert ".video-marked-unusable .timeline-joint-track-disabled" in css
     assert ".error-marking-no-pose-badge" in css
-    assert "Automatic: missing tracking" in js
+    assert "Automatic: missing pose" in js
 
 
 def test_error_mark_dialog_shows_corrected_skeleton_with_highlighted_landmark() -> None:
@@ -1311,7 +1311,7 @@ def test_usability_controls_share_a_tokenized_segmented_control_contract() -> No
 
     assert html.count('class="segmented-control ') == 2
     assert html.count('class="segmented-control-handle"') == 2
-    assert html.count('class="segmented-control-option ') == 6
+    assert html.count('class="segmented-control-option ') == 7
     assert html.count('data-state="') == 2
     assert 'data-control="frame-usability"' in html
     assert 'data-control="video-usability"' in html
@@ -1367,6 +1367,9 @@ def test_skeleton_overlay_colors_by_move_and_cause_and_ghosts_the_original_posit
         [
             "function errorMarkingCurrentFrame() { return state.errorMarkingFrame; }",
             "function isVideoRatingOnlyTask() { return false; }",
+            "function isFrameUsabilityTask() { return false; }",
+            "function isBadFrame() { return false; }",
+            "function isOutOfScopeLeg() { return false; }",
             extract_function("markForPartAtFrame"),
             extract_function("skeletonFrameLandmarks"),
             constants,
@@ -1613,9 +1616,9 @@ def test_error_marking_frame_indicator_floats_over_video_and_playback_controls_a
     assert "height: var(--control-height-sm);" in css[css.index(".segmented-control {"):].split("}", 1)[0]
     assert "transition: transform .18s ease" in css
     assert "data-video-state" not in html
-    assert "#error-marking-video { display: block; max-height: calc(32vh + 2.75rem);" in css
+    assert "#error-marking-video { display: block; max-height: min(58vh, calc(100dvh - 23rem));" in css
     mobile_css = css[css.index("@media (max-width: 800px)") :]
-    assert "#error-marking-video { max-height: calc(58vh + 2.75rem); }" in mobile_css
+    assert "#error-marking-video { max-height: min(55vh, calc(100dvh - 22rem)); }" in mobile_css
 
     assert "$(\"error-marking-skip-start\").onclick" in js
     skip_handler = js[
@@ -1687,7 +1690,7 @@ def test_completion_is_relabeled_and_gated_on_reviewing_dirty_error_marks() -> N
     # already-reviewed error_marking task) goes straight to submission.
     handler_start = js.index('document.querySelectorAll(".actions button[data-status]")')
     handler = js[handler_start : js.index("\n});", handler_start)]
-    assert "isErrorMarkingTask(task) && !isVideoRatingOnlyTask(task) && state.errorMarkingDirty" in handler
+    assert "isErrorMarkingTask(task) && !isVideoRatingOnlyTask(task) && !isFrameUsabilityTask(task) && state.errorMarkingDirty" in handler
     assert "openErrorMarkingReviewDialog();" in handler
     assert "await submitStatusAndAdvance(button.dataset.status);" in handler
     # "Looks good" is the only path in the dialog that actually completes
@@ -1700,7 +1703,7 @@ def test_mobile_media_query_enlarges_the_skeleton_adjustment_canvases() -> None:
     css = (STATIC_ROOT / "style.css").read_text(encoding="utf-8")
     mobile_css = css[css.index("@media (max-width: 800px)") :]
     assert "#editor-viewport { max-height: 82vh; }" in mobile_css
-    assert "#error-marking-video { max-height: calc(58vh + 2.75rem); }" in mobile_css
+    assert "#error-marking-video { max-height: min(55vh, calc(100dvh - 22rem)); }" in mobile_css
     assert "error-marking-review-box" in mobile_css
 
 

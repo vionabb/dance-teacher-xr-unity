@@ -39,7 +39,7 @@
 			selectedAudioDeviceId = audioDeviceList[0].deviceId;
 			state = 'devicelist';
 		} catch (error) {
-			lastError = error;
+			lastError = error as Error;
 			state = 'start';
 			return;
 		}
@@ -57,7 +57,7 @@
 			webcamStream.set(stream);
 			state = 'success';
 		} catch (error) {
-			lastError = error;
+			lastError = error as Error;
 			state = 'devicelist';
 		}
 	}

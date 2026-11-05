@@ -4,7 +4,9 @@ import { authorizeDetailOperations } from './hypothesis-detail-intent';
 test('detail discussion, negation, and instructions cannot save proposed state', () => {
 	for (const message of [
 		"Don't save a finding yet",
+		'Please do not save a finding.',
 		'What is the status of this?',
+		'What status should this hypothesis have?',
 		'How do I set status to investigating?',
 		'Can you explain how to save a finding: tracking errors?',
 		'What if I mark this as investigating?'

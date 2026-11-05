@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import { setLastMetric } from '$lib/utils/last-inspected-metric';
 
 	interface Props {
@@ -17,11 +18,12 @@
 		setLastMetric(metric);
 
 		const params = new URLSearchParams({ performance: performanceId, time: String(timeSeconds) });
-		const currentUrl = new URL(page.url);
-		currentUrl.searchParams.set('performance', performanceId);
-		currentUrl.searchParams.set('time', String(timeSeconds));
-		replaceState(currentUrl, page.state);
-		void goto(`/metrics/${metric}?${params.toString()}`);
+		if (page.url.searchParams.get('review') === 'discrepancy') params.set('review', 'discrepancy');
+		const currentParams = new URLSearchParams(page.url.searchParams);
+		currentParams.set('performance', performanceId);
+		currentParams.set('time', String(timeSeconds));
+		replaceState(resolve(`/metrics/${currentMetric}?${currentParams.toString()}`), page.state);
+		void goto(resolve(`/metrics/${metric}?${params.toString()}`));
 	}
 </script>
 

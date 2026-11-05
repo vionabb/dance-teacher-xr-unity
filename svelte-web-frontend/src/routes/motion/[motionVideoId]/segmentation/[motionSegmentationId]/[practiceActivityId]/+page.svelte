@@ -12,13 +12,8 @@
 			pageTitle: data.practiceActivity.title,
 			subtitle: 'Practice Steps',
 			back: {
-				url:
-					'/dance/' +
-					encodeURIComponent(data.dance.clipRelativeStem) +
-					'/' +
-					encodeURIComponent(data.danceTree.tree_name) +
-					'/',
-				title: `${data.dance.title} Home`
+				url: `/motion/${data.motionVideo.id}/segmentation/${data.motionSegmentation.id}/`,
+				title: `${data.motionVideo.display_name} Home`
 			}
 		}));
 	}

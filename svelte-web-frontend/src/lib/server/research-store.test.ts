@@ -7,9 +7,12 @@ import {
 	importResearchSources,
 	readHypothesisCatalog,
 	readHypothesisState,
+	recordHypothesisTurn,
 	readResearchRecords,
 	readUsabilityData,
-	recordVideoUsabilityRating
+	recordVideoUsabilityRating,
+	readDiscrepancyObservations,
+	saveDiscrepancyObservation
 } from './research-store';
 
 const folders: string[] = [];
@@ -99,6 +102,59 @@ test('a v3 research database keeps its hypothesis history after collection suppo
 	});
 	expect((await readHypothesisState(databasePath, 'landmark-error-signals')).events).toMatchObject([
 		{ kind: 'status', value: 'investigating' }
+	]);
+});
+
+test('upgrading a main v2 database preserves discrepancy notes alongside hypothesis events', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-main-reconcile-'));
+	folders.push(folder);
+	const file = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	await new Promise<void>((resolve, reject) => {
+		const db = new sqlite3.Database(file);
+		db.exec(
+			`CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (2);
+			CREATE TABLE discrepancy_observations (
+			id INTEGER PRIMARY KEY AUTOINCREMENT, segment_id TEXT NOT NULL, annotator TEXT NOT NULL,
+			created_at TEXT NOT NULL, start_seconds REAL NOT NULL, end_seconds REAL NOT NULL,
+			note TEXT NOT NULL, direction TEXT NOT NULL, tags_json TEXT NOT NULL,
+			metric TEXT NOT NULL, context_json TEXT NOT NULL);
+			INSERT INTO discrepancy_observations VALUES
+			(1, '${'a'.repeat(24)}', 'synthetic', '2026-11-05T00:00:00Z', 0, 1,
+			'Existing discrepancy note.', 'Uncertain', '[]', 'qijia2d', '{}');`,
+			(error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+		);
+	});
+	const receipt = await recordHypothesisTurn(file, {
+		slug: 'segment-tracking-risk',
+		userMessage: 'Mark this as investigating.',
+		assistantReply: 'Marked investigating.',
+		status: 'investigating',
+		finding: null
+	});
+	expect(receipt.backupError).toBeNull();
+	expect(await readDiscrepancyObservations(file)).toMatchObject([
+		{ id: 1, note: 'Existing discrepancy note.' }
+	]);
+	const note = await saveDiscrepancyObservation(file, {
+		segment_id: 'b'.repeat(24),
+		annotator: 'synthetic',
+		start_seconds: 1,
+		end_seconds: 2,
+		note: 'A new discrepancy note.',
+		direction: 'Uncertain',
+		tags: [],
+		metric: 'qijia2d',
+		context: {}
+	});
+	expect(note.backupError).toBeNull();
+	expect(await readDiscrepancyObservations(file)).toHaveLength(2);
+	expect((await readHypothesisState(file, 'segment-tracking-risk')).events).toMatchObject([
+		{ kind: 'status', value: 'investigating' }
+	]);
+	expect(await readDiscrepancyObservations(receipt.snapshotPath!)).toMatchObject([
+		{ id: 1, note: 'Existing discrepancy note.' }
 	]);
 });
 
@@ -336,4 +392,59 @@ test('frozen sources import repeatedly without changing files or duplicating rec
 	);
 	await expect(importResearchSources(input)).rejects.toThrow('changed');
 	expect((await readResearchRecords(databasePath)).humanRatings[0].human_rating).toBe(4);
+});
+
+test('persists separate append-only discrepancy observations with verified backups', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-discrepancy-'));
+	folders.push(folder);
+	const file = path.join(folder, 'research.sqlite3');
+	const input = {
+		segment_id: 'a'.repeat(24),
+		annotator: 'test',
+		start_seconds: 0.5,
+		end_seconds: 1.5,
+		note: 'The pose lags the visible arm.',
+		direction: 'Metric seems too harsh',
+		tags: ['Timing / alignment'],
+		metric: 'qijia2d' as const,
+		context: { videoSha256: 'b'.repeat(64), configuration: { visibility: 'none' } }
+	};
+	const receipt = await saveDiscrepancyObservation(file, input);
+	expect(receipt.backupError).toBeNull();
+	await saveDiscrepancyObservation(file, { ...input, note: 'A comparison observation.' });
+	const rows = await readDiscrepancyObservations(file, input.segment_id);
+	expect(rows).toHaveLength(2);
+	expect(rows[1]).toMatchObject(input);
+	expect(await readDiscrepancyObservations(file, 'c'.repeat(24))).toEqual([]);
+	expect((await readUsabilityData(file)).localRatings).toEqual([]);
+	await expect(saveDiscrepancyObservation(file, { ...input, end_seconds: -1 })).rejects.toThrow(
+		'Invalid discrepancy observation'
+	);
+	const { readdir } = await import('node:fs/promises');
+	expect((await readdir(path.join(folder, 'backups'))).length).toBe(2);
+});
+
+test('reports a discrepancy backup failure without losing the saved observation', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-discrepancy-backup-'));
+	folders.push(folder);
+	const file = path.join(folder, 'research.sqlite3');
+	// An ordinary file at the backup directory path simulates an unavailable backup destination.
+	await writeFile(path.join(folder, 'backups'), 'blocked');
+	const input = {
+		segment_id: 'b'.repeat(24),
+		annotator: 'test',
+		start_seconds: 0,
+		end_seconds: 0,
+		note: 'A single-moment observation remains saved.',
+		direction: 'Uncertain',
+		tags: [],
+		metric: 'viona2d' as const,
+		context: {}
+	};
+	const receipt = await saveDiscrepancyObservation(file, input);
+	expect(receipt.id).toBeGreaterThan(0);
+	expect(receipt.backupError).toBeTruthy();
+	expect(await readDiscrepancyObservations(file, input.segment_id)).toMatchObject([
+		{ ...input, id: receipt.id }
+	]);
 });

@@ -2,8 +2,27 @@
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import { get } from 'svelte/store';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
+	import {
+		clipReviewTime,
+		reviewPlaybackBoundary,
+		type ReviewPlaybackRange
+	} from '$lib/research/review-playback';
+	import { researchApiPrefix, type ResearchBackend } from '$lib/research/discrepancy-client';
+	const researchBackend = $derived(
+		(page.data as { researchBackend?: ResearchBackend }).researchBackend ?? 'local'
+	);
+	const apiPrefix = $derived(researchApiPrefix(researchBackend));
+	import VideoRecoveryNotice from '$lib/elements/VideoRecoveryNotice.svelte';
+	import {
+		checkVideoReload,
+		refreshedVideoUrl,
+		type VideoSide,
+		type VideoRecovery
+	} from '$lib/research/video-recovery';
+	import DiscrepancyReview from '$lib/elements/DiscrepancyReview.svelte';
 	import MetricSwitcher from '$lib/elements/MetricSwitcher.svelte';
 	import {
 		compareQijiaFrame,
@@ -64,6 +83,8 @@
 		id: string;
 		clipNumber: number;
 		referencePoseAvailable: boolean;
+		inputVersion?: string;
+		metricReleaseId?: string;
 		videoUrl?: string;
 		poseUrl?: string;
 		referencePoseUrl?: string | null;
@@ -103,6 +124,102 @@
 	let loadedSegments = $state<LoadedSegment[]>([]);
 	let activeSegmentIndex = $state(0);
 	let globalTime = $state(0);
+	let reviewRange: ReviewPlaybackRange | null = null;
+	let reviewSelection = $state<{ start: number; end: number } | null>(null);
+	let reviewPlaying = $state(false);
+	let reviewSpeed = $state(1);
+	let videoRecovery = $state<Record<VideoSide, VideoRecovery>>({
+		participant: { state: 'idle', message: '' },
+		reference: { state: 'idle', message: '' }
+	});
+	const videoReloadTimers: Partial<Record<VideoSide, ReturnType<typeof setTimeout>>> = {};
+	function clearVideoReloadTimer(side: VideoSide) {
+		if (videoReloadTimers[side]) clearTimeout(videoReloadTimers[side]);
+		delete videoReloadTimers[side];
+	}
+	function videoFailed(side: VideoSide) {
+		clearVideoReloadTimer(side);
+		if (!datasetMode) return;
+		autoAdvance = false;
+		pauseReview();
+		videoRecovery[side] = {
+			state: 'error',
+			message: 'Video could not load. Reload to renew access and keep your review position.'
+		};
+	}
+	async function reloadVideo(side: VideoSide) {
+		if (!datasetMode || ['checking', 'loading'].includes(videoRecovery[side].state)) return;
+		const segmentId = activeLoadedSegment.segment.id;
+		const requestToken = loadToken;
+		const url =
+			side === 'participant'
+				? activeLoadedSegment.segment.videoUrl
+				: activeLoadedSegment.segment.referenceVideoUrl;
+		if (!url) return;
+		autoAdvance = false;
+		pauseReview();
+		videoRecovery[side] = { state: 'checking', message: 'Checking video access…' };
+		const access = await checkVideoReload(url);
+		if (requestToken !== loadToken || activeLoadedSegment?.segment.id !== segmentId) return;
+		if (!access.allowed) {
+			videoRecovery[side] = { state: 'denied', message: access.message };
+			return;
+		}
+		try {
+			const freshUrl = refreshedVideoUrl(url, window.location.origin, crypto.randomUUID());
+			videoRecovery[side] = {
+				state: 'loading',
+				message: 'Reloading video at your review position…'
+			};
+			clearVideoReloadTimer(side);
+			videoReloadTimers[side] = setTimeout(() => {
+				if (
+					requestToken === loadToken &&
+					activeLoadedSegment?.segment.id === segmentId &&
+					videoRecovery[side].state === 'loading'
+				)
+					videoFailed(side);
+			}, 15_000);
+			if (side === 'participant') participant = { ...participant, url: freshUrl };
+			else reference = { ...reference, url: freshUrl };
+		} catch {
+			videoRecovery[side] = {
+				state: 'error',
+				message: 'This video source cannot be refreshed. Reopen the performance to try again.'
+			};
+		}
+	}
+	let showMetricDetails = $state(false);
+	let showReviewOverlay = $state(true);
+	function setReviewSelection(start: number, end: number) {
+		if (reviewSelection?.start !== start || reviewSelection?.end !== end) {
+			if (reviewRange) pauseReview();
+			reviewSelection = { start, end };
+		}
+	}
+	function seekReviewTime(time: number) {
+		const active = timeline[activeSegmentIndex];
+		if (active) seekGlobalTime(active.startSeconds + clipReviewTime(time, active.durationSeconds));
+	}
+	function pauseReview() {
+		reviewRange = null;
+		participant.video?.pause();
+	}
+	function previewReview(start: number, end: number, loop: boolean) {
+		if (!participant.video) return;
+		reviewRange = { start, end, loop };
+		seekReviewTime(start);
+		participant.video.playbackRate = reviewSpeed;
+		void participant.video.play().catch(() => {
+			reviewPlaying = false;
+			error = 'Playback could not start. Try the video controls.';
+		});
+	}
+	function setReviewSpeed(speed: number) {
+		reviewSpeed = speed;
+		if (participant.video) participant.video.playbackRate = speed;
+	}
+
 	let datasetLoading = $state(true);
 	let datasetCatalogReady = false;
 	let lastRestoreKey = '';
@@ -123,6 +240,10 @@
 	let cropDimensions = { participant: { width: 0, height: 0 }, reference: { width: 0, height: 0 } };
 	const videoDimensionCache = new Map<string, Promise<VideoDimensions | null>>();
 	const datasetMode = $derived(Boolean(selectedPerformance) && view === 'review');
+	const discrepancyMode = $derived(
+		datasetMode && page.url.searchParams.get('review') === 'discrepancy'
+	);
+
 	const danceOptions = $derived(
 		[...new Set(datasetPerformances.map((performance) => performance.danceName))].sort()
 	);
@@ -352,7 +473,7 @@
 		datasetError = '';
 		datasetUnavailable = false;
 		try {
-			const response = await fetch('/api/dev/participant-catalog', { cache: 'no-store' });
+			const response = await fetch(`${apiPrefix}/participant-catalog`, { cache: 'no-store' });
 			if (!response.ok) throw new Error(`Dataset catalog request failed (${response.status}).`);
 			const result = (await response.json()) as { performances: DatasetPerformance[] };
 			datasetPerformances = result.performances;
@@ -362,7 +483,7 @@
 			await restorePerformanceFromUrl(page.url);
 		} catch (caught) {
 			datasetError =
-				caught instanceof Error ? caught.message : 'Could not load the local dataset catalog.';
+				caught instanceof Error ? caught.message : 'Could not load the dataset catalog.';
 		} finally {
 			datasetLoading = false;
 		}
@@ -378,14 +499,22 @@
 		if (!Number.isFinite(timeSeconds) || timeSeconds < 0) return;
 		const target = datasetPerformances.find((performance) => performance.id === performanceId);
 		if (!target) return;
-		const key = `${performanceId}\u0000${timeSeconds}`;
+		const segmentId = url.searchParams.get('segment');
+		const key = `${performanceId}\u0000${timeSeconds}\u0000${segmentId ?? ''}`;
 		if (key === lastRestoreKey) return;
 		lastRestoreKey = key;
 		if (selectedPerformance?.id === performanceId && datasetMode) {
-			seekGlobalTime(timeSeconds);
+			const index = loadedSegments.findIndex((loaded) => loaded.segment.id === segmentId);
+			seekGlobalTime(
+				index >= 0 && !url.searchParams.has('time')
+					? (timeline[index]?.startSeconds ?? timeSeconds)
+					: timeSeconds
+			);
 			return;
 		}
-		await openPerformance(target, timeSeconds);
+		const restored = await openPerformance(target, timeSeconds);
+		// Failed/canceled loads must remain retryable at this same URL.
+		if (!restored && lastRestoreKey === key) lastRestoreKey = '';
 	}
 	function probeVideoDimensions(url: string | undefined): Promise<VideoDimensions | null> {
 		if (!url) return Promise.resolve(null);
@@ -433,7 +562,7 @@
 		datasetError = '';
 		error = '';
 		try {
-			const response = await fetch(`/api/dev/participant-catalog/performance/${summary.id}`, {
+			const response = await fetch(`${apiPrefix}/participant-catalog/performance/${summary.id}`, {
 				cache: 'no-store',
 				signal: controller.signal
 			});
@@ -513,7 +642,18 @@
 			updatePoseCrops();
 			activateDatasetSegment(0);
 			await tick();
-			if (requestToken === loadToken) seekGlobalTime(restoreTimeSeconds);
+			if (requestToken === loadToken) {
+				const targetSegmentId = page.url.searchParams.get('segment');
+				const targetIndex = loadedSegments.findIndex(
+					(loaded) => loaded.segment.id === targetSegmentId
+				);
+				seekGlobalTime(
+					targetIndex >= 0 && !page.url.searchParams.has('time')
+						? (timeline[targetIndex]?.startSeconds ?? restoreTimeSeconds)
+						: restoreTimeSeconds
+				);
+				return true;
+			}
 		} catch (caught) {
 			if (requestToken !== loadToken) return;
 			if (caught instanceof DOMException && caught.name === 'AbortError') return;
@@ -540,7 +680,7 @@
 		loadedSegments = [];
 		globalTime = 0;
 		view = 'dataset';
-		void goto(dance ? `/research?dance=${encodeURIComponent(dance)}` : '/research');
+		void goto(resolve(dance ? `/research?dance=${encodeURIComponent(dance)}` : '/research'));
 	}
 	function updatePoseCrops() {
 		if (datasetMode) {
@@ -574,6 +714,15 @@
 		);
 	}
 	function activateDatasetSegment(index: number) {
+		clearVideoReloadTimer('participant');
+		clearVideoReloadTimer('reference');
+		videoRecovery = {
+			participant: { state: 'idle', message: '' },
+			reference: { state: 'idle', message: '' }
+		};
+		reviewRange = null;
+		reviewSelection = null;
+		reviewPlaying = false;
 		const loaded = loadedSegments[index];
 		if (!loaded) return;
 		const previousReferenceVideo = reference.video;
@@ -633,8 +782,21 @@
 	function onParticipantTimeUpdate(event: Event) {
 		if (!datasetMode) return;
 		const video = event.currentTarget as HTMLVideoElement;
+		if (video.error || video.readyState < 1) return;
 		const active = timeline[activeSegmentIndex];
 		if (!active) return;
+		if (discrepancyMode && reviewRange) {
+			const boundary = reviewPlaybackBoundary(
+				video.currentTime,
+				reviewRange,
+				active.durationSeconds
+			);
+			if (boundary) {
+				if (boundary.pause) pauseReview();
+				seekReviewTime(boundary.time);
+				return;
+			}
+		}
 		if (pendingMediaSeek) {
 			if (
 				!matchesTimelineSeekTarget(
@@ -653,6 +815,11 @@
 		syncReferenceVideo();
 	}
 	function onParticipantEnded() {
+		if (discrepancyMode) {
+			if (reviewRange?.loop) previewReview(reviewRange.start, reviewRange.end, true);
+			else pauseReview();
+			return;
+		}
 		if (!datasetMode || activeSegmentIndex >= timeline.length - 1) return;
 		const next = timeline[activeSegmentIndex + 1];
 		autoAdvance = true;
@@ -672,6 +839,7 @@
 			pendingMediaSeek = null;
 	}
 	function stepTimeline(direction: -1 | 1) {
+		if (discrepancyMode) pauseReview();
 		if (datasetMode) seekGlobalTime(globalTime + direction / 30);
 		else seek(frameIndex + direction);
 	}
@@ -687,7 +855,7 @@
 		setLastMetric('qijia2d');
 		if (view === 'dataset' && !page.url.searchParams.has('performance')) {
 			const dance = page.url.searchParams.get('dance');
-			void goto(dance ? `/research?dance=${encodeURIComponent(dance)}` : '/research', {
+			void goto(resolve(dance ? `/research?dance=${encodeURIComponent(dance)}` : '/research'), {
 				replaceState: true
 			});
 		} else if (view === 'dataset') void loadDataset();
@@ -737,7 +905,16 @@
 			reference.video.currentTime = Math.max(0, refTime);
 	}
 	function loaded(side: 'participant' | 'reference', event: Event) {
+		const recovering = videoRecovery[side].state === 'loading';
+		clearVideoReloadTimer(side);
+		if (recovering) {
+			videoRecovery[side] = {
+				state: 'ready',
+				message: 'Video reloaded. Press play or replay the interval to continue.'
+			};
+		}
 		const video = event.currentTarget as HTMLVideoElement;
+		if (side === 'participant') video.playbackRate = reviewSpeed;
 		if (video.videoWidth > 0 && video.videoHeight > 0) {
 			if (datasetMode) {
 				const active = loadedSegments[activeSegmentIndex];
@@ -749,7 +926,8 @@
 					side === 'participant' ? active?.participantVideoHeight : active?.referenceVideoHeight;
 				if (
 					active &&
-					sourceUrl === (side === 'participant' ? participant.url : reference.url) &&
+					(sourceUrl === (side === 'participant' ? participant.url : reference.url) ||
+						recovering) &&
 					(dimensionWidth !== video.videoWidth || dimensionHeight !== video.videoHeight)
 				) {
 					loadedSegments = loadedSegments.map((segment, index) =>
@@ -876,6 +1054,9 @@
 		seek(frameIndex);
 	}
 	onDestroy(() => {
+		loadToken++;
+		clearVideoReloadTimer('participant');
+		clearVideoReloadTimer('reference');
 		loadController?.abort();
 		if (participant.url) URL.revokeObjectURL(participant.url);
 		if (reference.url) URL.revokeObjectURL(reference.url);
@@ -886,18 +1067,23 @@
 	<title>Qijia2D frame inspector</title>
 	<meta
 		name="description"
-		content="Inspect the frame-by-frame Qijia2D pose similarity calculation locally."
+		content="Inspect the frame-by-frame Qijia2D pose similarity calculation."
 	/>
 </svelte:head>
 
 <main
 	class="mx-auto max-w-[1500px] space-y-4 px-4 py-4 pb-48 lg:px-8"
 	class:pb-56={view === 'review'}
+	class:discrepancy-mode={discrepancyMode}
+	class:show-metric-details={showMetricDetails}
+	class:hide-review-overlay={discrepancyMode && !showReviewOverlay}
 >
 	{#if view === 'dataset'}
 		<header class="flex items-center gap-3">
 			<h1 class="text-lg font-semibold">Choose a performance</h1>
-			<span class="daisy-badge daisy-badge-outline daisy-badge-sm">Qijia2D · local</span>
+			<span class="daisy-badge daisy-badge-outline daisy-badge-sm"
+				>Qijia2D · {researchBackend === 'hosted' ? 'hosted' : 'local'}</span
+			>
 		</header>
 	{/if}
 
@@ -906,7 +1092,7 @@
 			<div class="daisy-card-body gap-4">
 				{#if datasetLoading}
 					<div class="flex items-center gap-3 py-6" role="status">
-						<span class="daisy-loading daisy-loading-spinner daisy-loading-md"></span>Reading local
+						<span class="daisy-loading daisy-loading-spinner daisy-loading-md"></span>Reading
 						catalog…
 					</div>
 				{:else if datasetError}
@@ -919,16 +1105,19 @@
 					<div class="rounded-box bg-base-200/70 border-base-300 space-y-2 border p-5">
 						<h3 class="font-semibold">No paired participant data found</h3>
 						<p class="max-w-2xl text-sm opacity-75">
-							The local cache may be missing, or no video currently has a matching canonical pose2d
-							CSV. Set <code>MOTION_PIPELINE_USER_STUDY_DATA_DIR</code> to the participant cache root
-							and restart the dev server.
+							{#if researchBackend === 'hosted'}No paired recordings are available to your research
+								account.{:else}The local cache may be missing, or no video currently has a matching
+								canonical pose2d CSV. Set <code>MOTION_PIPELINE_USER_STUDY_DATA_DIR</code> to the participant
+								cache root and restart the dev server.{/if}
 						</p>
 						<p class="text-xs opacity-60">
-							Only files in the known study video and segmented pose folders are listed.
+							{#if researchBackend === 'hosted'}Only recordings covered by your research access
+								appear here.{:else}Only files in the known study video and segmented pose folders
+								are listed.{/if}
 						</p>
 						<a
 							class="daisy-btn daisy-btn-outline daisy-btn-sm mt-2"
-							href="/metrics/qijia2d?source=local">Use local files instead</a
+							href={resolve('/metrics/qijia2d?source=local')}>Use local files instead</a
 						>
 					</div>
 				{:else}
@@ -978,7 +1167,8 @@
 							>
 								<img
 									class="h-36 w-full object-cover"
-									src={`/api/dev/participant-catalog/performance/${performance.id}/thumbnail`}
+									src={performance.thumbnailUrl ??
+										`${apiPrefix}/participant-catalog/performance/${performance.id}/thumbnail`}
 									alt=""
 									loading="lazy"
 									decoding="async"
@@ -1026,7 +1216,20 @@
 						video is a timing guide
 					</p>
 				</div>
-				<div class="flex items-center gap-2">
+				<div class="flex flex-wrap items-center gap-2">
+					{#if discrepancyMode}<button
+							class="daisy-btn daisy-btn-outline daisy-btn-sm"
+							aria-pressed={showMetricDetails}
+							onclick={() => (showMetricDetails = !showMetricDetails)}
+							>{showMetricDetails ? 'Focus on videos' : 'Inspect metric details'}</button
+						>{/if}
+					{#if discrepancyMode}<label class="flex items-center gap-1.5 text-xs"
+							><input
+								type="checkbox"
+								class="daisy-checkbox daisy-checkbox-xs"
+								bind:checked={showReviewOverlay}
+							/>Pose overlay</label
+						>{/if}
 					<MetricSwitcher
 						performanceId={selectedPerformance?.id ?? ''}
 						timeSeconds={globalTime}
@@ -1038,6 +1241,7 @@
 				</div>
 			</div>
 		{/if}
+
 		<div class="flex justify-end">
 			{#if !datasetMode}<button
 					class="daisy-btn daisy-btn-primary daisy-btn-sm"
@@ -1113,10 +1317,11 @@
 					>{/if}
 			</section>{/if}
 
-		<section class="grid gap-4 md:grid-cols-12">
-			<div class="grid min-w-0 gap-4 md:contents">
+		<section data-review-stage class="grid gap-4 md:grid-cols-12">
+			<div data-review-pair class="grid min-w-0 gap-4 md:contents">
 				{#each [{ side: 'participant' as const, label: 'Participant', clip: participant, pose: participantFrame, vectors: comparison?.vectors, crop: participantCrop }, { side: 'reference' as const, label: 'Reference', clip: reference, pose: referenceFrame, vectors: comparison?.vectors, crop: referenceCrop }] as panel (panel.side)}
 					<article
+						data-review-video={panel.side}
 						class={`daisy-card border-base-300 bg-base-100 overflow-hidden border shadow-sm ${datasetMode ? (panel.side === 'participant' ? 'md:col-span-8 md:row-span-2' : 'md:col-span-4 md:col-start-9') : 'md:col-span-6'}`}
 					>
 						<div class="flex items-center justify-between px-4 pt-3">
@@ -1137,9 +1342,16 @@
 									>frame {panel.pose?.frame ?? '—'}</span
 								>{/if}
 						</div>
+						{#if datasetMode}
+							<VideoRecoveryNotice
+								label={panel.label}
+								recovery={videoRecovery[panel.side]}
+								onreload={() => void reloadVideo(panel.side)}
+							/>
+						{/if}
 						<div
 							class="pose-window mx-3 my-3"
-							style={`aspect-ratio:${panel.crop.w}/${panel.crop.h}`}
+							style={`aspect-ratio:${panel.crop.w}/${panel.crop.h};--crop-ratio:${panel.crop.w / panel.crop.h}`}
 						>
 							{#if panel.clip.url}
 								<video
@@ -1148,9 +1360,12 @@
 									style={`width:${panel.clip.video?.videoWidth ? (panel.clip.video.videoWidth / panel.crop.w) * 100 : 100}%;height:${panel.clip.video?.videoHeight ? (panel.clip.video.videoHeight / panel.crop.h) * 100 : 100}%;left:${panel.clip.video?.videoWidth ? (-panel.crop.x / panel.crop.w) * 100 : 0}%;top:${panel.clip.video?.videoHeight ? (-panel.crop.y / panel.crop.h) * 100 : 0}%`}
 									src={panel.clip.url}
 									muted
+									onplay={panel.side === 'participant' ? () => (reviewPlaying = true) : undefined}
+									onpause={panel.side === 'participant' ? () => (reviewPlaying = false) : undefined}
 									playsinline
 									preload="metadata"
 									onloadedmetadata={(event) => loaded(panel.side, event)}
+									onerror={() => videoFailed(panel.side)}
 									ontimeupdate={panel.side === 'participant' ? onParticipantTimeUpdate : undefined}
 									onseeked={panel.side === 'participant' ? onParticipantSeeked : undefined}
 									onended={panel.side === 'participant' ? onParticipantEnded : undefined}
@@ -1167,7 +1382,7 @@
 									aria-label={`${panel.label} pose and Qijia vectors`}
 								>
 									<defs
-										>{#each QIJIA_COLORS as color, i}<marker
+										>{#each QIJIA_COLORS as color, i (color)}<marker
 												id={`${panel.side}-arrow-${i}`}
 												viewBox="0 0 10 10"
 												refX="8"
@@ -1269,7 +1484,7 @@
 									No matching pose row for this frame
 								</div>{/if}
 						</div>
-						<div class="px-4 pb-3 text-xs opacity-60">
+						<div data-metric-caption class="px-4 pb-3 text-xs opacity-60">
 							{#if panel.pose && !panel.clip.url}{datasetMode && panel.side === 'reference'
 									? 'Reference pose only · reference video timing unavailable · '
 									: 'Pose overlay · no video selected · '}{/if}Image coordinates retained · fixed
@@ -1288,7 +1503,42 @@
 					</article>
 				{/each}
 			</div>
-			<aside class="md:col-span-4 md:col-start-9 md:row-start-2" aria-label="Vector errors">
+			<div class="review-notes md:col-span-12">
+				{#if datasetMode && activeLoadedSegment && page.url.searchParams.get('review') === 'discrepancy'}
+					{#key `${researchBackend}:${activeLoadedSegment.segment.id}:${activeLoadedSegment.segment.inputVersion ?? ''}:${activeLoadedSegment.segment.metricReleaseId ?? ''}`}
+						<DiscrepancyReview
+							loadedAnalysis={activeLoadedSegment.segment}
+							{researchBackend}
+							playing={reviewPlaying}
+							playbackRate={reviewSpeed}
+							onpreview={previewReview}
+							onpause={pauseReview}
+							onrate={setReviewSpeed}
+							onrangechange={setReviewSelection}
+							segmentId={activeLoadedSegment.segment.id}
+							metric="qijia2d"
+							localTime={Math.max(
+								0,
+								globalTime - (timeline[activeSegmentIndex]?.startSeconds ?? 0)
+							)}
+							duration={timeline[activeSegmentIndex]?.durationSeconds ?? 0}
+							context={{ curves, primaryCurve: curves[0]?.id }}
+							samples={curveSeries[0]?.points
+								.filter((point) => point.segmentIndex === activeSegmentIndex)
+								.map((point) => ({
+									time: point.timeSeconds - (timeline[activeSegmentIndex]?.startSeconds ?? 0),
+									value: point.sum
+								})) ?? []}
+							onseek={(time) => seekReviewTime(time)}
+						/>
+					{/key}
+				{/if}
+			</div>
+			<aside
+				class="metric-audit md:col-span-4 md:col-start-9 md:row-start-2"
+				aria-label="Vector errors"
+				data-metric-audit
+			>
 				{#if comparison}
 					<div class="mb-1 text-xs opacity-65">Current frame · raw unweighted errors</div>
 					<div class="mb-3 flex items-baseline justify-between px-1 text-sm tabular-nums">
@@ -1445,7 +1695,12 @@
 									style={`left:${(boundary.startSeconds / timelineDuration) * 100}%`}
 								>
 									<span class="absolute top-0 left-1 text-[9px] opacity-60">S{i + 2}</span>
-								</div>{/each}{/if}{#if comparison || datasetMode}<div
+								</div>{/each}{/if}{#if discrepancyMode && reviewSelection && timelineDuration > 0}<div
+								class="review-interval-highlight"
+								aria-hidden="true"
+								style:left={`${(((timeline[activeSegmentIndex]?.startSeconds ?? 0) + reviewSelection.start) / timelineDuration) * 100}%`}
+								style:width={`${(Math.max(0, reviewSelection.end - reviewSelection.start) / timelineDuration) * 100}%`}
+							></div>{/if}{#if comparison || datasetMode}<div
 								class="border-primary absolute top-0 h-full border-l-2"
 								style={`left:${(datasetMode ? globalTime / Math.max(0.001, timelineDuration) : frameIndex / Math.max(1, maxFrame)) * 100}%`}
 							></div>{/if}<span class="absolute top-1 left-2 text-[10px] opacity-60"
@@ -1458,10 +1713,11 @@
 							max={datasetMode ? timelineDuration : maxFrame}
 							step={datasetMode ? '0.01' : '1'}
 							value={datasetMode ? globalTime : frameIndex}
-							oninput={(event) =>
-								datasetMode
-									? seekGlobalTime(Number(event.currentTarget.value))
-									: seek(Number(event.currentTarget.value))}
+							oninput={(event) => {
+								if (discrepancyMode) pauseReview();
+								if (datasetMode) seekGlobalTime(Number(event.currentTarget.value));
+								else seek(Number(event.currentTarget.value));
+							}}
 							aria-label={datasetMode ? 'Seek participant timeline' : 'Seek participant frame'}
 						/>
 					</div>
@@ -1494,6 +1750,96 @@
 </main>
 
 <style>
+	.hide-review-overlay .pose-overlay {
+		display: none;
+	}
+	.review-notes:empty {
+		display: none;
+	}
+	.review-interval-highlight {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+		border-inline: 2px solid var(--color-primary);
+		pointer-events: none;
+	}
+	.discrepancy-mode:not(.show-metric-details) [data-metric-audit],
+	.discrepancy-mode:not(.show-metric-details) [data-metric-caption],
+	.discrepancy-mode:not(.show-metric-details) [aria-label='Metric visualization'] {
+		display: none;
+	}
+	.discrepancy-mode:not(.show-metric-details) [data-review-pair] {
+		display: contents;
+	}
+	.discrepancy-mode:not(.show-metric-details) [data-review-video] {
+		grid-row: 1;
+		min-width: 0;
+		align-self: start;
+	}
+	.discrepancy-mode:not(.show-metric-details) [data-review-video] .pose-window {
+		width: min(100%, calc(50dvh * var(--crop-ratio)));
+		max-height: none;
+		margin-inline: auto;
+	}
+	.discrepancy-mode .review-notes {
+		grid-column: 1 / -1;
+		scroll-margin-bottom: 16rem;
+	}
+	@media (min-width: 768px) {
+		.discrepancy-mode:not(.show-metric-details) [data-review-video='participant'] {
+			grid-column: 1 / 7;
+		}
+		.discrepancy-mode:not(.show-metric-details) [data-review-video='reference'] {
+			grid-column: 7 / 13;
+		}
+	}
+	@media (max-width: 767px) {
+		.discrepancy-mode:not(.show-metric-details) [data-review-stage] {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.5rem;
+		}
+		.discrepancy-mode:not(.show-metric-details) [data-review-video='participant'] {
+			grid-column: 1;
+		}
+		.discrepancy-mode:not(.show-metric-details) [data-review-video='reference'] {
+			grid-column: 2;
+		}
+		.discrepancy-mode:not(.show-metric-details) [data-review-video] .daisy-badge {
+			display: none;
+		}
+		.discrepancy-mode:not(.show-metric-details) [data-review-video] .pose-window {
+			width: min(100%, calc(30dvh * var(--crop-ratio)));
+		}
+	}
+	@media (min-width: 1100px) {
+		.discrepancy-mode {
+			padding-right: 26rem;
+			max-width: none;
+		}
+		.discrepancy-mode .review-notes {
+			position: fixed;
+			z-index: 35;
+			top: 8rem;
+			right: 1rem;
+			bottom: 1rem;
+			width: 24rem;
+			overflow: auto;
+			scrollbar-gutter: stable;
+		}
+		.discrepancy-mode .timeline-dock {
+			right: 25.5rem;
+		}
+	}
+	@media (max-height: 600px) {
+		.discrepancy-mode {
+			padding-bottom: 1rem;
+		}
+		.discrepancy-mode .timeline-dock {
+			position: static;
+		}
+	}
+
 	.pose-window {
 		position: relative;
 		overflow: hidden;

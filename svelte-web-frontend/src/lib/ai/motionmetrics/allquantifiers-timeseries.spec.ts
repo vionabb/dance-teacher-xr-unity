@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { beforeAll, describe, it } from 'vitest';
+import { HAS_MEDIA_BUNDLE } from './PoseDataTestFile';
 import { PoseLandmarkIds } from '$lib/webcam/mediapipe-utils';
 import {
 	createSingleTrackMetricTrackFromEvaluationTrack,
@@ -109,7 +110,7 @@ async function loadSelectedFixtures() {
 	);
 }
 
-describe('AllQuantifiersTimeSeriesInvestigations', {}, async () => {
+describe.skipIf(!HAS_MEDIA_BUNDLE)('AllQuantifiersTimeSeriesInvestigations', {}, async () => {
 	const selectedFixtures = await loadSelectedFixtures();
 	const testTimeout = 20 * 60 * 1000;
 

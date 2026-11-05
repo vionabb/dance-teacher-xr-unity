@@ -44,38 +44,41 @@ const idb: AsyncStorage = {
 let supabase: SupabaseClient<Database> | null = null;
 
 // receive session from the page and install it
-self.addEventListener('message', (e: ExtendableMessageEvent) => {
-	const msg = e.data as ServiceWorkerMessage;
-	if (!msg.type) {
-		console.error('Unknown message received in SW', msg);
-		return;
-	}
-	if (msg?.type === 'SUPABASE_SESSION') {
-		const s = msg.session; // { access_token, refresh_token }
-
-		const supabaseUrl = s.supabase_url;
-		const supabaseAnonKey = s.supabase_anon_key;
-		const accessToken = s.access_token;
-		const refreshToken = s.refresh_token;
-		const userId = s.user_id;
-
-		if (!supabaseUrl || !supabaseAnonKey) {
-			console.error('Missing Supabase URL or anon key');
+(self as unknown as ServiceWorkerGlobalScope).addEventListener(
+	'message',
+	(e: ExtendableMessageEvent) => {
+		const msg = e.data as ServiceWorkerMessage;
+		if (!msg.type) {
+			console.error('Unknown message received in SW', msg);
 			return;
 		}
+		if (msg?.type === 'SUPABASE_SESSION') {
+			const s = msg.session; // { access_token, refresh_token }
 
-		if (!supabase) {
-			supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-				auth: { persistSession: true, autoRefreshToken: true, storage: idb }
-			});
+			const supabaseUrl = s.supabase_url;
+			const supabaseAnonKey = s.supabase_anon_key;
+			const accessToken = s.access_token;
+			const refreshToken = s.refresh_token;
+			const userId = s.user_id;
+
+			if (!supabaseUrl || !supabaseAnonKey) {
+				console.error('Missing Supabase URL or anon key');
+				return;
+			}
+
+			if (!supabase) {
+				supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+					auth: { persistSession: true, autoRefreshToken: true, storage: idb }
+				});
+			}
+			e.waitUntil(
+				supabase.auth.setSession({
+					access_token: accessToken,
+					refresh_token: refreshToken
+				})
+			);
+			new SupabaseDataBackend(supabase, userId);
+			return;
 		}
-		e.waitUntil(
-			supabase.auth.setSession({
-				access_token: accessToken,
-				refresh_token: refreshToken
-			})
-		);
-		new SupabaseDataBackend(supabase, userId);
-		return;
 	}
-});
+);

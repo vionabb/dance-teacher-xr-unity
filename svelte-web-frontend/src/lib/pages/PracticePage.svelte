@@ -385,7 +385,7 @@
 					resolveWebcamRecordingCompletion?.(savedRecordingBlob);
 				} catch (err) {
 					console.warn('Error assembling recording blob', err);
-					rejectWebcamRecordingCompletion?.(err);
+					rejectWebcamRecordingCompletion?.(err as Error);
 				} finally {
 					resolveWebcamRecordingCompletion = null;
 					rejectWebcamRecordingCompletion = null;
@@ -790,7 +790,6 @@
 			bind:duration={videoDuration}
 			flipHorizontal={flipVideo}
 			fitToFlexbox={fitVideoToFlexbox}
-			poseData={referenceDancePoses2D}
 			drawSkeleton={drawReferenceDanceSkeleton}
 			volume={videoVolume}
 			src={motionVideoSrc}

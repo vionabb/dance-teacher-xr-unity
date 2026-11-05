@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from dance_teacher_pose import PoseDataType, preprocess_pose_dataframe
 from motion_extraction.scripts.run_preprocessing_experiment import (
@@ -40,6 +41,8 @@ def _linear_pose(frame_count: int = 30) -> pd.DataFrame:
 
 def test_real_manifest_resolves_exact_25_clip_working_set() -> None:
     corpus_root = Path(__file__).parents[2] / "temp/experiments/20260813-preprocessing-lightweight"
+    if not (corpus_root / "selection.tsv").exists():
+        pytest.skip("local experiment data (gitignored temp/experiments) is not present")
     included, excluded, stems = _load_corpus_membership(corpus_root)
 
     assert len(included) == len(stems) == 25

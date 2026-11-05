@@ -1,10 +1,10 @@
-/// <reference types="vitest" />
-
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
+import { readMetricRelease } from './src/lib/server/chi25-metric-release.js';
 import Icons from 'unplugin-icons/vite';
 
 export default defineConfig({
+	define: { __RESEARCH_METRIC_RELEASE__: JSON.stringify(readMetricRelease(process.cwd()).id) },
 	plugins: [
 		sveltekit(),
 		Icons({
@@ -23,7 +23,6 @@ export default defineConfig({
 	css: {
 		preprocessorOptions: {
 			scss: {
-				api: 'modern'
 				// additionalData: '@use "sass:math";'
 			}
 		}

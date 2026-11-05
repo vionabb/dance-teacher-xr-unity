@@ -13,8 +13,8 @@
 	let { data } = $props();
 	const initialDisplayText = $derived(data.action.displayText ?? 'Loading...');
 	const routeIds = $derived.by(() => ({
-		motionVideoId: data.motionVideoId,
-		motionSegmentationId: data.motionSegmentationId
+		motionVideoId: data.motionVideo.id,
+		motionSegmentationId: data.motionSegmentation.id
 	}));
 	const priorSelfReportSelection = $derived(
 		data.performanceAttempt?.self_report?.selection as string | undefined

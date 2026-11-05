@@ -19,6 +19,7 @@
 
 /artifact-archive
 /local-data/
+/svelte-web-frontend/src/lib/ai/motionmetrics/testdata/humanratings.csv
 
 secrets/*
 !secrets/example-*

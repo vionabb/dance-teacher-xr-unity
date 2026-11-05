@@ -2,9 +2,9 @@
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
 	import { onMount } from 'svelte';
 	import EmailAuthView from '$lib/elements/auth/EmailAuthView.svelte';
-	import { goto } from '$app/navigation';
 
 	export let data;
+	export let form;
 
 	let state = 'sign_in' as 'sign_in' | 'sign_up' | 'forgot_password';
 
@@ -18,7 +18,6 @@
 		forgotPasswordRedirectPath = `${data.origin}/auth/callback`;
 		return {};
 	});
-	$: console.log('Redirect path: ', forgotPasswordRedirectPath);
 </script>
 
 <svelte:head>
@@ -31,12 +30,11 @@
 		supabaseClient={data.supabase}
 		view={state}
 		{forgotPasswordRedirectPath}
+		signInAction="?/signIn"
+		signInError={form?.message ?? ''}
+		returnTo={data.next ?? ''}
 		on:signedup={() => {
-			goto('/menu');
-			// goto("/account")
-		}}
-		on:signedin={() => {
-			goto('/menu');
+			window.location.assign('/auth/landing');
 		}}
 	/>
 </div>

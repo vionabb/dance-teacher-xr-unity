@@ -193,8 +193,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   initial five threads remain candidate questions or design directions.
 
 - [2026-10-02 — Hypothesis workspace handoff](2026-10-02-hypothesis-workspace-prototype-handoff.md)
-  Tracks the prototype and collection management boundary, evidence and
-  authorization policy, and the next investigation decision.
+  Gives the next agent the reconciled PR, implemented scope, validation and
+  setup commands, database precautions, and the next investigation decision.
 
 - [2026-10-02 — Toward one research workspace](2026-10-02-unified-research-workspace.md)
   Viona chose one SvelteKit interface for research and learner work, local
@@ -215,3 +215,38 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Addresses intent and exact-target checks, Unicode and duplicate creation,
   concurrent responses, Codex input errors, and atomic schema upgrades.
   Failed or stale operations retain the conversation without changing state.
+
+- [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
+  Records Viona's choice to serve both CHI25 studies to authorized accounts,
+  with read-only participant videos and raw poses first. PR #428 merged after
+  browser acceptance; #429 added the 55 companion materials and menu repair.
+  Viona accepted production and requested tablet analysis, discrepancy notes,
+  metric visualizers and Codex chat; the hosted workspace plan defines that next stage.
+
+- [2026-10-28 — Discrepancy hosting handoff](2026-10-28-discrepancy-hosting-handoff.md)
+  Inventories the local review desk's runtime, schema, identity and alignment
+  dependencies, including 20 additional reference poses. Defines the hosted
+  data adapter, account-owned authoring and tablet acceptance boundaries.
+
+- [2026-10-28 — Hosted discrepancy review browser UI](2026-10-28-hosted-discrepancy-ui.md)
+  Ported the review desk and visualizers onto rewritten main with scoped drafts,
+  viewer controls, retry IDs, local persistence and explicit video recovery.
+  Synthetic Chromium checks save flows, replay, expired/denied media and responsive
+  layouts; the hosting chat owns production integration and device acceptance.
+
+- [2026-10-28 — Hosted analysis integration](2026-10-28-hosted-analysis-integration.md)
+  Integrates cloud catalog/notes with the portable desk and metric viewers;
+  records the completed production import, strict rating coverage, live access
+  checks, exact scoped row restores, verified research Drive backups and scoped
+  editor grants. Live preview reads and account controls pass; note-save/device
+  acceptance and personal SIWC eligibility remain gates.
+
+- [2026-10-29 — Password login handoff](2026-10-29-login-handoff.md)
+  Repairs the post-login bounce through server-set cookies and safe preserved
+  destinations. Production-mode synthetic browser checks cover reloads,
+  JavaScript-disabled sign-in, errors and non-cacheable redirects.
+
+- [2026-11-05 — Hypothesis workspace main reconciliation](2026-11-05-hypothesis-main-reconciliation.md)
+  Reconciles PR #414 with hosted research/navigation main while preserving local
+  hypothesis access and both SQLite observation types. Records current checks,
+  the private-ratings test prerequisite, and the next agent's handoff.
