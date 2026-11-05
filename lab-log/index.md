@@ -209,8 +209,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   arm/hip/control review sample is ready in private experiment storage.
 
 - [2026-10-06 — Preprocessing and similarity handoff](2026-10-06-preprocessing-metric-validation-handoff.md)
-  Records the frozen experiment commands, provenance checks, decisions, and
-  next separate review-screen action for safely continuing metric validation.
+  Records frozen experiment commands and provenance, the November 5 rebase
+  and validation, private-data boundaries, and the next blinded review action.
 
 - [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
   Records Viona's choice to serve both CHI25 studies to authorized accounts,

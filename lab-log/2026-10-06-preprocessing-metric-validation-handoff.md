@@ -8,9 +8,20 @@ artifacts: []
 
 ## Current state
 
-- The source code is on `codex/preprocessing-metric-validation`. Commits
-  `75e9233` and `b334f64` add the opt-in `qijia2d-quality-v1` TypeScript
-  evaluator and tests. Legacy metric behavior and export are unchanged.
+- As of 2026-11-05, `codex/preprocessing-metric-validation` has been rebased
+  onto GitHub `main` at `abd836a4`. Its five research commits are now
+  `5d2edee0`, `dbdf30a9`, `56102d1a`, `8484d814`, and `2d5cc0b5`.
+  The first two add the opt-in `qijia2d-quality-v1` TypeScript evaluator and
+  tests. Legacy metric behavior and export are unchanged. The only rebase
+  conflicts were chronological additions to `lab-log/index.md`; both October
+  6 entries and the later October entries were preserved.
+- On the rebased tree, the eight focused Vitest cases, `pnpm lint`, and
+  `pnpm check` pass. The check used placeholder values for
+  `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+  `ANTHROPIC_API_KEY`, and `OPENAI_API_KEY`; it reported zero errors and 12
+  warnings in existing Svelte files. Without those local values, it reports
+  eight missing static-environment exports. This is type-check validation,
+  not a runtime or hosted acceptance test.
 - The direct landmark and repair analyses, plus the paired 95-clip metric run,
   are complete under `motion-pipeline/temp/experiments/20261006-metric-baseline/`.
   Its scripts, row-level outputs, and provenance are Git-ignored and private.
@@ -30,6 +41,12 @@ artifacts: []
   the sealed files during judging. The independent reviewer verified exact
   regeneration, source hashes, and selection probabilities. Nothing was
   added to the active annotation server or database.
+- The `motion-pipeline/temp/experiments/20261006-*` scripts, row-level results,
+  blinded manifest, and sealed answer key are ignored local research files in
+  this checkout. They are not in the PR and must be located in authorized
+  private storage if the next agent works on another machine. The checked-in
+  `lab-log/assets/2026-10-06-preprocessing-metric-validation/` files contain
+  aggregate summaries only; they cannot regenerate participant-level analyses.
 - No automatic usability exclusion or repair rule is validated. Current
   `calculationQuality` measures evidence sufficiency, not the chance a score
   matches human judgment. The fixed visibility gate loses substantial
@@ -89,8 +106,13 @@ database for the prepared blinded 48 cases. Reuse source-video seeking and
 landmark dragging where possible, but display only the blinded manifest and
 record a distinct acceptable-as-is, incorrect/correctable, or unjudgeable
 response by blind ID. Do not reopen the completed active frame tasks for this
-protocol or alter their database. After source-video judgments, analyze arm
-and hip strata separately using the frozen inclusion probabilities; only then
-estimate the exploratory rule's false-correction cost. A later balanced
-direct-human-rating cohort must test any predeclared similarity metric with
-both studies, reference windows, and current-code raw control explicit.
+protocol or alter their database. Start by inspecting the current hosted
+discrepancy review and local annotation interfaces on `main`; keep this
+adjudication protocol distinct from their existing records. After source-video
+judgments, analyze arm and hip strata separately using the frozen inclusion
+probabilities; only then estimate the exploratory rule's false-correction
+cost.
+
+A later balanced direct-human-rating cohort must test any predeclared
+similarity metric with both studies, reference windows, and current-code raw
+control explicit.
