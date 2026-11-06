@@ -125,6 +125,11 @@ async function syncFolderToBucket(args) {
 	args.makeSync = args.makeSync ?? false;
 	args.dryRun = args.dryRun ?? false;
 
+	if (!fs.existsSync(args.folderPath)) {
+		console.log(`${args.printIndent}⏭️ Skipping ${args.folderPath} (folder not found locally)`);
+		return [filesSynced, filesSkipped];
+	}
+
 	// Get all files in folder
 	const directoryContents = fs.readdirSync(args.folderPath, { withFileTypes: true });
 
