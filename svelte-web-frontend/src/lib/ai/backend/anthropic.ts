@@ -3,16 +3,21 @@
  *  Claude (Anthropic API) backend for the LLM-generated coaching feedback.
  */
 import Anthropic from '@anthropic-ai/sdk';
-import { ANTHROPIC_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
-const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+// The key is read at runtime, so it is never inlined into the build output.
+let client: Anthropic | undefined;
+function getClient() {
+	client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+	return client;
+}
 
 // Change here to trade quality for latency/cost (e.g. 'claude-haiku-5-5').
 const MODEL = 'claude-opus-5-5';
 const MAX_TOKENS = 16000;
 
 async function createMessage(system: string | undefined, userContent: string): Promise<string> {
-	const response = await client.beta.messages.create({
+	const response = await getClient().beta.messages.create({
 		model: MODEL,
 		max_tokens: MAX_TOKENS,
 		// Short, latency-sensitive feedback: keep thinking light.
