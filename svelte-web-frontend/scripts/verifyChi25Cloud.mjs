@@ -62,13 +62,13 @@ const { data: signed, error: signError } = await client.storage
 if (signError) throw signError;
 const head = await fetch(signed.signedUrl, {
 	method: 'HEAD',
-	headers: { Origin: 'https://dancetutor.julesbb.com' }
+	headers: { Origin: 'https://dancetutor.viona.dev' }
 });
 assert.equal(head.status, 200);
 assert.ok(head.headers.get('content-type')?.includes('video/mp4'));
 assert.equal(head.headers.get('access-control-allow-origin'), '*');
 const range = await fetch(signed.signedUrl, {
-	headers: { Range: 'bytes=0-99', Origin: 'https://dancetutor.julesbb.com' }
+	headers: { Range: 'bytes=0-99', Origin: 'https://dancetutor.viona.dev' }
 });
 assert.equal(range.status, 206);
 assert.equal((await range.arrayBuffer()).byteLength, 100);

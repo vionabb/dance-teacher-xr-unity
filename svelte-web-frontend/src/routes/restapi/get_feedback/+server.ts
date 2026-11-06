@@ -1,6 +1,6 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 
-import { getFeedback as getOpenAILLMFeedback } from '$lib/ai/backend/openai';
+import { getFeedback as getLLMFeedback } from '$lib/ai/backend/anthropic';
 
 export async function POST(event: RequestEvent) {
 	const data = await event.request.json();
@@ -34,7 +34,7 @@ export async function POST(event: RequestEvent) {
 		);
 	}
 
-	const feedbackData = await getOpenAILLMFeedback(
+	const feedbackData = await getLLMFeedback(
 		danceStructureDistillation,
 		currentSectionName,
 		performanceDistillation,
