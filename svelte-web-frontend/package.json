@@ -7,6 +7,7 @@
 	},
 	"scripts": {
 		"dev": "vite dev -- -- --trace-deprecation",
+		"dev:remote": "vite dev --mode remote",
 		"build": "vite build",
 		"preview": "vite preview",
 		"screenshots:research": "node scripts/captureResearchScreenshots.mjs",

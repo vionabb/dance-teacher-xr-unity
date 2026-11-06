@@ -29,7 +29,7 @@ Environment variables are loaded from `src/env/`. Copy the checked-in example an
 cp src/env/.env.example src/env/.env
 ```
 
-The app expects `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. LLM-backed coaching feedback additionally needs the private `ANTHROPIC_API_KEY`. `NEXT_PUBLIC_` variables are available to browser code; all other variables are server-only. Never commit populated environment files. Deployment variables are configured in Vercel.
+The app expects `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. LLM-backed coaching feedback additionally needs the private `ANTHROPIC_API_KEY`. `NEXT_PUBLIC_` variables are available to browser code; all other variables are server-only. Never commit populated environment files. Deployment variables are configured in Vercel. By default `.env` points at the local Docker Supabase; `pnpm dev:remote` loads `src/env/.env.remote` on top to use hosted Supabase, and sync scripts take `--production` to target the hosted `PRODUCTION_*` values.
 
 ## Fast validation without full services
 
