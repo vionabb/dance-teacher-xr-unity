@@ -1,9 +1,9 @@
 import { browser } from '$app/environment';
+import type { Pose3DLandmarkFrame } from '$lib/webcam/mediapipe-utils';
 import {
-	type Pose3DLandmarkFrame,
 	PostMessages as PoseEstimationMessages,
 	ResponseMessages as PoseEsimationResponses
-} from '$lib/webcam/mediapipe-utils';
+} from '$lib/webcam/pose-estimation-messages';
 import type { NormalizedLandmark, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 import EventHub from '$lib/utils/EventHub';
 

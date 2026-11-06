@@ -339,3 +339,21 @@ It verifies sign-in returns to the requested research query, survives reload,
 works without JavaScript, redirects already signed-in visitors, and keeps invalid
 credentials on the form. Real production credentials are never used by the test.
 The fix has no study-data, access-role or thesis-result changes.
+
+## Metric release fingerprint (2026-11-06)
+
+The hosted inspectors return 409 whenever the compiled `__RESEARCH_METRIC_RELEASE__`
+differs from the `metric_release_id` stored on `research_analysis_recording`. Until
+2026-11-06 the fingerprint hashed the whole `pnpm-lock.yaml` and the MediaPipe
+loader in `mediapipe-utils.ts`, so the LLM SDK swap (#437) and the no-SIMD WASM
+removal (#443) changed it without touching the metric math, and production
+Qijia2D/Viona2D views failed with 409.
+
+The fingerprint now covers the metric modules plus the locked version of each
+runtime package they import (`papaparse`), and the unused loader and worker
+message enums left `mediapipe-utils.ts`. A dependency bump outside that set no
+longer moves it. When the id does move with unchanged math, deploy first, then
+re-register with `svelte-web-frontend/scripts/rebindMetricRelease.sql`. It
+checks that every stored `input_version` reproduces and refuses to run while any
+discrepancy observation exists. If the math itself changes, do a fresh import
+instead of a rebind.
