@@ -9,6 +9,7 @@ import json
 import sqlite3
 import subprocess
 import threading
+from collections import Counter
 
 import pytest
 
@@ -234,3 +235,92 @@ def test_static_shell_contract():
     assert "sealed" not in script.lower()
     assert "localStorage" not in script  # neither the access code nor answers persist in the browser
     subprocess.run(["node", "--check", str(STATIC_ROOT / "app.js")], check=True)
+
+
+# --- rule v2 and sample drawing -------------------------------------------
+
+from motion_extraction.repair_adjudication import isolated_jump, prepare_sample
+
+
+def _pose_row(offset=(0.0, 0.0), wrist=(50.0, 50.0), vis=0.99):
+    row = {
+        "LEFT_SHOULDER_x": 40.0, "LEFT_SHOULDER_y": 0.0,
+        "RIGHT_SHOULDER_x": 60.0, "RIGHT_SHOULDER_y": 0.0,
+        "LEFT_HIP_x": 40.0, "LEFT_HIP_y": 100.0,
+        "RIGHT_HIP_x": 60.0, "RIGHT_HIP_y": 100.0,
+    }
+    row["LEFT_WRIST_x"], row["LEFT_WRIST_y"] = wrist[0] + offset[0], wrist[1] + offset[1]
+    for name in isolated_jump.UPPER_BODY_LANDMARKS:
+        row[f"{name}_vis"] = vis
+    return row
+
+
+def _wrist(records, frame):
+    return next(r for r in records if r["frame"] == frame and r["landmark"] == "LEFT_WRIST")
+
+
+def test_isolated_jump_flags_single_frame_spike_only():
+    # Torso is 100 px; a 20 px jump is a residual of 0.2 > 0.15.
+    rows = [_pose_row(), _pose_row(offset=(20, 0)), _pose_row()]
+    records = isolated_jump.evaluate_segment(rows, landmarks=["LEFT_WRIST"])
+    spike = _wrist(records, 1)
+    assert spike["flagged"] and spike["residual"] == pytest.approx(0.2)
+    assert spike["midpoint"] == [50.0, 50.0]
+    # Segment edges cannot be evaluated.
+    assert "residual" not in _wrist(records, 0) and "residual" not in _wrist(records, 2)
+    # A 10 px jump (0.1) is below the residual threshold.
+    small = isolated_jump.evaluate_segment([_pose_row(), _pose_row(offset=(10, 0)), _pose_row()], landmarks=["LEFT_WRIST"])
+    assert not _wrist(small, 1)["flagged"]
+
+
+def test_isolated_jump_requires_close_visible_usable_neighbors():
+    far = [_pose_row(), _pose_row(offset=(40, 0)), _pose_row(offset=(40, 0), wrist=(50, 50))]
+    far[2]["LEFT_WRIST_x"] = 90.0  # neighbors 40 px apart: gap 0.4 > 0.3
+    assert not _wrist(isolated_jump.evaluate_segment(far, landmarks=["LEFT_WRIST"]), 1)["flagged"]
+    dim = [_pose_row(vis=0.5), _pose_row(offset=(20, 0)), _pose_row()]
+    assert not _wrist(isolated_jump.evaluate_segment(dim, landmarks=["LEFT_WRIST"]), 1)["flagged"]
+    spike = [_pose_row(), _pose_row(offset=(20, 0)), _pose_row()]
+    records = isolated_jump.evaluate_segment(spike, unusable_frames={2}, landmarks=["LEFT_WRIST"])
+    assert not _wrist(records, 1)["flagged"]
+    assert all(r["frame"] != 2 for r in records)
+
+
+def _positions():
+    positions = []
+    for i in range(60):
+        landmark = ["LEFT_WRIST", "LEFT_HIP", "RIGHT_ELBOW"][i % 3]
+        flagged = i < 45
+        positions.append({
+            "segment_id": f"s{i % 5}", "recording_id": f"r{i % 5}", "task_id": "t", "corpus": "c",
+            "frame": i, "source_frame": 100 + i, "landmark": landmark, "xy": [64.0, 48.0],
+            "midpoint": [70.0, 48.0], "residual": 0.2 if flagged else 0.01, "neighbor_gap": 0.1,
+            "torso": 100.0, "flagged": flagged, "correction": None, "video": "v.mp4",
+            "video_sha256": "h", "context": {"RIGHT_HIP": [32.0, 24.0]},
+        })
+    positions.append({**positions[0], "frame": 999, "correction": [1.0, 1.0]})  # marked: never sampled
+    return positions
+
+
+def test_draw_sample_strata_blinding_and_determinism():
+    info = {"h": {"fps": 30.0, "width": 640, "height": 480}}
+    first = prepare_sample.draw_sample(_positions(), info, seed=7)
+    again = prepare_sample.draw_sample(_positions(), info, seed=7)
+    assert first["blinded"] == again["blinded"] and first["answer_key"] == again["answer_key"]
+    cases = first["blinded"]["cases"]
+    assert len(cases) == 48 and len({c["blind_id"] for c in cases}) == 48
+    for case in cases:
+        assert set(case) == {"blind_id", "video", "frame_index", "fps", "landmark", "point", "context_points"}
+        assert case["point"] == [0.1, 0.1] and case["context_points"] == {"RIGHT_HIP": [0.05, 0.05]}
+    strata = Counter(a["stratum"] for a in first["answer_key"]["cases"])
+    assert strata == {"arm_flag": 24, "hip_flag": 12, "control": 12}
+    sizes = first["population_sizes"]
+    assert sizes == {"arm_flag": 30, "hip_flag": 15, "control": 15}
+    assert all(a["inclusion_probability"] == prepare_sample.STRATA[a["stratum"]] / sizes[a["stratum"]] for a in first["answer_key"]["cases"])
+    assert all(a["source_frame"] != 1099 for a in first["answer_key"]["cases"])
+    # The order is shuffled, not grouped by stratum.
+    assert [a["stratum"] for a in first["answer_key"]["cases"]][:24] != ["arm_flag"] * 24
+
+
+def test_draw_sample_refuses_small_strata():
+    with pytest.raises(ValueError, match="stratum"):
+        prepare_sample.draw_sample(_positions()[:20], {"h": {"fps": 30, "width": 1, "height": 1}})

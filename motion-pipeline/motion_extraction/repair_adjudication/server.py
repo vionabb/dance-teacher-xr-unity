@@ -34,14 +34,15 @@ from motion_extraction.annotation_tool.server import (
 )
 
 
-PROTOCOL_ID = "repair-adjudication-v1-first-pass"
+PROTOCOL_ID = "repair-adjudication-v2-first-pass"
 STORE_SCHEMA_VERSION = "1.0"
-# sha256 of blinded/first_pass_manifest.json as frozen in
-# lab-log/assets/2026-10-06-preprocessing-metric-validation/repair-adjudication-selection.json
-# ("blinded_first_pass_sha256").  The server refuses any other manifest unless
+# sha256 of the v2 blinded/first_pass_manifest.json written by prepare_sample
+# on 2026-11-06, as recorded in
+# lab-log/assets/2026-10-06-preprocessing-metric-validation/repair-adjudication-v2-selection.json
+# ("blinded_first_pass_sha256"). The October v1 bundle was lost.  The server refuses any other manifest unless
 # --allow-unfrozen-manifest is passed (for tests and synthetic dry runs).
 FROZEN_BLINDED_MANIFEST_SHA256 = (
-    "90ed9ca394b517e7816987461ac3a6c7f7c488621d7d846423299f1f76a28783"
+    "59805bdb296231d83036132c0feea48db2ad8819af3756a9e1c97fd91f1271c4"
 )
 VERDICTS = ("acceptable_as_is", "incorrect_correctable", "unjudgeable")
 NOTE_MAX_LENGTH = 1000
