@@ -3,7 +3,6 @@ import { browser } from '$app/environment';
 import { simd } from 'wasm-feature-detect';
 import type { PoseLandmarker } from '@mediapipe/tasks-vision';
 // const wasm_loader = import('@mediapipe/tasks-vision/wasm/vision_wasm_internal');
-// const wasm_nosimd_ploader = import('@mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal')
 
 // export type PostMessages = 'request-pose-estimation';
 export enum ResponseMessages {
@@ -23,17 +22,19 @@ export enum PostMessages {
 const IS_WEB_WORKER = false;
 
 async function loadPoseLandmarkerModel() {
-	const supportsSimd = await simd();
+	// Only the SIMD build of the MediaPipe WASM is shipped (all current browsers support it);
+	// the no-SIMD build was dropped to keep each deployment smaller.
+	if (!(await simd())) {
+		throw new Error(
+			'This browser does not support WebAssembly SIMD, which pose tracking requires. Please use a current version of Chrome, Edge, Firefox or Safari.'
+		);
+	}
 
 	const MP_FOLDER = '/mediapipe';
 	const wasmVisionFileset = {
-		wasmLoaderPath: `${MP_FOLDER}/vision_wasm_nosimd_internal.js`,
-		wasmBinaryPath: `${MP_FOLDER}/vision_wasm_nosimd_internal.wasm`
+		wasmLoaderPath: `${MP_FOLDER}/vision_wasm_internal.js`,
+		wasmBinaryPath: `${MP_FOLDER}/vision_wasm_internal.wasm`
 	};
-	if (supportsSimd) {
-		wasmVisionFileset.wasmLoaderPath = `${MP_FOLDER}/vision_wasm_internal.js`;
-		wasmVisionFileset.wasmBinaryPath = `${MP_FOLDER}/vision_wasm_internal.wasm`;
-	}
 
 	const runningMode = 'VIDEO';
 
