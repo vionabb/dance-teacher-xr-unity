@@ -187,6 +187,17 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   19 reference-reviewed, and 8 fully reviewed human-rated pairs. The raw
   control matched exactly; whole-clip similarity correlations changed little.
 
+- [2026-10-02 — Hypothesis workspace prototype](2026-10-02-hypothesis-workspace-prototype.md)
+  Built a local, lab-log-backed hypothesis index and per-question pages with
+  Codex conversation, workflow status, findings, and SQLite snapshots. The
+  initial five threads remain candidate questions or design directions.
+
+- [2026-10-02 — Hypothesis workspace handoff](2026-10-02-hypothesis-workspace-prototype-handoff.md)
+  Gives the next agent the reconciled PR, implemented scope, validation and
+  setup commands, database precautions, and the next investigation decision.
+  Records an independent review of the reconciled migration and local access
+  boundary (no blocking issues; one possibly flaky local UI check).
+
 - [2026-10-02 — Toward one research workspace](2026-10-02-unified-research-workspace.md)
   Viona chose one SvelteKit interface for research and learner work, local
   SQLite for research records, and shared versioned data contracts. The local
@@ -196,6 +207,16 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Tracks the three open PRs, current local-only usability authoring, the
   October 2 main merge and Vercel preview repair, and remaining researcher
   authorization, frame-correction, metric-runner, and pipeline-job work.
+
+- [2026-10-03 — Hypothesis collection management](2026-10-03-hypothesis-collection-management.md)
+  Adds an index conversation for creating, renaming, moving workflow status,
+  removing, and restoring hypotheses. Removal preserves the research trail;
+  new entries start as candidate questions with draft overviews.
+
+- [2026-10-05 — Hypothesis prototype PR feedback](2026-10-05-hypothesis-pr-review.md)
+  Addresses intent and exact-target checks, Unicode and duplicate creation,
+  concurrent responses, Codex input errors, and atomic schema upgrades.
+  Failed or stale operations retain the conversation without changing state.
 
 - [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
   Records Viona's choice to serve both CHI25 studies to authorized accounts,
@@ -226,3 +247,13 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Repairs the post-login bounce through server-set cookies and safe preserved
   destinations. Production-mode synthetic browser checks cover reloads,
   JavaScript-disabled sign-in, errors and non-cacheable redirects.
+
+- [2026-11-05 — Hypothesis workspace main reconciliation](2026-11-05-hypothesis-main-reconciliation.md)
+  Reconciles PR #414 with hosted research/navigation main while preserving local
+  hypothesis access and both SQLite observation types. Records current checks,
+  the private-ratings test prerequisite, and the next agent's handoff.
+
+- [2026-11-06 — Time spans that matter for human ratings](2026-11-06-rating-relevant-time-spans.md)
+  Viona asks whether lead-in/lead-out and coincidental motion matter less for
+  human-rated similarity. Records the ratings structure, the agreed two-stage
+  plan and acceptance criterion, and a local reference start/end marker.

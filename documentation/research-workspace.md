@@ -145,6 +145,87 @@ Vercel app. Add server-side researcher-role authorization to every research
 route before any remote serving. Metric calculations and frame-correction
 authoring are not part of this slice.
 
+## Hypothesis page prototype
+
+The local development app exposes `/research/hypothesis` and individual
+`/research/hypothesis/<slug>` pages. The initial registry identifies five
+research questions from the dated lab log: landmark error signals, recurring
+segment risk, reference versus participant trackability, metric sensitivity
+to manual corrections, and confidence-aware coaching. These are candidate
+questions or design directions, not confirmed conclusions. Each overview reads
+opening prose from its cited lab-log Markdown file at request time; the full
+source entry is available on the page. Hypothesis-specific investigation
+sections and links can differ by slug. A sixth registered question,
+`rating-relevant-time-spans`, asks whether some time spans matter less for
+human-rated similarity (see its [lab-log entry](../lab-log/2026-11-06-rating-relevant-time-spans.md)).
+
+Its first tool, `/research/reference-spans`, plays each of the four CHI25
+reference tutorials and records where the dance moves begin and end. It has
+the same development/loopback boundary, needs `RESEARCH_ANNOTATOR` to save,
+and reads videos from `MOTION_PIPELINE_REFERENCE_VIDEO_DIR` (default
+`../../../data/reference_motions/videos/chi-studyvideos` from the frontend).
+Each save appends a row to `reference_dance_span_revisions` (schema v5) with
+the video's SHA-256 and the previous revision it supersedes, then writes the
+usual verified snapshot. The page also shows how much of each legacy
+reference segment clip the draft marks would exclude.
+
+The shared research navigation exposes **Hypotheses** only for development
+sessions on loopback. Hosted research accounts retain their existing tools;
+the hypothesis pages and actions reject production requests. The current
+[agent handoff](../lab-log/2026-10-02-hypothesis-workspace-prototype-handoff.md)
+records setup, validation, data prerequisites, and the next investigation step.
+
+The app-managed research SQLite database stores append-only conversation,
+status, and finding records. Each conversation save makes a verified local
+snapshot. Statuses describe the research workflow (`candidate`,
+`investigating`, `evidence-review`, `resolved`, `archived`) rather than an
+automatic scientific verdict. The index conversation can create hypotheses,
+rename them, change workflow status, remove them from the index, and restore
+them. Removal is reversible: the URL, conversation, and findings remain.
+Renaming changes the displayed title but preserves the URL and history. New
+hypotheses begin as candidates with a draft overview stored in SQLite; the
+five seeded overviews continue to read their cited lab-log Markdown at request
+time. The index lists removed hypotheses separately so they can be found and
+restored.
+
+Both conversation panels invoke a separate read-only Codex CLI turn for each
+message; it is not the live Codex desktop task. The index assistant receives
+the current catalog and recent collection conversation; each detail assistant
+receives its overview and recent per-hypothesis conversation. The server
+validates structured operations against the catalog and explicit requests,
+then writes append-only records and a verified snapshot. For collection
+changes, name the exact current title or URL name and the requested action
+and value (for example, `Mark Recurring tracking risk by
+segment as investigating`). If the assistant proposes an ambiguous or
+mismatched operation, the entire turn is recorded as conversation without a
+collection change. A transaction-time revision check also suppresses changes
+if the collection changed while Codex was responding; the conversation is
+retained with a request to review and retry. Duplicate URL names produce a
+saved explanation without creating another hypothesis. Titles without an
+ASCII URL name receive a stable `hypothesis-<hash>` URL.
+
+The detail panel requires an explicit status command such as `Mark this as
+investigating`, or finding content introduced by `Save a finding: ...`. It can
+save an explicitly requested finding and discuss a prospective analysis;
+running that analysis or adding a custom tool still requires a Codex task with
+an implementation brief. The initial pages do not ingest the live annotation
+history or execute new hypothesis-specific analyses.
+
+The local CLI call requires a working Codex sign-in on the serving machine.
+This prototype inherits the development-mode and loopback-client boundary.
+Before using it remotely, add researcher-role authorization to every page and
+action. Before treating these pages as the durable research record, review the
+initial hypothesis wording, decide whether lab-log prose should remain the
+canonical overview for newly added hypotheses, and define an evidence-link
+and revision policy for saved findings. See the [dated prototype entry](../lab-log/2026-10-02-hypothesis-workspace-prototype.md)
+and its [handoff](../lab-log/2026-10-02-hypothesis-workspace-prototype-handoff.md).
+
+Schema upgrades create all required tables and update the version marker in
+one SQLite transaction. Older code intentionally refuses a newer database
+version. Use a separate `RESEARCH_SQLITE_PATH` for an older checkout, or a
+verified snapshot made before the upgrade; do not change the version marker
+to make older code accept newer state.
+
 ## Hosted CHI25 read-only collection
 
 Viona requested that the existing production instance serve research materials

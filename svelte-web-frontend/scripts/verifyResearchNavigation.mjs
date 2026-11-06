@@ -138,7 +138,26 @@ try {
 	await tools.waitFor();
 	assert.equal(await tools.getByRole('link').count(), 4);
 	assert.equal(await tools.getByRole('link', { name: /Source records/ }).count(), 0);
+	assert.equal(await tools.getByRole('link', { name: /Hypotheses/ }).count(), 0);
 	assert.match((await page.reload()).headers()['cache-control'], /private.*no-store/);
+	await tools.waitFor();
+	for (const path of [
+		'/research/hypothesis',
+		'/research/hypothesis/segment-tracking-risk',
+		'/research/reference-spans'
+	]) {
+		assert.equal((await page.goto(base + path)).status(), 404, `GET ${path}`);
+		const status = await page.evaluate(async (destination) => {
+			const response = await fetch(destination, {
+				method: 'POST',
+				redirect: 'manual',
+				body: new URLSearchParams({ message: 'Discuss this.' })
+			});
+			return response.status;
+		}, path);
+		assert.equal(status, 404, `POST ${path}`);
+	}
+	await page.goto(base + '/menu');
 	await tools.waitFor();
 	await page.screenshot({ path: `${output}/home-desktop.png`, fullPage: true });
 	await page.setViewportSize({ width: 390, height: 844 });
@@ -214,7 +233,9 @@ try {
 		ordinaryAccountHidden: true,
 		anonymousHidden: true,
 		researchGatePreserved: true,
-		privateNoStore: true
+		privateNoStore: true,
+		localHypothesesHidden: true,
+		localHypothesisRoutesDenied: true
 	};
 	await writeFile(`${output}/verification.json`, JSON.stringify(report, null, 2) + '\n');
 	console.log(JSON.stringify(report));

@@ -47,6 +47,12 @@
 		...(local
 			? [
 					{
+						href: '/research/hypothesis' as const,
+						label: 'Hypotheses',
+						description: 'Discuss research questions, manage their status, and record findings.',
+						active: page.url.pathname.startsWith(resolve('/research/hypothesis'))
+					},
+					{
 						href: '/research/records' as const,
 						label: 'Source records',
 						description: 'Inspect local source records and video usability ratings.',
