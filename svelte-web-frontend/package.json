@@ -22,13 +22,12 @@
 		"test:research-schema": "node scripts/verifyHostedAnalysisSchema.mjs"
 	},
 	"devDependencies": {
+		"@anthropic-ai/sdk": "^1.6.0",
 		"@electric-sql/pglite": "0.5.13",
 		"@eslint/js": "^10.0.1",
 		"@iconify/json": "^2.2.458",
 		"@iconify/svelte": "^5.2.1",
 		"@iconify/tailwind": "^1.2.0",
-		"@langchain/core": "^1.1.38",
-		"@langchain/openai": "^1.4.1",
 		"@mediapipe/tasks-vision": "^0.10.34",
 		"@supabase/ssr": "^0.10.0",
 		"@supabase/supabase-js": "^2.101.1",
@@ -48,7 +47,6 @@
 		"eslint": "^10.2.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.17.0",
-		"langchain": "^1.2.39",
 		"papaparse": "^5.5.3",
 		"playwright": "^1.63.0",
 		"plotly.js-dist-min": "^3.7.0",

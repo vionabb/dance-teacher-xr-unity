@@ -1,17 +1,43 @@
-import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
-import { OPENAI_API_KEY } from '$env/static/private';
+/** anthropic.ts
+ *
+ *  Claude (Anthropic API) backend for the LLM-generated coaching feedback.
+ */
+import Anthropic from '@anthropic-ai/sdk';
+import { ANTHROPIC_API_KEY } from '$env/static/private';
 
-const model = new ChatOpenAI({
-	apiKey: OPENAI_API_KEY,
-	model: 'gpt-4o-mini'
-});
+const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+
+// Change here to trade quality for latency/cost (e.g. 'claude-haiku-5-5').
+const MODEL = 'claude-opus-5-5';
+const MAX_TOKENS = 16000;
+
+async function createMessage(system: string | undefined, userContent: string): Promise<string> {
+	const response = await client.beta.messages.create({
+		model: MODEL,
+		max_tokens: MAX_TOKENS,
+		// Short, latency-sensitive feedback: keep thinking light.
+		output_config: { effort: 'low' },
+		// If a safety classifier declines, re-run on Anthropic's recommended fallback model.
+		betas: ['server-side-fallback-2026-07-01'],
+		fallbacks: 'default',
+		...(system ? { system } : {}),
+		messages: [{ role: 'user', content: userContent }]
+	});
+
+	if (response.stop_reason === 'refusal') {
+		throw new Error(
+			`Claude declined the request (${response.stop_details?.category ?? 'unknown category'})`
+		);
+	}
+
+	return response.content
+		.filter((block) => block.type === 'text')
+		.map((block) => block.text)
+		.join('');
+}
 
 export async function runPrompt(prompt: string) {
-	const response = await model.invoke([new SystemMessage(prompt)]);
-
-	const msg = response as AIMessage;
-	return msg.content;
+	return createMessage(undefined, prompt);
 }
 
 export async function getFeedback(
@@ -21,36 +47,25 @@ export async function getFeedback(
 	performanceHistoryDistillation: string,
 	achivementsDistillation?: string
 ): Promise<{ feedbackMessage: string }> {
-	const messages: Array<SystemMessage | HumanMessage> = [new SystemMessage(taskStatement)];
+	// Same inputs the previous OpenAI backend sent (it did not include the
+	// performance history distillation).
+	const sections: string[] = [];
 	if (achivementsDistillation)
-		messages.push(new HumanMessage(`<achievements>${achivementsDistillation}</achievements>`));
+		sections.push(`<achievements>${achivementsDistillation}</achievements>`);
 	if (danceStructureDistillation)
-		messages.push(
-			new HumanMessage(
-				`<danceStructureDistillation>${danceStructureDistillation}</danceStructureDistillation>`
-			)
+		sections.push(
+			`<danceStructureDistillation>${danceStructureDistillation}</danceStructureDistillation>`
 		);
 	if (currentSectionName)
-		messages.push(
-			new HumanMessage(`<currentSectionName>${currentSectionName}</currentSectionName>`)
-		);
+		sections.push(`<currentSectionName>${currentSectionName}</currentSectionName>`);
 	if (performanceDistillation)
-		messages.push(
-			new HumanMessage(
-				`<performanceDistillation>${performanceDistillation}</performanceDistillation>`
-			)
-		);
+		sections.push(`<performanceDistillation>${performanceDistillation}</performanceDistillation>`);
 
-	const response = await model.invoke(messages);
-
-	const msg = response as AIMessage;
-	const msgContent = msg.content as string;
-	const feedbackMessage = msgContent.match(/<feedbackmessage>([\s\S]*?)<\/feedbackmessage>/)?.[1];
+	const text = await createMessage(taskStatement, sections.join('\n'));
+	const feedbackMessage = text.match(/<feedbackmessage>([\s\S]*?)<\/feedbackmessage>/)?.[1];
 
 	if (!feedbackMessage) {
-		throw new Error(
-			`Invalid OpenAI Text (missing expected xml for <feedbackmessage>): ${msgContent}`
-		);
+		throw new Error(`Invalid Claude text (missing expected <feedbackmessage> tags): ${text}`);
 	}
 
 	return { feedbackMessage };

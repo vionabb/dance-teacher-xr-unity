@@ -95,7 +95,7 @@ try {
 	const env = {
 		NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${authPort}`,
 		NEXT_PUBLIC_SUPABASE_ANON_KEY: 'synthetic-public-key',
-		OPENAI_API_KEY: 'synthetic-test-key'
+		ANTHROPIC_API_KEY: 'synthetic-test-key'
 	};
 	await run(['build'], env);
 	preview = spawn(
