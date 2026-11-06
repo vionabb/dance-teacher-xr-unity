@@ -142,7 +142,11 @@ try {
 	assert.equal(await tools.getByRole('link', { name: /Hypotheses/ }).count(), 0);
 	assert.match((await page.reload()).headers()['cache-control'], /private.*no-store/);
 	await tools.waitFor();
-	for (const path of ['/research/hypothesis', '/research/hypothesis/segment-tracking-risk']) {
+	for (const path of [
+		'/research/hypothesis',
+		'/research/hypothesis/segment-tracking-risk',
+		'/research/reference-spans'
+	]) {
 		assert.equal((await page.goto(base + path)).status(), 404, `GET ${path}`);
 		const status = await page.evaluate(async (destination) => {
 			const response = await fetch(destination, {

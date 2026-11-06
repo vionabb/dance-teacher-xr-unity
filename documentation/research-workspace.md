@@ -155,7 +155,19 @@ to manual corrections, and confidence-aware coaching. These are candidate
 questions or design directions, not confirmed conclusions. Each overview reads
 opening prose from its cited lab-log Markdown file at request time; the full
 source entry is available on the page. Hypothesis-specific investigation
-sections and links can differ by slug.
+sections and links can differ by slug. A sixth registered question,
+`rating-relevant-time-spans`, asks whether some time spans matter less for
+human-rated similarity (see its [lab-log entry](../lab-log/2026-11-06-rating-relevant-time-spans.md)).
+
+Its first tool, `/research/reference-spans`, plays each of the four CHI25
+reference tutorials and records where the dance moves begin and end. It has
+the same development/loopback boundary, needs `RESEARCH_ANNOTATOR` to save,
+and reads videos from `MOTION_PIPELINE_REFERENCE_VIDEO_DIR` (default
+`../../../data/reference_motions/videos/chi-studyvideos` from the frontend).
+Each save appends a row to `reference_dance_span_revisions` (schema v5) with
+the video's SHA-256 and the previous revision it supersedes, then writes the
+usual verified snapshot. The page also shows how much of each legacy
+reference segment clip the draft marks would exclude.
 
 The shared research navigation exposes **Hypotheses** only for development
 sessions on loopback. Hosted research accounts retain their existing tools;

@@ -7,7 +7,7 @@ import Papa from 'papaparse';
 import { humanSimilarityCondition } from './research-identity.js';
 import { HYPOTHESIS_STATUSES, hypotheses, type HypothesisStatus } from './research-hypotheses';
 
-export const RESEARCH_SCHEMA_VERSION = 4;
+export const RESEARCH_SCHEMA_VERSION = 5;
 
 export type SourceRecord = {
 	kind: string;
@@ -160,7 +160,10 @@ async function snapshotAfterRevision(
 	db: sqlite3.Database,
 	databaseFile: string,
 	revisionId: number,
-	table: 'local_video_usability_revisions' | 'hypothesis_chat_messages'
+	table:
+		| 'local_video_usability_revisions'
+		| 'hypothesis_chat_messages'
+		| 'reference_dance_span_revisions'
 ): Promise<string> {
 	const folder = path.join(path.dirname(databaseFile), 'backups');
 	await mkdir(folder, { recursive: true });
@@ -207,7 +210,7 @@ async function withDatabase<T>(
 					await run(db, `ALTER TABLE human_similarity_ratings ADD COLUMN ${column} INTEGER`);
 			} else if (
 				versions.length > 1 ||
-				(versions.length === 1 && ![2, 3, RESEARCH_SCHEMA_VERSION].includes(versions[0].version))
+				(versions.length === 1 && ![2, 3, 4, RESEARCH_SCHEMA_VERSION].includes(versions[0].version))
 			)
 				throw new Error(
 					`Unsupported research database schema version: ${versions.map((row) => row.version).join(', ')}`
@@ -285,6 +288,16 @@ async function withDatabase<T>(
 			);
 			await run(
 				db,
+				`CREATE TABLE IF NOT EXISTS reference_dance_span_revisions (
+			revision_id INTEGER PRIMARY KEY AUTOINCREMENT, dance TEXT NOT NULL,
+			video_file TEXT NOT NULL, video_sha256 TEXT NOT NULL,
+			start_seconds REAL NOT NULL, end_seconds REAL NOT NULL,
+			annotator TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL,
+			supersedes_revision_id INTEGER,
+			CHECK(start_seconds >= 0 AND end_seconds > start_seconds))`
+			);
+			await run(
+				db,
 				`CREATE TABLE IF NOT EXISTS discrepancy_observations (
 	 id INTEGER PRIMARY KEY AUTOINCREMENT, segment_id TEXT NOT NULL,
 	 annotator TEXT NOT NULL, created_at TEXT NOT NULL, start_seconds REAL NOT NULL,
@@ -293,7 +306,8 @@ async function withDatabase<T>(
 			);
 			if (versions.length === 0)
 				await run(db, 'INSERT INTO schema_meta VALUES (?)', [RESEARCH_SCHEMA_VERSION]);
-			else await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
+			else if (versions[0].version !== RESEARCH_SCHEMA_VERSION)
+				await run(db, 'UPDATE schema_meta SET version = ?', [RESEARCH_SCHEMA_VERSION]);
 			await run(db, 'COMMIT');
 		} catch (schemaError) {
 			await run(db, 'ROLLBACK');
@@ -1013,6 +1027,115 @@ export async function recordHypothesisTurn(
 			};
 		} catch (snapshotError) {
 			return {
+				snapshotPath: null,
+				backupError: snapshotError instanceof Error ? snapshotError.message : 'Snapshot failed'
+			};
+		}
+	});
+}
+
+export type ReferenceDanceSpanRevision = {
+	revision_id: number;
+	dance: string;
+	video_file: string;
+	video_sha256: string;
+	start_seconds: number;
+	end_seconds: number;
+	annotator: string;
+	note: string;
+	created_at: string;
+	supersedes_revision_id: number | null;
+};
+
+/** All dance start/end marks for the reference videos, oldest first. The latest per dance is current. */
+export async function readReferenceDanceSpans(file: string) {
+	return withDatabase(file, (db) =>
+		all<ReferenceDanceSpanRevision>(
+			db,
+			`SELECT revision_id, dance, video_file, video_sha256, start_seconds, end_seconds,
+			annotator, note, created_at, supersedes_revision_id
+			FROM reference_dance_span_revisions ORDER BY revision_id`
+		)
+	);
+}
+
+/** Append a new dance start/end mark; earlier marks stay as superseded revisions. */
+export async function recordReferenceDanceSpan(
+	file: string,
+	input: {
+		dance: string;
+		videoFile: string;
+		videoSha256: string;
+		durationSeconds: number;
+		startSeconds: number;
+		endSeconds: number;
+		annotator: string;
+		note: string;
+	}
+): Promise<{ revisionId: number; snapshotPath: string | null; backupError: string | null }> {
+	const finite = [input.durationSeconds, input.startSeconds, input.endSeconds].every(
+		Number.isFinite
+	);
+	if (
+		!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.dance) ||
+		!input.videoFile.trim() ||
+		!/^[0-9a-f]{64}$/.test(input.videoSha256) ||
+		!finite ||
+		input.durationSeconds <= 0 ||
+		input.startSeconds < 0 ||
+		input.endSeconds <= input.startSeconds ||
+		input.endSeconds > input.durationSeconds + 0.05 ||
+		!input.annotator.trim() ||
+		input.note.length > 2000
+	)
+		throw new Error('Invalid reference dance span');
+	return withDatabase(file, async (db) => {
+		await run(db, 'BEGIN IMMEDIATE');
+		let revisionId: number;
+		try {
+			const [previous] = await all<{ revision_id: number }>(
+				db,
+				'SELECT MAX(revision_id) AS revision_id FROM reference_dance_span_revisions WHERE dance = ?',
+				[input.dance]
+			);
+			await run(
+				db,
+				`INSERT INTO reference_dance_span_revisions (dance, video_file, video_sha256,
+				start_seconds, end_seconds, annotator, note, created_at, supersedes_revision_id)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[
+					input.dance,
+					input.videoFile,
+					input.videoSha256,
+					input.startSeconds,
+					input.endSeconds,
+					input.annotator.trim(),
+					input.note.trim(),
+					new Date().toISOString(),
+					previous?.revision_id ?? null
+				]
+			);
+			const [{ id }] = await all<{ id: number }>(db, 'SELECT last_insert_rowid() AS id');
+			revisionId = id;
+			await run(db, 'COMMIT');
+		} catch (recordError) {
+			await run(db, 'ROLLBACK');
+			throw recordError;
+		}
+		try {
+			return {
+				revisionId,
+				snapshotPath: await snapshotAfterRevision(
+					db,
+					file,
+					revisionId,
+					'reference_dance_span_revisions'
+				),
+				backupError: null
+			};
+		} catch (snapshotError) {
+			return {
+				revisionId,
 				snapshotPath: null,
 				backupError: snapshotError instanceof Error ? snapshotError.message : 'Snapshot failed'
 			};

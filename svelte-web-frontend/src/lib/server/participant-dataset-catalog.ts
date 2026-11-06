@@ -100,6 +100,11 @@ const REFERENCE_CLIP_FILES: Record<string, { fileName: string; clipSpacingSecond
 	'pajama-party': { fileName: 'pajamaparty-tutorial.mp4', clipSpacingSeconds: 2.682 }
 };
 
+/** The four CHI25 reference tutorials and the spacing of their legacy segment clips. */
+export function referenceDances() {
+	return Object.entries(REFERENCE_CLIP_FILES).map(([dance, clip]) => ({ dance, ...clip }));
+}
+
 export function referenceClipInfo(danceName: string, clipNumber: number) {
 	const clip = REFERENCE_CLIP_FILES[danceName];
 	if (!clip || !Number.isSafeInteger(clipNumber) || clipNumber < 1) return null;

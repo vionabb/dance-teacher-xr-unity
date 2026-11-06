@@ -252,3 +252,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Reconciles PR #414 with hosted research/navigation main while preserving local
   hypothesis access and both SQLite observation types. Records current checks,
   the private-ratings test prerequisite, and the next agent's handoff.
+
+- [2026-11-06 — Time spans that matter for human ratings](2026-11-06-rating-relevant-time-spans.md)
+  Viona asks whether lead-in/lead-out and coincidental motion matter less for
+  human-rated similarity. Records the ratings structure, the agreed two-stage
+  plan and acceptance criterion, and a local reference start/end marker.

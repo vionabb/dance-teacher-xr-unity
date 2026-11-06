@@ -96,6 +96,17 @@ cleanly, so the branch was not re-merged.
   captured and did not recur. Treat it as possibly flaky on a cold dev server.
 - No real Codex turn and no private-ratings suites were run.
 
+## 2026-11-06: first hypothesis-specific tool
+
+Viona chose a new hypothesis, `rating-relevant-time-spans` (are some time
+spans less important for human-rated similarity?). Its plan, acceptance
+criterion, and next action are in
+[its own entry](2026-11-06-rating-relevant-time-spans.md). This branch now
+adds `/research/reference-spans` and schema v5
+(`reference_dance_span_revisions`); v2–v4 databases upgrade in place. The
+local UI script now expects six registry entries and checks the marker page
+on mobile; the navigation script also denies the marker to hosted users.
+
 ## Next agent's task
 
 First review PR #414's shared-store migration and local navigation against the

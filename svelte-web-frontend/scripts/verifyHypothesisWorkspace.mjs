@@ -95,7 +95,7 @@ try {
 	);
 	assert.equal(await hypotheses.getAttribute('aria-current'), 'page');
 	await page.getByRole('heading', { name: 'Manage hypotheses with Codex', exact: true }).waitFor();
-	assert.equal(await page.locator('main a[href^="/research/hypothesis/"]').count(), 5);
+	assert.equal(await page.locator('main a[href^="/research/hypothesis/"]').count(), 6);
 	await page.screenshot({ path: `${output}/index-desktop.png`, fullPage: true });
 	await page.setViewportSize({ width: 390, height: 844 });
 	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -109,13 +109,29 @@ try {
 	assert.deepEqual(hydrationWarnings, []);
 	assert.equal(await hypotheses.getAttribute('aria-current'), 'page');
 	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+	await page.goto(base + '/research/hypothesis/rating-relevant-time-spans');
+	await page.locator('main a[href="/research/reference-spans"]').click();
+	await page.getByRole('heading', { name: 'Reference dance start and end', exact: true }).waitFor();
+	assert.equal(await page.getByRole('heading', { level: 2 }).count(), 4);
+	const overflow = await page.evaluate(() =>
+		[...document.querySelectorAll('main *')]
+			.filter((element) => element.getBoundingClientRect().right > innerWidth + 1)
+			.slice(0, 3)
+			.map((element) => element.outerHTML.slice(0, 120))
+	);
+	assert.ok(
+		await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+		`Reference marker overflows on mobile (${await page.evaluate(() => document.documentElement.scrollWidth)}px): ${overflow.join(' | ')}`
+	);
+	await page.screenshot({ path: `${output}/reference-spans-mobile.png`, fullPage: true });
 	await page.goto(base + '/research');
 	await hypotheses.click();
 	await page.waitForURL(base + '/research/hypothesis');
 	const report = {
 		disposableDatabase: true,
 		codexCalls: false,
-		fiveCandidates: true,
+		sixCandidates: true,
+		referenceSpanMarker: true,
 		localNavigation: true,
 		indexConversation: true,
 		detailConversation: true,

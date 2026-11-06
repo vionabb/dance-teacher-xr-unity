@@ -12,6 +12,8 @@ import {
 	readUsabilityData,
 	recordVideoUsabilityRating,
 	readDiscrepancyObservations,
+	readReferenceDanceSpans,
+	recordReferenceDanceSpan,
 	saveDiscrepancyObservation
 } from './research-store';
 
@@ -80,7 +82,7 @@ test('a v2 research database gains hypothesis records without losing its existin
 				)
 		);
 	});
-	expect(migrated).toEqual([{ version: 4, task_id: 'existing-rating' }]);
+	expect(migrated).toEqual([{ version: 5, task_id: 'existing-rating' }]);
 });
 
 test('a v3 research database keeps its hypothesis history after collection support is added', async () => {
@@ -446,5 +448,70 @@ test('reports a discrepancy backup failure without losing the saved observation'
 	expect(receipt.backupError).toBeTruthy();
 	expect(await readDiscrepancyObservations(file, input.segment_id)).toMatchObject([
 		{ ...input, id: receipt.id }
+	]);
+});
+
+test('a v4 database upgrades and keeps reference dance marks as append-only revisions', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-reference-spans-'));
+	folders.push(folder);
+	const file = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	await new Promise<void>((resolve, reject) => {
+		const db = new sqlite3.Database(file);
+		db.exec(
+			"CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (4); CREATE TABLE hypothesis_events (event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('status', 'finding')), value TEXT NOT NULL, created_at TEXT NOT NULL); INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES ('segment-tracking-risk', 'finding', 'Synthetic v4 finding.', '2026-11-05T00:00:00Z')",
+			(error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+		);
+	});
+	const base = {
+		dance: 'bartender',
+		videoFile: 'bartender.mp4',
+		videoSha256: 'a'.repeat(64),
+		durationSeconds: 18.867,
+		annotator: 'synthetic',
+		note: ''
+	};
+	await expect(
+		recordReferenceDanceSpan(file, { ...base, startSeconds: 3, endSeconds: 2 })
+	).rejects.toThrow('Invalid reference dance span');
+	await expect(
+		recordReferenceDanceSpan(file, { ...base, startSeconds: 0, endSeconds: 25 })
+	).rejects.toThrow('Invalid reference dance span');
+	const first = await recordReferenceDanceSpan(file, {
+		...base,
+		startSeconds: 0.5,
+		endSeconds: 14.9
+	});
+	const second = await recordReferenceDanceSpan(file, {
+		...base,
+		startSeconds: 0.6,
+		endSeconds: 14.8,
+		note: 'Refined.'
+	});
+	await recordReferenceDanceSpan(file, {
+		...base,
+		dance: 'pajama-party',
+		videoFile: 'pajamaparty-tutorial.mp4',
+		durationSeconds: 13.967,
+		startSeconds: 0,
+		endSeconds: 13.5
+	});
+	expect(first.backupError).toBeNull();
+	expect(first.snapshotPath).toContain('reference_dance_span_revisions');
+	const spans = await readReferenceDanceSpans(file);
+	expect(spans).toMatchObject([
+		{ dance: 'bartender', start_seconds: 0.5, supersedes_revision_id: null },
+		{
+			dance: 'bartender',
+			start_seconds: 0.6,
+			note: 'Refined.',
+			supersedes_revision_id: first.revisionId
+		},
+		{ dance: 'pajama-party', supersedes_revision_id: null }
+	]);
+	expect(second.revisionId).toBeGreaterThan(first.revisionId);
+	expect((await readHypothesisState(file, 'segment-tracking-risk')).events).toMatchObject([
+		{ kind: 'finding', value: 'Synthetic v4 finding.' }
 	]);
 });

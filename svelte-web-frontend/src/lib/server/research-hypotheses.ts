@@ -21,7 +21,11 @@ export type Hypothesis = {
 	sections: {
 		title: string;
 		text: string;
-		href?: '/research' | '/research/records' | '/research/records/rate';
+		href?:
+			| '/research'
+			| '/research/records'
+			| '/research/records/rate'
+			| '/research/reference-spans';
 	}[];
 };
 
@@ -94,6 +98,23 @@ export const hypotheses: Hypothesis[] = [
 				title: 'Metric inspectors',
 				text: 'Open the existing local metric view for a performance.',
 				href: '/research'
+			}
+		]
+	},
+	{
+		slug: 'rating-relevant-time-spans',
+		title: 'Time spans that matter for human ratings',
+		question: 'Are some parts of the videos less important for human-rated similarity than others?',
+		sources: [{ file: '2026-11-06-rating-relevant-time-spans.md', label: 'Investigation plan' }],
+		sections: [
+			{
+				title: 'Stage 1: lead-in and lead-out',
+				text: 'Mark when the dance moves begin and end in each reference video. Each metric is then recomputed on the first and last segments without the time outside those marks and compared with the segment ratings.',
+				href: '/research/reference-spans'
+			},
+			{
+				title: 'Stage 2: moves and coincidental motion',
+				text: 'Mark recognizable move spans in the references before seeing stage results, then compare metrics on move spans with the remaining spans against the same ratings.'
 			}
 		]
 	},
