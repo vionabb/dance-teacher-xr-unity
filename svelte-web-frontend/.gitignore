@@ -15,3 +15,4 @@ testResults
 supabase/.temp
 supabase/.branches
 static/bundle/**/*
+/temp/
