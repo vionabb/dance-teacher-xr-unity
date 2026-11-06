@@ -1,8 +1,6 @@
 import type { Landmark, NormalizedLandmark, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 import { SwapMultipleArrayElements } from '$lib/utils/array';
 import type { ValueOf } from '$lib/data/dances-store';
-import { simd } from 'wasm-feature-detect';
-import { browser } from '$app/environment';
 
 export const PoseLandmarkIds = Object.freeze({
 	nose: 0,
@@ -200,54 +198,4 @@ export function GetNormalizedLandmarksFromPixelLandmarks(
 		z: lm.dist_from_camera / srcWidth,
 		visibility: lm.visibility ?? 1.0
 	}));
-}
-export enum ResponseMessages {
-	poseEstimation = 'poseEstimation',
-	error = 'error',
-	resetComplete = 'resetComplete',
-	resetError = 'resetError'
-}
-
-// Create enum of PoseMessages
-export enum PostMessages {
-	requestPoseEstimation = 'requestPoseEstimation',
-	reset = 'reset',
-	confirmReady = 'confirmReady'
-}
-
-export async function loadPoseLandmarkerModel() {
-	if (!browser) {
-		return null;
-	}
-
-	// Only the SIMD build of the MediaPipe WASM is shipped (all current browsers support it);
-	// the no-SIMD build was dropped to keep each deployment smaller.
-	if (!(await simd())) {
-		throw new Error(
-			'This browser does not support WebAssembly SIMD, which pose tracking requires. Please use a current version of Chrome, Edge, Firefox or Safari.'
-		);
-	}
-
-	const MP_FOLDER = '/mediapipe';
-	const wasmVisionFileset = {
-		wasmLoaderPath: `${MP_FOLDER}/vision_wasm_internal.js`,
-		wasmBinaryPath: `${MP_FOLDER}/vision_wasm_internal.wasm`
-	};
-
-	const runningMode = 'VIDEO';
-
-	const TasksVisionModule = await import('@mediapipe/tasks-vision');
-	const poseLandmarker = await TasksVisionModule.PoseLandmarker.createFromOptions(
-		wasmVisionFileset,
-		{
-			baseOptions: {
-				modelAssetPath: `/mediapipe/pose_landmarker_lite.task`,
-				delegate: 'GPU'
-			},
-			runningMode: runningMode,
-			numPoses: 2
-		}
-	);
-
-	return poseLandmarker;
 }
