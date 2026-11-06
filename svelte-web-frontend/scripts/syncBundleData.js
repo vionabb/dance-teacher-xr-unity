@@ -202,12 +202,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
-import dotenv from 'dotenv';
+import { loadSupabaseEnv } from './loadSupabaseEnv.js';
 import { fileURLToPath } from 'url';
-
-dotenv.config({
-	path: 'src/env/.env'
-});
 
 /**
  * Syncs dances info to Supabase buckets.
@@ -403,12 +399,7 @@ async function main() {
 	const onProduction = process.argv.includes('--production');
 	const async = process.argv.includes('--async');
 
-	const url = onProduction
-		? process.env.PRODUCTION_SUPABASE_URL
-		: process.env.NEXT_PUBLIC_SUPABASE_URL;
-	let key = onProduction
-		? process.env.PRODUCTION_SUPABASE_SERVICE_ROLE_KEY
-		: process.env.SUPABASE_SERVICE_ROLE_KEY;
+	const { url, key } = loadSupabaseEnv(onProduction);
 
 	const defaultDancesJsonPath = 'src/lib/data/bundle/dances.json';
 	const defaultDanceTreesJsonPath = 'src/lib/data/bundle/danceTrees.json';

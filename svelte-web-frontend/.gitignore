@@ -6,7 +6,7 @@ node_modules
 /artifacts/research-screenshots/
 .env
 .env.*
-!.env.example
+!.env.*.example
 .vercel
 .output
 vite.config.js.timestamp-*
