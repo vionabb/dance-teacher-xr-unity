@@ -12,19 +12,16 @@ function getClient() {
 	return client;
 }
 
-// Change here to trade quality for latency/cost (e.g. 'claude-haiku-5-5').
-const MODEL = 'claude-opus-5-5';
+// Fast, low-cost model for short, latency-sensitive feedback.
+const MODEL = 'claude-haiku-5-5';
 const MAX_TOKENS = 16000;
 
 async function createMessage(system: string | undefined, userContent: string): Promise<string> {
-	const response = await getClient().beta.messages.create({
+	const response = await getClient().messages.create({
 		model: MODEL,
 		max_tokens: MAX_TOKENS,
 		// Short, latency-sensitive feedback: keep thinking light.
 		output_config: { effort: 'low' },
-		// If a safety classifier declines, re-run on Anthropic's recommended fallback model.
-		betas: ['server-side-fallback-2026-07-01'],
-		fallbacks: 'default',
 		...(system ? { system } : {}),
 		messages: [{ role: 'user', content: userContent }]
 	});
