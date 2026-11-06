@@ -205,13 +205,15 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   An opt-in quality-aware Qijia contract reports coverage, while a fixed
   visibility gate loses coverage without a reliable human-rating gain. A
   person-grouped combination of existing pose scores also fails to beat a
-  simple held-out baseline on the selected 95 clips. A blinded 48-case
-  arm/hip/control review sample is ready in private experiment storage.
+  simple held-out baseline on the selected 95 clips. The October blinded
+  sample was lost; a rebuilt rule v2 (not matching October's counts) has a new
+  sealed 48-case arm/hip/control sample.
 
 - [2026-10-06 — Preprocessing and similarity handoff](2026-10-06-preprocessing-metric-validation-handoff.md)
   Records frozen experiment commands and provenance, the November 5 rebase
-  and validation, private-data boundaries, and the new separate blinded review
-  screen (synthetic tests only). Next: find the private manifest and check it.
+  and validation, private-data boundaries, the separate blinded review screen,
+  the lost v1 bundle, and the rebuilt rule v2 with its sealed 48-case sample.
+  Next: Viona's blinded source-video review.
 
 - [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
   Records Viona's choice to serve both CHI25 studies to authorized accounts,

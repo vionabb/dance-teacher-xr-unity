@@ -6,6 +6,7 @@ artifacts:
   - assets/2026-10-06-preprocessing-metric-validation/quality-aware-95-aggregate.json
   - assets/2026-10-06-preprocessing-metric-validation/heldout-combination-aggregate.json
   - assets/2026-10-06-preprocessing-metric-validation/repair-adjudication-selection.json
+  - assets/2026-10-06-preprocessing-metric-validation/repair-adjudication-v2-selection.json
 ---
 
 # Testing correction signals and measurement-aware similarity
@@ -187,6 +188,15 @@ append-only database are needed before collecting these judgments. No active
 server, database, or source data was changed. Arm and hip results should be
 reported separately and weighted by their recorded selection probabilities
 before an overall false-correction estimate.
+
+**Update 2026-11-06.** The v1 private folder above was lost before any
+judging, and its scripts were never committed. With Viona's approval, the
+rule was re-implemented and committed as rule v2, and a new sealed 48-case
+sample was drawn. On the same frozen inputs, rule v2 does not reproduce the
+October counts: it flags 42 marked targets (35 move closer) and 179 unmarked
+positions, versus 35 (29) and 161 above. The October rule figures therefore
+remain unverified. Details are in the [handoff](2026-10-06-preprocessing-metric-validation-handoff.md)
+and the [v2 selection aggregate](assets/2026-10-06-preprocessing-metric-validation/repair-adjudication-v2-selection.json).
 
 ## Decision and next step
 
