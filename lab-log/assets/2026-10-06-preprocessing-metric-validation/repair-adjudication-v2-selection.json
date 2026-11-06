@@ -1,0 +1,87 @@
+{
+ "note": "Aggregate counts only. The blinded manifest and sealed files hold participant-derived frames and coordinates; never commit them.",
+ "rule": "motion_extraction.repair_adjudication.isolated_jump (rule v2)",
+ "seed": 20261106,
+ "input": {
+  "release_id": "20261002-first-manual-review",
+  "release_manifest_sha256": "00695156d6a5f49bb20bf6d944c7a3d1b8f2e0d37f61bf8b2e3b0255b159d94a",
+  "database_snapshot_sha256": [
+   "9393ac83fec5b6208168ba1633e54f040fee027ec59e1e13d131e990585d21ef"
+  ],
+  "reviewed_segments": 48,
+  "saved_corrections": 745,
+  "corrections_outside_upper_body": 8,
+  "corrections_on_unusable_frames": 2
+ },
+ "rule_evaluation": {
+  "positions": 43456,
+  "marked_targets": 735,
+  "flagged_marked": 42,
+  "flagged_marked_closer": 35,
+  "flagged_marked_by_joint": {
+   "LEFT_ELBOW": 11,
+   "LEFT_HIP": 6,
+   "LEFT_SHOULDER": 2,
+   "LEFT_WRIST": 9,
+   "RIGHT_ELBOW": 4,
+   "RIGHT_HIP": 5,
+   "RIGHT_SHOULDER": 2,
+   "RIGHT_WRIST": 3
+  },
+  "mean_target_distance_all_marked_before_after": [
+   0.397,
+   0.388
+  ],
+  "flagged_unmarked": 179,
+  "flagged_unmarked_by_joint": {
+   "LEFT_ELBOW": 14,
+   "LEFT_HIP": 55,
+   "LEFT_SHOULDER": 13,
+   "LEFT_WRIST": 10,
+   "RIGHT_ELBOW": 14,
+   "RIGHT_HIP": 46,
+   "RIGHT_SHOULDER": 14,
+   "RIGHT_WRIST": 13
+  },
+  "flagged_unmarked_move_mean": 0.364
+ },
+ "population_sizes": {
+  "arm_flag": 78,
+  "hip_flag": 101,
+  "control": 41402
+ },
+ "first_pass": {
+  "count": 48,
+  "by_stratum": {
+   "hip_flag": 12,
+   "control": 12,
+   "arm_flag": 24
+  },
+  "by_joint": {
+   "LEFT_ELBOW": 6,
+   "LEFT_HIP": 9,
+   "LEFT_SHOULDER": 7,
+   "LEFT_WRIST": 3,
+   "RIGHT_ELBOW": 3,
+   "RIGHT_HIP": 7,
+   "RIGHT_SHOULDER": 10,
+   "RIGHT_WRIST": 3
+  },
+  "by_corpus": {
+   "chi25_study1": 11,
+   "chi25_study2": 36,
+   "chi_reference": 1
+  },
+  "distinct_segments": 24,
+  "distinct_recordings": 24,
+  "inclusion_probability": {
+   "arm_flag": 0.3076923076923077,
+   "hip_flag": 0.1188118811881188,
+   "control": 0.00028984107047968697
+  }
+ },
+ "blinded_first_pass_sha256": "59805bdb296231d83036132c0feea48db2ad8819af3756a9e1c97fd91f1271c4",
+ "first_pass_answer_key_sha256": "6a028bd917a257b21abd2ed52b39a096fcfd2ce8dd7a92eb9b6efd666e6f4bf7",
+ "pool_sha256": "375f45ba0a31b92739c90e4df0e43ab818933a4fd7857abb87d403e25ef602ce",
+ "video_info_sha256": "17e0ac07ad9182b94441144bb0c179fe59e7549c439c43ded96b11a7f3f23298"
+}
