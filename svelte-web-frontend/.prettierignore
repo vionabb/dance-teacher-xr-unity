@@ -15,7 +15,7 @@ src/lib/data/bundle/*.json
 *.code-workspace
 .env
 .env.*
-!.env.example
+!.env.*.example
 
 # Ignore files for PNPM, NPM and YARN
 pnpm-lock.yaml

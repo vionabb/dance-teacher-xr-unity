@@ -1,11 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
-import dotenv from 'dotenv';
+import { loadSupabaseEnv } from './loadSupabaseEnv.js';
 import path from 'path';
-
-dotenv.config({
-	path: 'src/env/.env'
-});
 
 /**
  * Syncs storage assets to Supabase buckets.
@@ -238,12 +234,7 @@ async function main() {
 	const async = process.argv.includes('--async');
 	const datapath = process.argv[2];
 
-	const supabase_url = onProduction
-		? process.env.PRODUCTION_SUPABASE_URL
-		: process.env.NEXT_PUBLIC_SUPABASE_URL;
-	let supabase_key = onProduction
-		? process.env.PRODUCTION_SUPABASE_SERVICE_ROLE_KEY
-		: process.env.SUPABASE_SERVICE_ROLE_KEY;
+	const { url: supabase_url, key: supabase_key } = loadSupabaseEnv(onProduction);
 
 	await syncStorageAssets({
 		url: supabase_url,

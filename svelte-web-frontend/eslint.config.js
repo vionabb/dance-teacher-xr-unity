@@ -40,7 +40,7 @@ export default [
 			'testResults/**',
 			'.env',
 			'.env.*',
-			'!.env.example',
+			'!.env.*.example',
 			'pnpm-lock.yaml',
 			'package-lock.json',
 			'yarn.lock'
