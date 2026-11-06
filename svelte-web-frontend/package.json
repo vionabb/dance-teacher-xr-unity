@@ -22,7 +22,6 @@
 		"test:research-schema": "node scripts/verifyHostedAnalysisSchema.mjs"
 	},
 	"devDependencies": {
-		"@anthropic-ai/sdk": "^0.91.1",
 		"@electric-sql/pglite": "0.5.13",
 		"@eslint/js": "^10.0.1",
 		"@iconify/json": "^2.2.458",
