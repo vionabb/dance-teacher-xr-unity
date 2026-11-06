@@ -1,4 +1,4 @@
-import { runPrompt as runPromptOnOpenAI } from '$lib/ai/backend/openai';
+import { runPrompt } from '$lib/ai/backend/anthropic';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 export async function POST(event: RequestEvent) {
@@ -7,7 +7,7 @@ export async function POST(event: RequestEvent) {
 
 	console.log('Prompt:', prompt);
 
-	const result = await runPromptOnOpenAI(prompt);
+	const result = await runPrompt(prompt);
 
 	return json({ response: result });
 }
