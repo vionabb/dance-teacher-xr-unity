@@ -12,6 +12,8 @@ alter table "public"."user_learning_model" drop constraint "user_learning_model_
 
 alter table "public"."motion_video_segmentation" drop constraint "motion_video_segmentation_pkey";
 
+alter table "public"."user_performance_attempt" drop constraint if exists "user_performance_attempt_learningmodel_id_fkey";
+
 alter table "public"."user_learning_model" drop constraint "user_learning_model_pkey";
 
 drop index if exists "public"."motion_video_segmentation_pkey";
@@ -52,6 +54,8 @@ alter table "public"."ai_postperformance_action" add constraint "ai_postperforma
 alter table "public"."motion_video_segmentation" add constraint "motion_segmentation_pkey" PRIMARY KEY using index "motion_segmentation_pkey";
 
 alter table "public"."user_learning_model" add constraint "motion_userstate_pkey" PRIMARY KEY using index "motion_userstate_pkey";
+
+alter table "public"."user_performance_attempt" add constraint "user_performance_attempt_learningmodel_id_fkey" FOREIGN KEY (learningmodel_id) REFERENCES user_learning_model(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 alter table "public"."ai_postperformance_action" add constraint "ai_postperformance_action_practice_attempt_fkey" FOREIGN KEY (practice_attempt) REFERENCES user_performance_attempt(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
 
