@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-05",
+  "main_commit": "abd836a4480b3e58255958bad9a8463e1e3b65fa",
+  "synthetic_only": true,
+  "local_browser": {
+    "disposableDatabase": true,
+    "codexCalls": false,
+    "fiveCandidates": true,
+    "localNavigation": true,
+    "indexConversation": true,
+    "detailConversation": true,
+    "mobileFits": true,
+    "stableFindingTimestamp": true,
+    "crossLocaleHydration": true
+  },
+  "production_browser": {
+    "syntheticOnly": true,
+    "productionBuild": true,
+    "homepageLinks": true,
+    "crossToolNavigation": true,
+    "activePage": true,
+    "returnHome": true,
+    "metricInspectorNavigation": true,
+    "mobileFits": true,
+    "ordinaryAccountHidden": true,
+    "anonymousHidden": true,
+    "researchGatePreserved": true,
+    "privateNoStore": true,
+    "localHypothesesHidden": true,
+    "localHypothesisRoutesDenied": true
+  },
+  "focused_tests": {
+    "files": 5,
+    "passed": 34
+  },
+  "typecheck": {
+    "errors": 0,
+    "warnings": 12
+  },
+  "full_suite": {
+    "passed": 214,
+    "skipped": 6,
+    "failed_suites": 4,
+    "missing_prerequisite": "private CHI25 human-ratings CSV"
+  },
+  "lint_passed": true,
+  "isolated_hosted_schema_passed": true,
+  "codex_cli": {
+    "version": "0.155.1",
+    "required_flags_present": true,
+    "live_model_turn_run": false
+  }
+}

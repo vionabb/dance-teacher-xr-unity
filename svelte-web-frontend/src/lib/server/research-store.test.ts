@@ -5,10 +5,15 @@ import path from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import {
 	importResearchSources,
+	readHypothesisCatalog,
+	readHypothesisState,
+	recordHypothesisTurn,
 	readResearchRecords,
 	readUsabilityData,
 	recordVideoUsabilityRating,
 	readDiscrepancyObservations,
+	readReferenceDanceSpans,
+	recordReferenceDanceSpan,
 	saveDiscrepancyObservation
 } from './research-store';
 
@@ -46,6 +51,149 @@ test('concurrent reads migrate an existing v1 database only once', async () => {
 	});
 	await Promise.all([readResearchRecords(databasePath), readResearchRecords(databasePath)]);
 	await expect(readResearchRecords(databasePath)).resolves.toMatchObject({ humanRatings: [] });
+});
+
+test('a v2 research database gains hypothesis records without losing its existing ratings', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-v2-migrate-'));
+	folders.push(folder);
+	const databasePath = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	await new Promise<void>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.exec(
+			"CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (2); CREATE TABLE local_video_usability_revisions (revision_id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT); INSERT INTO local_video_usability_revisions (task_id) VALUES ('existing-rating')",
+			(error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+		);
+	});
+	await expect(readHypothesisState(databasePath, 'landmark-error-signals')).resolves.toMatchObject({
+		events: [],
+		messages: []
+	});
+	const migrated = await new Promise<{ version: number; task_id: string }[]>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.all(
+			'SELECT schema_meta.version, local_video_usability_revisions.task_id FROM schema_meta CROSS JOIN local_video_usability_revisions',
+			(error, rows) =>
+				db.close((closeError) =>
+					error || closeError
+						? reject(error || closeError)
+						: resolve(rows as { version: number; task_id: string }[])
+				)
+		);
+	});
+	expect(migrated).toEqual([{ version: 5, task_id: 'existing-rating' }]);
+});
+
+test('a v3 research database keeps its hypothesis history after collection support is added', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-v3-migrate-'));
+	folders.push(folder);
+	const databasePath = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	await new Promise<void>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.exec(
+			"CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (3); CREATE TABLE hypothesis_events (event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, created_at TEXT NOT NULL); INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES ('landmark-error-signals', 'status', 'investigating', '2026-10-03T00:00:00Z')",
+			(error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+		);
+	});
+	await expect(readHypothesisCatalog(databasePath)).resolves.toMatchObject({
+		definitions: [],
+		metadata: []
+	});
+	expect((await readHypothesisState(databasePath, 'landmark-error-signals')).events).toMatchObject([
+		{ kind: 'status', value: 'investigating' }
+	]);
+});
+
+test('upgrading a main v2 database preserves discrepancy notes alongside hypothesis events', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-main-reconcile-'));
+	folders.push(folder);
+	const file = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	await new Promise<void>((resolve, reject) => {
+		const db = new sqlite3.Database(file);
+		db.exec(
+			`CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (2);
+			CREATE TABLE discrepancy_observations (
+			id INTEGER PRIMARY KEY AUTOINCREMENT, segment_id TEXT NOT NULL, annotator TEXT NOT NULL,
+			created_at TEXT NOT NULL, start_seconds REAL NOT NULL, end_seconds REAL NOT NULL,
+			note TEXT NOT NULL, direction TEXT NOT NULL, tags_json TEXT NOT NULL,
+			metric TEXT NOT NULL, context_json TEXT NOT NULL);
+			INSERT INTO discrepancy_observations VALUES
+			(1, '${'a'.repeat(24)}', 'synthetic', '2026-11-05T00:00:00Z', 0, 1,
+			'Existing discrepancy note.', 'Uncertain', '[]', 'qijia2d', '{}');`,
+			(error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+		);
+	});
+	const receipt = await recordHypothesisTurn(file, {
+		slug: 'segment-tracking-risk',
+		userMessage: 'Mark this as investigating.',
+		assistantReply: 'Marked investigating.',
+		status: 'investigating',
+		finding: null
+	});
+	expect(receipt.backupError).toBeNull();
+	expect(await readDiscrepancyObservations(file)).toMatchObject([
+		{ id: 1, note: 'Existing discrepancy note.' }
+	]);
+	const note = await saveDiscrepancyObservation(file, {
+		segment_id: 'b'.repeat(24),
+		annotator: 'synthetic',
+		start_seconds: 1,
+		end_seconds: 2,
+		note: 'A new discrepancy note.',
+		direction: 'Uncertain',
+		tags: [],
+		metric: 'qijia2d',
+		context: {}
+	});
+	expect(note.backupError).toBeNull();
+	expect(await readDiscrepancyObservations(file)).toHaveLength(2);
+	expect((await readHypothesisState(file, 'segment-tracking-risk')).events).toMatchObject([
+		{ kind: 'status', value: 'investigating' }
+	]);
+	expect(await readDiscrepancyObservations(receipt.snapshotPath!)).toMatchObject([
+		{ id: 1, note: 'Existing discrepancy note.' }
+	]);
+});
+
+test('a schema DDL failure rolls back the version marker and new tables together', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-schema-rollback-'));
+	folders.push(folder);
+	const databasePath = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	const exec = (sql: string) =>
+		new Promise<void>((resolve, reject) => {
+			const db = new sqlite3.Database(databasePath);
+			db.exec(sql, (error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+			);
+		});
+	await exec(
+		'CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (3); CREATE TABLE local_video_usability_revisions (task_id TEXT)'
+	);
+	await expect(readHypothesisCatalog(databasePath)).rejects.toThrow('revision_id');
+	const rows = await new Promise<{ version: number; new_tables: number }[]>((resolve, reject) => {
+		const db = new sqlite3.Database(databasePath);
+		db.all(
+			"SELECT version, (SELECT COUNT(*) FROM sqlite_master WHERE name IN ('source_imports', 'manual_reviews', 'hypothesis_definitions')) AS new_tables FROM schema_meta",
+			(error, rows) =>
+				db.close((closeError) =>
+					error || closeError
+						? reject(error || closeError)
+						: resolve(rows as { version: number; new_tables: number }[])
+				)
+		);
+	});
+	expect(rows).toEqual([{ version: 3, new_tables: 0 }]);
+	await exec('DROP TABLE local_video_usability_revisions');
+	await expect(readHypothesisCatalog(databasePath)).resolves.toEqual({
+		definitions: [],
+		metadata: []
+	});
 });
 
 test('rejects out-of-scale human ratings before registering a source', async () => {
@@ -300,5 +448,70 @@ test('reports a discrepancy backup failure without losing the saved observation'
 	expect(receipt.backupError).toBeTruthy();
 	expect(await readDiscrepancyObservations(file, input.segment_id)).toMatchObject([
 		{ ...input, id: receipt.id }
+	]);
+});
+
+test('a v4 database upgrades and keeps reference dance marks as append-only revisions', async () => {
+	const folder = await mkdtemp(path.join(os.tmpdir(), 'research-reference-spans-'));
+	folders.push(folder);
+	const file = path.join(folder, 'research.sqlite3');
+	const { default: sqlite3 } = await import('sqlite3');
+	await new Promise<void>((resolve, reject) => {
+		const db = new sqlite3.Database(file);
+		db.exec(
+			"CREATE TABLE schema_meta (version INTEGER NOT NULL); INSERT INTO schema_meta VALUES (4); CREATE TABLE hypothesis_events (event_id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('status', 'finding')), value TEXT NOT NULL, created_at TEXT NOT NULL); INSERT INTO hypothesis_events (slug, kind, value, created_at) VALUES ('segment-tracking-risk', 'finding', 'Synthetic v4 finding.', '2026-11-05T00:00:00Z')",
+			(error) =>
+				db.close((closeError) => (error || closeError ? reject(error || closeError) : resolve()))
+		);
+	});
+	const base = {
+		dance: 'bartender',
+		videoFile: 'bartender.mp4',
+		videoSha256: 'a'.repeat(64),
+		durationSeconds: 18.867,
+		annotator: 'synthetic',
+		note: ''
+	};
+	await expect(
+		recordReferenceDanceSpan(file, { ...base, startSeconds: 3, endSeconds: 2 })
+	).rejects.toThrow('Invalid reference dance span');
+	await expect(
+		recordReferenceDanceSpan(file, { ...base, startSeconds: 0, endSeconds: 25 })
+	).rejects.toThrow('Invalid reference dance span');
+	const first = await recordReferenceDanceSpan(file, {
+		...base,
+		startSeconds: 0.5,
+		endSeconds: 14.9
+	});
+	const second = await recordReferenceDanceSpan(file, {
+		...base,
+		startSeconds: 0.6,
+		endSeconds: 14.8,
+		note: 'Refined.'
+	});
+	await recordReferenceDanceSpan(file, {
+		...base,
+		dance: 'pajama-party',
+		videoFile: 'pajamaparty-tutorial.mp4',
+		durationSeconds: 13.967,
+		startSeconds: 0,
+		endSeconds: 13.5
+	});
+	expect(first.backupError).toBeNull();
+	expect(first.snapshotPath).toContain('reference_dance_span_revisions');
+	const spans = await readReferenceDanceSpans(file);
+	expect(spans).toMatchObject([
+		{ dance: 'bartender', start_seconds: 0.5, supersedes_revision_id: null },
+		{
+			dance: 'bartender',
+			start_seconds: 0.6,
+			note: 'Refined.',
+			supersedes_revision_id: first.revisionId
+		},
+		{ dance: 'pajama-party', supersedes_revision_id: null }
+	]);
+	expect(second.revisionId).toBeGreaterThan(first.revisionId);
+	expect((await readHypothesisState(file, 'segment-tracking-risk')).events).toMatchObject([
+		{ kind: 'finding', value: 'Synthetic v4 finding.' }
 	]);
 });
