@@ -61,8 +61,16 @@
 	function seek(seconds: number) {
 		if (!video || !Number.isFinite(seconds)) return;
 		video.pause();
-		video.currentTime = Math.min(Math.max(seconds, 0), duration || seconds);
+		const target = Math.min(Math.max(seconds, 0), duration || seconds);
+		video.currentTime = target;
+		time = target;
 	}
+	// Position (0–100 %) of a time on the scrub bar, for the start/end overlay.
+	function percent(seconds: number) {
+		return duration > 0 ? Math.min(Math.max(seconds / duration, 0), 1) * 100 : 0;
+	}
+	const hasStart = $derived(Number.isFinite(startValue) && duration > 0);
+	const hasEnd = $derived(Number.isFinite(endValue) && duration > 0);
 	function step(delta: number) {
 		if (video) seek(video.currentTime + delta);
 	}
@@ -127,6 +135,46 @@
 				<div class="flex flex-wrap items-center gap-2">
 					<span class="font-mono text-lg tabular-nums" aria-live="off">{time.toFixed(3)} s</span>
 					<span class="text-sm opacity-60">of {duration ? duration.toFixed(3) : '…'} s</span>
+				</div>
+				<div class="space-y-1">
+					<label class="text-sm font-medium" for="{dance}-scrub">Scrub through the video</label>
+					<input
+						id="{dance}-scrub"
+						type="range"
+						class="daisy-range daisy-range-sm w-full"
+						min="0"
+						max={duration || 0}
+						step={FRAME}
+						value={time}
+						disabled={!duration}
+						aria-valuetext="{time.toFixed(3)} seconds"
+						oninput={(event) => seek(Number(event.currentTarget.value))}
+					/>
+					<!-- Draft start/end marks on the same timeline as the scrub bar. -->
+					<div class="bg-base-300 relative h-2 rounded" aria-hidden="true">
+						{#if hasStart && hasEnd && endValue > startValue}
+							<div
+								class="bg-primary/40 absolute inset-y-0"
+								style:left="{percent(startValue)}%"
+								style:width="{percent(endValue) - percent(startValue)}%"
+							></div>
+						{/if}
+						{#if hasStart}
+							<div
+								class="bg-primary absolute -inset-y-1 w-0.5"
+								style:left="{percent(startValue)}%"
+							></div>
+						{/if}
+						{#if hasEnd}
+							<div
+								class="bg-primary absolute -inset-y-1 w-0.5"
+								style:left="{percent(endValue)}%"
+							></div>
+						{/if}
+					</div>
+					<p class="text-xs opacity-60">
+						Drag the slider, or click it and use the arrow keys to move one frame at a time.
+					</p>
 				</div>
 				<div class="flex flex-wrap gap-2">
 					<button type="button" class="daisy-btn daisy-btn-sm" onclick={() => step(-0.5)}
