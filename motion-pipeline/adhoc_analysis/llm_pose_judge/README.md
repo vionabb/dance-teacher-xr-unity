@@ -2,7 +2,10 @@
 
 Tests whether a multimodal Claude model can tell if a MediaPipe pose estimate is
 correct when it sees the frame with the skeleton overlay burned in. Findings and
-numbers: [`lab-log/2026-11-07-llm-pose-judge.md`](../../../lab-log/2026-11-07-llm-pose-judge.md).
+numbers: [`lab-log/2026-11-07-llm-pose-judge.md`](../../../lab-log/2026-11-07-llm-pose-judge.md)
+(synthetic errors, reference videos) and
+[`lab-log/2026-11-07-llm-pose-judge-manual-review.md`](../../../lab-log/2026-11-07-llm-pose-judge-manual-review.md)
+(Viona's annotations, participant frames; nothing participant-related is committed).
 
 This is exploratory research code. Nothing here is wired into the pipeline or the
 frontend.
@@ -24,6 +27,16 @@ frontend.
   (`claude -p --input-format stream-json`, base64 images, no tools, custom system
   prompt) and appends one JSON line per item. Resumable. Conditions: `single`
   (overlay only), `single_raw` (raw frame + overlay), `sequence` (6-frame grid).
+- `render_manual_review.py <code-repo-root> <out>`: part 2. Runs where the
+  access-controlled data lives. Renders frames from Viona's 48 detailed manual
+  reviews (corrected, unusable and unmarked frames, with correction magnitude in
+  torso lengths) and 3×3 clip grids for the usability-rated segments and every
+  human-rated CHI25 clip. Writes `manifest_frames.json` / `manifest_clips.json`.
+  Conditions for it in `run_judge.py`: `single_upper`, `single_raw_upper`, `clip`.
+- `analyze_manual.py <frames-manifest> <clips-manifest> <results-dir> <motion_metrics.csv> <summary.json>`:
+  recall by correction magnitude, clip flag rate by usability rating, and metric vs
+  human-rating Spearman with LLM-flagged clips removed against a random-removal baseline.
+- `plot_manual.py <summary.json> <out-stem>`: the part-2 figure.
 - `plot.py <summary.json> <out-stem>`: the detection-by-error-type figure.
 - `analyze.py <results-dir> <summary.json>`: accuracy, precision/recall with
   "skeleton incorrect" as the positive class, specificity, AUC from the model's

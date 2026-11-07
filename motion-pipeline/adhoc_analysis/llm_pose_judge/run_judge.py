@@ -28,6 +28,18 @@ Judge it INCORRECT if in any frame: a limb or joint is placed where the body par
 Respond with JSON only, no other text:
 {"verdict": "correct" | "incorrect", "p_incorrect": <number 0-1>, "bad_frames": [<frame numbers that are wrong, empty if none>], "problems": "<short description, or empty>"}"""
 
+UPPER = "\nOnly the upper body (head, shoulders, arms, wrists, hips) is evaluated; ignore errors in the legs and feet.\n"
+P_SINGLE_UPPER = P_SINGLE.replace("\n\nRespond with JSON only", UPPER + "\nRespond with JSON only")
+P_SINGLE_RAW_UPPER = P_SINGLE_RAW.replace("\n\nRespond with JSON only", UPPER + "\nRespond with JSON only")
+
+P_CLIP = LEGEND.replace("The image shows a dancer", "The image is a grid of 9 frames (numbered 1-9, read left-to-right, top-to-bottom) sampled evenly across one short dance clip of a person, each") + """
+
+Task: decide whether the pose tracking in this clip is good enough to analyse the person's arm and upper-body movement, i.e. whether the skeleton matches the person's actual upper-body pose (head, shoulders, arms, wrists, hips) in the frames. Ignore the legs and feet. A frame without a skeleton means the tracker found no person.
+Judge it INCORRECT if in one or more frames a limb or joint is clearly placed where the body part is not, arms are swapped, the left/right colouring is on the wrong side, or the skeleton is offset from the body. Small inaccuracies of a few pixels are acceptable.
+
+Respond with JSON only, no other text:
+{"verdict": "correct" | "incorrect", "p_incorrect": <number 0-1>, "severity": "none" | "minor" | "major", "bad_frames": [<frame numbers with clear errors, empty if none>], "problems": "<short description, or empty>"}"""
+
 def img_block(path):
     return {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": base64.b64encode(open(path, "rb").read()).decode()}}
 
@@ -62,11 +74,12 @@ def parse(text):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ds", required=True); ap.add_argument("--model", required=True); ap.add_argument("--cond", required=True,
-                    choices=["single", "single_raw", "sequence"]); ap.add_argument("--out", required=True)
+                    choices=["single", "single_raw", "sequence", "single_upper", "single_raw_upper", "clip"]); ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=8); ap.add_argument("--limit", type=int); ap.add_argument("--effort"); ap.add_argument("--manifest")
     a = ap.parse_args()
     items = json.load(open(a.manifest or f"{a.ds}/manifest.json"))["items"]
-    items = [i for i in items if i["task"] == ("sequence" if a.cond == "sequence" else "single")]
+    want = {"sequence": "sequence", "clip": "clip"}.get(a.cond, "single")
+    items = [i for i in items if i["task"] == want]
     if a.limit: items = items[:a.limit]
     done = set()
     if os.path.exists(a.out):
@@ -78,6 +91,9 @@ def main():
     def work(it):
         if a.cond == "single": content = [img_block(f"{a.ds}/{it['img']}"), {"type": "text", "text": P_SINGLE}]
         elif a.cond == "single_raw": content = [img_block(f"{a.ds}/{it['img_raw']}"), img_block(f"{a.ds}/{it['img']}"), {"type": "text", "text": P_SINGLE_RAW}]
+        elif a.cond == "single_upper": content = [img_block(f"{a.ds}/{it['img']}"), {"type": "text", "text": P_SINGLE_UPPER}]
+        elif a.cond == "single_raw_upper": content = [img_block(f"{a.ds}/{it['img_raw']}"), img_block(f"{a.ds}/{it['img']}"), {"type": "text", "text": P_SINGLE_RAW_UPPER}]
+        elif a.cond == "clip": content = [img_block(f"{a.ds}/{it['img']}"), {"type": "text", "text": P_CLIP}]
         else: content = [img_block(f"{a.ds}/{it['img']}"), {"type": "text", "text": P_SEQ}]
         for attempt in range(3):
             try: res = call(a.model, content, a.effort)

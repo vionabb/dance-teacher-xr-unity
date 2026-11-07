@@ -147,6 +147,9 @@ Findings:
 
 ## Decision / next step
 
+Part 2, against Viona's own annotations on participant frames:
+[2026-11-07-llm-pose-judge-manual-review.md](2026-11-07-llm-pose-judge-manual-review.md).
+
 Nothing is decided; this is input for Viona. As measured here, Haiku alone works
 as a high-precision filter for gross tracking failures (wrong frame, offset, a limb
 pointing the wrong way), not as a general pose-correctness check. It is not
