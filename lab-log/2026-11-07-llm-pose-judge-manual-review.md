@@ -165,3 +165,28 @@ Code: `render_manual_review.py`, `run_judge.py` (conditions `single_upper`,
 [`motion-pipeline/adhoc_analysis/llm_pose_judge/`](../motion-pipeline/adhoc_analysis/llm_pose_judge/README.md).
 Per-item judgements (they contain participant ids and descriptions of participant
 frames) are kept out of Git.
+
+## Addendum (2026-11-08): Haiku screen over the whole participant dataset
+
+Viona asked to run the clip screen "for the entire dataset" and to summarise it in a
+new draft section of the AI coach chapter (thesis commit on `master`, section
+"Additional Investigations (Draft Material)" → Preprocessing → Dataset Quality
+Evaluation).
+
+[`render_all_clips.py`](../motion-pipeline/adhoc_analysis/llm_pose_judge/render_all_clips.py)
+rendered the same 3×3 grid for every CHI25 segment clip with a raw pose (1,752 of
+1,756; 4 had fewer than 3 frames with pose). Haiku 5.5 judged each with the `clip`
+condition; the 730 human-rated clips reused the verdicts from the run above (identical
+rendering), 1,022 were new calls ($1.29).
+
+| Group | n | Flagged | Rate [95 % CI] |
+|---|---|---|---|
+| All | 1,752 | 238 | 0.136 [0.121, 0.153] |
+| Study 1 | 675 | 80 | 0.119 [0.096, 0.145] |
+| Study 2 | 1,077 | 158 | 0.147 [0.127, 0.169] |
+
+Per dance 0.11-0.18 (highest: Study 2 Mad at Disney, 56/309); per condition 0.08
+(Study 1 control) to 0.16 (Study 2 control). Given the validation above, these are a
+lower bound on tracking problems (Haiku missed about half the clips Viona rated
+unusable). Figure: [fig_dataset_screen.svg](assets/2026-11-07-llm-pose-judge/fig_dataset_screen.svg);
+numbers: [summary_dataset_screen.json](assets/2026-11-07-llm-pose-judge/summary_dataset_screen.json).
