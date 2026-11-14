@@ -1,0 +1,381 @@
+{
+  "n": 95,
+  "people": 83,
+  "studies": {
+    "study1": 54,
+    "study2": 41
+  },
+  "dances": {
+    "pajama-party": 32,
+    "mad-at-disney": 27,
+    "last-christmas": 25,
+    "bartender": 11
+  },
+  "target_range": [
+    1.0,
+    5.0
+  ],
+  "feature_order": [
+    "qijia_current",
+    "viona2d",
+    "angle3d",
+    "dance_bartender",
+    "dance_last-christmas",
+    "dance_mad-at-disney",
+    "dance_pajama-party"
+  ],
+  "models": {
+    "single_and_combined": "SimpleImputer(median) + StandardScaler + Ridge(alpha=10), fitted inside each fold; predictions clipped to known 1\u20135 scale",
+    "constant": "training-fold grand mean",
+    "dance_mean": "training-fold dance mean, fallback to training grand mean"
+  },
+  "folds": [
+    {
+      "fold": 0,
+      "train_n": 76,
+      "test_n": 19,
+      "test_people": 16,
+      "test_studies": {
+        "study1": 13,
+        "study2": 6
+      },
+      "train_feature_pearson": {
+        "qijia_current": -0.064,
+        "viona2d": -0.0418,
+        "angle3d": -0.0089
+      }
+    },
+    {
+      "fold": 1,
+      "train_n": 76,
+      "test_n": 19,
+      "test_people": 16,
+      "test_studies": {
+        "study1": 12,
+        "study2": 7
+      },
+      "train_feature_pearson": {
+        "qijia_current": 0.0369,
+        "viona2d": 0.032,
+        "angle3d": -0.0104
+      }
+    },
+    {
+      "fold": 2,
+      "train_n": 76,
+      "test_n": 19,
+      "test_people": 17,
+      "test_studies": {
+        "study1": 10,
+        "study2": 9
+      },
+      "train_feature_pearson": {
+        "qijia_current": 0.021,
+        "viona2d": 0.0447,
+        "angle3d": -0.0715
+      }
+    },
+    {
+      "fold": 3,
+      "train_n": 76,
+      "test_n": 19,
+      "test_people": 17,
+      "test_studies": {
+        "study1": 11,
+        "study2": 8
+      },
+      "train_feature_pearson": {
+        "qijia_current": 0.158,
+        "viona2d": 0.1519,
+        "angle3d": 0.1666
+      }
+    },
+    {
+      "fold": 4,
+      "train_n": 76,
+      "test_n": 19,
+      "test_people": 17,
+      "test_studies": {
+        "study1": 8,
+        "study2": 11
+      },
+      "train_feature_pearson": {
+        "qijia_current": 0.1483,
+        "viona2d": 0.0922,
+        "angle3d": 0.1497
+      }
+    }
+  ],
+  "grouped_5fold": {
+    "constant": {
+      "all": {
+        "n": 95,
+        "mae": 0.9657,
+        "r2": -0.0547,
+        "spearman": -0.2752
+      },
+      "study1": {
+        "n": 54,
+        "mae": 0.9381,
+        "r2": -0.0536,
+        "spearman": -0.296
+      },
+      "study2": {
+        "n": 41,
+        "mae": 1.0019,
+        "r2": -0.056,
+        "spearman": -0.2362
+      },
+      "mean_fold_spearman": null
+    },
+    "dance_mean": {
+      "all": {
+        "n": 95,
+        "mae": 0.9782,
+        "r2": -0.11,
+        "spearman": -0.1365
+      },
+      "study1": {
+        "n": 54,
+        "mae": 0.9155,
+        "r2": -0.0403,
+        "spearman": -0.0424
+      },
+      "study2": {
+        "n": 41,
+        "mae": 1.0608,
+        "r2": -0.1992,
+        "spearman": -0.2692
+      },
+      "mean_fold_spearman": -0.0206
+    },
+    "qijia_current": {
+      "all": {
+        "n": 95,
+        "mae": 0.9914,
+        "r2": -0.1038,
+        "spearman": -0.3379
+      },
+      "study1": {
+        "n": 54,
+        "mae": 0.9803,
+        "r2": -0.125,
+        "spearman": -0.4178
+      },
+      "study2": {
+        "n": 41,
+        "mae": 1.0061,
+        "r2": -0.0769,
+        "spearman": -0.2524
+      },
+      "mean_fold_spearman": -0.0825
+    },
+    "viona2d": {
+      "all": {
+        "n": 95,
+        "mae": 0.9849,
+        "r2": -0.0833,
+        "spearman": -0.2845
+      },
+      "study1": {
+        "n": 54,
+        "mae": 0.9747,
+        "r2": -0.1039,
+        "spearman": -0.3786
+      },
+      "study2": {
+        "n": 41,
+        "mae": 0.9983,
+        "r2": -0.0572,
+        "spearman": -0.1747
+      },
+      "mean_fold_spearman": -0.0941
+    },
+    "angle3d": {
+      "all": {
+        "n": 95,
+        "mae": 0.9988,
+        "r2": -0.1229,
+        "spearman": -0.3737
+      },
+      "study1": {
+        "n": 54,
+        "mae": 0.9938,
+        "r2": -0.1567,
+        "spearman": -0.5706
+      },
+      "study2": {
+        "n": 41,
+        "mae": 1.0055,
+        "r2": -0.0797,
+        "spearman": -0.1247
+      },
+      "mean_fold_spearman": -0.3432
+    },
+    "two_2d": {
+      "all": {
+        "n": 95,
+        "mae": 0.9979,
+        "r2": -0.1103,
+        "spearman": -0.3592
+      },
+      "study1": {
+        "n": 54,
+        "mae": 0.9868,
+        "r2": -0.1311,
+        "spearman": -0.4324
+      },
+      "study2": {
+        "n": 41,
+        "mae": 1.0125,
+        "r2": -0.0839,
+        "spearman": -0.2696
+      },
+      "mean_fold_spearman": -0.1692
+    },
+    "three_pose": {
+      "all": {
+        "n": 95,
+        "mae": 1.03,
+        "r2": -0.1682,
+        "spearman": -0.3738
+      },
+      "study1": {
+        "n": 54,
+        "mae": 1.0207,
+        "r2": -0.1949,
+        "spearman": -0.4917
+      },
+      "study2": {
+        "n": 41,
+        "mae": 1.0424,
+        "r2": -0.1342,
+        "spearman": -0.1868
+      },
+      "mean_fold_spearman": -0.3244
+    },
+    "dance_plus_three_pose": {
+      "all": {
+        "n": 95,
+        "mae": 1.0366,
+        "r2": -0.2176,
+        "spearman": -0.1767
+      },
+      "study1": {
+        "n": 54,
+        "mae": 1.0008,
+        "r2": -0.1521,
+        "spearman": -0.1288
+      },
+      "study2": {
+        "n": 41,
+        "mae": 1.0837,
+        "r2": -0.3014,
+        "spearman": -0.2203
+      },
+      "mean_fold_spearman": -0.1272
+    }
+  },
+  "leave_one_study_out": {
+    "study1": {
+      "constant": {
+        "n": 54,
+        "mae": 0.9055,
+        "r2": -0.0002,
+        "spearman": null
+      },
+      "dance_mean": {
+        "n": 54,
+        "mae": 0.8865,
+        "r2": 0.0269,
+        "spearman": 0.1046
+      },
+      "qijia_current": {
+        "n": 54,
+        "mae": 0.9164,
+        "r2": -0.009,
+        "spearman": 0.0886
+      },
+      "viona2d": {
+        "n": 54,
+        "mae": 0.9141,
+        "r2": -0.0019,
+        "spearman": 0.0961
+      },
+      "angle3d": {
+        "n": 54,
+        "mae": 0.9053,
+        "r2": -0.0274,
+        "spearman": -0.0007
+      },
+      "two_2d": {
+        "n": 54,
+        "mae": 0.9167,
+        "r2": -0.009,
+        "spearman": 0.0856
+      },
+      "three_pose": {
+        "n": 54,
+        "mae": 0.911,
+        "r2": -0.0319,
+        "spearman": 0.0329
+      },
+      "dance_plus_three_pose": {
+        "n": 54,
+        "mae": 0.8989,
+        "r2": 0.0016,
+        "spearman": 0.092
+      }
+    },
+    "study2": {
+      "constant": {
+        "n": 41,
+        "mae": 0.9747,
+        "r2": -0.0002,
+        "spearman": null
+      },
+      "dance_mean": {
+        "n": 41,
+        "mae": 0.9313,
+        "r2": 0.0333,
+        "spearman": 0.1607
+      },
+      "qijia_current": {
+        "n": 41,
+        "mae": 0.9731,
+        "r2": 0.0022,
+        "spearman": 0.1614
+      },
+      "viona2d": {
+        "n": 41,
+        "mae": 0.9729,
+        "r2": 0.0032,
+        "spearman": 0.1327
+      },
+      "angle3d": {
+        "n": 41,
+        "mae": 0.9904,
+        "r2": -0.0274,
+        "spearman": -0.1762
+      },
+      "two_2d": {
+        "n": 41,
+        "mae": 0.9741,
+        "r2": 0.0018,
+        "spearman": 0.0265
+      },
+      "three_pose": {
+        "n": 41,
+        "mae": 0.9974,
+        "r2": -0.042,
+        "spearman": -0.1611
+      },
+      "dance_plus_three_pose": {
+        "n": 41,
+        "mae": 0.9587,
+        "r2": 0.0116,
+        "spearman": -0.0221
+      }
+    }
+  }
+}

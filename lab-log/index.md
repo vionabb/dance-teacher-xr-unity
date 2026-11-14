@@ -79,10 +79,11 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   [2026-08-27-preprocessing-quality-gate-pivot-handoff.md](2026-08-27-preprocessing-quality-gate-pivot-handoff.md).
 
 - [Handoff: corpus-wide quality triage + defect localization](2026-08-27-preprocessing-quality-gate-pivot-handoff.md)
-  (living document — status as of 2026-09-29) Full-corpus pose extraction and
-  all 154 video ratings are complete; three detailed-error drafts remain.
-  Paired C4 metric analysis found little correlation change. The active queue
-  adds 49 manual three-level frame tasks for correctable videos.
+  (living document — experiment status updated 2026-10-06) Full-corpus pose
+  extraction and all 154 video ratings are complete; 48 detailed reviews are
+  frozen in the first manual-review release. Paired C4 and quality-aware metric
+  analyses have not established a similarity gain. The current experiment
+  continuation is linked from the handoff.
 
 - [2026-09-17 — Video usability triage before detailed error annotation](2026-09-17-video-usability-triage.md)
   Reoriented the annotation stream around a first-stage full-video usability
@@ -196,6 +197,20 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Tracks the three open PRs, current local-only usability authoring, the
   October 2 main merge and Vercel preview repair, and remaining researcher
   authorization, frame-correction, metric-runner, and pipeline-job work.
+
+- [2026-10-06 — Preprocessing and similarity validation](2026-10-06-preprocessing-metric-validation.md)
+  Direct correction labels favor temporal residuals over visibility alone for
+  review ranking. Exploratory isolated-jump repair helps a narrow subset but
+  lacks verified false-correction cost; blanket smoothing alters motion peaks.
+  An opt-in quality-aware Qijia contract reports coverage, while a fixed
+  visibility gate loses coverage without a reliable human-rating gain. A
+  person-grouped combination of existing pose scores also fails to beat a
+  simple held-out baseline on the selected 95 clips. A blinded 48-case
+  arm/hip/control review sample is ready in private experiment storage.
+
+- [2026-10-06 — Preprocessing and similarity handoff](2026-10-06-preprocessing-metric-validation-handoff.md)
+  Records frozen experiment commands and provenance, the November 5 rebase
+  and validation, private-data boundaries, and the next blinded review action.
 
 - [2026-10-28 — Hosted CHI25 research access](2026-10-28-hosted-chi25-research.md)
   Records Viona's choice to serve both CHI25 studies to authorized accounts,

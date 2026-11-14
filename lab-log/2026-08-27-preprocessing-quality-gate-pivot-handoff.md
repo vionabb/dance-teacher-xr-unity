@@ -8,7 +8,15 @@ artifacts: []
 
 **This file is a living document, not a dated narrative entry.** Maintain it in place across sessions — rewrite the status/next-action sections as work progresses rather than appending a history of them, and prune narrative once its outcome is captured below or in git history. It is the child/companion plan for [2026-08-27-preprocessing-quality-gate-pivot.md](2026-08-27-preprocessing-quality-gate-pivot.md); read that entry first for the "why." **If another session is active on this same branch/worktree, treat this doc as shared state**: check `git log`/recent commits before rewriting, and reconcile rather than clobber a section another session just changed.
 
-## Status (as of 2026-09-29)
+## Status (annotation workflow as of 2026-09-29; experiment update 2026-10-06)
+
+- **Current experiment continuation:** The completed October 2 manual-review
+  release and October 6 direct landmark, repair, and 95-pair metric analyses
+  supersede the metric next step in this older handoff. See the
+  [October 6 research entry](2026-10-06-preprocessing-metric-validation.md)
+  and its [current handoff](2026-10-06-preprocessing-metric-validation-handoff.md).
+  No automatic exclusion, isolated-jump repair, smoothing, or visibility gate
+  has been promoted to a default.
 
 - **Phase 1 (pose extraction): complete.** 1,808/1,808 clips (52 reference + 675 study1 + 1,081 study2), canonical `pose2d`+`pose3d` via GPU, zero errors.
 - **`quality_triage`: 60/60 complete**, under annotator `viona`. (An annotator-identity split — a typo login `vioina` holding the real 60/60 progress, separate from the correctly-spelled `viona` — was found 2026-09-01 and resolved 2026-09-02 by merging `vioina`'s completed judgments into `viona`; see commit `6038205` if the mechanics are ever needed again.)
@@ -33,8 +41,8 @@ artifacts: []
 
 ## Next actions
 
-1. Collect Viona's sparse three-level frame-error labels from the 49 correctable videos while preserving the 154 video judgments, automatic missing-pose provenance, and three earlier detailed-error drafts. Review frame completion and ambiguous cases before fitting any frame-quality detector.
-2. Investigate the Study 1/2 metric difference on a broader, study-aware human-rated cohort with reference choice, metric direction, and outcome fixed in advance. Keep raw and C4 paired outputs; do not select a curation threshold from the largest observed correlation.
+1. Use the [October 6 handoff](2026-10-06-preprocessing-metric-validation-handoff.md) for the current experiment action: source-video adjudication of positions selected by the exploratory repair rule, with random controls and frozen thresholds. The 48 completed detailed reviews and 154 overall-video ratings are preserved in the first manual-review release; keep any later revisions distinct.
+2. Investigate the Study 1/2 similarity difference on a broader, balanced, person-aware human-rated cohort with reference choice, metric code version, and outcome fixed in advance. Keep raw and C4 paired outputs; do not select a visibility or curation threshold from the largest observed correlation.
 
 ## How to resume
 
