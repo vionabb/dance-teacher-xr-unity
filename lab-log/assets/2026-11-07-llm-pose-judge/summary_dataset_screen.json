@@ -1,0 +1,178 @@
+{
+ "all": {
+  "n": 1752,
+  "flagged": 238,
+  "major": 174,
+  "flag_rate": 0.136,
+  "ci": [
+   0.121,
+   0.153
+  ]
+ },
+ "cond:study1/control": {
+  "n": 219,
+  "flagged": 18,
+  "major": 13,
+  "flag_rate": 0.082,
+  "ci": [
+   0.053,
+   0.126
+  ]
+ },
+ "cond:study1/sheetmotion": {
+  "n": 233,
+  "flagged": 36,
+  "major": 24,
+  "flag_rate": 0.155,
+  "ci": [
+   0.114,
+   0.206
+  ]
+ },
+ "cond:study1/skeleton": {
+  "n": 223,
+  "flagged": 26,
+  "major": 15,
+  "flag_rate": 0.117,
+  "ci": [
+   0.081,
+   0.165
+  ]
+ },
+ "cond:study2/control": {
+  "n": 266,
+  "flagged": 43,
+  "major": 32,
+  "flag_rate": 0.162,
+  "ci": [
+   0.122,
+   0.211
+  ]
+ },
+ "cond:study2/emoji": {
+  "n": 273,
+  "flagged": 39,
+  "major": 31,
+  "flag_rate": 0.143,
+  "ci": [
+   0.106,
+   0.189
+  ]
+ },
+ "cond:study2/emojiandsegmented": {
+  "n": 264,
+  "flagged": 38,
+  "major": 29,
+  "flag_rate": 0.144,
+  "ci": [
+   0.107,
+   0.191
+  ]
+ },
+ "cond:study2/segmented": {
+  "n": 274,
+  "flagged": 38,
+  "major": 30,
+  "flag_rate": 0.139,
+  "ci": [
+   0.103,
+   0.185
+  ]
+ },
+ "dance:study1/last-christmas": {
+  "n": 199,
+  "flagged": 22,
+  "major": 12,
+  "flag_rate": 0.111,
+  "ci": [
+   0.074,
+   0.162
+  ]
+ },
+ "dance:study1/mad-at-disney": {
+  "n": 235,
+  "flagged": 27,
+  "major": 20,
+  "flag_rate": 0.115,
+  "ci": [
+   0.08,
+   0.162
+  ]
+ },
+ "dance:study1/pajama-party": {
+  "n": 241,
+  "flagged": 31,
+  "major": 20,
+  "flag_rate": 0.129,
+  "ci": [
+   0.092,
+   0.177
+  ]
+ },
+ "dance:study2/bartender": {
+  "n": 233,
+  "flagged": 28,
+  "major": 24,
+  "flag_rate": 0.12,
+  "ci": [
+   0.084,
+   0.168
+  ]
+ },
+ "dance:study2/last-christmas": {
+  "n": 236,
+  "flagged": 27,
+  "major": 18,
+  "flag_rate": 0.114,
+  "ci": [
+   0.08,
+   0.161
+  ]
+ },
+ "dance:study2/mad-at-disney": {
+  "n": 309,
+  "flagged": 56,
+  "major": 43,
+  "flag_rate": 0.181,
+  "ci": [
+   0.142,
+   0.228
+  ]
+ },
+ "dance:study2/pajama-party": {
+  "n": 299,
+  "flagged": 47,
+  "major": 37,
+  "flag_rate": 0.157,
+  "ci": [
+   0.12,
+   0.203
+  ]
+ },
+ "study:study1": {
+  "n": 675,
+  "flagged": 80,
+  "major": 52,
+  "flag_rate": 0.119,
+  "ci": [
+   0.096,
+   0.145
+  ]
+ },
+ "study:study2": {
+  "n": 1077,
+  "flagged": 158,
+  "major": 122,
+  "flag_rate": 0.147,
+  "ci": [
+   0.127,
+   0.169
+  ]
+ },
+ "_meta": {
+  "n_manifest": 1752,
+  "n_judged": 1752,
+  "n_reused_from_rated_run": 730,
+  "cost_usd_new_calls": 1.29
+ }
+}

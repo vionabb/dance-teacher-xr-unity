@@ -226,3 +226,15 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Repairs the post-login bounce through server-set cookies and safe preserved
   destinations. Production-mode synthetic browser checks cover reloads,
   JavaScript-disabled sign-in, errors and non-cacheable redirects.
+
+- [2026-11-07 — Can an LLM judge MediaPipe pose estimates?](2026-11-07-llm-pose-judge.md)
+  Exploratory: Haiku 5.5 judged skeleton overlays on reference-video frames. It is
+  precise (0.97) but misses ~40 % of injected errors, especially leg swaps, L/R
+  flips and small offsets; Sonnet/Opus do better (Opus 0.95 on sequences). Labels
+  for natural failures are AI-made; nothing integrated.
+
+- [2026-11-07 — LLM pose judge vs Viona's manual-review annotations](2026-11-07-llm-pose-judge-manual-review.md)
+  Same judge on participant frames with Viona's corrections: recall 0.38 (Haiku) to
+  0.52 (Sonnet); unusable frames and ≥1 torso-length errors are caught, mid-size
+  wrist/elbow errors mostly not. Removing LLM-flagged clips does not change
+  metric vs human-rating correlation beyond random removal.
