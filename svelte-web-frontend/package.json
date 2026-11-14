@@ -29,7 +29,7 @@
 		"@iconify/json": "^2.2.458",
 		"@iconify/svelte": "^5.2.1",
 		"@iconify/tailwind": "^1.2.0",
-		"@mediapipe/tasks-vision": "^0.10.34",
+		"@mediapipe/tasks-vision": "^1.2.0",
 		"@supabase/ssr": "^0.10.0",
 		"@supabase/supabase-js": "^2.101.1",
 		"@sveltejs/adapter-vercel": "^6.3.3",
