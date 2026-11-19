@@ -23,6 +23,9 @@
 		type VideoRecovery
 	} from '$lib/research/video-recovery';
 	import DiscrepancyReview from '$lib/elements/DiscrepancyReview.svelte';
+	import DiscrepancyScorecard from '$lib/elements/DiscrepancyScorecard.svelte';
+	import ReviewPlayButton from '$lib/elements/ReviewPlayButton.svelte';
+	import type { DiscrepancyTask } from '$lib/research/discrepancy-client';
 	import { QIJIA_ALL_VECTORS, qijiaFrameScore } from '$lib/research/segment-score';
 	import MetricSwitcher from '$lib/elements/MetricSwitcher.svelte';
 	import {
@@ -302,6 +305,15 @@
 	);
 	const timelineDuration = $derived(timeline.at(-1)?.endSeconds ?? 0);
 	const activeLoadedSegment = $derived(loadedSegments[activeSegmentIndex]);
+	/** Human rating for the active segment, reported by the review panel (mockup A scorecard). */
+	let reviewState = $state<{ human: DiscrepancyTask['human'] | null; unrated: boolean } | null>(
+		null
+	);
+	$effect(() => {
+		void activeLoadedSegment?.segment.id;
+		reviewState = null;
+	});
+
 	const participantCrop = $derived.by(() =>
 		datasetMode && activeLoadedSegment
 			? mapQijiaNormalizedCropToVideo(
@@ -419,6 +431,17 @@
 				};
 			})
 		}))
+	);
+	const activeScoreSamples = $derived(
+		curveSeries[0]?.points
+			.filter((point) => point.segmentIndex === activeSegmentIndex)
+			.map((point) => ({
+				time: point.timeSeconds - (timeline[activeSegmentIndex]?.startSeconds ?? 0),
+				score: point.score
+			})) ?? null
+	);
+	const baselineCurve = $derived(
+		curves[0]?.visibility === 'none' && curves[0]?.vectors.length === QIJIA_ALL_VECTORS.length
 	);
 	const chartMax = $derived.by(() => {
 		const peak = Math.max(
@@ -1322,6 +1345,16 @@
 					>{/if}
 			</section>{/if}
 
+		{#if discrepancyMode}
+			<DiscrepancyScorecard
+				human={reviewState?.human ?? null}
+				unrated={reviewState?.unrated ?? false}
+				samples={activeScoreSamples}
+				{baselineCurve}
+				backend={researchBackend}
+				metric="qijia2d"
+			/>
+		{/if}
 		<section data-review-stage class="grid gap-4 md:grid-cols-12">
 			<div data-review-pair class="grid min-w-0 gap-4 md:contents">
 				{#each [{ side: 'participant' as const, label: 'Participant', clip: participant, pose: participantFrame, vectors: comparison?.vectors, crop: participantCrop }, { side: 'reference' as const, label: 'Reference', clip: reference, pose: referenceFrame, vectors: comparison?.vectors, crop: referenceCrop }] as panel (panel.side)}
@@ -1535,9 +1568,8 @@
 									value: point.sum,
 									score: point.score
 								})) ?? []}
-							baselineCurve={curves[0]?.visibility === 'none' &&
-								curves[0]?.vectors.length === QIJIA_ALL_VECTORS.length}
 							onseek={(time) => seekReviewTime(time)}
+							onreviewstate={(state) => (reviewState = state)}
 						/>
 					{/key}
 				{/if}
@@ -1601,7 +1633,19 @@
 			>
 				<div class="daisy-card-body gap-2 p-3">
 					<div class="flex flex-wrap items-center justify-between gap-2">
-						<h2 class="daisy-card-title text-base">Frame error across time</h2>
+						<div class="flex items-center gap-3">
+							{#if discrepancyMode}<ReviewPlayButton
+									playing={reviewPlaying}
+									localTime={Math.max(
+										0,
+										globalTime - (timeline[activeSegmentIndex]?.startSeconds ?? 0)
+									)}
+									duration={timeline[activeSegmentIndex]?.durationSeconds ?? 0}
+									onplay={(from, to) => previewReview(from, to, false)}
+									onpause={pauseReview}
+								/>{/if}
+							<h2 class="daisy-card-title text-base">Frame error across time</h2>
+						</div>
 						<div class="flex items-center gap-2">
 							<span class="text-xs opacity-65">Selected vector error sums · 0–{chartMax}</span
 							><button
