@@ -103,6 +103,35 @@ The Python wrapper `python -m motion_extraction.rclone_transfer` provides corres
 
 `rclone sync` is intentionally reserved for publishing a validated processed-media bundle. Use `copy` for ordinary inputs and research artifacts.
 
+### Hosted CHI25 bucket (Supabase)
+
+The private `research-chi25` bucket holds the hosted serving copy: participant
+videos and raw poses (`<study>/<id>/{video.mp4,pose2d.raw.csv}`, catalogued in
+`research_media`) and companion materials such as reference poses, reference
+videos, reviewed poses and rating exports (`materials/<scope>/<id>/...`,
+catalogued in `research_material`). Reference poses for analysis segments are
+linked through `research_reference_segment.pose_material_id`.
+
+Cloud agents read it with
+[research-storage.py](../.github/research-storage.py), which signs in as a
+dedicated agent user that holds `viewer` rows in `research_access` for both
+studies. Reads go through the same row-level security as the hosted research
+pages, so the agent sees only what that membership grants and cannot write
+observations or objects. No service-role key is needed. The environment
+provides `RESEARCH_SUPABASE_URL` and `RESEARCH_SUPABASE_PUBLISHABLE_KEY`
+(public values) plus `RESEARCH_AGENT_EMAIL` and `RESEARCH_AGENT_PASSWORD`
+(secrets), and the project host must be on the network allowlist.
+
+```bash
+python3 -I .github/research-storage.py check
+python3 -I .github/research-storage.py materials --kind reference_pose
+python3 -I .github/research-storage.py fetch materials/shared/<id>/data.csv
+```
+
+Downloads land in the git-ignored `local-data/research-chi25/`. They remain
+access-controlled: never copy them into commits, lab-log assets, or shared
+project files.
+
 ## New research machine and manual-review recovery
 
 After cloning the repository, install `rclone` and `uv`, then use `rclone config`
