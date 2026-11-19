@@ -74,3 +74,40 @@ segment 1, and asked: "also can you make it more like A?"
   side panel keeps segment navigation, interval marking, the what-if table and
   notes. Both inspectors (Qijia2D and Viona2D) get the band and the Play
   button. Viona2D shows no gap because it has no 0–5 score.
+
+## Follow-up 2: reference video sync and a simpler skeleton
+
+Viona said: "i'm not convinced the videos are properly sync'd". Her screenshot showed
+reference row 47 badged 1410 ms, while participant row 47 is at 47/30 = 1.57 s.
+
+- **First reading (wrong).** At first, judging only from the screenshot, I
+  blamed the metric's row-index pairing for drifting. Viona picked "keep the
+  metric, add a time-aligned view" on that basis. The first push of PR #452
+  added a toggle built on that reading.
+- **Checked against the real files.** Later the same day, cloud agents could
+  read the bucket (PR #453). I read all 20 reference pose CSVs. In every file,
+  the `timestamp` column steps exactly 30 ms per row (29.97 ms for
+  mad-at-disney). The row counts, however, match one row per video frame at
+  30 fps:
+  - pajama-party clips are 80–81 rows over clip spacings of 2.682 s;
+  - bartender clips are 135 rows over 4.498 s;
+  - pajama-party's 419 rows / 30 = 13.97 s, against a 14.00 s timeline.
+  The rows really are 1/30 s apart, so the `timestamp` column is mislabeled.
+- **Consequence.** Row-index pairing is correct: both sides are 30 fps, and
+  the metric and scores are unaffected. The review page, however, seeked the
+  reference *video* by the mislabeled timestamp. That put the reference video
+  10% behind its own pose overlay and behind the participant: about 0.16 s at
+  row 47 and about 0.27 s by 2.7 s. That is the desync Viona saw.
+- **Fix.** Seek the reference video to `clipStart + csvFrame / 30`, and show
+  that time on the reference badge. The time-aligned toggle and the drift
+  badge were removed, because the drift they described came from the
+  mislabeled column.
+- **Skeleton.** Viona also said the participant overlay was "too busy and
+  uninformative" and asked to "bold and redden the segments that contribute to
+  more error". In the focus view, the overlay is now the plain skeleton. Each
+  scored body segment gets thicker and redder as its error grows. It reaches
+  full red at a direction error of about 90°: |Δunit| = √2 for Qijia2D, and
+  dissimilarity 0.5 for Viona2D. The vector arrows return under "Inspect
+  metric details".
+- **Open.** The reference CSV `timestamp` column should be regenerated or
+  documented as mislabeled. Nothing else in the frontend reads it.

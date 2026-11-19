@@ -25,6 +25,11 @@
 	import DiscrepancyReview from '$lib/elements/DiscrepancyReview.svelte';
 	import DiscrepancyScorecard from '$lib/elements/DiscrepancyScorecard.svelte';
 	import ReviewPlayButton from '$lib/elements/ReviewPlayButton.svelte';
+	import {
+		edgeErrorLevel,
+		edgeErrorStyle,
+		QIJIA_EDGE_SATURATION
+	} from '$lib/research/skeleton-error';
 	import type { DiscrepancyTask } from '$lib/research/discrepancy-client';
 	import { QIJIA_ALL_VECTORS, qijiaFrameScore } from '$lib/research/segment-score';
 	import MetricSwitcher from '$lib/elements/MetricSwitcher.svelte';
@@ -247,6 +252,10 @@
 	const discrepancyMode = $derived(
 		datasetMode && page.url.searchParams.get('review') === 'discrepancy'
 	);
+	/** Focus view: plain skeleton, error shown as thicker, redder body segments. */
+	const simpleOverlay = $derived(discrepancyMode && !showMetricDetails);
+	const overlayVectors = <T,>(vectors: T[] | undefined): T[] =>
+		simpleOverlay ? [] : (vectors ?? []);
 
 	const danceOptions = $derived(
 		[...new Set(datasetPerformances.map((performance) => performance.danceName))].sort()
@@ -780,10 +789,11 @@
 	function syncReferenceVideo() {
 		if (!datasetMode || !reference.video || reference.video.readyState < 1 || !reference.url)
 			return;
+		// Reference rows are one per video frame at the segment fps. Their CSV `timestamp`
+		// column steps 30 ms (not 1/30 s), so seeking by it drifted ~10% behind; use the frame.
 		const time =
 			(reference.clipStartSeconds ?? 0) +
-			(referenceFrame?.timestampMs ?? ((referenceFrame?.csvFrame ?? frameIndex) * 1000) / 30) /
-				1000;
+			(referenceFrame?.csvFrame ?? frameIndex) / (reference.fps || 30);
 		if (Number.isFinite(time) && Math.abs(reference.video.currentTime - time) > 0.07)
 			reference.video.currentTime = Math.max(0, time);
 	}
@@ -1370,7 +1380,9 @@
 								>
 							{:else if panel.side === 'reference' && datasetMode}
 								<span class="daisy-badge daisy-badge-ghost whitespace-nowrap"
-									>row {panel.pose?.frame ?? '—'} · {panel.pose?.timestampMs?.toFixed(0) ?? '—'} ms</span
+									>row {panel.pose?.frame ?? '—'} · {panel.pose?.csvFrame !== undefined
+										? `${(panel.pose.csvFrame / (reference.fps || 30)).toFixed(2)} s`
+										: '—'}</span
 								>
 							{:else if panel.side === 'reference'}
 								<span class="daisy-badge daisy-badge-ghost"
@@ -1434,13 +1446,28 @@
 									{#each UPPER_SKELETON_EDGES as [a, b] (`${a}-${b}`)}
 										{@const pa = panel.pose.landmarks[a]}
 										{@const pb = panel.pose.landmarks[b]}
+										{@const vector =
+											simpleOverlay && panel.side === 'participant'
+												? comparison?.vectors.find(
+														(v) => (v.src === a && v.dest === b) || (v.src === b && v.dest === a)
+													)
+												: undefined}
+										{@const level = vector
+											? edgeErrorLevel(vector.error, QIJIA_EDGE_SATURATION)
+											: null}
+										{@const edgeStyle = level === null ? null : edgeErrorStyle(level)}
 										{#if Number.isFinite(pa.x) && Number.isFinite(pa.y) && Number.isFinite(pb.x) && Number.isFinite(pb.y)}<line
 												x1={pa.x}
 												y1={pa.y}
 												x2={pb.x}
 												y2={pb.y}
 												class="skeleton-edge"
-											/>{/if}
+												class:error-edge={edgeStyle !== null}
+												style:stroke={edgeStyle?.color}
+												style:stroke-width={edgeStyle ? `${edgeStyle.width}px` : undefined}
+												vector-effect={edgeStyle ? 'non-scaling-stroke' : undefined}
+												><title>{vector?.name ?? ''}</title></line
+											>{/if}
 									{/each}
 									{#each panel.pose.landmarks as point, i (i)}
 										{#if [11, 12, 13, 14, 15, 16, 23, 24].includes(i) && Number.isFinite(point.x) && Number.isFinite(point.y)}<circle
@@ -1458,7 +1485,7 @@
 												></circle
 											>{/if}
 									{/each}
-									{#each panel.vectors ?? [] as vector, i (vector.name)}
+									{#each overlayVectors(panel.vectors) as vector, i (vector.name)}
 										{@const origin = panel.pose.landmarks[vector.src]}
 										{@const actual = panel.side === 'reference' ? vector.ref : vector.participant}
 										{@const other = panel.side === 'participant' ? vector.ref : null}
@@ -1490,7 +1517,7 @@
 										{/if}
 									{/each}
 									{#if panel.side === 'participant'}
-										{#each panel.vectors ?? [] as vector (vector.name)}
+										{#each overlayVectors(panel.vectors) as vector (vector.name)}
 											{@const origin = panel.pose.landmarks[vector.src]}
 											{@const length = Math.max(panel.crop.w, panel.crop.h) * 0.15}
 											{#if vector.ref && vector.participant}<line
@@ -1522,6 +1549,12 @@
 									No matching pose row for this frame
 								</div>{/if}
 						</div>
+						{#if simpleOverlay && panel.side === 'participant' && comparison}<p
+								class="px-4 pb-3 text-xs opacity-70"
+							>
+								Thicker, redder body segment = larger error against the scored reference row ·
+								“Inspect metric details” shows the vector arrows
+							</p>{/if}
 						<div data-metric-caption class="px-4 pb-3 text-xs opacity-60">
 							{#if panel.pose && !panel.clip.url}{datasetMode && panel.side === 'reference'
 									? 'Reference pose only · reference video timing unavailable · '
@@ -1926,6 +1959,10 @@
 		width: 100%;
 		height: 100%;
 		overflow: visible;
+	}
+	.skeleton-edge.error-edge {
+		opacity: 0.95;
+		stroke-linecap: round;
 	}
 	.skeleton-edge {
 		stroke: #e2e8f0;
