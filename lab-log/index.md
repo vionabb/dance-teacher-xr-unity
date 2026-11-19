@@ -230,4 +230,5 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
 - [2026-11-19 — Discrepancy review scorecard](2026-11-19-discrepancy-review-scorecard.md)
   Adds a Play button, a human-vs-metric scorecard (Qijia2D segment score, raw
   gap, rank gap), an interval what-if table and a queue sorted by discrepancy.
-  Both gap definitions are shown; which one to use is Viona's call.
+  Both gap definitions are shown; which one to use is Viona's call. A follow-up
+  moves the scorecard above the videos and Play into the timeline (mockup A).

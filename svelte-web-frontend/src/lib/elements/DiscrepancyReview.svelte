@@ -14,14 +14,7 @@
 		type ResearchBackend,
 		type PendingObservation
 	} from '$lib/research/discrepancy-client';
-	import {
-		formatGap,
-		gapDirection,
-		intervalScores,
-		percentileRank,
-		scoreGap
-	} from '$lib/research/segment-score';
-	import { readDistribution, type ScoreDistribution } from '$lib/research/score-cache';
+	import { formatGap, intervalScores, scoreGap } from '$lib/research/segment-score';
 	type Destination = DiscrepancyReviewData['navigation']['next'];
 	let {
 		segmentId,
@@ -39,7 +32,7 @@
 		onrangechange,
 		playing,
 		playbackRate,
-		baselineCurve = false
+		onreviewstate
 	}: {
 		segmentId: string;
 		researchBackend?: ResearchBackend;
@@ -57,11 +50,16 @@
 		onrangechange: (start: number, end: number) => void;
 		playing: boolean;
 		playbackRate: number;
-		/** True when the chart's first curve is the queue's baseline, so ranks are comparable. */
-		baselineCurve?: boolean;
+		/** Reports the loaded human rating (or that the segment has none) to the page's scorecard. */
+		onreviewstate?: (state: {
+			human: DiscrepancyReviewData['task']['human'] | null;
+			unrated: boolean;
+		}) => void;
 	} = $props();
 	let review = $state<DiscrepancyReviewData | null>(null);
 	let loadError = $state('');
+	/** The segment has no prior-study human rating, so it is not in the review queue. */
+	let unrated = $state(false);
 	let message = $state('');
 	let messageKind = $state<'success' | 'error' | 'warning'>('success');
 	let saving = $state(false);
@@ -139,19 +137,6 @@
 	const humanMean = $derived(review?.task.human.human_rating ?? null);
 	const wholeGap = $derived(scoreGap(scored?.whole.score ?? null, humanMean));
 	const withoutGap = $derived(scoreGap(scored?.without.score ?? null, humanMean));
-	let distribution = $state<ScoreDistribution | null>(null);
-	const rankGap = $derived.by(() => {
-		const metricScore = scored?.whole.score ?? null;
-		if (!baselineCurve || !distribution || metricScore === null || humanMean === null) return null;
-		const metricRank = percentileRank(distribution.metrics, metricScore);
-		const humanRank = percentileRank(distribution.humans, humanMean);
-		return metricRank === null || humanRank === null ? null : 100 * (metricRank - humanRank);
-	});
-	function gapBar(gap: number | null) {
-		if (gap === null) return 'display:none';
-		const width = Math.min(50, (Math.abs(gap) / 2) * 50);
-		return `left:${gap < 0 ? 50 - width : 50}%;width:${width}%`;
-	}
 	/** Plays from the playhead to the end of the segment (restarting at the end). */
 	function playSegment() {
 		if (playing) return onpause();
@@ -169,12 +154,23 @@
 		const controller = new AbortController();
 		reviewController = controller;
 		loadError = '';
+		unrated = false;
 		await fetch(endpoint, { signal: controller.signal, cache: 'no-store' })
 			.then(async (response) => {
-				if (!response.ok) throw new Error((await response.json()).message ?? 'Review unavailable.');
+				if (response.status === 404) {
+					unrated = true;
+					onreviewstate?.({ human: null, unrated: true });
+					return;
+				}
+				if (!response.ok)
+					throw new Error(
+						(await response.json().catch(() => ({}))).message ??
+							`Review unavailable (${response.status}).`
+					);
 				const result = await response.json();
 				if (controller.signal.aborted) return;
 				review = result;
+				onreviewstate?.({ human: result.task.human, unrated: false });
 				// Only restore after the authenticated response identifies the account and inputs.
 				if (researchBackend === 'local' || mayAnnotate) restoreDraft();
 			})
@@ -184,7 +180,6 @@
 			});
 	}
 	onMount(() => {
-		distribution = readDistribution(researchBackend, __RESEARCH_METRIC_RELEASE__);
 		end = duration;
 		onrangechange(start, end);
 		void loadReview();
@@ -259,11 +254,11 @@
 		onseek(Math.max(0, Math.min(duration, localTime + delta / 30)));
 	}
 	function keyboard(event: KeyboardEvent) {
-		if (!shortcuts || !review || event.repeat || event.isComposing) return;
+		if (!shortcuts || event.repeat || event.isComposing) return;
 		const target = event.target as HTMLElement;
 		const typing =
 			target.isContentEditable ||
-			['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'SUMMARY'].includes(target.tagName);
+			['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'SUMMARY', 'VIDEO'].includes(target.tagName);
 		if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && canSave) {
 			event.preventDefault();
 			void save();
@@ -281,6 +276,7 @@
 			playSegment();
 			return;
 		}
+		if (!review) return;
 		if (typing || !event.altKey || event.ctrlKey || event.metaKey) return;
 		if (event.code === 'KeyI') {
 			event.preventDefault();
@@ -413,69 +409,6 @@
 				onclick={() => navigate(review!.navigation.next)}>Next segment →</button
 			>
 		</nav>
-		<div class="transport">
-			<button
-				type="button"
-				class="daisy-btn daisy-btn-primary play-button"
-				aria-label={playing ? 'Pause' : 'Play segment'}
-				onclick={playSegment}
-				><span aria-hidden="true">{playing ? '❚❚' : '▶'}</span>{playing ? 'Pause' : 'Play'}</button
-			>
-			<span class="transport-time">{formatTime(localTime)} / {formatTime(duration)}</span>
-			<label class="sr-only" for="transport-speed">Playback speed</label><select
-				id="transport-speed"
-				class="daisy-select daisy-select-sm speed-select"
-				value={String(playbackRate)}
-				onchange={(event) => onrate(Number(event.currentTarget.value))}
-				><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1"
-					>1×</option
-				></select
-			>
-		</div>
-		<div class="scorecard" aria-label="Human rating versus metric score">
-			<div>
-				<span class="context-label">Human mean</span><strong
-					>{humanMean?.toFixed(2) ?? 'missing'}<small> / 5</small></strong
-				><span class="context-detail"
-					>Raters {[
-						review.task.human.rating_1,
-						review.task.human.rating_2,
-						review.task.human.rating_3
-					]
-						.map((value) => value ?? '—')
-						.join(' / ')} on 1–3</span
-				>
-			</div>
-			{#if scored}
-				<div>
-					<span class="context-label">Metric, whole segment</span><strong
-						>{scored.whole.score?.toFixed(2) ?? 'no valid frames'}<small> / 5</small></strong
-					><span class="context-detail"
-						>{baselineCurve ? 'Qijia2D baseline' : 'Your first curve'} · {scored.whole
-							.valid}/{scored.whole.total} valid frames</span
-					>
-				</div>
-				<div class="gap-cell">
-					<span class="context-label">Gap (metric − human)</span><strong
-						class:harsher={(wholeGap ?? 0) < 0}>{formatGap(wholeGap)}</strong
-					><span class="gap-bar" aria-hidden="true"
-						><i class:harsher={(wholeGap ?? 0) < 0} style={gapBar(wholeGap)}></i></span
-					><span class="context-detail"
-						>{gapDirection(wholeGap)}{rankGap !== null
-							? ` · rank gap ${formatGap(rankGap, 0)} pts`
-							: ''}</span
-					>
-				</div>
-			{:else}
-				<div class="gap-cell">
-					<span class="context-label">Metric</span><span class="context-detail"
-						>{metric === 'viona2d'
-							? 'Viona2D has no 0–5 score, so no gap is shown. Compare the human mean with the dissimilarity curve.'
-							: 'Scores appear once the pose data loads.'}</span
-					>
-				</div>
-			{/if}
-		</div>
 		<details class="scale-guide">
 			<summary>How to compare these values</summary>
 			<p>
@@ -753,6 +686,17 @@
 				Ctrl/⌘+Enter save. Marking shortcuts stay inactive while typing or using a control.
 			</p>
 		</details>
+	{:else if unrated}
+		<div class="unrated" role="status">
+			<p>
+				<strong>No human rating for this segment.</strong> The prior study has no similarity rating for
+				it, so there is nothing to compare the metric against. Use the segment arrows under the chart
+				or the queue to open a rated segment.
+			</p>
+			<a class="daisy-btn daisy-btn-sm daisy-btn-outline" href={resolve('/research/discrepancy')}
+				>Open the queue</a
+			>
+		</div>
 	{:else if loadError}
 		<div class="daisy-alert daisy-alert-error" role="alert">
 			<p>{loadError}</p>
@@ -790,82 +734,17 @@
 		font-size: 1.125rem;
 		font-weight: 650;
 	}
-	.transport {
-		margin: 0 1rem 0.75rem;
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.75rem;
-	}
-	.play-button {
-		min-height: 2.75rem;
-		min-width: 7rem;
-		font-size: 1rem;
-		gap: 0.5rem;
-	}
-	.transport-time {
-		font-variant-numeric: tabular-nums;
-		flex: 1;
-	}
-	.scorecard {
-		margin: 0 1rem;
+	.unrated {
+		margin: 0 1rem 1rem;
 		padding: 0.75rem;
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
-		gap: 0.75rem;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.5rem;
 		background: var(--color-base-200);
 		border-radius: 0.6rem;
 	}
-	.scorecard > div {
-		display: flex;
-		flex-direction: column;
-		gap: 0.15rem;
-	}
-	.gap-cell {
-		grid-column: 1 / -1;
-	}
-	.scorecard strong {
-		font-size: 1.25rem;
-		font-variant-numeric: tabular-nums;
-	}
-	.scorecard strong.harsher {
-		color: #c2410c;
-	}
-	.scorecard small {
-		font-size: 0.75rem;
-		font-weight: 400;
-		opacity: 0.65;
-	}
-	.context-detail {
-		font-size: 0.72rem;
-		opacity: 0.75;
-	}
-	.gap-bar {
-		position: relative;
-		display: block;
-		height: 0.5rem;
-		border-radius: 0.25rem;
-		background: color-mix(in srgb, currentColor 10%, transparent);
-	}
-	.gap-bar::after {
-		content: '';
-		position: absolute;
-		left: 50%;
-		top: -0.2rem;
-		bottom: -0.2rem;
-		width: 1px;
-		background: color-mix(in srgb, currentColor 55%, transparent);
-	}
-	.gap-bar i {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		border-radius: 0.25rem;
-		background: #2563eb;
-	}
-	.gap-bar i.harsher {
-		background: #c2410c;
-	}
+
 	.what-if {
 		width: 100%;
 		margin-top: 0.5rem;
@@ -890,12 +769,7 @@
 		margin: 0.35rem 0 0;
 		font-size: 0.78rem;
 	}
-	.context-label {
-		display: block;
-		font-size: 0.7rem;
-		opacity: 0.7;
-		margin-bottom: 0.2rem;
-	}
+
 	.scale-guide,
 	.shortcut-guide {
 		margin: 0.5rem 1rem;

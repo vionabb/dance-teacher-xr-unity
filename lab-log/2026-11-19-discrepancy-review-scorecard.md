@@ -58,3 +58,19 @@ C: queue sorted by discrepancy). Viona: "Please do all three then."
 - Whether the thesis should use the raw gap or the rank gap. This is
   Viona's call.
 - Viona2D has no 0–5 score, so its review card shows no gap.
+
+## Follow-up (same day, after #450 merged)
+
+Viona hit "Error: 404" on the review panel for Participant 079 · Pajama Party
+segment 1, and asked: "also can you make it more like A?"
+
+- **Cause.** That segment has no prior-study human rating, so it is not in the
+  review queue. The panel showed the raw 404 and hid the Play button along
+  with everything else. It now says the segment has no human rating and points
+  to the queue, and Play stays available.
+- **Layout like mockup A.** The scorecard (human mean, metric score, gap,
+  rank gap, common 1–5 axis) is now a full-width band above the videos. The
+  round Play/Pause sits in the timeline dock next to the error curve. The
+  side panel keeps segment navigation, interval marking, the what-if table and
+  notes. Both inspectors (Qijia2D and Viona2D) get the band and the Play
+  button. Viona2D shows no gap because it has no 0–5 score.
