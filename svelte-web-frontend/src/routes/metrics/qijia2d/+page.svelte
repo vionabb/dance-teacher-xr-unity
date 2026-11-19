@@ -23,6 +23,7 @@
 		type VideoRecovery
 	} from '$lib/research/video-recovery';
 	import DiscrepancyReview from '$lib/elements/DiscrepancyReview.svelte';
+	import { QIJIA_ALL_VECTORS, qijiaFrameScore } from '$lib/research/segment-score';
 	import MetricSwitcher from '$lib/elements/MetricSwitcher.svelte';
 	import {
 		compareQijiaFrame,
@@ -401,18 +402,22 @@
 	const curveSeries = $derived(
 		curves.map((curve) => ({
 			curve,
-			points: series.map((point) => ({
-				...point,
-				sum:
+			points: series.map((point) => {
+				const variant =
 					point.participantPose && point.referencePose
 						? compareQijiaFrameVariant(
 								point.referencePose,
 								point.participantPose,
 								curve.vectors,
 								curve.visibility
-							).sum
-						: null
-			}))
+							)
+						: null;
+				return {
+					...point,
+					sum: variant?.sum ?? null,
+					score: variant ? qijiaFrameScore(variant.sum, variant.validCount) : null
+				};
+			})
 		}))
 	);
 	const chartMax = $derived.by(() => {
@@ -1527,8 +1532,11 @@
 								.filter((point) => point.segmentIndex === activeSegmentIndex)
 								.map((point) => ({
 									time: point.timeSeconds - (timeline[activeSegmentIndex]?.startSeconds ?? 0),
-									value: point.sum
+									value: point.sum,
+									score: point.score
 								})) ?? []}
+							baselineCurve={curves[0]?.visibility === 'none' &&
+								curves[0]?.vectors.length === QIJIA_ALL_VECTORS.length}
 							onseek={(time) => seekReviewTime(time)}
 						/>
 					{/key}

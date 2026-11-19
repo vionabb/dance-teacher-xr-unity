@@ -226,3 +226,8 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   Repairs the post-login bounce through server-set cookies and safe preserved
   destinations. Production-mode synthetic browser checks cover reloads,
   JavaScript-disabled sign-in, errors and non-cacheable redirects.
+
+- [2026-11-19 — Discrepancy review scorecard](2026-11-19-discrepancy-review-scorecard.md)
+  Adds a Play button, a human-vs-metric scorecard (Qijia2D segment score, raw
+  gap, rank gap), an interval what-if table and a queue sorted by discrepancy.
+  Both gap definitions are shown; which one to use is Viona's call.

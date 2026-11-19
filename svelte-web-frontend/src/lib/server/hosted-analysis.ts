@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DiscrepancyObservation } from '$lib/research/discrepancy';
 import type { DiscrepancyTask } from '$lib/research/discrepancy-client';
 import { isResearchStudy } from './research-hosted';
+import { intervalScores, qijiaSegmentSamples } from '$lib/research/segment-score';
 
 type Recording = {
 	id: string;
@@ -315,3 +316,88 @@ export function assertLoadedAnalysisBinding(
 			'The loaded metric or analysis inputs changed. Reload this performance before saving.'
 		);
 }
+
+export const SCORE_BATCH_LIMIT = 25;
+export function parseScoreIds(raw: string | null) {
+	const ids = [...new Set((raw ?? '').split(',').filter(Boolean))];
+	if (!ids.length || ids.length > SCORE_BATCH_LIMIT || ids.some((id) => !/^[a-f0-9]{24}$/.test(id)))
+		error(400, `Pass 1–${SCORE_BATCH_LIMIT} segment ids.`);
+	return ids;
+}
+/**
+ * Whole-segment Qijia2D baseline scores for the discrepancy queue, computed from the same
+ * stored pose files and row pairing the inspector uses. Only rows bound to the current
+ * metric release are scored; others come back as null so the queue never mixes releases.
+ */
+export async function hostedSegmentScores(locals: RequestEvent['locals'], ids: string[]) {
+	await analysisAccess(locals);
+	const { data: recordings, error: recordingError } = await locals.supabase
+		.from('research_analysis_recording')
+		.select('id,duration_seconds,reference_id,input_version,metric_release_id')
+		.in('id', ids);
+	if (recordingError) throw recordingError;
+	const { data: media, error: mediaError } = await locals.supabase
+		.from('research_media')
+		.select('id,pose_path')
+		.in('id', ids);
+	if (mediaError) throw mediaError;
+	const referenceIds = [
+		...new Set((recordings ?? []).flatMap((row) => (row.reference_id ? [row.reference_id] : [])))
+	];
+	const { data: references, error: referenceError } = referenceIds.length
+		? await locals.supabase
+				.from('research_reference_segment')
+				.select('id,pose_material_id')
+				.in('id', referenceIds)
+		: { data: [], error: null };
+	if (referenceError) throw referenceError;
+	const materialIds = (references ?? []).map((row) => row.pose_material_id);
+	const { data: materials, error: materialError } = materialIds.length
+		? await locals.supabase
+				.from('research_material')
+				.select('id,object_path,content_type')
+				.in('id', materialIds)
+		: { data: [], error: null };
+	if (materialError) throw materialError;
+	const download = async (objectPath: string) => {
+		const { data, error: readError } = await locals.supabase.storage
+			.from('research-chi25')
+			.download(objectPath);
+		if (readError || !data) throw new Error('Pose file unavailable');
+		return data.text();
+	};
+	const referenceText = new Map<string, Promise<string>>();
+	return Promise.all(
+		ids.map(async (id) => {
+			const recording = recordings?.find((row) => row.id === id);
+			const posePath = media?.find((row) => row.id === id)?.pose_path;
+			const reference = references?.find((row) => row.id === recording?.reference_id);
+			const material = materials?.find((row) => row.id === reference?.pose_material_id);
+			if (
+				!recording ||
+				!posePath ||
+				!material ||
+				material.content_type !== 'text/csv' ||
+				recording.metric_release_id !== __RESEARCH_METRIC_RELEASE__
+			)
+				return { segmentId: id, inputVersion: recording?.input_version ?? null, ...emptyScore };
+			try {
+				if (!referenceText.has(material.object_path))
+					referenceText.set(material.object_path, download(material.object_path));
+				const [pose, ref] = await Promise.all([
+					download(posePath),
+					referenceText.get(material.object_path)!
+				]);
+				return {
+					segmentId: id,
+					inputVersion: recording.input_version,
+					...intervalScores(qijiaSegmentSamples(pose, ref, recording.duration_seconds), 0, Infinity)
+						.whole
+				};
+			} catch {
+				return { segmentId: id, inputVersion: recording.input_version, ...emptyScore };
+			}
+		})
+	);
+}
+const emptyScore = { score: null, valid: 0, total: 0 };

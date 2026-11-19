@@ -3,6 +3,7 @@ import {
 	analysisAccess,
 	assertAnalysisMutation,
 	groupPerformances,
+	parseScoreIds,
 	readAnalysisMutation
 } from './hosted-analysis';
 
@@ -94,4 +95,19 @@ test('catalog identity keeps different studies and performances separate and ord
 	expect(groups).toHaveLength(2);
 	expect(groups[0].segments.map((row) => row.id)).toEqual(['a', 'b']);
 	expect(groups.map((row) => row.study)).toEqual(['study1', 'study2']);
+});
+
+test('score batches accept 1–25 unique opaque segment ids', () => {
+	const id = 'a'.repeat(24);
+	expect(parseScoreIds(`${id},${id}`)).toEqual([id]);
+	for (const raw of [
+		null,
+		'',
+		'not-an-id',
+		Array(26)
+			.fill(0)
+			.map((_, i) => i.toString(16).padStart(24, '0'))
+			.join(',')
+	])
+		expect(() => parseScoreIds(raw)).toThrow();
 });
