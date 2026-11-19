@@ -14,6 +14,14 @@
 		type ResearchBackend,
 		type PendingObservation
 	} from '$lib/research/discrepancy-client';
+	import {
+		formatGap,
+		gapDirection,
+		intervalScores,
+		percentileRank,
+		scoreGap
+	} from '$lib/research/segment-score';
+	import { readDistribution, type ScoreDistribution } from '$lib/research/score-cache';
 	type Destination = DiscrepancyReviewData['navigation']['next'];
 	let {
 		segmentId,
@@ -30,7 +38,8 @@
 		onrate,
 		onrangechange,
 		playing,
-		playbackRate
+		playbackRate,
+		baselineCurve = false
 	}: {
 		segmentId: string;
 		researchBackend?: ResearchBackend;
@@ -39,7 +48,8 @@
 		localTime: number;
 		duration: number;
 		context: Record<string, unknown>;
-		samples: Array<{ time: number; value: number | null }>;
+		/** `score` is the 0–5 frame score where the metric defines one (Qijia2D). */
+		samples: Array<{ time: number; value: number | null; score?: number | null }>;
 		onseek: (time: number) => void;
 		onpreview: (start: number, end: number, loop: boolean) => void;
 		onpause: () => void;
@@ -47,6 +57,8 @@
 		onrangechange: (start: number, end: number) => void;
 		playing: boolean;
 		playbackRate: number;
+		/** True when the chart's first curve is the queue's baseline, so ranks are comparable. */
+		baselineCurve?: boolean;
 	} = $props();
 	let review = $state<DiscrepancyReviewData | null>(null);
 	let loadError = $state('');
@@ -114,6 +126,38 @@
 		!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start || end > duration
 	);
 	const canSave = $derived(mayAnnotate && !bindingError && !invalid && !!note.trim() && !saving);
+	const hasScores = $derived(samples.some((point) => point.score !== undefined));
+	const scored = $derived(
+		hasScores
+			? intervalScores(
+					samples.map((point) => ({ time: point.time, score: point.score ?? null })),
+					start,
+					end
+				)
+			: null
+	);
+	const humanMean = $derived(review?.task.human.human_rating ?? null);
+	const wholeGap = $derived(scoreGap(scored?.whole.score ?? null, humanMean));
+	const withoutGap = $derived(scoreGap(scored?.without.score ?? null, humanMean));
+	let distribution = $state<ScoreDistribution | null>(null);
+	const rankGap = $derived.by(() => {
+		const metricScore = scored?.whole.score ?? null;
+		if (!baselineCurve || !distribution || metricScore === null || humanMean === null) return null;
+		const metricRank = percentileRank(distribution.metrics, metricScore);
+		const humanRank = percentileRank(distribution.humans, humanMean);
+		return metricRank === null || humanRank === null ? null : 100 * (metricRank - humanRank);
+	});
+	function gapBar(gap: number | null) {
+		if (gap === null) return 'display:none';
+		const width = Math.min(50, (Math.abs(gap) / 2) * 50);
+		return `left:${gap < 0 ? 50 - width : 50}%;width:${width}%`;
+	}
+	/** Plays from the playhead to the end of the segment (restarting at the end). */
+	function playSegment() {
+		if (playing) return onpause();
+		const from = localTime >= duration - 0.05 ? 0 : localTime;
+		onpreview(from, duration, false);
+	}
 	const wholeSegment = $derived(start === 0 && Math.abs(end - duration) < 0.002);
 	const selectedLength = $derived(Math.max(0, end - start));
 	function formatTime(time: number) {
@@ -140,6 +184,7 @@
 			});
 	}
 	onMount(() => {
+		distribution = readDistribution(researchBackend, __RESEARCH_METRIC_RELEASE__);
 		end = duration;
 		onrangechange(start, end);
 		void loadReview();
@@ -222,6 +267,18 @@
 		if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && canSave) {
 			event.preventDefault();
 			void save();
+			return;
+		}
+		if (
+			!typing &&
+			event.code === 'Space' &&
+			!event.altKey &&
+			!event.ctrlKey &&
+			!event.metaKey &&
+			!event.shiftKey
+		) {
+			event.preventDefault();
+			playSegment();
 			return;
 		}
 		if (typing || !event.altKey || event.ctrlKey || event.metaKey) return;
@@ -356,19 +413,68 @@
 				onclick={() => navigate(review!.navigation.next)}>Next segment →</button
 			>
 		</nav>
-		<div class="rating-context">
+		<div class="transport">
+			<button
+				type="button"
+				class="daisy-btn daisy-btn-primary play-button"
+				aria-label={playing ? 'Pause' : 'Play segment'}
+				onclick={playSegment}
+				><span aria-hidden="true">{playing ? '❚❚' : '▶'}</span>{playing ? 'Pause' : 'Play'}</button
+			>
+			<span class="transport-time">{formatTime(localTime)} / {formatTime(duration)}</span>
+			<label class="sr-only" for="transport-speed">Playback speed</label><select
+				id="transport-speed"
+				class="daisy-select daisy-select-sm speed-select"
+				value={String(playbackRate)}
+				onchange={(event) => onrate(Number(event.currentTarget.value))}
+				><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1"
+					>1×</option
+				></select
+			>
+		</div>
+		<div class="scorecard" aria-label="Human rating versus metric score">
 			<div>
-				<span class="context-label">Human similarity mean</span><strong
-					>{review.task.human.human_rating?.toFixed(2) ?? 'missing'}<small> / 5</small></strong
-				>
-			</div>
-			<div>
-				<span class="context-label">Original raters · 1–3</span><span class="rater-values"
-					>{[review.task.human.rating_1, review.task.human.rating_2, review.task.human.rating_3]
+				<span class="context-label">Human mean</span><strong
+					>{humanMean?.toFixed(2) ?? 'missing'}<small> / 5</small></strong
+				><span class="context-detail"
+					>Raters {[
+						review.task.human.rating_1,
+						review.task.human.rating_2,
+						review.task.human.rating_3
+					]
 						.map((value) => value ?? '—')
-						.join(' / ')}</span
+						.join(' / ')} on 1–3</span
 				>
 			</div>
+			{#if scored}
+				<div>
+					<span class="context-label">Metric, whole segment</span><strong
+						>{scored.whole.score?.toFixed(2) ?? 'no valid frames'}<small> / 5</small></strong
+					><span class="context-detail"
+						>{baselineCurve ? 'Qijia2D baseline' : 'Your first curve'} · {scored.whole
+							.valid}/{scored.whole.total} valid frames</span
+					>
+				</div>
+				<div class="gap-cell">
+					<span class="context-label">Gap (metric − human)</span><strong
+						class:harsher={(wholeGap ?? 0) < 0}>{formatGap(wholeGap)}</strong
+					><span class="gap-bar" aria-hidden="true"
+						><i class:harsher={(wholeGap ?? 0) < 0} style={gapBar(wholeGap)}></i></span
+					><span class="context-detail"
+						>{gapDirection(wholeGap)}{rankGap !== null
+							? ` · rank gap ${formatGap(rankGap, 0)} pts`
+							: ''}</span
+					>
+				</div>
+			{:else}
+				<div class="gap-cell">
+					<span class="context-label">Metric</span><span class="context-detail"
+						>{metric === 'viona2d'
+							? 'Viona2D has no 0–5 score, so no gap is shown. Compare the human mean with the dissimilarity curve.'
+							: 'Scores appear once the pose data loads.'}</span
+					>
+				</div>
+			{/if}
 		</div>
 		<details class="scale-guide">
 			<summary>How to compare these values</summary>
@@ -501,6 +607,39 @@
 					Interval error <strong>{mean?.toFixed(3) ?? 'no valid samples'}</strong> · {validSamples.length}/{selectedSamples.length}
 					valid sampled rows
 				</p>
+				{#if scored}
+					<table class="what-if" aria-label="How the selected interval affects the score">
+						<thead><tr><th>Scope</th><th>Metric</th><th>Gap</th><th>Frames</th></tr></thead>
+						<tbody>
+							<tr
+								><td>Whole segment (what raters saw)</td><td
+									>{scored.whole.score?.toFixed(2) ?? '—'}</td
+								><td>{formatGap(wholeGap)}</td><td>{scored.whole.valid}</td></tr
+							>
+							<tr class="selected-row"
+								><td>Selected interval</td><td>{scored.interval.score?.toFixed(2) ?? '—'}</td><td
+									>—</td
+								><td>{scored.interval.valid}</td></tr
+							>
+							<tr
+								><td>Segment without the interval</td><td
+									>{scored.without.score?.toFixed(2) ?? '—'}</td
+								><td>{formatGap(withoutGap)}</td><td>{scored.without.valid}</td></tr
+							>
+						</tbody>
+					</table>
+					<p class="what-if-verdict">
+						{wholeSegment || scored.without.score === null
+							? 'Narrow the interval to see how much of the gap it explains.'
+							: wholeGap === null || withoutGap === null
+								? ''
+								: Math.abs(wholeGap) - Math.abs(withoutGap) > 0.05
+									? `Leaving this interval out shrinks the gap by ${(Math.abs(wholeGap) - Math.abs(withoutGap)).toFixed(2)}.`
+									: Math.abs(withoutGap) - Math.abs(wholeGap) > 0.05
+										? `Leaving this interval out widens the gap by ${(Math.abs(withoutGap) - Math.abs(wholeGap)).toFixed(2)}.`
+										: 'Leaving this interval out barely changes the gap.'}
+					</p>
+				{/if}
 			</fieldset>
 			<fieldset
 				disabled={saving || (researchBackend === 'hosted' && !mayAnnotate)}
@@ -610,8 +749,8 @@
 				/>Enable shortcuts</label
 			>
 			<p>
-				Alt+I mark start · Alt+O mark end · Alt+Space replay/pause · Ctrl/⌘+Enter save. Marking
-				shortcuts stay inactive while typing or using a control.
+				Space play/pause · Alt+I mark start · Alt+O mark end · Alt+Space replay interval/pause ·
+				Ctrl/⌘+Enter save. Marking shortcuts stay inactive while typing or using a control.
 			</p>
 		</details>
 	{:else if loadError}
@@ -651,33 +790,111 @@
 		font-size: 1.125rem;
 		font-weight: 650;
 	}
-	.rating-context {
+	.transport {
+		margin: 0 1rem 0.75rem;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem;
+	}
+	.play-button {
+		min-height: 2.75rem;
+		min-width: 7rem;
+		font-size: 1rem;
+		gap: 0.5rem;
+	}
+	.transport-time {
+		font-variant-numeric: tabular-nums;
+		flex: 1;
+	}
+	.scorecard {
 		margin: 0 1rem;
 		padding: 0.75rem;
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
 		gap: 0.75rem;
 		background: var(--color-base-200);
 		border-radius: 0.6rem;
+	}
+	.scorecard > div {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+	.gap-cell {
+		grid-column: 1 / -1;
+	}
+	.scorecard strong {
+		font-size: 1.25rem;
+		font-variant-numeric: tabular-nums;
+	}
+	.scorecard strong.harsher {
+		color: #c2410c;
+	}
+	.scorecard small {
+		font-size: 0.75rem;
+		font-weight: 400;
+		opacity: 0.65;
+	}
+	.context-detail {
+		font-size: 0.72rem;
+		opacity: 0.75;
+	}
+	.gap-bar {
+		position: relative;
+		display: block;
+		height: 0.5rem;
+		border-radius: 0.25rem;
+		background: color-mix(in srgb, currentColor 10%, transparent);
+	}
+	.gap-bar::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: -0.2rem;
+		bottom: -0.2rem;
+		width: 1px;
+		background: color-mix(in srgb, currentColor 55%, transparent);
+	}
+	.gap-bar i {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		border-radius: 0.25rem;
+		background: #2563eb;
+	}
+	.gap-bar i.harsher {
+		background: #c2410c;
+	}
+	.what-if {
+		width: 100%;
+		margin-top: 0.5rem;
+		font-size: 0.78rem;
+		font-variant-numeric: tabular-nums;
+		border-collapse: collapse;
+	}
+	.what-if th {
+		text-align: left;
+		font-weight: 500;
+		opacity: 0.7;
+		padding: 0.2rem 0.3rem;
+	}
+	.what-if td {
+		padding: 0.25rem 0.3rem;
+		border-top: 1px solid var(--color-base-300);
+	}
+	.what-if .selected-row {
+		background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+	}
+	.what-if-verdict {
+		margin: 0.35rem 0 0;
+		font-size: 0.78rem;
 	}
 	.context-label {
 		display: block;
 		font-size: 0.7rem;
 		opacity: 0.7;
 		margin-bottom: 0.2rem;
-	}
-	.rating-context strong {
-		font-size: 1.25rem;
-		font-variant-numeric: tabular-nums;
-	}
-	.rating-context small {
-		font-size: 0.75rem;
-		font-weight: 400;
-		opacity: 0.65;
-	}
-	.rater-values {
-		font-size: 1rem;
-		font-variant-numeric: tabular-nums;
 	}
 	.scale-guide,
 	.shortcut-guide {

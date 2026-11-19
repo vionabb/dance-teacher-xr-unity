@@ -1,5 +1,14 @@
 import path from 'node:path';
-import { getParticipantCatalog, findParticipantRecord } from './participant-dataset-catalog';
+import { readFile } from 'node:fs/promises';
+import {
+	getParticipantCatalog,
+	findParticipantRecord,
+	participantDataRoot,
+	referencePoseRoot,
+	validateCatalogFile
+} from './participant-dataset-catalog';
+import { getParticipantVideoDuration } from './participant-video-duration';
+import { intervalScores, qijiaSegmentSamples } from '$lib/research/segment-score';
 import { humanSimilarityKey, reviewIdentity } from './research-video-manifest';
 import {
 	readUsabilityData,
@@ -74,4 +83,30 @@ export async function discrepancyTask(segmentId: string) {
 				}
 			}
 		: null;
+}
+/** Local-backend twin of hostedSegmentScores: same pose files, pairing and duration cut-off. */
+export async function localSegmentScores(ids: string[]) {
+	return Promise.all(
+		ids.map(async (id) => {
+			const empty = { segmentId: id, inputVersion: null, score: null, valid: 0, total: 0 };
+			const record = await findParticipantRecord(id);
+			if (!record?.referencePosePath) return empty;
+			const [video, pose, reference] = await Promise.all([
+				validateCatalogFile(record.videoPath, participantDataRoot()),
+				validateCatalogFile(record.posePath, participantDataRoot()),
+				validateCatalogFile(record.referencePosePath, referencePoseRoot())
+			]);
+			if (!video || !pose || !reference) return empty;
+			const duration = await getParticipantVideoDuration(id, video);
+			if (duration === null) return empty;
+			const [poseText, referenceText] = await Promise.all([
+				readFile(pose, 'utf8'),
+				readFile(reference, 'utf8')
+			]);
+			return {
+				...empty,
+				...intervalScores(qijiaSegmentSamples(poseText, referenceText, duration), 0, Infinity).whole
+			};
+		})
+	);
 }
