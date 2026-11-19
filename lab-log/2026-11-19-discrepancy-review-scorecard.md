@@ -74,3 +74,31 @@ segment 1, and asked: "also can you make it more like A?"
   side panel keeps segment navigation, interval marking, the what-if table and
   notes. Both inspectors (Qijia2D and Viona2D) get the band and the Play
   button. Viona2D shows no gap because it has no 0–5 score.
+
+## Follow-up 2: reference drift and a simpler skeleton
+
+Viona said: "i'm not convinced the videos are properly sync'd". Her screenshot showed
+reference row 47 at 1410 ms, while participant row 47 is at 47/30 = 1.57 s.
+
+- **Finding.** Both videos show the same paired row. The pairing itself drifts.
+  Qijia2D and Viona2D pair rows by index (`row-index-truncate-shorter`).
+  Participant rows are 1/30 s apart. The reference row timestamps here step
+  30 ms (inferred from one screenshot, not read from the CSV). So the paired
+  reference falls behind the participant by about 10% of elapsed time: about
+  0.16 s at row 47 and about 0.27 s by the end of a 2.7 s segment.
+- **Decision (Viona, decision card).** Keep the metric pairing; add a display aid.
+  The metric release and scores are unchanged.
+- **Change.** The review now has a "Time-aligned reference" toggle. It shows
+  the reference row and video nearest the participant's elapsed time. The
+  badge names the row that was actually scored, and the reference arrows are
+  hidden while the toggle is on. Without the toggle, the reference badge shows
+  the drift ("0.16 s behind").
+- **Skeleton.** Viona also said the participant overlay was "too busy and
+  uninformative" and asked to "bold and redden the segments that contribute to
+  more error". In the focus view, the overlay is now the plain skeleton. Each
+  scored body segment gets thicker and redder as its error grows. It reaches
+  full red at a direction error of about 90°: |Δunit| = √2 for Qijia2D, and
+  dissimilarity 0.5 for Viona2D. The vector arrows return under "Inspect
+  metric details".
+- **Open.** Whether the reference timestamps really step 30 ms in every dance
+  needs checking against the reference CSVs.

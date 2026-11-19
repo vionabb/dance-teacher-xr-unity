@@ -25,6 +25,16 @@
 	import DiscrepancyReview from '$lib/elements/DiscrepancyReview.svelte';
 	import DiscrepancyScorecard from '$lib/elements/DiscrepancyScorecard.svelte';
 	import ReviewPlayButton from '$lib/elements/ReviewPlayButton.svelte';
+	import {
+		pairingDriftSeconds,
+		participantRowSeconds,
+		timeAlignedReferenceFrame
+	} from '$lib/research/reference-alignment';
+	import {
+		edgeErrorLevel,
+		edgeErrorStyle,
+		VIONA_EDGE_SATURATION
+	} from '$lib/research/skeleton-error';
 	import type { DiscrepancyTask } from '$lib/research/discrepancy-client';
 	import MetricSwitcher from '$lib/elements/MetricSwitcher.svelte';
 	import {
@@ -194,6 +204,8 @@
 	}
 	let showMetricDetails = $state(false);
 	let showReviewOverlay = $state(true);
+	/** Display-only: show the reference row at the same elapsed time instead of the scored row. */
+	let timeAlignedReference = $state(false);
 	function setReviewSelection(start: number, end: number) {
 		if (reviewSelection?.start !== start || reviewSelection?.end !== end) {
 			if (reviewRange) pauseReview();
@@ -246,6 +258,10 @@
 	const discrepancyMode = $derived(
 		datasetMode && page.url.searchParams.get('review') === 'discrepancy'
 	);
+	/** Focus view: plain skeleton, error shown as thicker, redder body segments. */
+	const simpleOverlay = $derived(discrepancyMode && !showMetricDetails);
+	const overlayVectors = <T,>(vectors: T[] | undefined): T[] =>
+		simpleOverlay ? [] : (vectors ?? []);
 
 	const danceOptions = $derived(
 		[...new Set(datasetPerformances.map((performance) => performance.danceName))].sort()
@@ -334,6 +350,19 @@
 	);
 	const referenceFrameIndex = $derived(referenceSample.targetFrame);
 	const referenceFrame = $derived(referenceSample.frame ?? undefined);
+	const pairingDrift = $derived(
+		datasetMode ? pairingDriftSeconds(participantFrame, referenceFrame) : null
+	);
+	const alignedReferenceFrame = $derived(
+		datasetMode && timeAlignedReference && participantFrame && activeLoadedSegment
+			? (timeAlignedReferenceFrame(
+					activeLoadedSegment.referenceFrames.values(),
+					participantRowSeconds(participantFrame)
+				) ?? undefined)
+			: undefined
+	);
+	/** The reference row on screen: the scored row, or the time-aligned one when toggled. */
+	const shownReferenceFrame = $derived(alignedReferenceFrame ?? referenceFrame);
 	const comparison = $derived(
 		participantFrame && referenceFrame
 			? compareVionaFrame(referenceFrame.landmarks, participantFrame.landmarks)
@@ -751,7 +780,8 @@
 			return;
 		const time =
 			(reference.clipStartSeconds ?? 0) +
-			(referenceFrame?.timestampMs ?? ((referenceFrame?.csvFrame ?? frameIndex) * 1000) / 30) /
+			(shownReferenceFrame?.timestampMs ??
+				((shownReferenceFrame?.csvFrame ?? frameIndex) * 1000) / 30) /
 				1000;
 		if (Number.isFinite(time) && Math.abs(reference.video.currentTime - time) > 0.07)
 			reference.video.currentTime = Math.max(0, time);
@@ -1227,6 +1257,15 @@
 								bind:checked={showReviewOverlay}
 							/>Pose overlay</label
 						>{/if}
+					{#if discrepancyMode}<label
+							class="flex items-center gap-1.5 text-xs"
+							title="Display only. The metric pairs rows by index, so its reference row can lag the participant in time. Scores are unchanged."
+							><input
+								type="checkbox"
+								class="daisy-checkbox daisy-checkbox-xs"
+								bind:checked={timeAlignedReference}
+							/>Time-aligned reference</label
+						>{/if}
 					<MetricSwitcher
 						performanceId={selectedPerformance?.id ?? ''}
 						timeSeconds={globalTime}
@@ -1327,7 +1366,7 @@
 			class={`relative grid gap-4 md:grid-cols-12 ${visualization === 'lens' ? 'pb-2' : ''}`}
 		>
 			<div data-review-pair class="grid min-w-0 gap-4 md:contents">
-				{#each [{ side: 'participant' as const, label: 'Participant', clip: participant, pose: participantFrame, vectors: comparison?.vectors, crop: participantCrop }, { side: 'reference' as const, label: 'Reference', clip: reference, pose: referenceFrame, vectors: comparison?.vectors, crop: referenceCrop }] as panel (panel.side)}
+				{#each [{ side: 'participant' as const, label: 'Participant', clip: participant, pose: participantFrame, vectors: comparison?.vectors, crop: participantCrop }, { side: 'reference' as const, label: 'Reference', clip: reference, pose: shownReferenceFrame, vectors: alignedReferenceFrame ? undefined : comparison?.vectors, crop: referenceCrop }] as panel (panel.side)}
 					<article
 						data-review-video={panel.side}
 						class={`daisy-card border-base-300 bg-base-100 overflow-hidden border shadow-sm ${panel.side === 'participant' ? (visualization === 'lens' ? 'md:col-span-8 md:row-span-2 md:self-start' : 'md:col-span-8') : 'md:col-span-4 md:col-start-9 md:row-start-1 md:self-start'}`}
@@ -1340,7 +1379,13 @@
 								>
 							{:else if panel.side === 'reference' && datasetMode}
 								<span class="daisy-badge daisy-badge-ghost whitespace-nowrap"
-									>row {panel.pose?.frame ?? '—'} · {panel.pose?.timestampMs?.toFixed(0) ?? '—'} ms</span
+									>{alignedReferenceFrame ? 'time-aligned · ' : ''}row {panel.pose?.frame ?? '—'} · {panel.pose?.timestampMs?.toFixed(
+										0
+									) ?? '—'} ms{alignedReferenceFrame
+										? ` · scored vs row ${referenceFrame?.frame ?? '—'}`
+										: pairingDrift !== null && Math.abs(pairingDrift) >= 0.05
+											? ` · ${Math.abs(pairingDrift).toFixed(2)} s ${pairingDrift > 0 ? 'behind' : 'ahead'}`
+											: ''}</span
 								>
 							{:else if panel.side === 'reference'}
 								<span class="daisy-badge daisy-badge-ghost"
@@ -1436,13 +1481,28 @@
 									{#each UPPER_SKELETON_EDGES as [a, b] (`${a}-${b}`)}
 										{@const pa = panel.pose.landmarks[a]}
 										{@const pb = panel.pose.landmarks[b]}
+										{@const vector =
+											simpleOverlay && panel.side === 'participant'
+												? comparison?.vectors.find(
+														(v) => (v.src === a && v.dest === b) || (v.src === b && v.dest === a)
+													)
+												: undefined}
+										{@const level = vector
+											? edgeErrorLevel(vector.dissimilarity, VIONA_EDGE_SATURATION)
+											: null}
+										{@const edgeStyle = level === null ? null : edgeErrorStyle(level)}
 										{#if Number.isFinite(pa.x) && Number.isFinite(pa.y) && Number.isFinite(pb.x) && Number.isFinite(pb.y)}<line
 												x1={pa.x}
 												y1={pa.y}
 												x2={pb.x}
 												y2={pb.y}
 												class="skeleton-edge"
-											/>{/if}
+												class:error-edge={edgeStyle !== null}
+												style:stroke={edgeStyle?.color}
+												style:stroke-width={edgeStyle ? `${edgeStyle.width}px` : undefined}
+												vector-effect={edgeStyle ? 'non-scaling-stroke' : undefined}
+												><title>{vector?.name ?? ''}</title></line
+											>{/if}
 									{/each}
 									{#each panel.pose.landmarks as point, i (i)}
 										{#if [11, 12, 13, 14, 15, 16, 23, 24].includes(i) && Number.isFinite(point.x) && Number.isFinite(point.y)}<circle
@@ -1460,7 +1520,7 @@
 												></circle
 											>{/if}
 									{/each}
-									{#each panel.vectors ?? [] as vector, i (vector.name)}
+									{#each overlayVectors(panel.vectors) as vector, i (vector.name)}
 										{@const origin = panel.pose.landmarks[vector.src]}
 										{@const actual = panel.side === 'reference' ? vector.ref : vector.participant}
 										{@const other = panel.side === 'participant' ? vector.ref : null}
@@ -1496,6 +1556,12 @@
 									No matching pose row for this frame
 								</div>{/if}
 						</div>
+						{#if simpleOverlay && panel.side === 'participant' && comparison}<p
+								class="px-4 pb-3 text-xs opacity-70"
+							>
+								Thicker, redder body segment = larger dissimilarity against the scored reference row
+								· “Inspect metric details” shows the vector arrows
+							</p>{/if}
 						{#if panel.side === 'participant' && visualization === 'lens'}<div
 								data-metric-caption
 								class="px-4 pb-3 text-xs opacity-75"
@@ -2161,6 +2227,10 @@
 		width: 100%;
 		height: 100%;
 		overflow: visible;
+	}
+	.skeleton-edge.error-edge {
+		opacity: 0.95;
+		stroke-linecap: round;
 	}
 	.skeleton-edge {
 		stroke: #e2e8f0;
