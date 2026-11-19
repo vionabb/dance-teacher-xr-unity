@@ -26,11 +26,6 @@
 	import DiscrepancyScorecard from '$lib/elements/DiscrepancyScorecard.svelte';
 	import ReviewPlayButton from '$lib/elements/ReviewPlayButton.svelte';
 	import {
-		pairingDriftSeconds,
-		participantRowSeconds,
-		timeAlignedReferenceFrame
-	} from '$lib/research/reference-alignment';
-	import {
 		edgeErrorLevel,
 		edgeErrorStyle,
 		QIJIA_EDGE_SATURATION
@@ -205,8 +200,6 @@
 	}
 	let showMetricDetails = $state(false);
 	let showReviewOverlay = $state(true);
-	/** Display-only: show the reference row at the same elapsed time instead of the scored row. */
-	let timeAlignedReference = $state(false);
 	function setReviewSelection(start: number, end: number) {
 		if (reviewSelection?.start !== start || reviewSelection?.end !== end) {
 			if (reviewRange) pauseReview();
@@ -370,19 +363,6 @@
 	);
 	const referenceFrameIndex = $derived(referenceSample.targetFrame);
 	const referenceFrame = $derived(referenceSample.frame ?? undefined);
-	const pairingDrift = $derived(
-		datasetMode ? pairingDriftSeconds(participantFrame, referenceFrame) : null
-	);
-	const alignedReferenceFrame = $derived(
-		datasetMode && timeAlignedReference && participantFrame && activeLoadedSegment
-			? (timeAlignedReferenceFrame(
-					activeLoadedSegment.referenceFrames.values(),
-					participantRowSeconds(participantFrame)
-				) ?? undefined)
-			: undefined
-	);
-	/** The reference row on screen: the scored row, or the time-aligned one when toggled. */
-	const shownReferenceFrame = $derived(alignedReferenceFrame ?? referenceFrame);
 	const comparison = $derived(
 		participantFrame && referenceFrame ? compareQijiaFrame(referenceFrame, participantFrame) : null
 	);
@@ -809,11 +789,11 @@
 	function syncReferenceVideo() {
 		if (!datasetMode || !reference.video || reference.video.readyState < 1 || !reference.url)
 			return;
+		// Reference rows are one per video frame at the segment fps. Their CSV `timestamp`
+		// column steps 30 ms (not 1/30 s), so seeking by it drifted ~10% behind; use the frame.
 		const time =
 			(reference.clipStartSeconds ?? 0) +
-			(shownReferenceFrame?.timestampMs ??
-				((shownReferenceFrame?.csvFrame ?? frameIndex) * 1000) / 30) /
-				1000;
+			(referenceFrame?.csvFrame ?? frameIndex) / (reference.fps || 30);
 		if (Number.isFinite(time) && Math.abs(reference.video.currentTime - time) > 0.07)
 			reference.video.currentTime = Math.max(0, time);
 	}
@@ -1288,15 +1268,6 @@
 								bind:checked={showReviewOverlay}
 							/>Pose overlay</label
 						>{/if}
-					{#if discrepancyMode}<label
-							class="flex items-center gap-1.5 text-xs"
-							title="Display only. The metric pairs rows by index, so its reference row can lag the participant in time. Scores are unchanged."
-							><input
-								type="checkbox"
-								class="daisy-checkbox daisy-checkbox-xs"
-								bind:checked={timeAlignedReference}
-							/>Time-aligned reference</label
-						>{/if}
 					<MetricSwitcher
 						performanceId={selectedPerformance?.id ?? ''}
 						timeSeconds={globalTime}
@@ -1396,7 +1367,7 @@
 		{/if}
 		<section data-review-stage class="grid gap-4 md:grid-cols-12">
 			<div data-review-pair class="grid min-w-0 gap-4 md:contents">
-				{#each [{ side: 'participant' as const, label: 'Participant', clip: participant, pose: participantFrame, vectors: comparison?.vectors, crop: participantCrop }, { side: 'reference' as const, label: 'Reference', clip: reference, pose: shownReferenceFrame, vectors: alignedReferenceFrame ? undefined : comparison?.vectors, crop: referenceCrop }] as panel (panel.side)}
+				{#each [{ side: 'participant' as const, label: 'Participant', clip: participant, pose: participantFrame, vectors: comparison?.vectors, crop: participantCrop }, { side: 'reference' as const, label: 'Reference', clip: reference, pose: referenceFrame, vectors: comparison?.vectors, crop: referenceCrop }] as panel (panel.side)}
 					<article
 						data-review-video={panel.side}
 						class={`daisy-card border-base-300 bg-base-100 overflow-hidden border shadow-sm ${datasetMode ? (panel.side === 'participant' ? 'md:col-span-8 md:row-span-2' : 'md:col-span-4 md:col-start-9') : 'md:col-span-6'}`}
@@ -1409,13 +1380,9 @@
 								>
 							{:else if panel.side === 'reference' && datasetMode}
 								<span class="daisy-badge daisy-badge-ghost whitespace-nowrap"
-									>{alignedReferenceFrame ? 'time-aligned · ' : ''}row {panel.pose?.frame ?? '—'} · {panel.pose?.timestampMs?.toFixed(
-										0
-									) ?? '—'} ms{alignedReferenceFrame
-										? ` · scored vs row ${referenceFrame?.frame ?? '—'}`
-										: pairingDrift !== null && Math.abs(pairingDrift) >= 0.05
-											? ` · ${Math.abs(pairingDrift).toFixed(2)} s ${pairingDrift > 0 ? 'behind' : 'ahead'}`
-											: ''}</span
+									>row {panel.pose?.frame ?? '—'} · {panel.pose?.csvFrame !== undefined
+										? `${(panel.pose.csvFrame / (reference.fps || 30)).toFixed(2)} s`
+										: '—'}</span
 								>
 							{:else if panel.side === 'reference'}
 								<span class="daisy-badge daisy-badge-ghost"
