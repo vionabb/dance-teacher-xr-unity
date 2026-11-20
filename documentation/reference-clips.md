@@ -99,9 +99,16 @@ Observed 2026-11-20 in the hosted tables:
   labeled `control` for an `emoji` recording.
 - The import joins ratings to recordings on study, dance, participant, clip
   and condition (`scripts/importChi25Analysis.mjs`), so all of these drop out.
-- Which label is right is not known. Inferred: the ratings file's Study 2
-  condition column may hold something other than the recording condition.
-  Needs Viona.
+- The mismatch is a systematic rotation (observed 2026-11-20, per participant).
+  The ratings file's condition for bartender equals the recording condition of
+  that participant's mad-at-disney (36/36). For last-christmas it equals their
+  bartender (36/36), and for mad-at-disney their last-christmas (37/37).
+  Pajama-party agrees (38/38). Another 3–5 participants per dance are labeled
+  `unknown`.
+- Which source is right is not known. Inferred: the rotation likely happened
+  when conditions were merged into the ratings file. Viona was asked
+  2026-11-20 to confirm against the Study 2 counterbalancing. The import is
+  unchanged until she confirms.
 
 ## bartender
 
