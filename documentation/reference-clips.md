@@ -108,8 +108,13 @@ Observed 2026-11-20 in the hosted tables:
 - Resolution (2026-11-20): every Study 2 recording's workflow id matches its
   stored condition in Viona's workflow table
   ([chi25-study-design.md](chi25-study-design.md)), so the ratings file is the
-  rotated source. The import stays unchanged until Viona confirms how the
-  ratings should be re-joined.
+  rotated source.
+- Re-joined (2026-11-20, at Viona's request): `relinkChi25Ratings.mjs --apply`
+  linked 493 recordings (84 Study 1, 409 Study 2) on study, dance, participant
+  and clip. The queue now has 1,236 rated segments. Study 2 last-christmas
+  clip 1 stays unlinked (single-rater value), and Study 2 clip 1 of the other
+  dances has no hosted rating yet. Observed. The per-clip table above predates
+  the re-join and covers the original 743 segments only.
 
 ## bartender
 
@@ -119,15 +124,16 @@ Observed 2026-11-20 in the hosted tables:
   clip 1 or 5. Observed (`lab-log/2026-11-06-rating-relevant-time-spans.md`).
 - The app bundle trims the end at 14.9 of 18.867 s, but validation does not
   use that trim. Observed (same entry).
-- **Not in the review queue** because of the condition-label mismatch above.
+- In the review queue since the 2026-11-20 re-join (clips 2–4). Observed.
 - Viona's notes: _(none yet)_
 
 ## last-christmas
 
 - Video `last-christmas-tutorial.mp4`. Clip spacing 4.352 s; 4 clips of
   131/131/130/60 pose rows. Observed.
-- Study 1: 175 rated segments in the queue. Study 2: the ratings exist, but
-  none are in the queue (condition-label mismatch). Observed.
+- Study 1: 175 rated segments in the queue before the re-join, plus 24 after
+  it. Study 2: clips 2–4 joined the queue on 2026-11-20; clip 1 is withheld
+  (single-rater value). Observed.
 - Clip 1 has the weakest agreement for this dance (ρ = 0.32). Clips 1, 2 and 4
   have large positive mean rank gaps: the metric is kinder than the raters on
   this dance in general. Observed. Inferred: this is a clip-level offset, not a
@@ -139,8 +145,9 @@ Observed 2026-11-20 in the hosted tables:
 - Video `mad-at-disney-tutorial.mp4`. Clip spacing 4.04 s; 5 clips of
   122/121/121/121/59 pose rows. The timestamp step is 29.97 ms instead of
   30 ms. Observed.
-- Study 1: 200 rated segments in the queue. Study 2 has no clip 1 rating, and
-  its other ratings are not in the queue (condition-label mismatch). Observed.
+- Study 1: 200 rated segments in the queue before the re-join, plus 35 after
+  it. Study 2 has no clip 1 rating; clips 2–5 joined the queue on 2026-11-20.
+  Observed.
 - This is the most consistent dance: clips 1–4 have ρ between 0.56 and 0.64.
   Clip 5, the short last clip, is lower (0.40), and the metric is kinder there
   (+14.4). Observed. Inferred: it may contain lead-out.

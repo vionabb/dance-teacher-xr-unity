@@ -64,7 +64,11 @@ transcribed here. Each cell is a tutorial workflow, launched as
   segment 1 is withheld because its hosted value is rater 1 alone. A dry run
   against the hosted tables gives 493 new links (84 Study 1, 409 Study 2),
   taking the queue from 743 to 1,236 segments, and every hosted recording's
-  `input_version` reproduces exactly. Observed. Segment 1 of bartender,
+  `input_version` reproduces exactly. Observed. Applied the same day by the
+  agent account: 493 linked, 1,236 in the queue, 0 remaining. Observed.
+  The collaborator files are stored under
+  `uploads/<study>/collaborator-ratings/2026-11-20/` in the `research-chi25`
+  bucket. Segment 1 of bartender,
   mad-at-disney and pajama-party (120 ratings) and a three-rater last-christmas
   segment 1 still need new rating rows from the collaborator sheets.
 
