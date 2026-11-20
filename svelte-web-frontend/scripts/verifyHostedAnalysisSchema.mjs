@@ -23,7 +23,8 @@ try {
 	for (const migration of [
 		'20261028120000_hosted_chi25_research.sql',
 		'20261028191953_hosted_chi25_materials.sql',
-		'20261029031032_hosted_discrepancy_review.sql'
+		'20261029031032_hosted_discrepancy_review.sql',
+		'20261120030000_reference_key_moves.sql'
 	])
 		await db.exec(await readFile(`supabase/migrations/${migration}`, 'utf8'));
 	await db.exec(`
@@ -78,6 +79,20 @@ try {
 	console.log(
 		'Synthetic observation export/restore preserves every column; rollback left no test notes.'
 	);
+	await db.exec('begin');
+	const keyMoveResults = await db.exec(
+		await readFile('supabase/tests/reference_key_moves.sql', 'utf8')
+	);
+	await db.exec('rollback');
+	assert.equal(
+		(
+			await db.query(
+				'select count(*)::int as count from public.research_reference_key_move_revision'
+			)
+		).rows[0].count,
+		0
+	);
+	console.log(keyMoveResults.at(-1).rows[0].test_result);
 } finally {
 	await db.close();
 }

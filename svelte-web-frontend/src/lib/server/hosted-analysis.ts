@@ -262,17 +262,17 @@ export async function hostedTask(locals: RequestEvent['locals'], id: string) {
 }
 
 /** JSON routes need an explicit origin check; form CSRF protection does not cover them. */
-export function assertAnalysisMutation(request: Request) {
+export function assertAnalysisMutation(request: Request, maxBytes = 32_000) {
 	if (
 		request.headers.get('origin') !== new URL(request.url).origin ||
 		!['same-origin', 'none', null].includes(request.headers.get('sec-fetch-site'))
 	)
 		error(403);
 	if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') error(415);
-	if (Number(request.headers.get('content-length') ?? 0) > 32_000) error(413);
+	if (Number(request.headers.get('content-length') ?? 0) > maxBytes) error(413);
 }
-export async function readAnalysisMutation(request: Request) {
-	assertAnalysisMutation(request);
+export async function readAnalysisMutation(request: Request, maxBytes = 32_000) {
+	assertAnalysisMutation(request, maxBytes);
 	if (!request.body) error(400);
 	const reader = request.body.getReader();
 	const chunks: Uint8Array[] = [];
@@ -281,7 +281,7 @@ export async function readAnalysisMutation(request: Request) {
 		const { value, done } = await reader.read();
 		if (done) break;
 		size += value.byteLength;
-		if (size > 32_000) {
+		if (size > maxBytes) {
 			await reader.cancel();
 			error(413);
 		}
