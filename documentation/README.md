@@ -16,6 +16,7 @@ This directory is the canonical documentation hub for the standalone code reposi
 | Work on the Svelte app | [Frontend README](../svelte-web-frontend/README.md) and [frontend agent instructions](../svelte-web-frontend/AGENTS.md) |
 | Work on Python processing or analysis | [Motion pipeline README](../motion-pipeline/README.md) and [pipeline agent instructions](../motion-pipeline/AGENTS.md) |
 | Review the pose-preprocessing experiment | [Experiment report](preprocessing-cleanup-experiment-report.md), [short paper](preprocessing-cleanup-short-paper.md), and [dated lab log](../lab-log/2026-08-25-preprocessing-cleanup.md) |
+| Look up what we know about a reference dance or clip | [Reference clips knowledge base](reference-clips.md) |
 | Understand why a research decision was made | [Lab log conventions](../lab-log/README.md), then search dated entries by tag |
 | Understand research lineage and claim boundaries | [Research context](research-context.md) |
 
@@ -23,6 +24,7 @@ This directory is the canonical documentation hub for the standalone code reposi
 
 - `technical-architecture.md` owns current implementation structure and cross-project contracts.
 - `project-state.md` owns research maturity, known limitations, and next milestones.
+- `reference-clips.md` owns observed and inferred facts about each reference dance and clip.
 - `dataset.md` owns data provenance, sensitivity, storage locations, and transfer/publishing rules.
 - `research-context.md` owns the concise, self-contained research lineage and claim boundaries needed for code work.
 - `research-workspace.md` owns the planned local research-app data boundary and first-slice acceptance criteria.

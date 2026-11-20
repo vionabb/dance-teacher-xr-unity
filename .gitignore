@@ -26,3 +26,4 @@ secrets/*
 
 # Google Drive Paths (for local development)
 .github/localenvironment.json
+__pycache__/
