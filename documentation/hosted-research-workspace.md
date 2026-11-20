@@ -357,3 +357,16 @@ re-register with `svelte-web-frontend/scripts/rebindMetricRelease.sql`. It
 checks that every stored `input_version` reproduces and refuses to run while any
 discrepancy observation exists. If the math itself changes, do a fresh import
 instead of a rebind.
+
+## Reference key moves (2026-11-20)
+
+`/research/key-moves` lets an editor mark the recognizable moves in each
+reference video as frame spans on named tracks and describe them in free text.
+Each save appends a whole-set revision to
+`research_reference_key_move_revision`; members can read all revisions and
+editors append only their own, with a linear history per annotator and dance.
+A database trigger takes the video hash from the catalog and validates every
+move. Times are native video frames with the frame rate verified per video
+hash in `src/lib/research/key-moves.ts`, because the catalog's 30 fps is wrong
+for Mad at Disney (29.97). The [lab-log entry](../lab-log/2026-11-20-reference-key-move-marking.md)
+records the purpose and handoff.
