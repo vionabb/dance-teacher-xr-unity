@@ -1,7 +1,7 @@
 ---
 date: 2026-11-20
 tags: [metrics, qijia2d, discrepancy-review, validation, human-ratings]
-artifacts: [assets/2026-11-20-metric-rater-gap-drivers/gap_drivers_summary.json]
+artifacts: [assets/2026-11-20-metric-rater-gap-drivers/gap_drivers_summary.json, assets/2026-11-20-metric-rater-gap-drivers/within_clip_qijia2d.json]
 ---
 
 # What drives the Qijia2D vs. human-rating gaps (743 segments)
@@ -60,11 +60,15 @@ participants (1,000 draws).
   right). The upper arms are at 0.18 and 0.25, and the torso vectors at 0.11–0.19.
   - A torso-only metric falls to ρ = 0.18, and an upper-arms-only metric to 0.26.
   - A forearms-only metric gives 0.47 (+0.04 [−0.01, +0.09]).
-  - Dropping the left upper arm gives +0.02 [+0.01, +0.03], and dropping the
+  - Dropping both upper arms gives +0.03 [−0.004, +0.07], and dropping the
     shoulder line gives +0.01 [+0.003, +0.015].
-  - Forearms-only and drop-left-upper-arm both improve ρ in Study 1 and Study 2
+  - Forearms-only and drop-both-upper-arms both improve ρ in Study 1 and Study 2
     separately. However, these subsets were chosen by looking at this same data,
     so they are hypotheses that need held-out confirmation.
+  - The drop-one-vector rows in the summary and figure are diagnostics only.
+    Viona (2026-11-20): "we should never introduce something that weighs body
+    parts different across left-right symmetry". Only left/right-symmetric
+    variants are candidates.
 - **What separates "metric harsher" from "metric kinder".** Every vector's
   contribution to the score deficit is larger in harsh-gap segments. Error in
   the upper arms (ρ with rank gap −0.47 and −0.44) and the torso (−0.28 to −0.37)
@@ -95,9 +99,71 @@ participants (1,000 draws).
 - Viona to review Study 1 pajama-party clip 1 in the discrepancy queue, and say
   whether the lead-in or something else explains its negative ρ. This needs her
   visual judgment.
-- Whether to test the reweighted vector sets (forearms-only, no left upper arm) on
+- Whether to test the reweighted vector sets (forearms-only, no upper arms; symmetric only) on
   held-out data, for example Viona's own ratings or the new study, before any
   metric change. The metric modules are unchanged, so the metric release
   fingerprint did not move.
 - Whether thesis framing should report pooled ρ or within-clip ρ. This is
   Viona's call.
+
+## Follow-up: within-clip evaluator (same day)
+
+Viona asked: "is there a way to design our metric-evaluation suite to do analysis
+comparing only how rankings compare within clips? so a metric is good if, for a
+particular clip, it results in a similar ranking of performance to human ratings".
+She accepted that this does not test absolute calibration: "i think this is fine
+for now as we figure out what the metrics capture thats similar to human
+similarity perception and what they leave out". She also set a design rule: "we
+should never introduce something that weighs body parts different across
+left-right symmetry". Only symmetric variants were evaluated below.
+
+`motion-pipeline/adhoc_analysis/metric_eval/within_clip.py` takes any table with
+one row per segment, holding a participant column, a clip key, the human rating
+and one or more metric columns. For each metric it reports:
+
+- **within ρ:** per-clip Spearman ρ, averaged with weights equal to clip size;
+- **pairwise:** among same-clip pairs that the raters scored differently, the
+  share the metric orders the same way. A metric tie counts as half, and 0.5 is
+  chance;
+- **pooled ρ:** for reference;
+- a per-clip table, 95% participant-cluster bootstrap intervals, and paired
+  differences against a baseline metric.
+
+Synthetic tests are in `test_within_clip.py`. The command:
+
+```
+uv run python adhoc_analysis/metric_eval/within_clip.py <segments.csv> --clip-col study,dance,clip \
+  --human-col H --baseline M --metric M="Qijia2D, all 8 vectors" --metric "only:forearms=Forearms only" ...
+```
+
+The input `segments.csv` is the per-segment table from `gap_drivers.py
+--segments-out`; it stays in `local-data/`. The output is
+[within_clip_qijia2d.json](assets/2026-11-20-metric-rater-gap-drivers/within_clip_qijia2d.json).
+
+All 743 segments, 18 clips, 85 participants, 11,359 informative same-clip pairs:
+
+| Variant (symmetric) | Within ρ [95% CI] | Pairwise [95% CI] | Δ within ρ vs all 8 | Pooled ρ |
+| --- | --- | --- | --- | --- |
+| Qijia2D, all 8 vectors | 0.51 [0.40, 0.59] | 0.73 [0.68, 0.77] | — | 0.43 |
+| Arms only (no torso) | 0.51 [0.40, 0.59] | 0.73 [0.69, 0.77] | +0.00 [−0.02, +0.02] | 0.44 |
+| Forearms only | 0.50 [0.40, 0.58] | 0.73 [0.69, 0.77] | −0.01 [−0.05, +0.02] | 0.47 |
+| No upper arms | 0.49 [0.38, 0.58] | 0.72 [0.68, 0.76] | −0.02 [−0.05, +0.01] | 0.46 |
+| Upper arms only | 0.40 [0.30, 0.48] | 0.68 [0.64, 0.72] | −0.11 [−0.16, −0.06] | 0.26 |
+| Torso only | 0.20 [0.09, 0.29] | 0.59 [0.54, 0.63] | −0.32 [−0.39, −0.22] | 0.18 |
+
+What this changes:
+
+- Within a clip, Qijia2D orders about **73% of differently rated pairs** the
+  way the raters do.
+- **The forearm advantage was a clip-offset effect.** Forearms-only beat all 8
+  vectors on pooled ρ (0.47 against 0.43), but within clips it is no better
+  (−0.01). The same holds for dropping the upper arms. The earlier
+  vector-subset findings therefore mostly reflect which clips are hard for the
+  metric, not which body parts raters attend to.
+- Torso-only and upper-arms-only are clearly worse within clips too. The arms
+  carry the ranking information, and adding the torso neither helps nor hurts
+  (+0.00).
+
+Next: show the within-clip rank gap in the discrepancy queue, so the queue
+surfaces the disagreements this evaluator counts. Then run Viona2D through the
+same evaluator once its per-segment scores are exported.

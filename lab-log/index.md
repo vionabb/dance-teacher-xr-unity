@@ -238,3 +238,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   a median 0.57: clip-level score offsets are the largest gap driver. Forearms
   carry most of the agreement; torso and upper-arm error is penalized but
   discounted by raters. Study 1 pajama-party clip 1 has ρ = −0.24.
+
+- [2026-11-20 — What the CHI25 raters were judging: "did the thing"](2026-11-20-rater-perception-did-the-thing.md)
+  Viona's account of rater perception: a 3/3 meant a novice visibly performed the
+  key semantic moves at about the right time, not close joint-angle or timing
+  matching; points were lost for missing or clearly wrong moves. Hypothesis,
+  untested; follow-ups to be proposed.

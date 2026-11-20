@@ -44,6 +44,13 @@ Rules for this page:
   ([2026-11-20](../lab-log/2026-11-20-metric-rater-gap-drivers.md)). Observed.
 - **Human-rating ceiling.** 39% of the rated segments in the review queue got
   3/3 from all three raters (mapped to 5). Observed.
+- **What raters judged.** Viona (2026-11-20): a 3/3 meant the participant "did
+  the thing", visibly performing the key semantic moves at about the right
+  time, judged as "good for a novice having tried to learn a tiktok dance for
+  12 minutes". Raters did not compare joint angles or exact timing. This is a
+  hypothesis, recorded in
+  [2026-11-20](../lab-log/2026-11-20-rater-perception-did-the-thing.md). Once
+  per-clip move lists exist, they belong in each dance's section below.
 
 ### Metric agreement per clip (Qijia2D, 2026-11-20)
 
