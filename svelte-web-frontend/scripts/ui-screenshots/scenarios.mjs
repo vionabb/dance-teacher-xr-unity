@@ -65,14 +65,25 @@ export const scenarios = [
 		states: [
 			{
 				name: 'selected',
-				label: 'Moves on two tracks, one selected',
+				label: 'Move tab with a timeline move selected',
 				run: async (page) => {
 					await videoReady(page);
-					await page
-						.getByRole('button', { name: /Fixture move 2/ })
-						.last()
-						.click();
+					await page.locator('[data-track] [role="button"]', { hasText: 'Fixture move 2' }).click();
 					await page.waitForTimeout(400);
+				}
+			},
+			{
+				name: 'all-moves',
+				label: 'All moves tab',
+				run: async (page) => {
+					await page.getByRole('tab', { name: /All moves/ }).click();
+				}
+			},
+			{
+				name: 'tracks',
+				label: 'Tracks tab',
+				run: async (page) => {
+					await page.getByRole('tab', { name: /Tracks/ }).click();
 				}
 			},
 			{
@@ -80,6 +91,7 @@ export const scenarios = [
 				label: 'Save conflict banner',
 				run: async (page) => {
 					await page.evaluate(() => window.__harnessConflict());
+					await page.getByRole('tab', { name: 'Move', exact: true }).click();
 					await page.locator('#move-name').fill('Fixture move 2 (edited)');
 					await page.getByText('Not saved: conflict').waitFor({ timeout: 10_000 });
 				}

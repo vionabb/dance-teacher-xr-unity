@@ -35,6 +35,7 @@
 	let playbackRate = $state('1');
 	let mirrored = $state(false);
 	let newTrackLabel = $state('');
+	let panelTab = $state<'move' | 'moves' | 'tracks'>('move');
 	let videoElement: HTMLVideoElement | undefined = $state();
 	let videoError = $state('');
 
@@ -364,7 +365,7 @@
 		</div>
 	{/if}
 
-	<div class="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_22rem]">
+	<div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
 		<section class="min-w-0 space-y-2" aria-label="Reference video and timeline">
 			<div class="rounded-box mx-auto w-fit max-w-full overflow-hidden bg-black">
 				<!-- svelte-ignore a11y_media_has_caption -->
@@ -475,7 +476,10 @@
 				oncreate={createMove}
 				onspanchange={spanChange}
 				oncommit={changed}
-				onselect={(id) => (selectedId = id)}
+				onselect={(id) => {
+					selectedId = id;
+					if (id) panelTab = 'move';
+				}}
 			/>
 			<p class="text-xs opacity-70">
 				Drag on a track to insert a move; drag its edges to adjust, or its middle to shift it. Tap a
@@ -488,168 +492,220 @@
 					<button type="button" class="daisy-btn daisy-btn-sm" onclick={addMoveAtPlayhead}
 						>+ Move at playhead</button
 					>
-					<form
-						class="daisy-join"
-						onsubmit={(event) => {
-							event.preventDefault();
-							addTrack();
-						}}
-					>
-						<input
-							class="daisy-join-item daisy-input daisy-input-sm w-40"
-							placeholder="New track name"
-							aria-label="New track name"
-							maxlength={KEY_MOVE_LIMITS.trackLabel}
-							bind:value={newTrackLabel}
-						/>
-						<button
-							type="submit"
-							class="daisy-join-item daisy-btn daisy-btn-sm"
-							disabled={!newTrackLabel.trim() || tracks.length >= KEY_MOVE_LIMITS.tracks}
-							>+ Track</button
-						>
-					</form>
 				</div>
 			{/if}
 		</section>
 
-		<aside class="space-y-3">
-			<section
-				class="rounded-box border-base-300 space-y-2 border p-3"
-				aria-labelledby="selected-heading"
-			>
-				<h2 id="selected-heading" class="text-sm font-semibold">
-					{selected ? 'Selected move' : 'No move selected'}
-				</h2>
-				{#if selected}
-					{@const span = spanSeconds(selected, fps)}
-					<p class="font-mono text-xs tabular-nums opacity-80">
-						frames {selected.startFrame}–{selected.endFrame} · {span.start.toFixed(
-							2
-						)}–{span.end.toFixed(2)} s · clip {clipsForMove(selected, fps, data.clips).join(', ') ||
-							'–'}
-					</p>
-					<fieldset class="space-y-2" disabled={!data.canEdit}>
-						<label class="block text-xs font-semibold" for="move-name">Short name</label>
-						<input
-							id="move-name"
-							class="daisy-input daisy-input-sm w-full"
-							maxlength={KEY_MOVE_LIMITS.name}
-							placeholder="e.g. lasso arm"
-							bind:value={selected.name}
-							oninput={() => describe(selected!)}
-						/>
-						<label class="block text-xs font-semibold" for="move-description"
-							>What makes this move recognizable</label
-						>
-						<textarea
-							id="move-description"
-							class="daisy-textarea daisy-textarea-sm w-full"
-							rows="5"
-							maxlength={KEY_MOVE_LIMITS.description}
-							placeholder="Describe the move in your own words."
-							bind:value={selected.description}
-							oninput={() => describe(selected!)}
-						></textarea>
-						<p class="text-[0.7rem] opacity-60">
-							Left and right are read as shown on screen; the video is {selected.viewMirrored
-								? 'mirrored'
-								: 'not mirrored'} for this description.
-						</p>
-						<div class="flex flex-wrap gap-1.5">
-							<button type="button" class="daisy-btn daisy-btn-xs" onclick={() => setEdge('start')}
-								>Start at playhead</button
+		<aside
+			class="daisy-card daisy-card-border border-base-300 bg-base-100 shadow-sm lg:sticky lg:top-3"
+		>
+			<div role="tablist" class="daisy-tabs daisy-tabs-border border-base-300 border-b px-2">
+				{#each [{ id: 'move', label: 'Move' }, { id: 'moves', label: `All moves (${ordered.length})` }, { id: 'tracks', label: `Tracks (${tracks.length})` }] as const as tab (tab.id)}
+					<button
+						type="button"
+						role="tab"
+						class={['daisy-tab', panelTab === tab.id && 'daisy-tab-active']}
+						aria-selected={panelTab === tab.id}
+						onclick={() => (panelTab = tab.id)}>{tab.label}</button
+					>
+				{/each}
+			</div>
+
+			{#if panelTab === 'move'}
+				<div class="daisy-card-body gap-3 p-4" role="tabpanel" aria-label="Selected move">
+					{#if selected}
+						{@const span = spanSeconds(selected, fps)}
+						<div class="flex flex-wrap items-center gap-1.5">
+							<span class="daisy-badge daisy-badge-primary daisy-badge-sm"
+								>Clip {clipsForMove(selected, fps, data.clips).join(', ') || '–'}</span
 							>
-							<button type="button" class="daisy-btn daisy-btn-xs" onclick={() => setEdge('end')}
-								>End at playhead</button
+							<span
+								class="daisy-badge daisy-badge-ghost daisy-badge-sm font-mono tabular-nums"
+								title={`Frames ${selected.startFrame}–${selected.endFrame}`}
+								>{span.start.toFixed(2)}–{span.end.toFixed(2)} s</span
 							>
-							<button
-								type="button"
-								class="daisy-btn daisy-btn-xs"
-								onclick={() => playMove(selected!)}>▶ Play move</button
+							<span class="daisy-badge daisy-badge-ghost daisy-badge-sm tabular-nums"
+								>{(span.end - span.start).toFixed(1)} s long</span
 							>
 						</div>
-						{#if tracks.length > 1}
-							<label class="flex items-center gap-2 text-xs">
-								Track
+						<fieldset class="daisy-fieldset py-0" disabled={!data.canEdit}>
+							<legend class="daisy-fieldset-legend pt-0">Short name</legend>
+							<input
+								id="move-name"
+								class="daisy-input w-full"
+								maxlength={KEY_MOVE_LIMITS.name}
+								placeholder="e.g. lasso arm"
+								bind:value={selected.name}
+								oninput={() => describe(selected!)}
+							/>
+						</fieldset>
+						<fieldset class="daisy-fieldset py-0" disabled={!data.canEdit}>
+							<legend class="daisy-fieldset-legend pt-0">What makes it recognizable</legend>
+							<textarea
+								id="move-description"
+								class="daisy-textarea h-32 w-full"
+								maxlength={KEY_MOVE_LIMITS.description}
+								placeholder="Describe the move in your own words."
+								bind:value={selected.description}
+								oninput={() => describe(selected!)}
+							></textarea>
+							<p class="daisy-label text-wrap">
+								Left and right as seen on screen ({selected.viewMirrored
+									? 'mirrored'
+									: 'not mirrored'}).
+							</p>
+						</fieldset>
+						<fieldset class="daisy-fieldset py-0" disabled={!data.canEdit}>
+							<legend class="daisy-fieldset-legend pt-0">Timing</legend>
+							<div class="daisy-join w-full">
+								<button
+									type="button"
+									class="daisy-join-item daisy-btn daisy-btn-sm flex-1"
+									onclick={() => setEdge('start')}>Start here</button
+								>
+								<button
+									type="button"
+									class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-primary flex-1"
+									onclick={() => playMove(selected!)}>▶ Play</button
+								>
+								<button
+									type="button"
+									class="daisy-join-item daisy-btn daisy-btn-sm flex-1"
+									onclick={() => setEdge('end')}>End here</button
+								>
+							</div>
+							{#if tracks.length > 1}
 								<select
-									class="daisy-select daisy-select-xs"
+									class="daisy-select daisy-select-sm mt-1 w-full"
+									aria-label="Track"
 									value={selected.trackId}
 									onchange={(event) => moveToTrack(selected!, event.currentTarget.value)}
 								>
 									{#each tracks as track (track.id)}
-										<option value={track.id}>{track.label}</option>
+										<option value={track.id}>Track: {track.label}</option>
 									{/each}
 								</select>
-							</label>
-						{/if}
-						<button
-							type="button"
-							class="daisy-btn daisy-btn-xs daisy-btn-error daisy-btn-outline"
-							onclick={() => deleteMove(selected!.id)}>Delete move</button
-						>
-					</fieldset>
-				{:else}
-					<p class="text-xs opacity-70">Insert a move on the timeline or pick one below.</p>
-				{/if}
-			</section>
-
-			<section aria-labelledby="moves-heading" class="space-y-1">
-				<h2 id="moves-heading" class="text-sm font-semibold">
-					{ordered.length}
-					{ordered.length === 1 ? 'move' : 'moves'}
-				</h2>
-				<ol class="max-h-[40dvh] space-y-1 overflow-y-auto">
-					{#each ordered as move (move.id)}
-						<li>
-							<button
-								type="button"
-								class={[
-									'rounded-box border-base-300 w-full border px-2 py-1 text-left text-xs',
-									move.id === selectedId ? 'border-primary bg-primary/10' : 'hover:bg-base-200'
-								]}
-								onclick={() => {
-									selectedId = move.id;
-									seek(move.startFrame);
-								}}
-							>
-								<span class="font-mono tabular-nums opacity-70"
-									>{seconds(move.startFrame)} s · clip {clipsForMove(move, fps, data.clips).join(
-										', '
-									)}</span
+							{/if}
+						</fieldset>
+						{#if data.canEdit}
+							<div class="daisy-card-actions justify-end">
+								<button
+									type="button"
+									class="daisy-btn daisy-btn-ghost daisy-btn-sm text-error"
+									onclick={() => deleteMove(selected!.id)}>Delete move</button
 								>
-								<span class="block font-semibold">{move.name || 'Untitled move'}</span>
-								{#if move.description}<span class="line-clamp-2 block opacity-80"
-										>{move.description}</span
-									>{/if}
-							</button>
-						</li>
-					{/each}
-				</ol>
-			</section>
-
-			{#if data.canEdit && tracks.length > 1}
-				<section aria-labelledby="tracks-heading" class="space-y-1 text-xs">
-					<h2 id="tracks-heading" class="text-sm font-semibold">Tracks</h2>
-					{#each tracks as track (track.id)}
-						<div class="flex items-center gap-1.5">
+							</div>
+						{/if}
+					{:else}
+						<div class="py-8 text-center text-sm opacity-70">
+							<p class="font-semibold">No move selected</p>
+							<p>Drag on a track to insert one, or pick one from All moves.</p>
+						</div>
+					{/if}
+				</div>
+			{:else if panelTab === 'moves'}
+				<div role="tabpanel" aria-label="All moves">
+					{#if ordered.length}
+						<ul class="daisy-list max-h-[60dvh] overflow-y-auto">
+							{#each ordered as move (move.id)}
+								<li>
+									<button
+										type="button"
+										class={[
+											'daisy-list-row w-full items-start px-4 py-3 text-left',
+											move.id === selectedId ? 'bg-primary/10' : 'hover:bg-base-200/60'
+										]}
+										aria-current={move.id === selectedId}
+										onclick={() => {
+											selectedId = move.id;
+											panelTab = 'move';
+											seek(move.startFrame);
+										}}
+									>
+										<span
+											class="daisy-badge daisy-badge-ghost daisy-badge-sm font-mono tabular-nums"
+											>{seconds(move.startFrame)} s</span
+										>
+										<span class="daisy-list-col-grow min-w-0">
+											<span class="block font-semibold">{move.name || 'Untitled move'}</span>
+											{#if move.description}
+												<span class="line-clamp-2 text-xs opacity-70">{move.description}</span>
+											{:else}
+												<span class="daisy-badge daisy-badge-warning daisy-badge-xs"
+													>No description</span
+												>
+											{/if}
+										</span>
+										<span class="text-xs whitespace-nowrap opacity-60"
+											>Clip {clipsForMove(move, fps, data.clips).join(', ')}</span
+										>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{:else}
+						<p class="p-8 text-center text-sm opacity-70">No moves yet.</p>
+					{/if}
+				</div>
+			{:else}
+				<div class="daisy-card-body gap-2 p-4" role="tabpanel" aria-label="Tracks">
+					<p class="text-xs opacity-70">
+						Moves on one track cannot overlap. Put moves that happen at the same time on separate
+						tracks.
+					</p>
+					<ul class="daisy-list">
+						{#each tracks as track (track.id)}
+							<li class="daisy-list-row items-center px-0 py-2">
+								<input
+									class="daisy-input daisy-input-sm daisy-list-col-grow w-full"
+									aria-label="Track name"
+									maxlength={KEY_MOVE_LIMITS.trackLabel}
+									disabled={!data.canEdit}
+									bind:value={track.label}
+									oninput={changed}
+								/>
+								<span class="text-xs opacity-60"
+									>{moves.filter((move) => move.trackId === track.id).length}
+									{moves.filter((move) => move.trackId === track.id).length === 1
+										? 'move'
+										: 'moves'}</span
+								>
+								{#if data.canEdit}
+									<button
+										type="button"
+										class="daisy-btn daisy-btn-ghost daisy-btn-xs"
+										disabled={tracks.length <= 1 || moves.some((move) => move.trackId === track.id)}
+										title="Only empty tracks can be removed"
+										onclick={() => removeTrack(track.id)}>Remove</button
+									>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+					{#if data.canEdit}
+						<form
+							class="daisy-join w-full"
+							onsubmit={(event) => {
+								event.preventDefault();
+								addTrack();
+							}}
+						>
 							<input
-								class="daisy-input daisy-input-xs flex-1"
-								aria-label="Track name"
+								class="daisy-join-item daisy-input daisy-input-sm flex-1"
+								placeholder="New track name"
+								aria-label="New track name"
 								maxlength={KEY_MOVE_LIMITS.trackLabel}
-								bind:value={track.label}
-								oninput={changed}
+								bind:value={newTrackLabel}
 							/>
 							<button
-								type="button"
-								class="daisy-btn daisy-btn-xs daisy-btn-ghost"
-								disabled={moves.some((move) => move.trackId === track.id)}
-								title="Only empty tracks can be removed"
-								onclick={() => removeTrack(track.id)}>Remove</button
+								type="submit"
+								class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-primary"
+								disabled={!newTrackLabel.trim() || tracks.length >= KEY_MOVE_LIMITS.tracks}
+								>Add track</button
 							>
-						</div>
-					{/each}
-				</section>
+						</form>
+					{/if}
+				</div>
 			{/if}
 		</aside>
 	</div>

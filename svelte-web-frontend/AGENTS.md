@@ -25,6 +25,7 @@ Check the Python producer or consumer when changing shared bundle schemas, metri
 
 ## UI work with daisyUI Blueprint
 
+- Viona's rule (2026-11-20): default to daisyUI components (card, fieldset, list, tabs, badge, join, collapse, and so on, with the `daisy-` prefix) whenever one fits. Reserve custom components and hand-rolled styling for UI daisyUI does not cover, such as the span timeline.
 - For new or edited UI, use the available daisyUI Blueprint MCP tools or skills and follow their current instructions and complete results. Inspect the existing Svelte components, Tailwind/daisyUI setup, and visual conventions first. "Blueprint" names the MCP server, not a theme to apply.
 - Start a cohesive UI workflow with `daisyui_setup_expert`, then `daisyui_rules_enforcer`. For a new complete page or screen, also use `daisyui_creative_director` and `daisyui_page_architect`. Before writing component code, get the needed syntax from `daisyui_component_syntax_expert`, including any remaining snippet batches it requests.
 - After a substantive UI change, use `daisyui_quality_inspector` and follow its next action. Then inspect the diff and verify the rendered UI and relevant checks. Follow the tool's exception for copy-only or harmless localized fixes. If a required Blueprint tool is unavailable, report that limitation instead of substituting invented guidance.
