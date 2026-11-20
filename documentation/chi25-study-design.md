@@ -79,3 +79,53 @@ Source: a table Viona pasted on 2026-11-20, transcribed here. The launch URL is
     condition would recover them.
   - 16 have no recording for that participant, dance and clip. Six of them use
     the label `sheet` rather than `sheetmotion`.
+
+## Human-rating sources and how they compare (2026-11-20)
+
+On 2026-11-20 Viona shared the collaborator's rating files. They are
+access-controlled participant data: keep them out of git and out of project
+files. A cloud session kept its copies in the git-ignored `local-data/`.
+
+- `user2_segment_ratings.xlsx`: Study 2 per-segment ratings, one sheet per
+  dance and rater, three raters, on a 1–3 scale. Missing videos are marked with
+  variants of `no_video`.
+- `user2_rescale_auto.csv`: Study 2 per-performance means. Dances are letters:
+  A = last-christmas, B = mad-at-disney, C = pajama-party, D = bartender. The
+  first three letters were identified by matching the means against the segment
+  sheets (97%, 84% and 95% agreement). D was inferred by elimination, since its
+  means match the bartender sheets only 22% of the time. The file also has
+  `lesson` order, `aid`/`emoji`/`seg` condition flags, idle time, and the
+  rescaled and auto ratings.
+- `user1_human_new_scale.csv`: Study 1 whole-performance human and auto
+  ratings, with condition.
+
+What the comparison shows (observed unless marked):
+
+- **Study 1.** All 130 whole ratings match the hosted `research_human_rating`
+  rows exactly, both the value and the condition.
+- **Study 2: missing segments in the hosted copy.** The collaborator sheets
+  include segment 1 for every dance. The hosted ratings have no segment 1 for
+  bartender, mad-at-disney or pajama-party, so 120 rated segments are missing
+  there.
+- **Study 2: last-christmas segment 1 in the hosted copy uses one rater.** Its
+  value is rater 1's score alone, from the "brianna" sheet, while the
+  collaborator file has all three raters. Every other hosted Study 2 segment
+  matches the mean of the three sheets.
+- **Study 2: segment numbering.** Segment numbers line up between the
+  collaborator file and the hosted copy, with no offset.
+- **Study 2 conditions.** The collaborator's `aid`/`emoji`/`seg` flags agree
+  with the hosted ratings' conditions (147 of 147). Both disagree with the
+  recordings for bartender, last-christmas and mad-at-disney. The recordings'
+  conditions come from workflow ids embedded in each video's file name, e.g.
+  `user…-lastchristmas-emoji____workflowid-9047…`, and every one matches
+  Viona's workflow table above.
+- **Likely cause, inferred.** The rotation is exactly what results if the
+  condition columns of the workflow table, in the order Bartender, Last
+  Christmas, Pajama Party, Mad at Disney, were assigned to the letters A–D,
+  which are actually last-christmas, mad-at-disney, pajama-party, bartender.
+  Column 3 is pajama-party under both orders, which explains why pajama-party
+  agrees.
+- **Implication, inferred and not verified.** Any Study 2 analysis by
+  condition that used the collaborator's flags, including the CHI25 paper's,
+  may have mis-assigned conditions for three of the four dances. Viona should
+  confirm before anything is re-analyzed or reported.

@@ -18,6 +18,7 @@ In each fresh clone or cloud-agent checkout, install the repository's Git hooks 
 - Research purpose and current maturity: [documentation/project-state.md](documentation/project-state.md)
 - Architecture and cross-project interfaces: [documentation/technical-architecture.md](documentation/technical-architecture.md)
 - Study data, generated artifacts, and cloud/local access: [documentation/dataset.md](documentation/dataset.md)
+- CHI25 study conditions, workflow ids, human-rating sources and their known defects: [documentation/chi25-study-design.md](documentation/chi25-study-design.md). Per-clip facts: [documentation/reference-clips.md](documentation/reference-clips.md). Read both before joining ratings to recordings or reporting condition effects.
 - Research history and rationale: [lab-log/README.md](lab-log/README.md), then the relevant dated entries
 - Research lineage and claim boundaries: [documentation/research-context.md](documentation/research-context.md)
 
