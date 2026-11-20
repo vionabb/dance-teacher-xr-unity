@@ -36,3 +36,39 @@
 	--radius-box: 0.5rem;
 	--border: 1px;
 }
+
+/* Research workspace: same brand colours as mytheme, but white surfaces on a
+   light page so cards, tables and panels separate from the background.
+   Applied by ResearchShell.svelte with data-theme="research". */
+@plugin 'daisyui/theme' {
+	name: 'research';
+	color-scheme: light;
+	--color-base-100: #ffffff;
+	--color-base-200: #f4f4f1;
+	--color-base-300: #e3e4df;
+	--color-base-content: #24272b;
+	--color-primary: #3c64b1;
+	--color-primary-content: #ffffff;
+	--color-secondary: #60a5fa;
+	--color-secondary-content: #0f172a;
+	--color-accent: #f0abfc;
+	--color-accent-content: #0f172a;
+	--color-neutral: #33373d;
+	--color-neutral-content: #f4f4f1;
+	--color-info: #2f6fde;
+	--color-info-content: #ffffff;
+	--color-success: #1d8a3a;
+	--color-success-content: #ffffff;
+	--color-warning: #f2a23a;
+	--color-warning-content: #24272b;
+	--color-error: #d64545;
+	--color-error-content: #ffffff;
+	--radius-selector: 0.5rem;
+	--radius-field: 0.5rem;
+	--radius-box: 0.75rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+	--border: 1px;
+	--depth: 0;
+	--noise: 0;
+}

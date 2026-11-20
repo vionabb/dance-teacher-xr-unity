@@ -5,6 +5,7 @@
 	import { onMount, setContext } from 'svelte';
 	import NavBar, { navbarProps } from '$lib/elements/NavBar.svelte';
 	import ResearchNavigation from '$lib/elements/ResearchNavigation.svelte';
+	import ResearchShell from '$lib/elements/ResearchShell.svelte';
 	import { page } from '$app/state';
 	import './styles.scss';
 	import SettingsPage from '$lib/pages/SettingsPage.svelte';
@@ -77,7 +78,11 @@
 	{#if (data.hasResearchAccess || data.localResearchAccess) && (page.route.id?.startsWith('/research') || page.route.id?.startsWith('/metrics/'))}
 		<ResearchNavigation hosted={data.hasResearchAccess} local={data.localResearchAccess} />
 	{/if}
-	{@render children?.()}
+	{#if page.route.id?.startsWith('/research')}
+		<ResearchShell>{@render children?.()}</ResearchShell>
+	{:else}
+		{@render children?.()}
+	{/if}
 </div>
 
 <!-- <div class="inset-4 flex items-center justify-center" 

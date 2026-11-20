@@ -8,6 +8,8 @@ export const load: PageServerLoad = async ({ params }) => {
 	return {
 		scenarioId: params.scenario,
 		view: scenario.view,
+		route: scenario.route,
+		nav: scenario.nav,
 		fixture: structuredClone(scenario.data)
 	};
 };

@@ -2,6 +2,8 @@
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import SpanTimeline from '$lib/elements/SpanTimeline.svelte';
+	import ResearchHeader from '$lib/elements/ResearchHeader.svelte';
+	import ResearchIcon from '$lib/elements/ResearchIcon.svelte';
 	import {
 		KEY_MOVE_LIMITS,
 		clipAtFrame,
@@ -315,43 +317,52 @@
 
 <svelte:window onkeydown={onKey} />
 
-<main class="mx-auto max-w-7xl space-y-3 px-3 py-3 sm:px-4">
-	<header class="flex flex-wrap items-end justify-between gap-2">
-		<div>
-			<a class="daisy-link daisy-link-primary text-xs" href={resolve('/research/key-moves')}
-				>← All reference dances</a
-			>
-			<h1 class="text-xl font-bold">Key moves · {data.label}</h1>
-			<p class="text-xs opacity-70">
+<main class="mx-auto max-w-7xl space-y-4 px-3 py-4 sm:px-6 sm:py-6">
+	<ResearchHeader
+		title={data.label}
+		crumbs={[{ label: 'Reference key moves', href: resolve('/research/key-moves') }]}
+	>
+		{#snippet description()}
+			<p>
 				{data.videoLabel} · {frameCount} frames at {fps} fps · {data.clips.length} clips
 			</p>
-		</div>
-		<div class="text-right text-sm" role="status" aria-live="polite">
-			{#if !data.canEdit}
-				<span class="daisy-badge daisy-badge-ghost">Read-only: editor access needed</span>
-			{:else if saveState === 'saved'}
-				<span class="text-success"
-					>{savedLabel ? `✓ Saved ${savedLabel}` : 'Nothing marked yet'}</span
-				>
-			{:else if saveState === 'pending' || saveState === 'saving'}
-				<span class="opacity-70">Saving…</span>
-			{:else}
-				<span class="text-error"
-					>{saveState === 'conflict' ? 'Not saved: conflict' : 'Not saved'}</span
-				>
-			{/if}
-		</div>
-	</header>
+		{/snippet}
+		{#snippet actions()}
+			<div role="status" aria-live="polite">
+				{#if !data.canEdit}
+					<span class="daisy-badge daisy-badge-ghost">Read-only: editor access needed</span>
+				{:else if saveState === 'saved'}
+					<span class="daisy-badge daisy-badge-ghost gap-1.5">
+						{#if savedLabel}
+							<ResearchIcon name="circle-check" class="text-success size-3.5" />Saved {savedLabel}
+						{:else}Nothing marked yet{/if}
+					</span>
+				{:else if saveState === 'pending' || saveState === 'saving'}
+					<span class="daisy-badge daisy-badge-ghost gap-1.5"
+						><span class="daisy-loading daisy-loading-spinner daisy-loading-xs"></span>Saving…</span
+					>
+				{:else}
+					<span class="daisy-badge daisy-badge-error gap-1.5"
+						><ResearchIcon name="cloud-off" class="size-3.5" />{saveState === 'conflict'
+							? 'Not saved: conflict'
+							: 'Not saved'}</span
+					>
+				{/if}
+			</div>
+		{/snippet}
+	</ResearchHeader>
 
 	{#if saveMessage}
 		<div
+			role="alert"
 			class={[
-				'daisy-alert py-2 text-sm',
+				'daisy-alert daisy-alert-soft py-2 text-sm',
 				saveState === 'failed' || saveState === 'conflict'
 					? 'daisy-alert-error'
 					: 'daisy-alert-warning'
 			]}
 		>
+			<ResearchIcon name="triangle-alert" />
 			<span>{saveMessage}</span>
 			{#if saveState === 'failed'}
 				<button type="button" class="daisy-btn daisy-btn-sm" onclick={() => void save()}
@@ -359,19 +370,22 @@
 				>
 			{:else if saveState === 'conflict'}
 				<button type="button" class="daisy-btn daisy-btn-sm" onclick={() => location.reload()}
-					>Reload</button
+					><ResearchIcon name="refresh-cw" />Reload</button
 				>
 			{/if}
 		</div>
 	{/if}
 
 	<div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
-		<section class="min-w-0 space-y-2" aria-label="Reference video and timeline">
-			<div class="rounded-box mx-auto w-fit max-w-full overflow-hidden bg-black">
+		<section
+			class="daisy-card border-base-300 bg-base-100 min-w-0 overflow-hidden border"
+			aria-label="Reference video and timeline"
+		>
+			<div class="flex justify-center bg-neutral-900">
 				<!-- svelte-ignore a11y_media_has_caption -->
 				<video
 					bind:this={videoElement}
-					class="block h-auto max-h-[42dvh] w-auto max-w-full sm:max-h-[52dvh]"
+					class="block h-auto max-h-[42dvh] w-auto max-w-full sm:max-h-[50dvh]"
 					style:transform={mirrored ? 'scaleX(-1)' : undefined}
 					src={data.videoUrl}
 					playsinline
@@ -393,120 +407,152 @@
 					aria-label={`${data.label} reference video`}
 				></video>
 			</div>
-			{#if videoError}<p class="daisy-alert daisy-alert-error py-2 text-sm">{videoError}</p>{/if}
+			{#if videoError}
+				<p class="daisy-alert daisy-alert-error daisy-alert-soft m-3 py-2 text-sm">{videoError}</p>
+			{/if}
 
-			<div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+			<div
+				class="border-base-300 flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-3 py-2.5 text-sm"
+			>
 				<div class="daisy-join">
 					<button
 						type="button"
-						class="daisy-join-item daisy-btn daisy-btn-sm"
+						class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-square"
 						aria-label="Back 10 frames"
-						onclick={() => seek(currentFrame - 10)}>«</button
+						title="Back 10 frames (Shift+←)"
+						onclick={() => seek(currentFrame - 10)}><ResearchIcon name="chevrons-left" /></button
 					>
 					<button
 						type="button"
-						class="daisy-join-item daisy-btn daisy-btn-sm"
+						class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-square"
 						aria-label="Previous frame"
-						onclick={() => seek(currentFrame - 1)}>‹</button
+						title="Previous frame (←)"
+						onclick={() => seek(currentFrame - 1)}><ResearchIcon name="chevron-left" /></button
 					>
 					<button
 						type="button"
-						class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-primary w-16"
-						onclick={togglePlay}>{playing ? 'Pause' : 'Play'}</button
+						class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-primary w-24"
+						title="Play or pause (Space)"
+						onclick={togglePlay}
+						><ResearchIcon name={playing ? 'pause' : 'play'} />{playing ? 'Pause' : 'Play'}</button
 					>
 					<button
 						type="button"
-						class="daisy-join-item daisy-btn daisy-btn-sm"
+						class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-square"
 						aria-label="Next frame"
-						onclick={() => seek(currentFrame + 1)}>›</button
+						title="Next frame (→)"
+						onclick={() => seek(currentFrame + 1)}><ResearchIcon name="chevron-right" /></button
 					>
 					<button
 						type="button"
-						class="daisy-join-item daisy-btn daisy-btn-sm"
+						class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-square"
 						aria-label="Forward 10 frames"
-						onclick={() => seek(currentFrame + 10)}>»</button
+						title="Forward 10 frames (Shift+→)"
+						onclick={() => seek(currentFrame + 10)}><ResearchIcon name="chevrons-right" /></button
 					>
 				</div>
-				<span class="font-mono text-xs tabular-nums">
-					frame {currentFrame} · {seconds(currentFrame)} s{currentClip !== null
-						? ` · clip ${currentClip}`
-						: ''}
-				</span>
-				<label class="flex items-center gap-1.5 text-xs">
-					Speed
-					<select
-						class="daisy-select daisy-select-xs w-20"
-						value={playbackRate}
-						onchange={(event) => setRate(event.currentTarget.value)}
-					>
-						<option value="0.25">0.25×</option>
-						<option value="0.5">0.5×</option>
-						<option value="1">1×</option>
-					</select>
-				</label>
-				<label class="flex items-center gap-1.5 text-xs">
+				<div class="flex items-center gap-1.5 tabular-nums">
+					<span class="font-semibold">{seconds(currentFrame)} s</span>
+					<span class="text-base-content/60 text-xs">frame {currentFrame}</span>
+					{#if currentClip !== null}
+						<span class="daisy-badge daisy-badge-sm daisy-badge-ghost">Clip {currentClip}</span>
+					{/if}
+				</div>
+				<div class="daisy-join" role="group" aria-label="Playback speed">
+					{#each ['0.25', '0.5', '1'] as rate (rate)}
+						<button
+							type="button"
+							class={[
+								'daisy-join-item daisy-btn daisy-btn-xs tabular-nums',
+								playbackRate === rate ? 'daisy-btn-primary daisy-btn-soft' : 'daisy-btn-ghost'
+							]}
+							aria-pressed={playbackRate === rate}
+							onclick={() => setRate(rate)}>{rate}×</button
+						>
+					{/each}
+				</div>
+				<label class="flex cursor-pointer items-center gap-1.5 text-xs">
 					<input
 						type="checkbox"
-						class="daisy-toggle daisy-toggle-xs"
+						class="daisy-toggle daisy-toggle-xs daisy-toggle-primary"
 						checked={mirrored}
 						onchange={(event) => setMirrored(event.currentTarget.checked)}
 					/>
-					Mirror video
+					<ResearchIcon name="flip-horizontal-2" class="size-3.5 opacity-70" />Mirror
 				</label>
+				{#if data.canEdit}
+					<button
+						type="button"
+						class="daisy-btn daisy-btn-sm daisy-btn-primary daisy-btn-soft ml-auto"
+						onclick={addMoveAtPlayhead}><ResearchIcon name="plus" />Add move here</button
+					>
+				{/if}
 			</div>
 
-			<SpanTimeline
-				{frameCount}
-				{currentFrame}
-				{tracks}
-				spans={moves.map((move) => ({
-					id: move.id,
-					trackId: move.trackId,
-					startFrame: move.startFrame,
-					endFrame: move.endFrame,
-					label: move.name,
-					incomplete: !move.name.trim() && !move.description.trim()
-				}))}
-				{markers}
-				{selectedId}
-				editable={data.canEdit}
-				defaultLength={Math.round(fps)}
-				{limits}
-				onseek={seek}
-				oncreate={createMove}
-				onspanchange={spanChange}
-				oncommit={changed}
-				onselect={(id) => {
-					selectedId = id;
-					if (id) panelTab = 'move';
-				}}
-			/>
-			<p class="text-xs opacity-70">
-				Drag on a track to insert a move; drag its edges to adjust, or its middle to shift it. Tap a
-				move to describe it. Space plays or pauses; ← → step one frame (Shift: ten). Yellow moves
-				have no description yet.
-			</p>
-
-			{#if data.canEdit}
-				<div class="flex flex-wrap items-center gap-2">
-					<button type="button" class="daisy-btn daisy-btn-sm" onclick={addMoveAtPlayhead}
-						>+ Move at playhead</button
+			<div class="px-3 pt-2 pb-3">
+				<SpanTimeline
+					{frameCount}
+					{currentFrame}
+					{tracks}
+					spans={moves.map((move) => ({
+						id: move.id,
+						trackId: move.trackId,
+						startFrame: move.startFrame,
+						endFrame: move.endFrame,
+						label: move.name,
+						incomplete: !move.name.trim() && !move.description.trim()
+					}))}
+					{markers}
+					{selectedId}
+					editable={data.canEdit}
+					defaultLength={Math.round(fps)}
+					{limits}
+					onseek={seek}
+					oncreate={createMove}
+					onspanchange={spanChange}
+					oncommit={changed}
+					onselect={(id) => {
+						selectedId = id;
+						if (id) panelTab = 'move';
+					}}
+				/>
+			</div>
+			<footer
+				class="border-base-300 bg-base-200/50 text-base-content/65 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t px-3 py-2 text-xs"
+			>
+				<span class="hidden items-center gap-1 sm:flex"
+					><kbd class="daisy-kbd daisy-kbd-xs">Space</kbd> play or pause</span
+				>
+				<span class="hidden items-center gap-1 sm:flex"
+					><kbd class="daisy-kbd daisy-kbd-xs">←</kbd><kbd class="daisy-kbd daisy-kbd-xs">→</kbd>
+					one frame, with <kbd class="daisy-kbd daisy-kbd-xs">Shift</kbd> ten</span
+				>
+				{#if data.canEdit}
+					<span
+						>Drag on a track to add a move. Drag its edges to resize, or its middle to shift.</span
 					>
-				</div>
-			{/if}
+				{/if}
+				<span class="flex items-center gap-1.5"
+					><span
+						class="border-warning bg-warning/25 inline-block h-2.5 w-4 rounded-sm border border-dashed"
+					></span>Not described yet</span
+				>
+			</footer>
 		</section>
 
-		<aside
-			class="daisy-card daisy-card-border border-base-300 bg-base-100 shadow-sm lg:sticky lg:top-3"
-		>
+		<aside class="daisy-card border-base-300 bg-base-100 overflow-hidden border lg:sticky lg:top-3">
 			<div role="tablist" class="daisy-tabs daisy-tabs-border border-base-300 border-b px-2">
-				{#each [{ id: 'move', label: 'Move' }, { id: 'moves', label: `All moves (${ordered.length})` }, { id: 'tracks', label: `Tracks (${tracks.length})` }] as const as tab (tab.id)}
+				{#each [{ id: 'move', label: 'Move', icon: 'pencil' }, { id: 'moves', label: 'All moves', count: ordered.length, icon: 'list' }, { id: 'tracks', label: 'Tracks', count: tracks.length, icon: 'layers' }] as const as tab (tab.id)}
 					<button
 						type="button"
 						role="tab"
-						class={['daisy-tab', panelTab === tab.id && 'daisy-tab-active']}
+						class={['daisy-tab gap-1.5', panelTab === tab.id && 'daisy-tab-active']}
 						aria-selected={panelTab === tab.id}
-						onclick={() => (panelTab = tab.id)}>{tab.label}</button
+						onclick={() => (panelTab = tab.id)}
+						><ResearchIcon name={tab.icon} class="size-3.5" />{tab.label}{#if 'count' in tab}
+							<span class="daisy-badge daisy-badge-xs daisy-badge-ghost tabular-nums"
+								>{tab.count}</span
+							>{/if}</button
 					>
 				{/each}
 			</div>
@@ -516,11 +562,11 @@
 					{#if selected}
 						{@const span = spanSeconds(selected, fps)}
 						<div class="flex flex-wrap items-center gap-1.5">
-							<span class="daisy-badge daisy-badge-primary daisy-badge-sm"
+							<span class="daisy-badge daisy-badge-primary daisy-badge-soft daisy-badge-sm"
 								>Clip {clipsForMove(selected, fps, data.clips).join(', ') || '–'}</span
 							>
 							<span
-								class="daisy-badge daisy-badge-ghost daisy-badge-sm font-mono tabular-nums"
+								class="daisy-badge daisy-badge-ghost daisy-badge-sm tabular-nums"
 								title={`Frames ${selected.startFrame}–${selected.endFrame}`}
 								>{span.start.toFixed(2)}–{span.end.toFixed(2)} s</span
 							>
@@ -550,9 +596,8 @@
 								oninput={() => describe(selected!)}
 							></textarea>
 							<p class="daisy-label text-wrap">
-								Left and right as seen on screen ({selected.viewMirrored
-									? 'mirrored'
-									: 'not mirrored'}).
+								<ResearchIcon name="flip-horizontal-2" class="size-3.5" />Left and right as seen on
+								screen ({selected.viewMirrored ? 'mirrored' : 'not mirrored'}).
 							</p>
 						</fieldset>
 						<fieldset class="daisy-fieldset py-0" disabled={!data.canEdit}>
@@ -561,45 +606,54 @@
 								<button
 									type="button"
 									class="daisy-join-item daisy-btn daisy-btn-sm flex-1"
+									title="Move the start to the playhead"
 									onclick={() => setEdge('start')}>Start here</button
 								>
 								<button
 									type="button"
 									class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-primary flex-1"
-									onclick={() => playMove(selected!)}>▶ Play</button
+									onclick={() => playMove(selected!)}><ResearchIcon name="play" />Play</button
 								>
 								<button
 									type="button"
 									class="daisy-join-item daisy-btn daisy-btn-sm flex-1"
+									title="Move the end to the playhead"
 									onclick={() => setEdge('end')}>End here</button
 								>
 							</div>
 							{#if tracks.length > 1}
-								<select
-									class="daisy-select daisy-select-sm mt-1 w-full"
-									aria-label="Track"
-									value={selected.trackId}
-									onchange={(event) => moveToTrack(selected!, event.currentTarget.value)}
-								>
-									{#each tracks as track (track.id)}
-										<option value={track.id}>Track: {track.label}</option>
-									{/each}
-								</select>
+								<label class="daisy-select daisy-select-sm mt-1 w-full">
+									<span class="daisy-label">Track</span>
+									<select
+										value={selected.trackId}
+										onchange={(event) => moveToTrack(selected!, event.currentTarget.value)}
+									>
+										{#each tracks as track (track.id)}
+											<option value={track.id}>{track.label}</option>
+										{/each}
+									</select>
+								</label>
 							{/if}
 						</fieldset>
 						{#if data.canEdit}
-							<div class="daisy-card-actions justify-end">
+							<div class="daisy-card-actions border-base-300 justify-end border-t pt-3">
 								<button
 									type="button"
 									class="daisy-btn daisy-btn-ghost daisy-btn-sm text-error"
-									onclick={() => deleteMove(selected!.id)}>Delete move</button
+									onclick={() => deleteMove(selected!.id)}
+									><ResearchIcon name="trash-2" />Delete move</button
 								>
 							</div>
 						{/if}
 					{:else}
-						<div class="py-8 text-center text-sm opacity-70">
+						<div class="flex flex-col items-center gap-2 py-10 text-center">
+							<span class="bg-base-200 text-base-content/50 rounded-full p-3"
+								><ResearchIcon name="footprints" class="size-6" /></span
+							>
 							<p class="font-semibold">No move selected</p>
-							<p>Drag on a track to insert one, or pick one from All moves.</p>
+							<p class="text-base-content/65 max-w-60 text-sm">
+								Drag on a track to add a move, or pick one from All moves.
+							</p>
 						</div>
 					{/if}
 				</div>
@@ -612,8 +666,8 @@
 									<button
 										type="button"
 										class={[
-											'daisy-list-row w-full items-start px-4 py-3 text-left',
-											move.id === selectedId ? 'bg-primary/10' : 'hover:bg-base-200/60'
+											'daisy-list-row w-full items-start px-4 py-3 text-left transition-colors',
+											move.id === selectedId ? 'bg-primary/10' : 'hover:bg-base-200'
 										]}
 										aria-current={move.id === selectedId}
 										onclick={() => {
@@ -622,21 +676,23 @@
 											seek(move.startFrame);
 										}}
 									>
-										<span
-											class="daisy-badge daisy-badge-ghost daisy-badge-sm font-mono tabular-nums"
+										<span class="daisy-badge daisy-badge-ghost daisy-badge-sm w-14 tabular-nums"
 											>{seconds(move.startFrame)} s</span
 										>
 										<span class="daisy-list-col-grow min-w-0">
 											<span class="block font-semibold">{move.name || 'Untitled move'}</span>
 											{#if move.description}
-												<span class="line-clamp-2 text-xs opacity-70">{move.description}</span>
+												<span class="text-base-content/65 line-clamp-2 text-xs"
+													>{move.description}</span
+												>
 											{:else}
-												<span class="daisy-badge daisy-badge-warning daisy-badge-xs"
-													>No description</span
+												<span
+													class="daisy-badge daisy-badge-warning daisy-badge-soft daisy-badge-xs"
+													>Not described yet</span
 												>
 											{/if}
 										</span>
-										<span class="text-xs whitespace-nowrap opacity-60"
+										<span class="text-base-content/55 text-xs whitespace-nowrap"
 											>Clip {clipsForMove(move, fps, data.clips).join(', ')}</span
 										>
 									</button>
@@ -644,17 +700,18 @@
 							{/each}
 						</ul>
 					{:else}
-						<p class="p-8 text-center text-sm opacity-70">No moves yet.</p>
+						<p class="text-base-content/65 p-8 text-center text-sm">No moves yet.</p>
 					{/if}
 				</div>
 			{:else}
-				<div class="daisy-card-body gap-2 p-4" role="tabpanel" aria-label="Tracks">
-					<p class="text-xs opacity-70">
+				<div class="daisy-card-body gap-3 p-4" role="tabpanel" aria-label="Tracks">
+					<p class="text-base-content/65 text-xs">
 						Moves on one track cannot overlap. Put moves that happen at the same time on separate
 						tracks.
 					</p>
 					<ul class="daisy-list">
 						{#each tracks as track (track.id)}
+							{@const count = moves.filter((move) => move.trackId === track.id).length}
 							<li class="daisy-list-row items-center px-0 py-2">
 								<input
 									class="daisy-input daisy-input-sm daisy-list-col-grow w-full"
@@ -664,19 +721,19 @@
 									bind:value={track.label}
 									oninput={changed}
 								/>
-								<span class="text-xs opacity-60"
-									>{moves.filter((move) => move.trackId === track.id).length}
-									{moves.filter((move) => move.trackId === track.id).length === 1
-										? 'move'
-										: 'moves'}</span
+								<span class="daisy-badge daisy-badge-ghost daisy-badge-sm tabular-nums"
+									>{count} {count === 1 ? 'move' : 'moves'}</span
 								>
 								{#if data.canEdit}
 									<button
 										type="button"
-										class="daisy-btn daisy-btn-ghost daisy-btn-xs"
-										disabled={tracks.length <= 1 || moves.some((move) => move.trackId === track.id)}
-										title="Only empty tracks can be removed"
-										onclick={() => removeTrack(track.id)}>Remove</button
+										class="daisy-btn daisy-btn-ghost daisy-btn-sm daisy-btn-square"
+										disabled={tracks.length <= 1 || count > 0}
+										aria-label={`Remove ${track.label}`}
+										title={count > 0 || tracks.length <= 1
+											? 'Only empty tracks can be removed'
+											: 'Remove track'}
+										onclick={() => removeTrack(track.id)}><ResearchIcon name="trash-2" /></button
 									>
 								{/if}
 							</li>
@@ -701,7 +758,7 @@
 								type="submit"
 								class="daisy-join-item daisy-btn daisy-btn-sm daisy-btn-primary"
 								disabled={!newTrackLabel.trim() || tracks.length >= KEY_MOVE_LIMITS.tracks}
-								>Add track</button
+								><ResearchIcon name="plus" />Add track</button
 							>
 						</form>
 					{/if}

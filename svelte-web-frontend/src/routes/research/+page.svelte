@@ -7,6 +7,8 @@
 	import { get } from 'svelte/store';
 	import { navbarProps } from '$lib/elements/NavBar.svelte';
 	import { getLastMetric } from '$lib/utils/last-inspected-metric';
+	import ResearchHeader from '$lib/elements/ResearchHeader.svelte';
+	import ResearchIcon from '$lib/elements/ResearchIcon.svelte';
 
 	type Performance = {
 		id: string;
@@ -32,6 +34,10 @@
 	let query = $state('');
 	let selectedDance = $state(page.url.searchParams.get('dance') ?? '');
 	let openingId = $state('');
+	// The breadcrumb and browser history change ?dance without remounting the page.
+	$effect(() => {
+		selectedDance = page.url.searchParams.get('dance') ?? '';
+	});
 	const danceNames = $derived.by(() => {
 		const names = [...new Set(performances.map((performance) => performance.danceName))];
 		return names.sort((a, b) => {
@@ -90,16 +96,6 @@
 			noScroll: true
 		});
 	}
-	function showDances() {
-		selectedDance = '';
-		const url = new URL(page.url);
-		url.searchParams.delete('dance');
-		void goto(resolve('/research') + url.search, {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
-		});
-	}
 	function phaseLabel(phase: string | null) {
 		return phase ? phase.charAt(0).toUpperCase() + phase.slice(1) : 'Segmented';
 	}
@@ -139,39 +135,57 @@
 	<meta name="description" content="Choose a dance and participant performance to inspect." />
 </svelte:head>
 
-<main class="mx-auto max-w-6xl space-y-5 px-4 py-6 lg:px-8">
-	<header class="flex flex-wrap items-end justify-between gap-3">
-		<div>
-			<p class="text-primary text-xs font-bold tracking-[.16em] uppercase">Motion metrics</p>
-			<h1 class="text-2xl font-bold sm:text-3xl">
-				{selectedDance ? danceLabel(selectedDance) : 'Choose a dance'}
-			</h1>
-		</div>
-		{#if researchBackend === 'local'}
-			<nav class="flex flex-wrap gap-2" aria-label="Local metric tools">
-				<a
-					class="daisy-btn daisy-btn-ghost daisy-btn-sm"
-					href={resolve('/metrics/qijia2d') + '?source=local'}>Qijia2D local</a
-				>
-				<a
-					class="daisy-btn daisy-btn-ghost daisy-btn-sm"
-					href={resolve('/metrics/viona2d') + '?source=local'}>Viona2D local</a
-				>
-			</nav>
-		{/if}
-	</header>
+<main class="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6">
+	<ResearchHeader
+		title={selectedDance ? danceLabel(selectedDance) : 'Performance analysis'}
+		crumbs={selectedDance ? [{ label: 'Performance analysis', href: resolve('/research') }] : []}
+	>
+		{#snippet description()}
+			<p>
+				{selectedDance
+					? 'Choose a participant performance to open it in the motion-metric inspector.'
+					: 'Choose a dance, then a participant performance to inspect its motion metrics.'}
+			</p>
+		{/snippet}
+		{#snippet actions()}
+			{#if selectedDance}
+				<label class="daisy-input daisy-input-sm w-60">
+					<ResearchIcon name="search" class="size-4 opacity-50" /><input
+						type="search"
+						placeholder="Participant number"
+						bind:value={query}
+						aria-label="Search participants"
+					/>
+				</label>
+			{/if}
+			{#if researchBackend === 'local'}
+				<nav class="flex flex-wrap gap-1" aria-label="Local metric tools">
+					<a
+						class="daisy-btn daisy-btn-ghost daisy-btn-sm"
+						href={resolve('/metrics/qijia2d') + '?source=local'}>Qijia2D local</a
+					>
+					<a
+						class="daisy-btn daisy-btn-ghost daisy-btn-sm"
+						href={resolve('/metrics/viona2d') + '?source=local'}>Viona2D local</a
+					>
+				</nav>
+			{/if}
+		{/snippet}
+	</ResearchHeader>
 
 	{#if loading}
-		<div class="flex items-center gap-3 py-12" role="status">
+		<div class="text-base-content/70 flex items-center gap-3 py-12" role="status">
 			<span class="daisy-loading daisy-loading-spinner"></span><span>Loading performances…</span>
 		</div>
 	{:else if error}
-		<div class="daisy-alert daisy-alert-error">
-			<span>{error}</span><button class="daisy-btn daisy-btn-sm" onclick={loadCatalog}>Retry</button
+		<div class="daisy-alert daisy-alert-error daisy-alert-soft" role="alert">
+			<ResearchIcon name="triangle-alert" /><span>{error}</span><button
+				class="daisy-btn daisy-btn-sm"
+				onclick={loadCatalog}>Retry</button
 			>
 		</div>
 	{:else if performances.length === 0}
-		<div class="rounded-box bg-base-200 p-6 text-sm">
+		<div class="rounded-box border-base-300 bg-base-100 border p-6 text-sm">
 			<p>No participant performances are available.</p>
 			{#if researchBackend === 'local'}<p class="mt-1 opacity-70">
 					Set <code>MOTION_PIPELINE_USER_STUDY_DATA_DIR</code> to the participant cache and restart the
@@ -195,81 +209,66 @@
 								alt={`${danceLabel(dance)} reference dance`}
 								loading="lazy"
 							/>{:else}<div
-								class="bg-base-200 flex aspect-video items-center justify-center text-xl font-semibold"
+								class="from-primary/15 to-primary/5 text-primary/70 flex aspect-video items-center justify-center bg-gradient-to-br"
 							>
-								{danceLabel(dance)}
+								<ResearchIcon name="footprints" class="size-10" />
 							</div>{/if}
-						<span class="daisy-badge daisy-badge-neutral absolute right-3 bottom-3"
+						<span class="daisy-badge daisy-badge-neutral daisy-badge-sm absolute right-3 bottom-3"
 							>{count} performances</span
 						>
 					</div>
-					<div class="daisy-card-body p-4">
-						<h2 class="daisy-card-title">{danceLabel(dance)}</h2>
+					<div class="daisy-card-body flex-row items-center justify-between p-4">
+						<h2 class="daisy-card-title text-base">{danceLabel(dance)}</h2>
+						<ResearchIcon name="arrow-right" class="text-base-content/40 size-4" />
 					</div>
 				</button>
 			{/each}
 		</section>
+	{:else if filteredPerformances.length === 0}
+		<p class="rounded-box border-base-300 bg-base-100 text-base-content/70 border p-5 text-sm">
+			No participant performances found for this dance.
+		</p>
 	{:else}
-		<div class="flex flex-wrap items-center justify-between gap-3">
-			<button class="daisy-btn daisy-btn-ghost daisy-btn-sm -ml-2" onclick={showDances}
-				>← Dances</button
-			>
-			<label class="daisy-input daisy-input-bordered daisy-input-sm flex items-center gap-2">
-				<span class="opacity-50">⌕</span><input
-					type="search"
-					placeholder="Participant number"
-					bind:value={query}
-					aria-label="Search participants"
-				/>
-			</label>
-		</div>
-		{#if filteredPerformances.length === 0}
-			<p class="rounded-box bg-base-200 p-5 text-sm opacity-70">
-				No participant performances found for this dance.
-			</p>
-		{:else}
-			<section
-				class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-				aria-label="Participant performances"
-			>
-				{#each filteredPerformances as performance (performance.id)}
-					<button
-						class="daisy-card bg-base-100 border-base-300 hover:border-primary overflow-hidden border text-left transition-colors"
-						disabled={openingId !== ''}
-						onclick={() => openPerformance(performance)}
-					>
-						<div class="relative">
-							<img
-								class="aspect-video w-full object-cover"
-								src={`${apiPrefix}/participant-catalog/performance/${performance.id}/thumbnail`}
-								alt=""
-								loading="lazy"
-							/>
-							<span class="daisy-badge daisy-badge-neutral absolute right-3 bottom-3"
-								>{performance.segments.length}
-								{performance.segments.length === 1 ? 'segment' : 'segments'}</span
-							>
-						</div>
-						<div class="daisy-card-body gap-1 p-4">
-							<h2 class="daisy-card-title text-base">{performance.participantLabel}</h2>
-							{#if hasParticipantVariant(performance)}
-								<span class="daisy-badge daisy-badge-primary daisy-badge-outline mt-1 w-fit">
-									{performance.study === 'study1' ? 'Study 1' : 'Study 2'} · {performance.condition} ·
-									{phaseLabel(performance.phase)}
-								</span>
-							{:else}
-								<p class="text-xs opacity-65">
-									{performance.study === 'study1' ? 'Study 1' : 'Study 2'} · {performance.condition} ·
-									{phaseLabel(performance.phase)}
-								</p>
-							{/if}
-							{#if openingId === performance.id}<span class="text-primary mt-1 text-xs"
-									>Opening…</span
-								>{/if}
-						</div>
-					</button>
-				{/each}
-			</section>
-		{/if}
+		<section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Participant performances">
+			{#each filteredPerformances as performance (performance.id)}
+				<button
+					class="daisy-card bg-base-100 border-base-300 hover:border-primary overflow-hidden border text-left transition-colors"
+					disabled={openingId !== ''}
+					onclick={() => openPerformance(performance)}
+				>
+					<div class="relative">
+						<img
+							class="bg-base-300 aspect-video w-full object-cover"
+							src={`${apiPrefix}/participant-catalog/performance/${performance.id}/thumbnail`}
+							alt=""
+							loading="lazy"
+						/>
+						<span class="daisy-badge daisy-badge-neutral daisy-badge-sm absolute right-3 bottom-3"
+							>{performance.segments.length}
+							{performance.segments.length === 1 ? 'segment' : 'segments'}</span
+						>
+					</div>
+					<div class="daisy-card-body gap-1 p-4">
+						<h2 class="daisy-card-title text-base">{performance.participantLabel}</h2>
+						{#if hasParticipantVariant(performance)}
+							<span class="daisy-badge daisy-badge-primary daisy-badge-outline mt-1 w-fit">
+								{performance.study === 'study1' ? 'Study 1' : 'Study 2'} · {performance.condition} ·
+								{phaseLabel(performance.phase)}
+							</span>
+						{:else}
+							<p class="text-xs opacity-65">
+								{performance.study === 'study1' ? 'Study 1' : 'Study 2'} · {performance.condition} ·
+								{phaseLabel(performance.phase)}
+							</p>
+						{/if}
+						{#if openingId === performance.id}<span
+								class="text-primary mt-1 flex items-center gap-1.5 text-xs"
+								><span class="daisy-loading daisy-loading-spinner daisy-loading-xs"
+								></span>Opening…</span
+							>{/if}
+					</div>
+				</button>
+			{/each}
+		</section>
 	{/if}
 </main>
