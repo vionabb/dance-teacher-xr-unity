@@ -29,6 +29,32 @@ Check the Python producer or consumer when changing shared bundle schemas, metri
 - Start a cohesive UI workflow with `daisyui_setup_expert`, then `daisyui_rules_enforcer`. For a new complete page or screen, also use `daisyui_creative_director` and `daisyui_page_architect`. Before writing component code, get the needed syntax from `daisyui_component_syntax_expert`, including any remaining snippet batches it requests.
 - After a substantive UI change, use `daisyui_quality_inspector` and follow its next action. Then inspect the diff and verify the rendered UI and relevant checks. Follow the tool's exception for copy-only or harmless localized fixes. If a required Blueprint tool is unavailable, report that limitation instead of substituting invented guidance.
 
+## UI screenshots for Viona's review
+
+Viona's standing rule (2026-11-20): whenever you build or change UI, capture
+screenshots when you finish and send them to her (in the project thread when
+working in the Claude project) so she can annotate them and give feedback.
+Maintain the harness as part of every UI change.
+
+- Run `pnpm screenshots` (or `pnpm screenshots -- --only <scenario-id> --out <dir>`).
+  It starts a loopback dev server, opens dev-only fixture pages under
+  `/dev/ui-harness/<scenario>`, and saves desktop and phone PNGs plus
+  `contact-sheet.png` and `manifest.json`. `--base-url` reuses a running dev server;
+  `--list` prints the scenarios.
+- Add or update a scenario for each screen you change: fixture data in
+  `src/lib/server/ui-harness.ts`, the view switch in
+  `src/routes/dev/ui-harness/[scenario]/+page.svelte`, and capture states and
+  request mocks in `scripts/ui-screenshots/scenarios.mjs`. Mock every write;
+  the harness must never touch Supabase.
+- Media comes from the git-ignored `local-data/` cache (fetched with
+  `.github/research-storage.py` when cloud credentials exist), else a synthetic
+  test video. Viona allows real study media, including participant videos and
+  data, in screenshots sent to her. Never commit or push those screenshots or the
+  media: the default output (`artifacts/ui-screenshots/`) is git-ignored, the
+  runner refuses an unignored path inside the repo, and in the Claude project
+  save them under `/mnt/project-files/screenshots/<date>-<slug>/`.
+- The harness routes 404 outside a loopback dev server.
+
 ## Validation
 
 Run from `svelte-web-frontend/` and prefer the smallest applicable command:

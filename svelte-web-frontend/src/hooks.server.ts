@@ -71,7 +71,9 @@ const authGuard: Handle = async ({ event, resolve }) => {
 		event.url.pathname === '/research' ||
 		event.url.pathname.startsWith('/research/') ||
 		event.url.pathname === '/metrics/qijia2d' ||
-		event.url.pathname === '/metrics/viona2d';
+		event.url.pathname === '/metrics/viona2d' ||
+		event.url.pathname === '/dev/ui-harness' ||
+		event.url.pathname.startsWith('/dev/ui-harness/');
 	const localDataEndpoint =
 		event.url.pathname === '/api/dev/participant-catalog' ||
 		event.url.pathname.startsWith('/api/dev/participant-catalog/') ||
