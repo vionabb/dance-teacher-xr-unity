@@ -71,6 +71,11 @@ Source: a table Viona pasted on 2026-11-20, transcribed here. The launch URL is
 - **Video Walkthrough is `skeleton` in code.** Inferred from the data: all 675
   Study 1 recordings have a workflow id from this table, and every one matches
   the dance and the stored condition under that mapping. Observed 2026-11-20.
-- **Ratings.** Study 1 ratings join to recordings on condition without a
-  mismatch. The only Study 1 segments missing from the review queue have no
-  rating at all.
+- **Ratings.** Where the ratings file gives a real condition, it agrees with
+  the recording. However, 100 eligible Study 1 segment ratings are not in the
+  review queue. Observed 2026-11-20:
+  - 84 are labeled `unknown` in the ratings file. Each has exactly one
+    recording for that participant, dance and clip, so a join without the
+    condition would recover them.
+  - 16 have no recording for that participant, dance and clip. Six of them use
+    the label `sheet` rather than `sheetmotion`.
