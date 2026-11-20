@@ -105,10 +105,11 @@ Observed 2026-11-20 in the hosted tables:
   bartender (36/36), and for mad-at-disney their last-christmas (37/37).
   Pajama-party agrees (38/38). Another 3–5 participants per dance are labeled
   `unknown`.
-- Which source is right is not known. Inferred: the rotation likely happened
-  when conditions were merged into the ratings file. Viona was asked
-  2026-11-20 to confirm against the Study 2 counterbalancing. The import is
-  unchanged until she confirms.
+- Resolution (2026-11-20): every Study 2 recording's workflow id matches its
+  stored condition in Viona's workflow table
+  ([chi25-study-design.md](chi25-study-design.md)), so the ratings file is the
+  rotated source. The import stays unchanged until Viona confirms how the
+  ratings should be re-joined.
 
 ## bartender
 
