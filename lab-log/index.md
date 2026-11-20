@@ -232,3 +232,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   gap, rank gap), an interval what-if table and a queue sorted by discrepancy.
   Both gap definitions are shown; which one to use is Viona's call. A follow-up
   moves the scorecard above the videos and Play into the timeline (mockup A).
+
+- [2026-11-20 — What drives Qijia2D vs. human-rating gaps](2026-11-20-metric-rater-gap-drivers.md)
+  Across all 743 queue segments, pooled ρ = 0.43 but within-reference-clip ρ is
+  a median 0.57: clip-level score offsets are the largest gap driver. Forearms
+  carry most of the agreement; torso and upper-arm error is penalized but
+  discounted by raters. Study 1 pajama-party clip 1 has ρ = −0.24.

@@ -17,6 +17,7 @@ Usage:
   python3 -I .github/research-storage.py materials [--kind reference_pose]
   python3 -I .github/research-storage.py media [--study chi25_study1] [--limit 20]
   python3 -I .github/research-storage.py fetch <object_path> [<object_path> ...]
+  python3 -I .github/research-storage.py table <table> [--select id,study] [--out rows.json]
 
 Downloads land under local-data/research-chi25/<object_path> (git-ignored).
 Treat them as access-controlled: never copy them into the repo, project files,
@@ -77,6 +78,18 @@ class Client:
         url = f"{self.base}/rest/v1/{table}?{urllib.parse.urlencode(query)}"
         return json.loads(request("GET", url, self.headers))
 
+    def all_rows(self, table: str, select: str) -> list[dict]:
+        """Page through a table in id order; Supabase caps one response at 1000 rows."""
+        rows: list[dict] = []
+        while True:
+            page = self.rows(
+                table,
+                {"select": select, "order": "id", "limit": "1000", "offset": str(len(rows))},
+            )
+            rows.extend(page)
+            if len(page) < 1000:
+                return rows
+
     def download(self, object_path: str) -> Path:
         if object_path.startswith("/") or ".." in Path(object_path).parts:
             sys.exit(f"refusing unsafe object path: {object_path}")
@@ -104,6 +117,10 @@ def main() -> None:
     media.add_argument("--limit", type=int, default=20)
     fetch = sub.add_parser("fetch", help="download objects into local-data/research-chi25/")
     fetch.add_argument("paths", nargs="+")
+    table = sub.add_parser("table", help="dump every readable row of a research table as JSON")
+    table.add_argument("name")
+    table.add_argument("--select", default="*")
+    table.add_argument("--out", help="write under local-data/research-chi25/tables/ instead of stdout")
     args = parser.parse_args()
 
     client = Client()
@@ -129,6 +146,17 @@ def main() -> None:
     elif args.command == "fetch":
         for path in args.paths:
             print(client.download(path).relative_to(REPO_ROOT))
+    elif args.command == "table":
+        if not args.name.startswith("research_"):
+            sys.exit("only research_* tables are readable")
+        rows = client.all_rows(args.name, args.select)
+        if not args.out:
+            print(json.dumps(rows, indent=2))
+            return
+        target = CACHE_ROOT / "tables" / Path(args.out).name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(rows))
+        print(f"{len(rows)} rows -> {target.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":

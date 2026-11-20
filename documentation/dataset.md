@@ -126,6 +126,7 @@ provides `RESEARCH_SUPABASE_URL` and `RESEARCH_SUPABASE_PUBLISHABLE_KEY`
 python3 -I .github/research-storage.py check
 python3 -I .github/research-storage.py materials --kind reference_pose
 python3 -I .github/research-storage.py fetch materials/shared/<id>/data.csv
+python3 -I .github/research-storage.py table research_analysis_recording --out research_analysis_recording.json
 ```
 
 Downloads land in the git-ignored `local-data/research-chi25/`. They remain
