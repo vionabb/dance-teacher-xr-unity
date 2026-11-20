@@ -4,6 +4,7 @@ node_modules
 /.svelte-kit
 /package
 /artifacts/research-screenshots/
+/artifacts/ui-screenshots/
 .env
 .env.*
 !.env.*.example

@@ -232,3 +232,9 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   gap, rank gap), an interval what-if table and a queue sorted by discrepancy.
   Both gap definitions are shown; which one to use is Viona's call. A follow-up
   moves the scorecard above the videos and Play into the timeline (mockup A).
+
+- [2026-11-20 — Marking key moves in the reference videos](2026-11-20-reference-key-move-marking.md)
+  Hosted page where Viona inserts and drags move spans on named tracks over each
+  reference video and describes each move in her own words (stage 2 of the time
+  spans plan). Append-only revisions in Supabase, timed by native video frame;
+  Mad at Disney is 29.97 fps. No moves marked yet.
