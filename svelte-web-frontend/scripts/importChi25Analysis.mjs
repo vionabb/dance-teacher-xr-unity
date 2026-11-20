@@ -9,8 +9,8 @@ import {
 	ANALYSIS_SOURCE_VERSION,
 	REFERENCE_CLIPS,
 	analysisHumanRating,
-	analysisRatingKey,
 	analysisRecordingIdentity,
+	linkHumanRatings,
 	sha256,
 	stableJson
 } from '../src/lib/server/chi25-analysis-contract.js';
@@ -176,18 +176,6 @@ async function collect() {
 			materialId(`chi25_study${row.study}`, 'human_ratings', `humanratings.csv:study${row.study}`)
 		)
 	);
-	const ratingMap = new Map();
-	for (const row of ratings.filter((row) => row.segment_eligible)) {
-		const key = analysisRatingKey(
-			row.study,
-			row.dance,
-			row.participant_id,
-			row.source_segment,
-			row.condition
-		);
-		if (ratingMap.has(key)) throw new Error('Ambiguous human-rating join');
-		ratingMap.set(key, row);
-	}
 	const metricRelease = readMetricRelease(process.cwd());
 	const cached = JSON.parse(await readFile(metadataCache, 'utf8').catch(() => '{}'));
 	const recordings = [];
@@ -258,15 +246,6 @@ async function collect() {
 			const referenceMaterial = referenceMaterials.find(
 				(item) => item.row.id === reference?.pose_material_id
 			)?.row;
-			const rating = ratingMap.get(
-				analysisRatingKey(
-					study,
-					identity.dance,
-					identity.participantId,
-					identity.clipNumber,
-					identity.condition
-				)
-			);
 			const sourceContext = {
 				sourceVersion: ANALYSIS_SOURCE_VERSION,
 				videoSha256: videoHash,
@@ -297,18 +276,32 @@ async function collect() {
 				clip_number: identity.clipNumber,
 				...metadata,
 				reference_id: reference?.id ?? null,
-				human_rating_id: rating?.id ?? null,
+				human_rating_id: null,
 				metric_release_id: metricRelease.id,
 				source_context: sourceContext
 			};
-			recordings.push({
-				...base,
-				input_version: sha256(stableJson({ ...base, human: rating ?? null }))
-			});
+			recordings.push(base);
 			if (recordings.length % 100 === 0)
 				console.log(`Validated metadata for ${recordings.length} recordings`);
 			selected++;
 		}
+	}
+	// Ratings join on study, dance, participant and clip; the recording's
+	// workflow id is authoritative for the condition (see linkHumanRatings).
+	const links = linkHumanRatings(
+		recordings.map((row) => ({
+			row,
+			study: row.study,
+			dance: row.dance,
+			participantId: row.participant_id,
+			clipNumber: row.clip_number
+		})),
+		ratings
+	);
+	for (const [{ row }, rating] of links) row.human_rating_id = rating.id;
+	for (const row of recordings) {
+		const rating = ratings.find((item) => item.id === row.human_rating_id) ?? null;
+		row.input_version = sha256(stableJson({ ...row, human: rating }));
 	}
 	await mkdir(path.dirname(metadataCache), { recursive: true });
 	await writeFile(metadataCache, JSON.stringify(cached));

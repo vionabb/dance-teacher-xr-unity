@@ -93,6 +93,56 @@ export function analysisRatingKey(study, dance, user, segment, condition) {
 	);
 }
 
+/**
+ * Ratings whose stored value is known to be wrong and must not be linked.
+ * Study 2 last-christmas segment 1 holds rater 1's score alone, while the
+ * collaborator sheets have all three raters (documentation/chi25-study-design.md).
+ * @param {{ study: string, dance: string, source_segment: string }} rating
+ */
+export function analysisRatingWithheld(rating) {
+	return (
+		rating.study === 'chi25_study2' &&
+		rating.dance === 'last-christmas' &&
+		rating.source_segment === '1'
+	);
+}
+
+/**
+ * Join ratings to recordings on study, dance, participant and clip, ignoring the
+ * condition label. The ratings file's Study 2 conditions are rotated for three
+ * dances and some are `unknown`, while each recording's condition comes from its
+ * workflow id (documentation/chi25-study-design.md). A link is made only when
+ * exactly one eligible rating and exactly one recording share the key.
+ * @template {{ study: string, dance: string, participantId: string|number, clipNumber: string|number }} R
+ * @template {{ study: string, dance: string, participant_id: string, source_segment: string, segment_eligible: boolean }} H
+ * @param {R[]} recordings @param {H[]} ratings
+ * @returns {Map<R, H>}
+ */
+export function linkHumanRatings(recordings, ratings) {
+	const key = (/** @type {string[]} */ ...parts) => parts.join('\0');
+	/** @type {Map<string, H[]>} */
+	const byKey = new Map();
+	for (const rating of ratings) {
+		if (!rating.segment_eligible || analysisRatingWithheld(rating)) continue;
+		const k = key(rating.study, rating.dance, rating.participant_id, rating.source_segment);
+		byKey.set(k, [...(byKey.get(k) ?? []), rating]);
+	}
+	/** @type {Map<string, number>} */
+	const recordingCount = new Map();
+	const recordingKey = (/** @type {R} */ row) =>
+		key(row.study, row.dance, String(row.participantId), String(row.clipNumber));
+	for (const row of recordings)
+		recordingCount.set(recordingKey(row), (recordingCount.get(recordingKey(row)) ?? 0) + 1);
+	/** @type {Map<R, H>} */
+	const links = new Map();
+	for (const row of recordings) {
+		const k = recordingKey(row);
+		const candidates = byKey.get(k) ?? [];
+		if (candidates.length === 1 && recordingCount.get(k) === 1) links.set(row, candidates[0]);
+	}
+	return links;
+}
+
 /** @param {Record<string,string>} row @param {string} sourceSha @param {number} ordinal @param {string} materialId */
 export function analysisHumanRating(row, sourceSha, ordinal, materialId) {
 	const numeric = (/** @type {string} */ key) => {

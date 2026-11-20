@@ -56,6 +56,17 @@ transcribed here. Each cell is a tutorial workflow, launched as
   dance and clip, or on the workflow id, instead of the ratings file's
   condition. That adds about 438 rated segments to the review queue (see
   [reference-clips.md](reference-clips.md)).
+- Re-join (2026-11-20, Viona asked for it). The import and
+  `scripts/relinkChi25Ratings.mjs` now join ratings on study, dance,
+  participant and clip only (`linkHumanRatings` in
+  `src/lib/server/chi25-analysis-contract.js`), and link only when exactly one
+  eligible rating and one recording share the key. Study 2 last-christmas
+  segment 1 is withheld because its hosted value is rater 1 alone. A dry run
+  against the hosted tables gives 493 new links (84 Study 1, 409 Study 2),
+  taking the queue from 743 to 1,236 segments, and every hosted recording's
+  `input_version` reproduces exactly. Observed. Segment 1 of bartender,
+  mad-at-disney and pajama-party (120 ratings) and a three-rater last-christmas
+  segment 1 still need new rating rows from the collaborator sheets.
 
 ## Study 1: conditions and workflows
 

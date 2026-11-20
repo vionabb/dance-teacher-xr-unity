@@ -114,10 +114,17 @@ linked through `research_reference_segment.pose_material_id`.
 
 Cloud agents read it with
 [research-storage.py](../.github/research-storage.py), which signs in as a
-dedicated agent user that holds `viewer` rows in `research_access` for both
-studies. Reads go through the same row-level security as the hosted research
-pages, so the agent sees only what that membership grants and cannot write
-observations or objects. No service-role key is needed. The environment
+dedicated agent user that holds rows in `research_access` for both studies.
+Reads go through the same row-level security as the hosted research pages, so
+the agent sees only what that membership grants. No service-role key is needed.
+
+Once the agent is an `editor` (migration
+`20261120150000_research_agent_uploads.sql`, proposed 2026-11-20), it can also
+add write-once objects under `uploads/<study>/` in the bucket, for example source
+files such as collaborator rating sheets, and link unrated recordings to their
+existing ratings through `research_link_human_rating`
+(`svelte-web-frontend/scripts/relinkChi25Ratings.mjs`). It cannot overwrite or
+delete objects or write tables directly. Uploads must come from `local-data/`. The environment
 provides `RESEARCH_SUPABASE_URL` and `RESEARCH_SUPABASE_PUBLISHABLE_KEY`
 (public values) plus `RESEARCH_AGENT_EMAIL` and `RESEARCH_AGENT_PASSWORD`
 (secrets), and the project host must be on the network allowlist.
@@ -127,6 +134,8 @@ python3 -I .github/research-storage.py check
 python3 -I .github/research-storage.py materials --kind reference_pose
 python3 -I .github/research-storage.py fetch materials/shared/<id>/data.csv
 python3 -I .github/research-storage.py table research_analysis_recording --out research_analysis_recording.json
+python3 -I .github/research-storage.py uploads chi25_study2
+python3 -I .github/research-storage.py upload chi25_study2 local-data/<file> collaborator-ratings/2026-11-20/<file>
 ```
 
 Downloads land in the git-ignored `local-data/research-chi25/`. They remain
