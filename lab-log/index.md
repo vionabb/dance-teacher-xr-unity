@@ -234,10 +234,10 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   moves the scorecard above the videos and Play into the timeline (mockup A).
 
 - [2026-11-20 — What drives Qijia2D vs. human-rating gaps](2026-11-20-metric-rater-gap-drivers.md)
-  Across all 743 queue segments, pooled ρ = 0.43 but within-reference-clip ρ is
-  a median 0.57: clip-level score offsets are the largest gap driver. Forearms
-  carry most of the agreement; torso and upper-arm error is penalized but
-  discounted by raters. Study 1 pajama-party clip 1 has ρ = −0.24.
+  Across all 743 queue segments, pooled ρ = 0.43 but within-clip ρ = 0.51:
+  clip-level score offsets are the largest gap driver. A new within-clip
+  evaluator finds Qijia2D orders 73% of same-clip pairs like raters; the
+  pooled forearm advantage vanishes within clips. Pajama-party clip 1: ρ = −0.24.
 
 - [2026-11-20 — What the CHI25 raters were judging: "did the thing"](2026-11-20-rater-perception-did-the-thing.md)
   Viona's account of rater perception: a 3/3 meant a novice visibly performed the
