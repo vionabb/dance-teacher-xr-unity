@@ -37,6 +37,12 @@
 						active: page.url.pathname.startsWith(resolve('/research/studies'))
 					},
 					{
+						href: '/research/key-moves' as const,
+						label: 'Reference key moves',
+						description: 'Mark and describe the recognizable moves in each reference video.',
+						active: page.url.pathname.startsWith(resolve('/research/key-moves'))
+					},
+					{
 						href: '/research/materials' as const,
 						label: 'Research materials',
 						description: 'Find reference videos, human ratings, and reviewed poses.',
