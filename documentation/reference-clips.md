@@ -111,17 +111,18 @@ Observed 2026-11-20 in the hosted tables:
   rotated source.
 - Re-joined (2026-11-20, at Viona's request): `relinkChi25Ratings.mjs --apply`
   linked 493 recordings (84 Study 1, 409 Study 2) on study, dance, participant
-  and clip. The queue now has 1,236 rated segments. Study 2 last-christmas
-  clip 1 stays unlinked (single-rater value), and Study 2 clip 1 of the other
-  dances has no hosted rating yet. Observed. The per-clip table above predates
+  and clip, giving 1,236 rated segments. On 2026-11-21 a three-rater Study 2
+  segment-1 source from the collaborator sheets added and linked 161 more
+  (all four dances), giving 1,397. Observed. The per-clip table above predates
   the re-join and covers the original 743 segments only.
 
 ## bartender
 
 - Video `bartender.mp4`. Clip spacing 4.498 s; 5 clips. Clip 5 has a 12 KB pose
   file (the others are about 680 KB), so it holds only a few frames. Observed.
-- Used in Study 2 only. The ratings cover clips 2–4; there is no rating for
-  clip 1 or 5. Observed (`lab-log/2026-11-06-rating-relevant-time-spans.md`).
+- Used in Study 2 only. The original ratings cover clips 2–4; clip 1 was
+  added from the collaborator sheets on 2026-11-21. There is no rating for
+  clip 5. Observed (`lab-log/2026-11-06-rating-relevant-time-spans.md`).
 - The app bundle trims the end at 14.9 of 18.867 s, but validation does not
   use that trim. Observed (same entry).
 - In the review queue since the 2026-11-20 re-join (clips 2–4). Observed.
@@ -132,8 +133,8 @@ Observed 2026-11-20 in the hosted tables:
 - Video `last-christmas-tutorial.mp4`. Clip spacing 4.352 s; 4 clips of
   131/131/130/60 pose rows. Observed.
 - Study 1: 175 rated segments in the queue before the re-join, plus 24 after
-  it. Study 2: clips 2–4 joined the queue on 2026-11-20; clip 1 is withheld
-  (single-rater value). Observed.
+  it. Study 2: clips 2–4 joined the queue on 2026-11-20; clip 1 joined on
+  2026-11-21 with all three raters. Observed.
 - Clip 1 has the weakest agreement for this dance (ρ = 0.32). Clips 1, 2 and 4
   have large positive mean rank gaps: the metric is kinder than the raters on
   this dance in general. Observed. Inferred: this is a clip-level offset, not a
@@ -146,7 +147,8 @@ Observed 2026-11-20 in the hosted tables:
   122/121/121/121/59 pose rows. The timestamp step is 29.97 ms instead of
   30 ms. Observed.
 - Study 1: 200 rated segments in the queue before the re-join, plus 35 after
-  it. Study 2 has no clip 1 rating; clips 2–5 joined the queue on 2026-11-20.
+  it. Study 2 clips 2–5 joined the queue on 2026-11-20 and clip 1
+  on 2026-11-21.
   Observed.
 - This is the most consistent dance: clips 1–4 have ρ between 0.56 and 0.64.
   Clip 5, the short last clip, is lower (0.40), and the metric is kinder there
@@ -158,8 +160,9 @@ Observed 2026-11-20 in the hosted tables:
 - Video `pajamaparty-tutorial.mp4`. Clip spacing 2.682 s, the shortest of the
   four dances. There are 6 reference clips of 81/80/81/80/81 rows plus a short
   clip 6; clips 1–5 are rated. Observed.
-- Study 1: 216 rated segments in the queue. Study 2: 152 (clips 2–5; Study 2
-  has no clip 1 rating). Observed.
+- Study 1: 216 rated segments in the queue before the re-join, plus 25 after
+  it. Study 2: 152 (clips 2–5) before, plus 12 from the re-join and 41 for
+  clip 1 from the 2026-11-21 supplement. Observed.
 - **Clip 1 (Study 1) has negative agreement, ρ = −0.24 (n = 43).** It is the
   only clip with negative agreement. Inferred, not checked: this fits Viona's
   lead-in hypothesis. It is the first clip to review in the discrepancy queue.

@@ -68,9 +68,22 @@ transcribed here. Each cell is a tutorial workflow, launched as
   agent account: 493 linked, 1,236 in the queue, 0 remaining. Observed.
   The collaborator files are stored under
   `uploads/<study>/collaborator-ratings/2026-11-20/` in the `research-chi25`
-  bucket. Segment 1 of bartender,
-  mad-at-disney and pajama-party (120 ratings) and a three-rater last-christmas
-  segment 1 still need new rating rows from the collaborator sheets.
+  bucket.
+- Segment-1 supplement (2026-11-21, Viona asked for it). The hosted source
+  lacked Study 2 segment 1 for bartender, mad-at-disney and pajama-party, and
+  its last-christmas segment 1 was rater 1 alone.
+  `motion-pipeline/adhoc_analysis/chi25_ratings/build_segment1_supplement.py`
+  rebuilds segment 1 from the collaborator workbook. Its rules reproduce all
+  561 hosted Study 2 segments 2–5 exactly: rating1 = "brianna", rating2 =
+  "kaitlyn", rating3 = "sarah"; H = 2 × mean of the raters who scored it − 1;
+  no row when nobody scored the video. Observed. 161 rows (bartender 39,
+  last-christmas 41, mad-at-disney 40, pajama-party 41) were added as a pinned
+  source (`RATING_SUPPLEMENTS` in the analysis contract) through
+  `research_add_rating_source`, and all 161 were linked. The queue now has
+  1,397 rated segments. The original single-rater last-christmas segment 1
+  stays withheld. Re-running the import needs the supplement CSV in
+  `local-data/` (fetch it from its catalogued `materials/chi25_study2/...`
+  path).
 
 ## Study 1: conditions and workflows
 
