@@ -136,7 +136,7 @@ try {
 	]);
 	const tools = page.getByRole('navigation', { name: 'Research tools', exact: true });
 	await tools.waitFor();
-	assert.equal(await tools.getByRole('link').count(), 4);
+	assert.equal(await tools.getByRole('link').count(), 5);
 	assert.equal(await tools.getByRole('link', { name: /Source records/ }).count(), 0);
 	assert.match((await page.reload()).headers()['cache-control'], /private.*no-store/);
 	await tools.waitFor();
@@ -183,7 +183,7 @@ try {
 			'page'
 		);
 	}
-	await navigation.getByRole('link', { name: '← Home', exact: true }).click();
+	await navigation.getByRole('link', { name: 'Home', exact: true }).click();
 	await page.waitForURL(base + '/menu');
 	await tools.waitFor();
 	researchMember = false;

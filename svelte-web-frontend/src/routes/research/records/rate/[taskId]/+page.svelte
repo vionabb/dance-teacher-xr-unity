@@ -111,7 +111,7 @@
 	<header class="mb-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
 		<div>
 			<div class="flex items-center gap-2 text-xs">
-				<a class="link link-primary" href={resolve('/research/records')}
+				<a class="daisy-link daisy-link-primary" href={resolve('/research/records')}
 					>← Research source records</a
 				>
 				{#if data.recorded}<span role="status" class="text-success">✓ Previous saved</span>{/if}
@@ -184,7 +184,7 @@
 				</p>{/if}
 		</section>
 
-		<form method="POST" class="rounded-box border-base-300 border p-2 sm:p-3">
+		<form method="POST" class="rounded-box border-base-300 bg-base-100 border p-2 sm:p-3">
 			<fieldset class="space-y-2" disabled={!data.annotator || !landmarks || !!overlayError}>
 				<legend class="text-sm font-semibold">Overall tracking accuracy</legend>
 				<div class="grid grid-cols-2 gap-1.5">

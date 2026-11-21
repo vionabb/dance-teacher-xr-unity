@@ -73,10 +73,168 @@ function keyMoveEditor(withMoves: boolean) {
 	};
 }
 
+// ---- Fixtures for the other research tools. Identities are made up ("user90xx"); ----
+// ---- only the media the runner serves may be real study media.                ----
+const DANCES = ['bartender', 'last-christmas', 'mad-at-disney', 'pajama-party'] as const;
+const CONDITIONS = ['control', 'skeleton', 'sheetmotion'] as const;
+/** Small deterministic generator so fixtures look varied but never change. */
+function seeded(seed: number) {
+	return () => {
+		seed = (seed * 1103515245 + 12345) % 2 ** 31;
+		return seed / 2 ** 31;
+	};
+}
+export const HARNESS_PARTICIPANT_MEDIA = '3db6b63d08e0acb08dfed42e';
+const fixtureStem = (user: number, dance: string, condition: string, clip: number) =>
+	`user${user}____performance____userstudy1--${dance}--${condition}____workflowid-fixture____clip${clip}`;
+
+function discrepancyTasks() {
+	const random = seeded(11);
+	return Array.from({ length: 14 }, (_, i) => {
+		const dance = DANCES[i % DANCES.length];
+		const ratings = [1, 2, 3].map(() => 1 + Math.floor(random() * 3));
+		return {
+			performanceId: `fixture-${dance}-${i}`,
+			segmentId: `fixture-segment-${i}`,
+			participantLabel: `P${9001 + i}`,
+			study: i % 3 ? 'study1' : 'study2',
+			dance,
+			condition: CONDITIONS[i % CONDITIONS.length],
+			phase: null,
+			clipNumber: 1 + (i % 5),
+			referenceAvailable: i !== 9,
+			human: {
+				human_rating: Number(
+					(1 + ((ratings.reduce((a, b) => a + b, 0) / 3 - 1) / 2) * 4).toFixed(2)
+				),
+				rating_1: ratings[0],
+				rating_2: ratings[1],
+				rating_3: ratings[2]
+			},
+			observations: i % 4 === 0 ? [{ id: `fixture-observation-${i}` }] : []
+		};
+	});
+}
+
+function studyRecordings() {
+	return {
+		studies: ['chi25_study1', 'chi25_study2'],
+		study: 'chi25_study1',
+		page: 1,
+		pages: 3,
+		media: Array.from({ length: 8 }, (_, i) => ({
+			id: i === 0 ? HARNESS_PARTICIPANT_MEDIA : `f${String(i).padStart(23, '0')}`,
+			study: 'chi25_study1',
+			source_stem: fixtureStem(9001 + Math.floor(i / 4), DANCES[1], CONDITIONS[0], (i % 4) + 1),
+			video_bytes: 4_000_000,
+			pose_bytes: 300_000
+		}))
+	};
+}
+
+function researchMaterials() {
+	const reference = [
+		['478a912dd8bcea0a12fb6cbf', 'bartender.mp4', 2774964],
+		['0907884e802f43cf2623d085', 'last-christmas-tutorial.mp4', 2300134],
+		['93daeade59bf35564532c6db', 'mad-at-disney-tutorial.mp4', 2766102],
+		['97c46213ae243c6f1045c82a', 'pajamaparty-tutorial.mp4', 2092730]
+	] as const;
+	return {
+		studies: ['chi25_study1', 'chi25_study2'],
+		materials: [
+			...reference.map(([id, label, bytes]) => ({
+				id,
+				scope: 'shared',
+				kind: 'reference_video',
+				label,
+				bytes,
+				source_description: null
+			})),
+			...[1, 2].map((n) => ({
+				id: `fixture-ratings-${n}`,
+				scope: `chi25_study${n}`,
+				kind: 'human_ratings',
+				label: `Study ${n} human ratings (fixture)`,
+				bytes: 70_000,
+				source_description: null
+			})),
+			...DANCES.map((dance) => ({
+				id: `fixture-reviewed-${dance}`,
+				scope: 'shared',
+				kind: 'reviewed_pose',
+				label: `chi-studyvideos/${dance} · reviewed pose`,
+				bytes: 300_000,
+				source_description: null
+			})),
+			...Array.from({ length: 6 }, (_, i) => ({
+				id: `fixture-reviewed-${i}`,
+				scope: i < 3 ? 'chi25_study1' : 'chi25_study2',
+				kind: 'reviewed_pose',
+				label: `${fixtureStem(9001 + i, DANCES[i % 4], CONDITIONS[i % 3], 1 + i)} · reviewed pose`,
+				bytes: 280_000,
+				source_description: null
+			}))
+		]
+	};
+}
+
+function sourceRecords() {
+	const random = seeded(5);
+	const reviews = Array.from({ length: 8 }, (_, i) => {
+		const identity = {
+			paper: 'CHI25',
+			study: 'Study 1',
+			userId: String(9001 + i),
+			dance: DANCES[i % 4],
+			condition: CONDITIONS[i % 3],
+			segmentNumber: 1 + (i % 4)
+		};
+		return {
+			key: `fixture:${i}`,
+			identity,
+			sourceStem: fixtureStem(9001 + i, identity.dance, identity.condition, identity.segmentNumber),
+			rating: ['perfect', 'correctable', 'marginal', 'unusable'][i % 4],
+			originalRating: ['perfect', 'correctable', 'marginal', 'unusable'][i % 4],
+			override: i === 5 ? 'unusable' : null,
+			source: 'fixture-release',
+			taskId: `fixture-task-${i}`,
+			annotator: 'fixture',
+			revisionId: `fixture-revision-${i}`,
+			videoSha256: 'f'.repeat(64),
+			humanRating: { human_rating: Number((1 + random() * 4).toFixed(2)) }
+		};
+	});
+	return {
+		sources: [
+			{ kind: 'manual_review', source_version: 'fixture-release', source_sha256: 'a'.repeat(64) },
+			{ kind: 'human_ratings', source_version: 'fixture-ratings', source_sha256: 'b'.repeat(64) }
+		],
+		humanRatings: reviews.map((review) => ({
+			study: 'study1',
+			dance: review.identity.dance,
+			user_id: review.identity.userId,
+			segment_id: review.identity.segmentNumber,
+			condition: review.identity.condition,
+			human_rating: review.humanRating.human_rating,
+			rating_1: 2,
+			rating_2: 3,
+			rating_3: 2,
+			human_rating_percentile: Math.round(random() * 100)
+		})),
+		recorded: false,
+		backupWarning: false,
+		participantVideoReviews: reviews,
+		referenceVideoReviews: [],
+		queue: { available: true, reason: null, remaining: 42, hasNext: true }
+	};
+}
+
 export const harnessScenarios = {
 	'key-moves-index': {
 		title: 'Reference key moves: dance list',
 		view: 'key-moves-index',
+		route: '/research/key-moves',
+		nav: 'hosted',
 		data: {
 			dances: [
 				['bartender', 'Bartender', 'bartender.mp4', 5, 0, 0],
@@ -98,12 +256,65 @@ export const harnessScenarios = {
 	'key-moves-empty': {
 		title: 'Reference key moves: empty editor',
 		view: 'key-moves-dance',
+		route: '/research/key-moves/pajama-party',
+		nav: 'hosted',
 		data: keyMoveEditor(false)
 	},
 	'key-moves-marked': {
 		title: 'Reference key moves: editor with fixture moves',
 		view: 'key-moves-dance',
+		route: '/research/key-moves/pajama-party',
+		nav: 'hosted',
 		data: keyMoveEditor(true)
+	},
+	'research-home': {
+		title: 'Performance analysis: dance and participant browser',
+		view: 'research-home',
+		route: '/research',
+		nav: 'hosted',
+		// The page fetches its catalog; scenarios.mjs mocks that request.
+		data: {}
+	},
+	discrepancy: {
+		title: 'Human–metric discrepancy review',
+		view: 'discrepancy',
+		route: '/research/discrepancy',
+		nav: 'hosted',
+		data: { tasks: discrepancyTasks(), researchBackend: 'local' }
+	},
+	'studies-list': {
+		title: 'Research recordings list',
+		view: 'studies-list',
+		route: '/research/studies',
+		nav: 'hosted',
+		data: studyRecordings()
+	},
+	'study-recording': {
+		title: 'Research recording with raw pose overlay',
+		view: 'study-recording',
+		route: '/research/studies/x',
+		nav: 'hosted',
+		data: {
+			media: {
+				id: HARNESS_PARTICIPANT_MEDIA,
+				study: 'chi25_study1',
+				source_stem: fixtureStem(9001, DANCES[1], CONDITIONS[0], 1)
+			}
+		}
+	},
+	materials: {
+		title: 'Research materials',
+		view: 'materials',
+		route: '/research/materials',
+		nav: 'hosted',
+		data: researchMaterials()
+	},
+	'source-records': {
+		title: 'Local source records',
+		view: 'source-records',
+		route: '/research/records',
+		nav: 'local',
+		data: sourceRecords()
 	}
 } as const;
 export type HarnessScenarioId = keyof typeof harnessScenarios;

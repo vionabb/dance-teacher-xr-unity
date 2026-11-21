@@ -218,15 +218,15 @@ component only reports gestures. `limits` keeps spans in one track from overlapp
 </script>
 
 <div class="space-y-1">
-	<div class="flex items-center justify-end gap-1 text-xs">
-		<span class="opacity-70">Zoom</span>
+	<div class="flex items-center justify-end gap-2 text-xs">
+		<span class="text-base-content/60">Zoom</span>
 		<div class="daisy-join">
 			{#each zoomLevels as level (level)}
 				<button
 					type="button"
 					class={[
-						'daisy-join-item daisy-btn daisy-btn-xs',
-						zoom === level ? 'daisy-btn-primary' : 'daisy-btn-ghost'
+						'daisy-join-item daisy-btn daisy-btn-xs tabular-nums',
+						zoom === level ? 'daisy-btn-primary daisy-btn-soft' : 'daisy-btn-ghost'
 					]}
 					aria-pressed={zoom === level}
 					onclick={() => (zoom = level)}>{level}×</button
@@ -234,17 +234,21 @@ component only reports gestures. `limits` keeps spans in one track from overlapp
 			{/each}
 		</div>
 	</div>
-	<div class="grid grid-cols-[minmax(4.5rem,8rem)_minmax(0,1fr)] gap-x-2">
-		<div class="grid auto-rows-[1.75rem] gap-y-1.5 pt-[1.5rem] text-xs font-semibold">
+	<div
+		class="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-2 sm:grid-cols-[minmax(4.5rem,8rem)_minmax(0,1fr)]"
+	>
+		<div class="grid auto-rows-[2rem] gap-y-1.5 pt-[1.75rem] text-xs font-semibold">
 			{#each tracks as track (track.id)}
-				<div class="flex items-center truncate" title={track.label}>{track.label}</div>
+				<div class="text-base-content/80 flex items-center truncate" title={track.label}>
+					{track.label}
+				</div>
 			{/each}
 		</div>
 		<div bind:this={scroller} class="overflow-x-auto overflow-y-hidden pb-1">
 			<div class="relative" style:width={`${zoom * 100}%`}>
 				<!-- Ruler: clip boundaries; press or drag to seek. -->
 				<div
-					class="bg-base-200 relative mb-1.5 h-[1.25rem] cursor-pointer touch-none rounded"
+					class="bg-base-200 hover:bg-base-300/70 relative mb-1.5 h-[1.25rem] cursor-pointer touch-none rounded transition-colors"
 					role="slider"
 					tabindex="-1"
 					aria-label="Seek"
@@ -255,17 +259,17 @@ component only reports gestures. `limits` keeps spans in one track from overlapp
 				>
 					{#each markers as marker (marker.frame)}
 						<span
-							class="border-base-content/40 absolute top-0 bottom-0 border-l pl-0.5 text-[0.65rem] leading-[1.25rem] whitespace-nowrap opacity-80"
+							class="border-base-content/30 text-base-content/60 absolute top-0 bottom-0 border-l pl-1 text-[0.65rem] leading-[1.25rem] font-medium whitespace-nowrap"
 							style:left={`${pct(marker.frame)}%`}>{marker.label}</span
 						>
 					{/each}
 				</div>
-				<div class="grid auto-rows-[1.75rem] gap-y-1.5">
+				<div class="grid auto-rows-[2rem] gap-y-1.5">
 					{#each tracks as track (track.id)}
 						<div
 							data-track={track.id}
 							class={[
-								'bg-base-300/60 relative touch-none rounded-md',
+								'bg-base-200 border-base-300 relative touch-none rounded-md border',
 								editable ? 'cursor-crosshair' : 'cursor-default'
 							]}
 							role="group"
@@ -274,19 +278,19 @@ component only reports gestures. `limits` keeps spans in one track from overlapp
 						>
 							{#each markers as marker (marker.frame)}
 								<span
-									class="border-base-content/15 pointer-events-none absolute top-0 bottom-0 border-l"
+									class="border-base-content/10 pointer-events-none absolute top-0 bottom-0 border-l"
 									style:left={`${pct(marker.frame)}%`}
 								></span>
 							{/each}
 							{#each spans.filter((span) => span.trackId === track.id) as span (span.id)}
 								<div
 									class={[
-										'absolute top-0 bottom-0 flex min-w-2 items-center overflow-hidden rounded-md px-2 text-[0.7rem] leading-tight font-semibold shadow-sm select-none',
+										'group absolute -top-px -bottom-px flex min-w-2 items-center overflow-hidden rounded-md border px-2.5 text-[0.7rem] leading-tight font-semibold select-none',
 										span.id === selectedId
-											? 'bg-primary text-primary-content ring-primary-content ring-2 ring-inset'
+											? 'bg-primary border-primary text-primary-content z-[1] shadow-md'
 											: span.incomplete
-												? 'bg-warning text-warning-content'
-												: 'bg-secondary text-secondary-content',
+												? 'bg-warning/25 border-warning text-base-content border-dashed'
+												: 'bg-primary/15 border-primary/45 text-primary hover:bg-primary/25',
 										editable ? 'cursor-grab' : 'cursor-pointer'
 									]}
 									style:left={`${pct(span.startFrame)}%`}
@@ -308,7 +312,7 @@ component only reports gestures. `limits` keeps spans in one track from overlapp
 									<span class="truncate">{span.label || 'Untitled'}</span>
 									{#if editable}
 										<span
-											class="absolute top-0 bottom-0 left-0 w-2.5 cursor-ew-resize touch-none bg-black/15"
+											class="absolute top-0 bottom-0 left-0 w-2 cursor-ew-resize touch-none after:absolute after:inset-y-1.5 after:left-0.5 after:w-0.5 after:rounded-full after:bg-current after:opacity-40 group-hover:after:opacity-80"
 											role="slider"
 											tabindex="0"
 											aria-label="Start frame"
@@ -319,7 +323,7 @@ component only reports gestures. `limits` keeps spans in one track from overlapp
 											onkeydown={(event) => onHandleKey(event, span, 'start')}
 										></span>
 										<span
-											class="absolute top-0 right-0 bottom-0 w-2.5 cursor-ew-resize touch-none bg-black/15"
+											class="absolute top-0 right-0 bottom-0 w-2 cursor-ew-resize touch-none after:absolute after:inset-y-1.5 after:right-0.5 after:w-0.5 after:rounded-full after:bg-current after:opacity-40 group-hover:after:opacity-80"
 											role="slider"
 											tabindex="0"
 											aria-label="End frame"
@@ -336,9 +340,13 @@ component only reports gestures. `limits` keeps spans in one track from overlapp
 					{/each}
 				</div>
 				<div
-					class="bg-base-content pointer-events-none absolute top-0 bottom-0 z-10 w-0.5 -translate-x-1/2"
+					class="bg-error pointer-events-none absolute top-0 bottom-0 z-10 w-0.5 -translate-x-1/2"
 					style:left={`${pct(currentFrame + 0.5)}%`}
-				></div>
+				>
+					<span
+						class="border-t-error absolute -top-px left-1/2 -translate-x-1/2 border-x-[5px] border-t-[7px] border-x-transparent"
+					></span>
+				</div>
 			</div>
 		</div>
 	</div>

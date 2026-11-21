@@ -1,8 +1,16 @@
 <script lang="ts">
+	import ResearchHeader from '$lib/elements/ResearchHeader.svelte';
+	import ResearchIcon from '$lib/elements/ResearchIcon.svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 	const formatRating = (rating: number | null | undefined) =>
 		rating == null ? '—' : Number(rating.toFixed(2)).toString();
+	const usabilityBadge: Record<string, string> = {
+		perfect: 'daisy-badge-success',
+		correctable: 'daisy-badge-info',
+		marginal: 'daisy-badge-warning',
+		unusable: 'daisy-badge-error'
+	};
 </script>
 
 <svelte:head>
@@ -13,40 +21,55 @@
 	/>
 </svelte:head>
 
-<main class="mx-auto max-w-6xl space-y-8 px-4 py-6 lg:px-8">
-	<header class="space-y-2">
-		<a class="link link-primary text-sm" href="/research">← Performances</a>
-		<h1 class="text-3xl font-bold">Research source records</h1>
-		<p class="max-w-3xl text-sm opacity-75">
-			Manual reviews rate pose-tracking usability. Prior-study human ratings measure motion
-			similarity. The table joins them only when study, dance, user ID, segment, and condition match
-			exactly.
-		</p>
-	</header>
-	{#if data.recorded}<p class="daisy-alert daisy-alert-success">Usability rating saved.</p>{/if}
-	{#if data.backupWarning}<p class="daisy-alert daisy-alert-warning">
+<main class="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6">
+	<ResearchHeader title="Source records">
+		{#snippet description()}
+			<p>
+				Manual reviews rate pose-tracking usability. Prior-study human ratings measure motion
+				similarity. The table joins them only when study, dance, user ID, segment, and condition
+				match exactly.
+			</p>
+		{/snippet}
+	</ResearchHeader>
+	{#if data.recorded}<p class="daisy-alert daisy-alert-success daisy-alert-soft">
+			Usability rating saved.
+		</p>{/if}
+	{#if data.backupWarning}<p class="daisy-alert daisy-alert-warning daisy-alert-soft">
 			The rating was saved, but its follow-up database snapshot could not be verified. Back up the
 			local research database before rating more clips.
 		</p>{/if}
 
 	{#if data.sources.length === 0}
-		<p class="daisy-alert">No sources have been imported into the local research database.</p>
+		<p class="daisy-alert daisy-alert-soft">
+			No sources have been imported into the local research database.
+		</p>
 	{:else}
 		<section class="space-y-2" aria-label="Imported sources">
-			<h2 class="text-xl font-semibold">Imported sources</h2>
-			{#each data.sources as source (source.kind)}
-				<p class="rounded-box bg-base-200 p-3 text-sm">
-					<strong>{source.kind}</strong> · {source.source_version} · SHA-256
-					<code class="break-all">{source.source_sha256}</code>
-				</p>
-			{/each}
+			<h2 class="text-lg font-semibold">Imported sources</h2>
+			<ul class="daisy-list daisy-card border-base-300 bg-base-100 border">
+				{#each data.sources as source (source.kind)}
+					<li class="daisy-list-row items-center px-4 py-3 text-sm">
+						<span class="bg-base-200 text-base-content/60 rounded-field p-2"
+							><ResearchIcon name="database" /></span
+						>
+						<span class="daisy-list-col-grow min-w-0">
+							<span class="block font-medium">{source.kind}</span>
+							<span class="text-base-content/60 text-xs">{source.source_version}</span>
+						</span>
+						<code
+							class="text-base-content/60 hidden max-w-xs truncate text-xs sm:block"
+							title={source.source_sha256}>SHA-256 {source.source_sha256}</code
+						>
+					</li>
+				{/each}
+			</ul>
 		</section>
 	{/if}
 
 	<section class="space-y-3" aria-label="Whole-video segment usability reviews">
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div>
-				<h2 class="text-xl font-semibold">Whole-video segment usability</h2>
+				<h2 class="text-lg font-semibold">Whole-video segment usability</h2>
 				<p class="text-sm opacity-70">
 					{data.participantVideoReviews.length} CHI25 participant ratings. Frame-stage unusable overrides
 					appear as the effective rating; the original rating remains in the source details.
@@ -54,10 +77,12 @@
 			</div>
 			{#if data.queue.available && data.queue.hasNext}
 				<a class="daisy-btn daisy-btn-primary" href="/research/records/rate"
-					>Rate more videos’ usability</a
+					><ResearchIcon name="star" />Rate more videos’ usability</a
 				>
 			{:else}
-				<button class="daisy-btn daisy-btn-primary" disabled>Rate more videos’ usability</button>
+				<button class="daisy-btn daisy-btn-primary" disabled
+					><ResearchIcon name="star" />Rate more videos’ usability</button
+				>
 			{/if}
 		</div>
 		{#if data.queue.available}
@@ -67,9 +92,9 @@
 				segments with comparison segments. Selection details stay hidden while you rate to reduce bias.
 			</p>
 		{:else}
-			<p class="daisy-alert text-sm">{data.queue.reason}</p>
+			<p class="daisy-alert daisy-alert-soft text-sm">{data.queue.reason}</p>
 		{/if}
-		<div class="rounded-box border-base-300 overflow-x-auto border">
+		<div class="rounded-box border-base-300 bg-base-100 overflow-x-auto border">
 			<table class="daisy-table daisy-table-zebra daisy-table-sm">
 				<thead>
 					<tr>
@@ -87,7 +112,12 @@
 							<td>{review.identity?.condition}</td>
 							<td>{review.identity?.segmentNumber}</td>
 							<td>
-								<span class="daisy-badge daisy-badge-outline">{review.rating ?? '—'}</span>
+								<span
+									class={[
+										'daisy-badge daisy-badge-soft daisy-badge-sm',
+										usabilityBadge[review.rating ?? ''] ?? 'daisy-badge-ghost'
+									]}>{review.rating ?? '—'}</span
+								>
 								{#if review.override}<span class="block text-xs opacity-60">frame override</span
 									>{/if}
 							</td>
@@ -117,7 +147,7 @@
 	</section>
 
 	{#if data.referenceVideoReviews.length}
-		<details class="rounded-box border-base-300 border p-4">
+		<details class="rounded-box border-base-300 bg-base-100 border p-4">
 			<summary class="cursor-pointer font-semibold"
 				>{data.referenceVideoReviews.length} reference-video usability ratings</summary
 			>
@@ -133,11 +163,11 @@
 	{/if}
 
 	<section class="space-y-2" aria-label="Human similarity ratings">
-		<h2 class="text-xl font-semibold">Prior-study human similarity ratings</h2>
+		<h2 class="text-lg font-semibold">Prior-study human similarity ratings</h2>
 		<p class="text-sm opacity-70">
 			Showing up to 100 source records. These scores are not usability judgments.
 		</p>
-		<div class="overflow-x-auto">
+		<div class="rounded-box border-base-300 bg-base-100 overflow-x-auto border">
 			<table class="daisy-table daisy-table-zebra daisy-table-sm">
 				<thead
 					><tr
