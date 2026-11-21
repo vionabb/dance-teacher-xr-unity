@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { standaloneDownload } from '$lib/pwa/download';
 	import { resolve } from '$app/paths';
 	import ResearchHeader from '$lib/elements/ResearchHeader.svelte';
 	import ResearchIcon from '$lib/elements/ResearchIcon.svelte';
@@ -63,6 +64,8 @@
 					<a
 						class="daisy-btn daisy-btn-sm daisy-btn-ghost"
 						href={fileHref(item.id)}
+						download={`chi25-${item.kind}-${item.id}.csv`}
+						use:standaloneDownload={`chi25-${item.kind}-${item.id}.csv`}
 						aria-label={`Download ${item.label}`}
 						><ResearchIcon name="download" /><span class="hidden sm:inline">Download</span></a
 					>
@@ -92,7 +95,7 @@
 							class="aspect-[9/16] max-h-80 w-full object-contain"
 							controls
 							preload="metadata"
-							src={fileHref(item.id)}
+							src={`${fileHref(item.id)}?reference`}
 							aria-label={item.label}
 						></video>
 					</figure>

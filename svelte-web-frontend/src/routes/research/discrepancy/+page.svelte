@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { saveFile } from '$lib/pwa/download';
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import ResearchHeader from '$lib/elements/ResearchHeader.svelte';
@@ -135,7 +136,7 @@
 		return `left:${gap < 0 ? 50 - width : 50}%;width:${width}%`;
 	}
 	function exportNotes() {
-		const blob = new Blob(
+		const file = new File(
 			[
 				JSON.stringify(
 					{
@@ -147,14 +148,10 @@
 					2
 				)
 			],
+			'discrepancy-observations.json',
 			{ type: 'application/json' }
 		);
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'discrepancy-observations.json';
-		a.click();
-		URL.revokeObjectURL(url);
+		void saveFile(file);
 	}
 </script>
 

@@ -182,13 +182,13 @@ export async function hostedPerformance(locals: RequestEvent['locals'], id: stri
 				videoUrl: `/research/studies/media/${segment.id}/video`,
 				poseUrl: `/research/studies/media/${segment.id}/pose`,
 				referencePoseUrl: reference
-					? `/research/materials/file/${reference.pose_material_id}`
+					? `/research/materials/file/${reference.pose_material_id}?reference`
 					: null,
 				durationSeconds: recording.duration_seconds,
 				inputVersion: recording.input_version,
 				metricReleaseId: recording.metric_release_id,
 				referenceVideoUrl: reference
-					? `/research/materials/file/${reference.video_material_id}`
+					? `/research/materials/file/${reference.video_material_id}?reference`
 					: null,
 				referenceClipStartSeconds: reference?.start_seconds ?? null,
 				referenceVideoMirrored: reference?.mirrored ?? false

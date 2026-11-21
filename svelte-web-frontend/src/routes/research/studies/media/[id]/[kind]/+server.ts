@@ -22,6 +22,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			headers: {
 				'Cache-Control': 'private, no-store',
 				'Content-Type': 'text/csv; charset=utf-8',
+				// Save rather than display: in the installed app (PWA) a CSV shown
+				// in place of the page leaves no way back.
+				'Content-Disposition': `attachment; filename="${(objectPath.split('/').pop() ?? `${params.id}.csv`).replace(/["\\\r\n]/g, '_')}"`,
 				'X-Content-Type-Options': 'nosniff'
 			}
 		});

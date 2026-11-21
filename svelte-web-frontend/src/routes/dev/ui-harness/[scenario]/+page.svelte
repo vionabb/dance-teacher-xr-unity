@@ -28,6 +28,7 @@
 		hosted={data.nav === 'hosted'}
 		local={data.nav === 'local'}
 		current={data.route}
+		onsettings={() => {}}
 	/>
 	{#if data.view === 'key-moves-index'}
 		<KeyMovesIndex data={fixture} />

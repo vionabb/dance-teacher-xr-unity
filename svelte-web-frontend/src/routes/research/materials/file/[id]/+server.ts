@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { requireResearchStudies } from '$lib/server/research-hosted';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
+export const GET: RequestHandler = async ({ locals, params, url }) => {
 	if (!/^[a-f0-9]{24}$/.test(params.id)) error(404);
 	const studies = await requireResearchStudies(locals);
 	const { data: material, error: lookupError } = await locals.supabase
@@ -12,6 +12,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		.maybeSingle();
 	if (lookupError) throw lookupError;
 	if (!material || (material.scope !== 'shared' && !studies.includes(material.scope))) error(404);
+	// `?reference` lets the service worker cache the file on the device
+	// ($lib/pwa/sw-caching.ts); only reference videos and poses may carry it.
+	if (url.searchParams.has('reference') && !material.kind.startsWith('reference_')) error(404);
 	if (material.kind === 'reference_video') {
 		const { data, error: signError } = await locals.supabase.storage
 			.from('research-chi25')

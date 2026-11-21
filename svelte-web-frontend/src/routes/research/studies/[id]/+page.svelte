@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { standaloneDownload } from '$lib/pwa/download';
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import ResearchHeader from '$lib/elements/ResearchHeader.svelte';
@@ -85,7 +86,9 @@
 			<a
 				class="daisy-btn daisy-btn-sm border-base-300 bg-base-100 hover:bg-base-200"
 				href={resolve('/research/studies/media/[id]/[kind]', { id: data.media.id, kind: 'pose' })}
-				download><ResearchIcon name="download" />Pose CSV</a
+				download
+				use:standaloneDownload={`${data.media.source_stem}.csv`}
+				><ResearchIcon name="download" />Pose CSV</a
 			>
 		{/snippet}
 	</ResearchHeader>
