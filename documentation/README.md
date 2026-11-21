@@ -14,6 +14,7 @@ This directory is the canonical documentation hub for the standalone code reposi
 | Build the unified local research and inspection workspace | [Research workspace direction](research-workspace.md) |
 | Host tablet analysis, discrepancy notes, and Codex conversations | [Hosted research workspace plan](hosted-research-workspace.md) |
 | Work on the Svelte app | [Frontend README](../svelte-web-frontend/README.md) and [frontend agent instructions](../svelte-web-frontend/AGENTS.md) |
+| Install the app on a phone or keep it navigable as an installed app (PWA) | [Installable app](pwa.md) |
 | Work on Python processing or analysis | [Motion pipeline README](../motion-pipeline/README.md) and [pipeline agent instructions](../motion-pipeline/AGENTS.md) |
 | Review the pose-preprocessing experiment | [Experiment report](preprocessing-cleanup-experiment-report.md), [short paper](preprocessing-cleanup-short-paper.md), and [dated lab log](../lab-log/2026-08-25-preprocessing-cleanup.md) |
 | Understand why a research decision was made | [Lab log conventions](../lab-log/README.md), then search dated entries by tag |
@@ -27,6 +28,7 @@ This directory is the canonical documentation hub for the standalone code reposi
 - `research-context.md` owns the concise, self-contained research lineage and claim boundaries needed for code work.
 - `research-workspace.md` owns the planned local research-app data boundary and first-slice acceptance criteria.
 - `hosted-research-workspace.md` owns the hosted analysis architecture, additional data dependencies, and staged tablet/Codex rollout.
+- `pwa.md` owns the installable app: manifest, service worker, standalone navigation, and its verification.
 - Subproject READMEs own environment setup and runnable commands.
 - `AGENTS.md` files own operational instructions for coding agents.
 - `lab-log/` owns dated rationale, findings, and changes in research direction.

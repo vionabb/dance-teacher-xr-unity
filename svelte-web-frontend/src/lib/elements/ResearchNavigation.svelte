@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import AppHistoryButtons from './AppHistoryButtons.svelte';
 	import ResearchIcon, { type IconName } from './ResearchIcon.svelte';
 
 	let {
@@ -114,7 +115,9 @@
 		data-theme="research"
 		class="border-base-300 bg-base-100 border-b"
 	>
-		<div bind:this={scroller} class="flex items-center gap-1 overflow-x-auto px-2 sm:px-4">
+		<div class="flex items-center gap-1 px-2 sm:px-4">
+			<!-- Back/Home stay pinned while the tool list scrolls sideways on phones. -->
+			<AppHistoryButtons />
 			<a
 				href={resolve('/menu')}
 				class="daisy-btn daisy-btn-ghost daisy-btn-sm shrink-0 gap-1.5"
@@ -123,20 +126,22 @@
 				<ResearchIcon name="house" /><span class="hidden sm:inline">Home</span>
 			</a>
 			<span class="bg-base-300 h-5 w-px shrink-0" aria-hidden="true"></span>
-			<ul class="daisy-menu daisy-menu-horizontal daisy-menu-sm flex-nowrap gap-0.5 px-1 py-1.5">
-				{#each links as link (link.href)}
-					<li>
-						<a
-							href={resolve(link.href)}
-							aria-current={link.active ? 'page' : undefined}
-							class={[
-								'gap-1.5 whitespace-nowrap',
-								link.active ? 'bg-primary/10 text-primary font-semibold' : 'text-base-content/75'
-							]}><ResearchIcon name={link.icon} />{link.label}</a
-						>
-					</li>
-				{/each}
-			</ul>
+			<div bind:this={scroller} class="min-w-0 flex-1 overflow-x-auto">
+				<ul class="daisy-menu daisy-menu-horizontal daisy-menu-sm flex-nowrap gap-0.5 px-1 py-1.5">
+					{#each links as link (link.href)}
+						<li>
+							<a
+								href={resolve(link.href)}
+								aria-current={link.active ? 'page' : undefined}
+								class={[
+									'gap-1.5 whitespace-nowrap',
+									link.active ? 'bg-primary/10 text-primary font-semibold' : 'text-base-content/75'
+								]}><ResearchIcon name={link.icon} />{link.label}</a
+							>
+						</li>
+					{/each}
+				</ul>
+			</div>
 		</div>
 	</nav>
 {/if}

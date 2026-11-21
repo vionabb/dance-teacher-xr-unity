@@ -299,8 +299,9 @@
 			<h3>Account</h3>
 			<code class="text-base-content">{user.email}</code>
 			<form method="post" action="/account?/signout">
-				<div class="daisy-join">
-					<button class="daisy-btn daisy-join-item" on:click={resetSettingsToDefault}
+				<!-- Stacked on phones so Sign Out stays reachable in the installed app. -->
+				<div class="daisy-join daisy-join-vertical sm:daisy-join-horizontal">
+					<button type="button" class="daisy-btn daisy-join-item" on:click={resetSettingsToDefault}
 						>Reset Settings</button
 					>
 					<a

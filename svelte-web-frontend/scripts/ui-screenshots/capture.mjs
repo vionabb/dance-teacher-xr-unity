@@ -7,6 +7,7 @@
 //   pnpm screenshots -- --only key-moves   # scenarios whose id contains "key-moves"
 //   pnpm screenshots -- --out /mnt/project-files/screenshots/2026-11-20-key-moves
 //   pnpm screenshots -- --base-url http://127.0.0.1:5173   # reuse a running dev server
+//   pnpm screenshots -- --viewports phone,standalone       # add the installed-app (PWA) view
 //
 // Screenshots may show real study media from the git-ignored local-data/ cache.
 // They are for the project thread only: the runner refuses an output directory
@@ -19,6 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { scenarios } from './scenarios.mjs';
+import { emulateStandalone } from '../pwa/standalone-emulation.mjs';
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const repoRoot = path.resolve(frontendRoot, '..');
@@ -30,6 +32,15 @@ const viewports = {
 		deviceScaleFactor: 2,
 		isMobile: true,
 		hasTouch: true
+	},
+	// Phone running the installed app (PWA): no browser chrome. Opt in with
+	// --viewports phone,standalone.
+	standalone: {
+		viewport: { width: 390, height: 844 },
+		deviceScaleFactor: 2,
+		isMobile: true,
+		hasTouch: true,
+		standalone: true
 	}
 };
 
@@ -39,7 +50,7 @@ function parseArgs(argv) {
 		only: [],
 		out: path.join(frontendRoot, 'artifacts', 'ui-screenshots', stamp),
 		baseUrl: null,
-		viewports: Object.keys(viewports),
+		viewports: ['desktop', 'phone'],
 		fullPage: true
 	};
 	for (let i = 0; i < argv.length; i++) {
@@ -204,11 +215,13 @@ async function main() {
 	try {
 		for (const scenario of selected)
 			for (const viewportName of options.viewports) {
+				const { standalone, ...contextOptions } = viewports[viewportName];
 				const context = await browser.newContext({
-					...viewports[viewportName],
+					...contextOptions,
 					colorScheme: 'light',
 					reducedMotion: 'reduce'
 				});
+				if (standalone) await context.addInitScript(emulateStandalone);
 				const page = await context.newPage();
 				const errors = [];
 				page.on('pageerror', (e) => errors.push(String(e)));

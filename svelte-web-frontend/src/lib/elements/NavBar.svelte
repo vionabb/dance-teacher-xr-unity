@@ -5,7 +5,8 @@
 	// by importing these writable stores (which are singletons, at the module level),
 	// and writing to them as needed (likely during `onMount`).
 	import { writable } from 'svelte/store';
-	import { navigating } from '$app/stores';
+	import { navigating, page } from '$app/stores';
+	import AppHistoryButtons from '$lib/elements/AppHistoryButtons.svelte';
 	import Icon from '@iconify/svelte';
 	import ProgressEllipses from '$lib/elements/ProgressEllipses.svelte';
 
@@ -32,6 +33,16 @@
 	const dispatch = createEventDispatcher();
 
 	export let settingsActive: boolean;
+
+	// Installed-app history controls (shown only in standalone mode). Research
+	// routes carry them in ResearchNavigation instead; Home and Login need none.
+	$: routeId = $page.route.id ?? '';
+	$: showAppHistory = !(
+		routeId === '/menu' ||
+		routeId === '/login' ||
+		routeId.startsWith('/research') ||
+		routeId.startsWith('/metrics/')
+	);
 </script>
 
 <nav
@@ -39,8 +50,11 @@
 	aria-label="main navigation"
 	class:collapsed={$navbarProps.collapsed}
 >
-	<div class="flex-none">
+	<div class="flex flex-none items-center gap-2">
 		<!-- Container for left-aligned content -->
+		{#if showAppHistory}
+			<AppHistoryButtons forward={false} />
+		{/if}
 		{#if $navbarProps.back}
 			<a class="daisy-btn" href={$navbarProps.back.url}>
 				{#if !$navigating}

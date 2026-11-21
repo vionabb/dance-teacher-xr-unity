@@ -56,6 +56,11 @@ Maintain the harness as part of every UI change.
   runner refuses an unignored path inside the repo, and in the Claude project
   save them under `/mnt/project-files/screenshots/<date>-<slug>/`.
 - The harness routes 404 outside a loopback dev server.
+- The app is installable (PWA) and must stay navigable without browser chrome:
+  see [../documentation/pwa.md](../documentation/pwa.md). For changes to
+  navigation, layout bars, downloads or links leaving the app, add the
+  `standalone` viewport (`--viewports phone,standalone`) and run
+  `scripts/pwa/walk-standalone.mjs`.
 
 ## Validation
 
