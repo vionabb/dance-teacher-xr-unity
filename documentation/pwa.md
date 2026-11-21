@@ -16,8 +16,9 @@ The installed app has its own sign-in. On iOS its storage is separate from
 Safari's, so sign in once inside the installed app even if Safari is already
 signed in. Sign-in uses the in-app email/password form and same-origin
 redirects, so it never leaves the app window. A researcher with a
-`research_access` row sees the Research workspace on the home page exactly as in
-the browser; every `/research/**` and `/metrics/**` route is inside the manifest
+`research_access` row sees a **Research** button in the home page's bar
+exactly as in the browser, and every research page has a **Learner app** link
+back to dance practice; every `/research/**` and `/metrics/**` route is inside the manifest
 scope (`/`).
 
 Links in emails (password reset, sign-up confirmation) open in the phone's
@@ -71,8 +72,9 @@ browser chrome:
   there is nothing to go forward to). They sit at the left of the main blue bar
   on ordinary pages (not on Home or Login), next to each page's link up.
 - Research pages and metric inspectors use the same blue bar, a shade darker
-  and marked **Research**, with Back, Home, the current tool, a tools menu
-  (inline on wide screens) and Settings. The main bar is not shown above it.
+  and marked **Research**, with Back, **Learner app** (to `/menu`), the current
+  tool, a tools menu (inline on wide screens, whose first entry is also the
+  learner app) and Settings. The main bar is not shown above it.
 - File downloads (research materials, pose CSVs, discrepancy notes): in the
   installed app they go to the system share sheet (`src/lib/pwa/download.ts`),
   so a file never replaces the app window with a viewer that has no way back.

@@ -115,7 +115,7 @@ try {
 			return {
 				back: names.includes('Back'),
 				forward: names.includes('Forward'),
-				home: names.some((n) => /^home$/i.test(n)),
+				home: names.some((n) => /^(home|learner app)$/i.test(n)),
 				upLinks: [
 					...document.querySelectorAll('nav[aria-label="Breadcrumb"] a, nav.daisy-navbar a')
 				]
@@ -159,24 +159,35 @@ try {
 		await page.waitForURL(`${base}/menu`);
 	} else report.problems.push('Settings dialog has no Account link');
 
-	// Research workspace from the home page.
-	const tools = page.getByRole('navigation', { name: 'Research tools' });
-	if (!(await present(tools))) report.problems.push('No research workspace on /menu');
+	// Learner home -> research workspace -> each tool (via the research bar's
+	// tools menu) -> back to the learner app.
+	await page.goto(`${base}/menu`);
+	const toResearch = page.getByRole('link', { name: /^Research( workspace)?$/ });
+	if (!(await present(toResearch))) report.problems.push('No way from /menu to research');
+	else {
+		await toResearch.click();
+		await page.waitForURL(`${base}/research/studies`);
+	}
+	const bar = page.getByRole('navigation', { name: 'Research workspace' });
 	for (const [label, expected] of [
-		['Research recordings', '/research/studies'],
 		['Reference key moves', '/research/key-moves'],
 		['Research materials', '/research/materials'],
 		['Discrepancy review', '/research/discrepancy'],
-		['Performance analysis', '/research']
+		['Performance analysis', '/research'],
+		['Research recordings', '/research/studies']
 	]) {
-		await page.goto(`${base}/menu`);
-		await tools.getByRole('link', { name: new RegExp(label) }).click();
+		await bar.locator('summary').click();
+		await bar.getByRole('link', { name: label, exact: true }).click();
 		await page.waitForURL(`${base}${expected}`);
 		const controls = await capture(`research-${expected.split('/').pop() || 'home'}`);
 		if (!controls.back) report.problems.push(`${expected}: no Back control`);
-		await page.getByRole('button', { name: 'Back' }).first().click();
-		await page.waitForURL(`${base}/menu`);
 	}
+	await bar.locator('summary').click();
+	await capture('research-tools-menu');
+	await bar.locator('summary').click();
+	await bar.getByRole('link', { name: 'Learner app' }).first().click();
+	await page.waitForURL(`${base}/menu`);
+	await capture('back-to-learner-app');
 
 	// Drill into a recording and a key-move reference, then come back up.
 	await page.goto(`${base}/research/studies`);
