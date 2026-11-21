@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { linkHumanRatings } from './chi25-analysis-contract.js';
+import { ORIGINAL_RATINGS_SHA256, linkHumanRatings } from './chi25-analysis-contract.js';
 
 describe('rating links ignore the condition label', () => {
 	const rating = (participant: string, segment: string, extra = {}) => ({
@@ -9,6 +9,7 @@ describe('rating links ignore the condition label', () => {
 		source_segment: segment,
 		condition: 'control',
 		segment_eligible: true,
+		source_sha256: ORIGINAL_RATINGS_SHA256,
 		...extra
 	});
 	const recording = (participant: number, clip: number, dance = 'bartender') => ({
@@ -40,9 +41,22 @@ describe('rating links ignore the condition label', () => {
 		expect(links.size).toBe(0);
 	});
 
-	it('withholds the single-rater Study 2 last-christmas segment 1', () => {
+	it('withholds the original single-rater Study 2 last-christmas segment 1', () => {
 		const rec = recording(42, 1, 'last-christmas');
 		const links = linkHumanRatings([rec], [rating('42', '1', { dance: 'last-christmas' })]);
 		expect(links.size).toBe(0);
+	});
+
+	it('links the supplement rating that replaces it', () => {
+		const rec = recording(42, 1, 'last-christmas');
+		const supplement = rating('42', '1', {
+			dance: 'last-christmas',
+			source_sha256: 'f'.repeat(64)
+		});
+		const links = linkHumanRatings(
+			[rec],
+			[rating('42', '1', { dance: 'last-christmas' }), supplement]
+		);
+		expect(links.get(rec)).toBe(supplement);
 	});
 });

@@ -93,14 +93,21 @@ export function analysisRatingKey(study, dance, user, segment, condition) {
 	);
 }
 
+/** sha256 of the original CHI25 human-ratings CSV (1,570 rows, imported 2026-10-28). */
+export const ORIGINAL_RATINGS_SHA256 =
+	'cc41e904135c2d853efd5bcc487d63bc8b1db3b745d91560bc79795ad4c53971';
+
 /**
  * Ratings whose stored value is known to be wrong and must not be linked.
- * Study 2 last-christmas segment 1 holds rater 1's score alone, while the
- * collaborator sheets have all three raters (documentation/chi25-study-design.md).
- * @param {{ study: string, dance: string, source_segment: string }} rating
+ * In the original ratings CSV, Study 2 last-christmas segment 1 holds rater 1's
+ * score alone, while the collaborator sheets have all three raters
+ * (documentation/chi25-study-design.md). The Study 2 segment-1 supplement
+ * built from those sheets replaces it.
+ * @param {{ study: string, dance: string, source_segment: string, source_sha256: string }} rating
  */
 export function analysisRatingWithheld(rating) {
 	return (
+		rating.source_sha256 === ORIGINAL_RATINGS_SHA256 &&
 		rating.study === 'chi25_study2' &&
 		rating.dance === 'last-christmas' &&
 		rating.source_segment === '1'
@@ -114,7 +121,7 @@ export function analysisRatingWithheld(rating) {
  * workflow id (documentation/chi25-study-design.md). A link is made only when
  * exactly one eligible rating and exactly one recording share the key.
  * @template {{ study: string, dance: string, participantId: string|number, clipNumber: string|number }} R
- * @template {{ study: string, dance: string, participant_id: string, source_segment: string, segment_eligible: boolean }} H
+ * @template {{ study: string, dance: string, participant_id: string, source_segment: string, segment_eligible: boolean, source_sha256: string }} H
  * @param {R[]} recordings @param {H[]} ratings
  * @returns {Map<R, H>}
  */
@@ -193,4 +200,54 @@ export function analysisHumanRating(row, sourceSha, ordinal, materialId) {
 		},
 		original_row: row
 	};
+}
+
+/** @param {string} scope @param {string} kind @param {string} source */
+export function analysisMaterialId(scope, kind, source) {
+	return sha256(`${scope}\0${kind}\0${source}`).slice(0, 24);
+}
+
+/**
+ * Supplementary human-ratings sources, added after the original import. Each is
+ * a CSV in the original source's columns, kept in local-data/ and in the
+ * research-chi25 bucket at its catalogued path. The sha256 pins the exact bytes.
+ */
+export const RATING_SUPPLEMENTS = Object.freeze([
+	Object.freeze({
+		fileName: 'chi25-humanratings-study2-segment1-supplement.csv',
+		study: 'chi25_study2',
+		source: 'collaborator-sheets-2026-11-20:study2-segment1',
+		label: 'Study 2 segment 1 ratings from the collaborator sheets (2026-11-20)',
+		sha256: '0f706e7de7cbe5f85d8c673fc57090b2f16675e74964a5af09c91edb7a9f781e',
+		description:
+			'Built by motion-pipeline/adhoc_analysis/chi25_ratings/build_segment1_supplement.py from user2_segment_ratings.xlsx; segment 1 of all four Study 2 dances, three raters where scored'
+	})
+]);
+
+/**
+ * The material row and rating rows for a supplementary ratings source.
+ * @param {(typeof RATING_SUPPLEMENTS)[number]} supplement
+ * @param {Uint8Array} bytes @param {Record<string,string>[]} rows
+ */
+export function ratingSourceRows(supplement, bytes, rows) {
+	const digest = sha256(bytes);
+	if (digest !== supplement.sha256) throw new Error(`${supplement.fileName} differs from its pin`);
+	const id = analysisMaterialId(supplement.study, 'human_ratings', supplement.source);
+	const material = {
+		id,
+		scope: supplement.study,
+		kind: 'human_ratings',
+		label: supplement.label,
+		object_path: `materials/${supplement.study}/${id}/data.csv`,
+		content_type: 'text/csv',
+		sha256: digest,
+		bytes: bytes.length,
+		source_description: `${supplement.description}; sha256=${digest}`
+	};
+	const ratings = rows.map((row, index) => {
+		if (`chi25_study${row.study}` !== supplement.study)
+			throw new Error('Supplement row belongs to another study');
+		return analysisHumanRating(row, digest, index + 1, id);
+	});
+	return { material, ratings };
 }

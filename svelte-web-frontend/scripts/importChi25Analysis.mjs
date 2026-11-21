@@ -11,6 +11,8 @@ import {
 	analysisHumanRating,
 	analysisRecordingIdentity,
 	linkHumanRatings,
+	RATING_SUPPLEMENTS,
+	ratingSourceRows,
 	sha256,
 	stableJson
 } from '../src/lib/server/chi25-analysis-contract.js';
@@ -28,6 +30,10 @@ const videoRoot = path.resolve(
 const ratingsPath = path.resolve(
 	process.env.HUMAN_RATINGS_PATH ?? '../local-data/chi25-humanratings-source.csv'
 );
+// Supplementary rating sources (RATING_SUPPLEMENTS). All are required, because
+// the hosted recordings already link to their rows. Fetch a missing one with
+// `python3 -I .github/research-storage.py fetch <object_path>` and copy it here.
+const supplementRoot = path.resolve(process.env.RATING_SUPPLEMENT_ROOT ?? '../local-data');
 const metadataCache = path.resolve(
 	process.env.RESEARCH_METADATA_CACHE ?? '../local-data/chi25-video-metadata.json'
 );
@@ -176,6 +182,20 @@ async function collect() {
 			materialId(`chi25_study${row.study}`, 'human_ratings', `humanratings.csv:study${row.study}`)
 		)
 	);
+	const supplementMaterials = [];
+	for (const supplement of RATING_SUPPLEMENTS) {
+		const bytes = await readFile(path.join(supplementRoot, supplement.fileName)).catch(() => {
+			throw new Error(`Missing rating supplement ${supplement.fileName} in ${supplementRoot}`);
+		});
+		const rows = Papa.parse(bytes.toString('utf8').replace(/^\uFEFF/, ''), {
+			header: true,
+			skipEmptyLines: true
+		});
+		if (rows.errors.length) throw new Error(`Unparseable rating supplement ${supplement.fileName}`);
+		const { material, ratings: extra } = ratingSourceRows(supplement, bytes, rows.data);
+		supplementMaterials.push({ row: material, bytes });
+		ratings.push(...extra);
+	}
 	const metricRelease = readMetricRelease(process.cwd());
 	const cached = JSON.parse(await readFile(metadataCache, 'utf8').catch(() => '{}'));
 	const recordings = [];
@@ -316,7 +336,15 @@ async function collect() {
 			upload
 		})
 	);
-	return { referenceMaterials, references, existingMaterials, ratings, metricRelease, recordings };
+	return {
+		referenceMaterials,
+		references,
+		existingMaterials,
+		supplementMaterials,
+		ratings,
+		metricRelease,
+		recordings
+	};
 }
 
 const inputs = await collect();
@@ -363,6 +391,12 @@ if (upload) {
 		client,
 		'research_material',
 		inputs.referenceMaterials.map((item) => item.row)
+	);
+	for (const item of inputs.supplementMaterials) await ensureObject(client, item);
+	await ensureRows(
+		client,
+		'research_material',
+		inputs.supplementMaterials.map((item) => item.row)
 	);
 	await ensureRows(client, 'research_reference_segment', inputs.references);
 	await ensureRows(client, 'research_human_rating', inputs.ratings);
