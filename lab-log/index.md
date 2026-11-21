@@ -245,7 +245,6 @@ Keep this file in sync with `lab-log/`: see the "Index page" section in
   matching; points were lost for missing or clearly wrong moves. Hypothesis,
   untested; follow-ups to be proposed.
 
-
 - [2026-11-21 — Within-clip agreement on all 1,397 rated segments](2026-11-21-within-clip-all-segments.md)
   After the rating re-join and the Study 2 segment-1 supplement, within-clip
   ρ = 0.50 (pairwise 72%) and the 743-segment conclusions hold. Pajama-party
