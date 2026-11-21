@@ -88,6 +88,26 @@ browser chrome:
 `display-mode` media query, or `navigator.standalone` on iOS) and sets
 `data-standalone` on `<html>`.
 
+## Dances on the hosted site
+
+The learner menu lists rows of `motion_video`, each with segmentation trees in
+`motion_video_segmentation`. The media they point at is in the public buckets
+(`sourcevideos`, `thumbnails`, `pose2ddata`, `holisticdata`). `dances.json` and
+`dancetrees.json` (`svelte-web-frontend/src/lib/data/bundle/`) stay the source of
+truth for those rows.
+
+- Locally, `scripts/syncBundleData.js` writes the rows.
+- The hosted project got its learner tables later, from
+  `supabase/migrations/20261121203000_hosted_learner_tables.sql`. That file skips
+  the local catch-all storage read policy, because on hosted it would expose the
+  private `research-chi25` bucket.
+- To add or refresh dances on the hosted site, run
+  `node scripts/buildHostedLearnerSeed.mjs > seed.sql` from `svelte-web-frontend/`
+  and paste the output into the SQL editor.
+  - It adds only dances whose video is in `sourcevideos`, and skips rows that are
+    already there, so it is safe to run again.
+  - Its last query lists what it added and what it skipped.
+
 ## Verifying
 
 From `svelte-web-frontend/`:
