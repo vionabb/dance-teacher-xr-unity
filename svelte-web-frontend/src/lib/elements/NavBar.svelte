@@ -34,8 +34,8 @@
 
 	export let settingsActive: boolean;
 
-	// Installed-app history controls (shown only in standalone mode). Research
-	// routes carry them in ResearchNavigation instead; Home and Login need none.
+	// In-app Back (see AppHistoryButtons). Research routes carry it in
+	// ResearchNavigation instead; Home and Login need none.
 	$: routeId = $page.route.id ?? '';
 	$: showAppHistory = !(
 		routeId === '/menu' ||

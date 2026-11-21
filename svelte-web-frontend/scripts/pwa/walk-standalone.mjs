@@ -4,6 +4,7 @@
 // address bar. See documentation/pwa.md.
 //
 //   node scripts/pwa/walk-standalone.mjs --base-url http://127.0.0.1:4173 --out <dir>
+//   node scripts/pwa/walk-standalone.mjs --tab ...   # a phone browser tab instead
 //
 // Signs in through the login form with PWA_WALK_EMAIL / PWA_WALK_PASSWORD
 // (falling back to RESEARCH_AGENT_EMAIL / RESEARCH_AGENT_PASSWORD). Every
@@ -25,6 +26,8 @@ const option = (name, fallback) => {
 	const index = args.indexOf(name);
 	return index >= 0 ? args[index + 1] : fallback;
 };
+// --tab walks a normal browser tab instead of the installed app.
+const tabMode = args.includes('--tab');
 const base = new URL(option('--base-url', 'http://127.0.0.1:4173')).origin;
 const out = path.resolve(option('--out', path.join(frontendRoot, 'artifacts', 'pwa-walk')));
 const email = process.env.PWA_WALK_EMAIL ?? process.env.RESEARCH_AGENT_EMAIL;
@@ -48,7 +51,13 @@ const present = (locator) =>
 		.then(() => true)
 		.catch(() => false);
 
-const report = { base, pages: [], problems: [], installability: null };
+const report = {
+	base,
+	mode: tabMode ? 'browser tab' : 'installed app',
+	pages: [],
+	problems: [],
+	installability: null
+};
 const browser = await chromium.launch();
 try {
 	// Installability as Chrome sees it (manifest, icons, service worker).
@@ -74,7 +83,7 @@ try {
 	}
 
 	const context = await browser.newContext({ ...devices['iPhone 13'] });
-	await context.addInitScript(emulateStandalone);
+	if (!tabMode) await context.addInitScript(emulateStandalone);
 	await context.route(/\/(rest|storage)\/v1\//, (route) =>
 		route.request().method() === 'GET' || route.request().method() === 'HEAD'
 			? route.continue()
@@ -192,6 +201,26 @@ try {
 		await dance.click();
 		await page.waitForURL(/\/research\/key-moves\/.+/);
 		await capture('research-key-moves-dance');
+		// The reference video should land in the device cache.
+		await page
+			.waitForFunction(
+				async () =>
+					(await (await caches.open('reference-media-v1')).keys()).some((r) =>
+						r.url.includes('?reference')
+					),
+				null,
+				{ timeout: 30000 }
+			)
+			.catch(() => {});
+		report.cachedReferenceMedia = await page.evaluate(async () =>
+			Promise.all(
+				(await (await caches.open('reference-media-v1')).keys()).map(async (r) => ({
+					path: new URL(r.url).pathname + new URL(r.url).search,
+					bytes: (await (await caches.match(r)).blob()).size
+				}))
+			)
+		);
+		if (!report.cachedReferenceMedia.length) report.problems.push('Reference video was not cached');
 	}
 
 	for (const inspector of ['qijia2d', 'viona2d']) {
@@ -215,9 +244,21 @@ try {
 	// Downloads go to the share sheet instead of replacing the app window.
 	await page.goto(`${base}/research/materials`);
 	const download = page.getByRole('link', { name: /^Download / }).first();
-	if (await present(download)) {
+	if (!tabMode && (await present(download))) {
+		// Wait for hydration: the share-sheet handler attaches on mount.
+		await page.waitForFunction(() => document.documentElement.hasAttribute('data-standalone'));
 		await download.click();
-		await page.waitForFunction(() => window.__shared.length > 0, null, { timeout: 20000 });
+		const shared = await page
+			.waitForFunction(() => window.__shared.length > 0, null, { timeout: 60000 })
+			.then(() => true)
+			.catch(() => false);
+		if (!shared)
+			report.problems.push(
+				`Download did not reach the share sheet: ${await page.evaluate(
+					() =>
+						`${document.querySelector('[role="status"]')?.textContent ?? 'no notice'}; busy=${document.querySelector('[aria-busy="true"]') ? 'yes' : 'no'}`
+				)}`
+			);
 		report.download = { shared: await page.evaluate(() => window.__shared), stayedOn: page.url() };
 		if (new URL(page.url()).pathname !== '/research/materials')
 			report.problems.push('Download navigated away from the app page');

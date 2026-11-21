@@ -37,34 +37,54 @@ other apps. Finish the step in the browser, then return to the app and sign in.
 The PNG icons are plain Git blobs, not LFS (`.gitattributes` exception), so
 every deployment ships them and cloud sessions can update them.
 
-The service worker caches only the offline page and one icon. Pages and data
-are private (`cache-control: private, no-store`) and are never cached. When a
-navigation fails for lack of a connection, the app shows the offline page with
-**Try again** and **Home** instead of the browser's error page.
+Pages and private data (`cache-control: private, no-store`) are never cached.
+When a navigation fails for lack of a connection, the app shows the offline
+page with **Try again** and **Home** instead of the browser's error page.
+
+## Caching
+
+The service worker (`src/service-worker.ts`, rules in
+`src/lib/pwa/sw-caching.ts`) works the same in browser tabs and the installed
+app:
+
+| What | Strategy | Cache |
+| --- | --- | --- |
+| Reference videos and reference poses: research materials marked `?reference` (key moves, metric inspectors, materials page) and the practice dances' public Storage buckets (`sourcevideos`, `pose2ddata`, `holisticdata`, `thumbnails`) | Cache first. A video's first play streams from the network while the whole file downloads in the background; later plays (including seeking) come from the device. | `reference-media-v1`, kept across deploys, cleared whenever the app is signed out |
+| MediaPipe model and wasm (`/mediapipe/`) | Stale while revalidate | `mediapipe-v1` |
+| Hashed app build (`/_app/immutable/`) | Cache first; files not in the current build are dropped when a new worker activates | `app-immutable` |
+| Offline page and icon | Precached | `offline-<version>` |
+
+`/research/materials/file/<id>?reference` is refused for anything that is not a
+reference video or reference pose, so the marker cannot put study data in the
+cache. Participant recordings, participant poses, ratings, reviewed poses and
+pages stay uncached: they are access-controlled study data. Caching them for
+offline review would need an explicit opt-in and a decision about study data
+on personal devices.
 
 ## Navigation without browser chrome
 
-`src/lib/pwa/standalone.svelte.ts` detects standalone mode (the
-`display-mode` media query, or `navigator.standalone` on iOS) and sets
-`data-standalone` on `<html>`. Only then:
+Browser tabs and the installed app share one layout, so the app never relies on
+browser chrome:
 
 - `AppHistoryButtons.svelte` adds **Back** (history back, or Home when the app
   was opened on that page) and **Forward** (shown unless the browser reports
-  there is nothing to go forward to).
-- On ordinary pages the buttons sit at the left of the main navigation bar
-  (not on Home or Login), next to each page's existing link up.
-- On research pages and metric inspectors they sit at the left of the research
-  bar, pinned with **Home** while the tool list scrolls sideways. The main
-  navigation bar is hidden there in standalone mode, because the research bar
-  already carries Back, Home and the tools.
-- File downloads (research materials, pose CSVs, discrepancy notes) go to the
-  system share sheet (`src/lib/pwa/download.ts`), so a file never replaces the
-  app window with a viewer that has no way back. If the file takes too long to
-  fetch for the browser to allow sharing, a notice asks for one more tap.
+  there is nothing to go forward to). They sit at the left of the main blue bar
+  on ordinary pages (not on Home or Login), next to each page's link up.
+- Research pages and metric inspectors use the same blue bar, a shade darker
+  and marked **Research**, with Back, Home, the current tool, a tools menu
+  (inline on wide screens) and Settings. The main bar is not shown above it.
+- File downloads (research materials, pose CSVs, discrepancy notes): in the
+  installed app they go to the system share sheet (`src/lib/pwa/download.ts`),
+  so a file never replaces the app window with a viewer that has no way back.
+  Browser tabs keep the normal download, which already leaves the page in
+  place. If the file takes too long to fetch for the browser to allow sharing,
+  a notice asks for one more tap.
 - The pose CSV endpoint sends `Content-Disposition: attachment` so the file is
   saved rather than shown in place of the page.
 
-In a normal browser tab none of this changes the UI.
+`src/lib/pwa/standalone.svelte.ts` detects the installed app (the
+`display-mode` media query, or `navigator.standalone` on iOS) and sets
+`data-standalone` on `<html>`.
 
 ## Verifying
 
@@ -72,9 +92,10 @@ From `svelte-web-frontend/`:
 
 - `node scripts/pwa/walk-standalone.mjs --base-url <url> --out <dir>` checks
   Chrome's installability (manifest and service worker, via DevTools) and walks
-  the app as a standalone phone app: sign-in, home, settings, account, every
-  research tool, a recording (Back and Forward), key moves, both metric
-  inspectors, a download, offline, and a missing page. It reports any page
+  the app as an installed phone app (add `--tab` for a phone browser tab): sign-in, home, settings, account, every
+  research tool, a recording (Back and Forward), key moves (checking the
+  reference video lands in the cache), both metric inspectors, a download,
+  offline, and a missing page. It reports any page
   without an in-app way back and any navigation that leaves the app. It signs in
   with `PWA_WALK_EMAIL`/`PWA_WALK_PASSWORD` (or the research agent account) and
   blocks every write to Supabase. Screenshots can show study media: keep them

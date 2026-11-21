@@ -26,9 +26,12 @@
 		(data.hasResearchAccess || data.localResearchAccess) &&
 			(page.route.id?.startsWith('/research') || page.route.id?.startsWith('/metrics/'))
 	);
-	// In the installed app (PWA) the research bar carries Back, Home and the
-	// tools, so the main bar above it would only repeat them on a small screen.
-	const hideNavBar = $derived(appHistory.standalone && showResearchNavigation);
+	// The research bar carries Back, Home and the tools, so the main bar above
+	// it would only repeat them (and kept a stale title from the last page).
+	// The UI harness renders research screens with their own research bar.
+	const hideNavBar = $derived(
+		showResearchNavigation || page.route.id === '/dev/ui-harness/[scenario]'
+	);
 	const supabase = $derived(data.supabase);
 
 	// Setting client as context is a convenient way to give non-route Svelte elements
@@ -53,6 +56,13 @@
 			}
 		};
 		controller.postMessage(message);
+	});
+
+	// Reference media cached for a signed-in researcher goes with the session:
+	// signed out (by any route, including the server sign-out action), clear it.
+	$effect(() => {
+		if (data.user) return;
+		navigator?.serviceWorker?.controller?.postMessage({ type: 'CLEAR_RESEARCH_CACHE' });
 	});
 
 	// No need to make this a writeable store since it doesn't become invalid
@@ -81,7 +91,11 @@
 {/if}
 <div class="app-content" class:noNavBar={hideNavBar || $navbarProps.collapsed}>
 	{#if showResearchNavigation}
-		<ResearchNavigation hosted={data.hasResearchAccess} local={data.localResearchAccess} />
+		<ResearchNavigation
+			hosted={data.hasResearchAccess}
+			local={data.localResearchAccess}
+			onsettings={() => toggleSettings()}
+		/>
 	{/if}
 	{#if page.route.id?.startsWith('/research')}
 		<ResearchShell>{@render children?.()}</ResearchShell>

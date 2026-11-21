@@ -95,7 +95,7 @@
 							class="aspect-[9/16] max-h-80 w-full object-contain"
 							controls
 							preload="metadata"
-							src={fileHref(item.id)}
+							src={`${fileHref(item.id)}?reference`}
 							aria-label={item.label}
 						></video>
 					</figure>

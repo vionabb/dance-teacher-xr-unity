@@ -1,6 +1,7 @@
-// Installed-app (PWA) state. In a standalone window there is no browser
-// chrome: no back/forward buttons and no address bar, so the app shows its own
-// history controls. See documentation/pwa.md.
+// In-app history controls and installed-app (PWA) detection. A standalone
+// window has no browser chrome (no back/forward buttons, no address bar), so
+// the app shows its own Back/Forward, in browser tabs too to keep both alike.
+// See documentation/pwa.md.
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 
@@ -24,8 +25,8 @@ export function detectStandalone(): boolean {
 
 class AppHistory {
 	standalone = $state(false);
-	/** Whether forward is known to be possible; undefined when the browser cannot tell. */
-	canGoForward = $state<boolean | undefined>(undefined);
+	/** Whether to offer Forward: false until mounted, true when the browser cannot tell. */
+	canGoForward = $state(false);
 
 	init() {
 		this.standalone = detectStandalone();
@@ -38,7 +39,7 @@ class AppHistory {
 
 	refresh() {
 		const api = navigationApi();
-		this.canGoForward = api ? api.canGoForward : undefined;
+		this.canGoForward = api ? api.canGoForward : true;
 	}
 
 	/** Back through the app's history, or Home when the app was opened on this page. */

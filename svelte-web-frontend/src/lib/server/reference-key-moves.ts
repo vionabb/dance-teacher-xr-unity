@@ -123,7 +123,7 @@ export async function keyMoveDance(locals: Locals, dance: string) {
 	return {
 		dance,
 		label: DANCE_LABELS[dance] ?? dance,
-		videoUrl: `/research/materials/file/${reference.video.id}`,
+		videoUrl: `/research/materials/file/${reference.video.id}?reference`,
 		videoLabel: reference.video.label,
 		videoMaterialId: reference.video.id,
 		fps: known.fps,

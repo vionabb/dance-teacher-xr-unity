@@ -154,13 +154,18 @@ try {
 		['Research materials', '/research/materials'],
 		['Performance analysis', '/research']
 	]) {
+		// Phones list the tools in a menu on the research bar.
+		if (!(await navigation.getByRole('link', { name: label, exact: true }).isVisible()))
+			await navigation.locator('summary').click();
 		await navigation.getByRole('link', { name: label, exact: true }).click();
 		await page.waitForURL(base + path);
 		await page.waitForFunction(
 			(name) =>
-				document
-					.querySelector('nav[aria-label="Research workspace"] a[aria-current="page"]')
-					?.textContent?.trim() === name,
+				[
+					...document.querySelectorAll(
+						'nav[aria-label="Research workspace"] a[aria-current="page"]'
+					)
+				].some((a) => a.textContent?.trim() === name),
 			label
 		);
 		assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -169,19 +174,15 @@ try {
 	await page.screenshot({ path: `${output}/research-mobile.png`, fullPage: true });
 	for (const path of ['/metrics/qijia2d', '/metrics/viona2d']) {
 		await page.goto(base + path + '?source=local');
-		await page.waitForFunction(
-			() =>
-				document
-					.querySelector('nav[aria-label="Research workspace"] a[aria-current="page"]')
-					?.textContent?.trim() === 'Performance analysis'
+		await page.waitForFunction(() =>
+			[
+				...document.querySelectorAll('nav[aria-label="Research workspace"] a[aria-current="page"]')
+			].some((a) => a.textContent?.trim() === 'Performance analysis')
 		);
-		await navigation.getByRole('link', { name: 'Performance analysis', exact: true }).waitFor();
-		assert.equal(
-			await navigation
-				.getByRole('link', { name: 'Performance analysis', exact: true })
-				.getAttribute('aria-current'),
-			'page'
-		);
+		await navigation.locator('summary').click();
+		const activeTool = navigation.getByRole('link', { name: 'Performance analysis', exact: true });
+		await activeTool.waitFor();
+		assert.equal(await activeTool.getAttribute('aria-current'), 'page');
 	}
 	await navigation.getByRole('link', { name: 'Home', exact: true }).click();
 	await page.waitForURL(base + '/menu');
