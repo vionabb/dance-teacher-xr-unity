@@ -1,0 +1,1222 @@
+{
+  "framing": "within-clip ranking agreement; clip-level offsets are not penalized",
+  "n_segments": 1397,
+  "n_participants": 98,
+  "dropped_rows_with_missing_values": 0,
+  "baseline": "M",
+  "metrics": {
+    "M": {
+      "label": "Qijia2D, all 8 vectors",
+      "within_rho": 0.4957841021215743,
+      "pairwise": 0.7208964160465315,
+      "pooled_rho": 0.4439407912329922,
+      "ci95": {
+        "within_rho": [
+          0.41387806561094154,
+          0.559196986197721
+        ],
+        "pairwise": [
+          0.6873419605005002,
+          0.7508567153073564
+        ],
+        "pooled_rho": [
+          0.36881908859358814,
+          0.5062866838399956
+        ]
+      },
+      "informative_pairs": 23382,
+      "per_clip": {
+        "chi25_study1/last-christmas/1": {
+          "n": 51,
+          "rho": 0.37561350773586827,
+          "pairwise": 0.6561576354679803
+        },
+        "chi25_study1/last-christmas/2": {
+          "n": 50,
+          "rho": 0.5419192905291296,
+          "pairwise": 0.744136460554371
+        },
+        "chi25_study1/last-christmas/3": {
+          "n": 49,
+          "rho": 0.6310665172987621,
+          "pairwise": 0.7774158523344191
+        },
+        "chi25_study1/last-christmas/4": {
+          "n": 49,
+          "rho": 0.5408596315907318,
+          "pairwise": 0.7561547479484173
+        },
+        "chi25_study1/mad-at-disney/1": {
+          "n": 47,
+          "rho": 0.5793931945845991,
+          "pairwise": 0.7635705669481303
+        },
+        "chi25_study1/mad-at-disney/2": {
+          "n": 47,
+          "rho": 0.48214857356893814,
+          "pairwise": 0.7249698431845597
+        },
+        "chi25_study1/mad-at-disney/3": {
+          "n": 47,
+          "rho": 0.5974115700579296,
+          "pairwise": 0.8
+        },
+        "chi25_study1/mad-at-disney/4": {
+          "n": 47,
+          "rho": 0.5809297199925978,
+          "pairwise": 0.7560693641618497
+        },
+        "chi25_study1/mad-at-disney/5": {
+          "n": 47,
+          "rho": 0.3644858747262107,
+          "pairwise": 0.6502242152466368
+        },
+        "chi25_study1/pajama-party/1": {
+          "n": 48,
+          "rho": -0.22558596881981163,
+          "pairwise": 0.3908496732026144
+        },
+        "chi25_study1/pajama-party/2": {
+          "n": 47,
+          "rho": 0.7315130679318955,
+          "pairwise": 0.8092417061611374
+        },
+        "chi25_study1/pajama-party/3": {
+          "n": 48,
+          "rho": 0.734005112533777,
+          "pairwise": 0.8479809976247031
+        },
+        "chi25_study1/pajama-party/4": {
+          "n": 49,
+          "rho": 0.42332673057402287,
+          "pairwise": 0.6758474576271186
+        },
+        "chi25_study1/pajama-party/5": {
+          "n": 49,
+          "rho": 0.6448857630304037,
+          "pairwise": 0.7876489707475623
+        },
+        "chi25_study2/bartender/1": {
+          "n": 39,
+          "rho": 0.6192205531062913,
+          "pairwise": 0.7735537190082644
+        },
+        "chi25_study2/bartender/2": {
+          "n": 39,
+          "rho": 0.5003767375576937,
+          "pairwise": 0.7128205128205128
+        },
+        "chi25_study2/bartender/3": {
+          "n": 39,
+          "rho": 0.4814387339697912,
+          "pairwise": 0.7130281690140845
+        },
+        "chi25_study2/bartender/4": {
+          "n": 39,
+          "rho": 0.11159330230380671,
+          "pairwise": 0.5397631133671743
+        },
+        "chi25_study2/last-christmas/1": {
+          "n": 41,
+          "rho": 0.5260841673600972,
+          "pairwise": 0.7260061919504643
+        },
+        "chi25_study2/last-christmas/2": {
+          "n": 41,
+          "rho": 0.5702571546598798,
+          "pairwise": 0.7480798771121352
+        },
+        "chi25_study2/last-christmas/3": {
+          "n": 40,
+          "rho": 0.6697845058627413,
+          "pairwise": 0.7653213751868461
+        },
+        "chi25_study2/last-christmas/4": {
+          "n": 39,
+          "rho": 0.8196324174877948,
+          "pairwise": 0.881326352530541
+        },
+        "chi25_study2/mad-at-disney/1": {
+          "n": 40,
+          "rho": 0.4788727035371985,
+          "pairwise": 0.7213403880070547
+        },
+        "chi25_study2/mad-at-disney/2": {
+          "n": 40,
+          "rho": 0.5948629215844277,
+          "pairwise": 0.7789115646258503
+        },
+        "chi25_study2/mad-at-disney/3": {
+          "n": 40,
+          "rho": 0.5310380969045233,
+          "pairwise": 0.7403685092127303
+        },
+        "chi25_study2/mad-at-disney/4": {
+          "n": 40,
+          "rho": 0.590684250065347,
+          "pairwise": 0.7670364500792393
+        },
+        "chi25_study2/mad-at-disney/5": {
+          "n": 40,
+          "rho": 0.35809764337534183,
+          "pairwise": 0.6548956661316212
+        },
+        "chi25_study2/pajama-party/1": {
+          "n": 41,
+          "rho": -0.20597054430274148,
+          "pairwise": 0.4098101265822785
+        },
+        "chi25_study2/pajama-party/2": {
+          "n": 41,
+          "rho": 0.3739596124193476,
+          "pairwise": 0.6588419405320813
+        },
+        "chi25_study2/pajama-party/3": {
+          "n": 41,
+          "rho": 0.6950098666010873,
+          "pairwise": 0.7854014598540145
+        },
+        "chi25_study2/pajama-party/4": {
+          "n": 41,
+          "rho": 0.5128811423507801,
+          "pairwise": 0.7302533532041728
+        },
+        "chi25_study2/pajama-party/5": {
+          "n": 41,
+          "rho": 0.6426312334990202,
+          "pairwise": 0.7851739788199698
+        }
+      }
+    },
+    "only:arms (4-7)": {
+      "label": "Arms only (no torso)",
+      "within_rho": 0.4965158228610178,
+      "pairwise": 0.7202548969292618,
+      "pooled_rho": 0.4534414233721582,
+      "ci95": {
+        "within_rho": [
+          0.416450673586177,
+          0.5563002243346634
+        ],
+        "pairwise": [
+          0.6890370744565477,
+          0.7494197767131171
+        ],
+        "pooled_rho": [
+          0.3795447156877873,
+          0.5132281445395783
+        ]
+      },
+      "vs_baseline": {
+        "within_rho": {
+          "diff": 0.0007317207394434977,
+          "ci95": [
+            -0.017243956951969223,
+            0.018023599605550528
+          ]
+        },
+        "pairwise": {
+          "diff": -0.0006415191172697288,
+          "ci95": [
+            -0.00903038169408559,
+            0.007502443752658422
+          ]
+        },
+        "pooled_rho": {
+          "diff": 0.009500632139166021,
+          "ci95": [
+            -0.006016960477591015,
+            0.022000469489879135
+          ]
+        }
+      },
+      "informative_pairs": 23382,
+      "per_clip": {
+        "chi25_study1/last-christmas/1": {
+          "n": 51,
+          "rho": 0.34471183890466806,
+          "pairwise": 0.6394088669950739
+        },
+        "chi25_study1/last-christmas/2": {
+          "n": 50,
+          "rho": 0.5687042684208878,
+          "pairwise": 0.7526652452025586
+        },
+        "chi25_study1/last-christmas/3": {
+          "n": 49,
+          "rho": 0.6272121116961175,
+          "pairwise": 0.7774158523344191
+        },
+        "chi25_study1/last-christmas/4": {
+          "n": 49,
+          "rho": 0.5286080252221335,
+          "pairwise": 0.7502930832356389
+        },
+        "chi25_study1/mad-at-disney/1": {
+          "n": 47,
+          "rho": 0.5738192246770406,
+          "pairwise": 0.7659831121833535
+        },
+        "chi25_study1/mad-at-disney/2": {
+          "n": 47,
+          "rho": 0.5243380740940768,
+          "pairwise": 0.7418576598311218
+        },
+        "chi25_study1/mad-at-disney/3": {
+          "n": 47,
+          "rho": 0.6299965119648483,
+          "pairwise": 0.8081081081081081
+        },
+        "chi25_study1/mad-at-disney/4": {
+          "n": 47,
+          "rho": 0.5612543145574652,
+          "pairwise": 0.7491329479768786
+        },
+        "chi25_study1/mad-at-disney/5": {
+          "n": 47,
+          "rho": 0.3735271099455865,
+          "pairwise": 0.6502242152466368
+        },
+        "chi25_study1/pajama-party/1": {
+          "n": 48,
+          "rho": -0.25541259547850637,
+          "pairwise": 0.37516339869281046
+        },
+        "chi25_study1/pajama-party/2": {
+          "n": 47,
+          "rho": 0.7115867191828481,
+          "pairwise": 0.7985781990521327
+        },
+        "chi25_study1/pajama-party/3": {
+          "n": 48,
+          "rho": 0.751306049842041,
+          "pairwise": 0.8586698337292161
+        },
+        "chi25_study1/pajama-party/4": {
+          "n": 49,
+          "rho": 0.44124560037612587,
+          "pairwise": 0.6832627118644068
+        },
+        "chi25_study1/pajama-party/5": {
+          "n": 49,
+          "rho": 0.65626360966191,
+          "pairwise": 0.7952329360780065
+        },
+        "chi25_study2/bartender/1": {
+          "n": 39,
+          "rho": 0.6052321369969624,
+          "pairwise": 0.7636363636363637
+        },
+        "chi25_study2/bartender/2": {
+          "n": 39,
+          "rho": 0.5444508313271254,
+          "pairwise": 0.7282051282051282
+        },
+        "chi25_study2/bartender/3": {
+          "n": 39,
+          "rho": 0.4755353906147861,
+          "pairwise": 0.7024647887323944
+        },
+        "chi25_study2/bartender/4": {
+          "n": 39,
+          "rho": 0.12944405505773648,
+          "pairwise": 0.544839255499154
+        },
+        "chi25_study2/last-christmas/1": {
+          "n": 41,
+          "rho": 0.4979075170548764,
+          "pairwise": 0.7105263157894737
+        },
+        "chi25_study2/last-christmas/2": {
+          "n": 41,
+          "rho": 0.5966804176181155,
+          "pairwise": 0.7619047619047619
+        },
+        "chi25_study2/last-christmas/3": {
+          "n": 40,
+          "rho": 0.6944397342621799,
+          "pairwise": 0.7862481315396114
+        },
+        "chi25_study2/last-christmas/4": {
+          "n": 39,
+          "rho": 0.8031389171615216,
+          "pairwise": 0.8708551483420593
+        },
+        "chi25_study2/mad-at-disney/1": {
+          "n": 40,
+          "rho": 0.5020836211865677,
+          "pairwise": 0.7336860670194003
+        },
+        "chi25_study2/mad-at-disney/2": {
+          "n": 40,
+          "rho": 0.6317422706121089,
+          "pairwise": 0.7976190476190477
+        },
+        "chi25_study2/mad-at-disney/3": {
+          "n": 40,
+          "rho": 0.5577410586501353,
+          "pairwise": 0.7537688442211056
+        },
+        "chi25_study2/mad-at-disney/4": {
+          "n": 40,
+          "rho": 0.5593315828644262,
+          "pairwise": 0.7416798732171157
+        },
+        "chi25_study2/mad-at-disney/5": {
+          "n": 40,
+          "rho": 0.24799569082862377,
+          "pairwise": 0.6051364365971108
+        },
+        "chi25_study2/pajama-party/1": {
+          "n": 41,
+          "rho": -0.20968254092534036,
+          "pairwise": 0.40664556962025317
+        },
+        "chi25_study2/pajama-party/2": {
+          "n": 41,
+          "rho": 0.4286304902465499,
+          "pairwise": 0.6854460093896714
+        },
+        "chi25_study2/pajama-party/3": {
+          "n": 41,
+          "rho": 0.7043430340129193,
+          "pairwise": 0.7897810218978102
+        },
+        "chi25_study2/pajama-party/4": {
+          "n": 41,
+          "rho": 0.4970465073959417,
+          "pairwise": 0.7287630402384501
+        },
+        "chi25_study2/pajama-party/5": {
+          "n": 41,
+          "rho": 0.5902189992846255,
+          "pairwise": 0.7518910741301059
+        }
+      }
+    },
+    "only:forearms": {
+      "label": "Forearms only",
+      "within_rho": 0.48499889777510496,
+      "pairwise": 0.7159781028141305,
+      "pooled_rho": 0.4638085958795751,
+      "ci95": {
+        "within_rho": [
+          0.40850659713715926,
+          0.5408781085597955
+        ],
+        "pairwise": [
+          0.6863880580621362,
+          0.7426282985651843
+        ],
+        "pooled_rho": [
+          0.38441296506849837,
+          0.5226712363471431
+        ]
+      },
+      "vs_baseline": {
+        "within_rho": {
+          "diff": -0.010785204346469346,
+          "ci95": [
+            -0.042780440928206875,
+            0.018722512833659888
+          ]
+        },
+        "pairwise": {
+          "diff": -0.004918313232400995,
+          "ci95": [
+            -0.01966032338209601,
+            0.009005539783727267
+          ]
+        },
+        "pooled_rho": {
+          "diff": 0.019867804646582943,
+          "ci95": [
+            -0.012819837897780548,
+            0.0507335386295112
+          ]
+        }
+      },
+      "informative_pairs": 23382,
+      "per_clip": {
+        "chi25_study1/last-christmas/1": {
+          "n": 51,
+          "rho": 0.423967173271436,
+          "pairwise": 0.677832512315271
+        },
+        "chi25_study1/last-christmas/2": {
+          "n": 50,
+          "rho": 0.48368453522513855,
+          "pairwise": 0.7164179104477612
+        },
+        "chi25_study1/last-christmas/3": {
+          "n": 49,
+          "rho": 0.6683433714832439,
+          "pairwise": 0.7947882736156352
+        },
+        "chi25_study1/last-christmas/4": {
+          "n": 49,
+          "rho": 0.6023345060243179,
+          "pairwise": 0.7878077373974208
+        },
+        "chi25_study1/mad-at-disney/1": {
+          "n": 47,
+          "rho": 0.6417257612927799,
+          "pairwise": 0.7937273823884198
+        },
+        "chi25_study1/mad-at-disney/2": {
+          "n": 47,
+          "rho": 0.5736091693019556,
+          "pairwise": 0.7659831121833535
+        },
+        "chi25_study1/mad-at-disney/3": {
+          "n": 47,
+          "rho": 0.6771754819072983,
+          "pairwise": 0.827027027027027
+        },
+        "chi25_study1/mad-at-disney/4": {
+          "n": 47,
+          "rho": 0.5845557010546615,
+          "pairwise": 0.753757225433526
+        },
+        "chi25_study1/mad-at-disney/5": {
+          "n": 47,
+          "rho": 0.33499844744210255,
+          "pairwise": 0.6345291479820628
+        },
+        "chi25_study1/pajama-party/1": {
+          "n": 48,
+          "rho": -0.39564489749636156,
+          "pairwise": 0.3058823529411765
+        },
+        "chi25_study1/pajama-party/2": {
+          "n": 47,
+          "rho": 0.6660922241473725,
+          "pairwise": 0.7808056872037915
+        },
+        "chi25_study1/pajama-party/3": {
+          "n": 48,
+          "rho": 0.5673908053868645,
+          "pairwise": 0.7612826603325415
+        },
+        "chi25_study1/pajama-party/4": {
+          "n": 49,
+          "rho": 0.41691587392928225,
+          "pairwise": 0.6726694915254238
+        },
+        "chi25_study1/pajama-party/5": {
+          "n": 49,
+          "rho": 0.7199795507983459,
+          "pairwise": 0.8331527627302275
+        },
+        "chi25_study2/bartender/1": {
+          "n": 39,
+          "rho": 0.5244101772541735,
+          "pairwise": 0.7173553719008264
+        },
+        "chi25_study2/bartender/2": {
+          "n": 39,
+          "rho": 0.5497773213324358,
+          "pairwise": 0.7401709401709402
+        },
+        "chi25_study2/bartender/3": {
+          "n": 39,
+          "rho": 0.4595120300797722,
+          "pairwise": 0.6866197183098591
+        },
+        "chi25_study2/bartender/4": {
+          "n": 39,
+          "rho": 0.1585689674457272,
+          "pairwise": 0.5583756345177665
+        },
+        "chi25_study2/last-christmas/1": {
+          "n": 41,
+          "rho": 0.6053028647038492,
+          "pairwise": 0.7647058823529411
+        },
+        "chi25_study2/last-christmas/2": {
+          "n": 41,
+          "rho": 0.5067154984984087,
+          "pairwise": 0.7204301075268817
+        },
+        "chi25_study2/last-christmas/3": {
+          "n": 40,
+          "rho": 0.6494130044052902,
+          "pairwise": 0.7683109118086696
+        },
+        "chi25_study2/last-christmas/4": {
+          "n": 39,
+          "rho": 0.7362194285765785,
+          "pairwise": 0.8289703315881326
+        },
+        "chi25_study2/mad-at-disney/1": {
+          "n": 40,
+          "rho": 0.4939204594708998,
+          "pairwise": 0.7319223985890653
+        },
+        "chi25_study2/mad-at-disney/2": {
+          "n": 40,
+          "rho": 0.6093407562159842,
+          "pairwise": 0.7840136054421769
+        },
+        "chi25_study2/mad-at-disney/3": {
+          "n": 40,
+          "rho": 0.5196357373270175,
+          "pairwise": 0.7353433835845896
+        },
+        "chi25_study2/mad-at-disney/4": {
+          "n": 40,
+          "rho": 0.6223263265019685,
+          "pairwise": 0.7797147385103012
+        },
+        "chi25_study2/mad-at-disney/5": {
+          "n": 40,
+          "rho": 0.31975078919020516,
+          "pairwise": 0.6404494382022472
+        },
+        "chi25_study2/pajama-party/1": {
+          "n": 41,
+          "rho": -0.3888542803429779,
+          "pairwise": 0.33544303797468356
+        },
+        "chi25_study2/pajama-party/2": {
+          "n": 41,
+          "rho": 0.4110673581603811,
+          "pairwise": 0.676056338028169
+        },
+        "chi25_study2/pajama-party/3": {
+          "n": 41,
+          "rho": 0.7411423798081425,
+          "pairwise": 0.8248175182481752
+        },
+        "chi25_study2/pajama-party/4": {
+          "n": 41,
+          "rho": 0.519859117076641,
+          "pairwise": 0.7391952309985097
+        },
+        "chi25_study2/pajama-party/5": {
+          "n": 41,
+          "rho": 0.5014044112728612,
+          "pairwise": 0.7049924357034796
+        }
+      }
+    },
+    "drop:upper arms": {
+      "label": "No upper arms",
+      "within_rho": 0.476620920301324,
+      "pairwise": 0.7124711316397229,
+      "pooled_rho": 0.46736148169482983,
+      "ci95": {
+        "within_rho": [
+          0.39734234879338115,
+          0.5389503447165485
+        ],
+        "pairwise": [
+          0.6811375349381902,
+          0.7414480769999958
+        ],
+        "pooled_rho": [
+          0.38955524677146236,
+          0.5287851907351271
+        ]
+      },
+      "vs_baseline": {
+        "within_rho": {
+          "diff": -0.019163181820250286,
+          "ci95": [
+            -0.04301517735299024,
+            0.004555755879260146
+          ]
+        },
+        "pairwise": {
+          "diff": -0.008425284406808675,
+          "ci95": [
+            -0.020317245910271304,
+            0.0027074522231043227
+          ]
+        },
+        "pooled_rho": {
+          "diff": 0.023420690461837645,
+          "ci95": [
+            0.0015106813452952872,
+            0.044633773254783876
+          ]
+        }
+      },
+      "informative_pairs": 23382,
+      "per_clip": {
+        "chi25_study1/last-christmas/1": {
+          "n": 51,
+          "rho": 0.45756808425957834,
+          "pairwise": 0.696551724137931
+        },
+        "chi25_study1/last-christmas/2": {
+          "n": 50,
+          "rho": 0.4509306203125579,
+          "pairwise": 0.7004264392324094
+        },
+        "chi25_study1/last-christmas/3": {
+          "n": 49,
+          "rho": 0.6795369877539381,
+          "pairwise": 0.8002171552660152
+        },
+        "chi25_study1/last-christmas/4": {
+          "n": 49,
+          "rho": 0.5844992029479071,
+          "pairwise": 0.776084407971864
+        },
+        "chi25_study1/mad-at-disney/1": {
+          "n": 47,
+          "rho": 0.6447225193075963,
+          "pairwise": 0.7901085645355851
+        },
+        "chi25_study1/mad-at-disney/2": {
+          "n": 47,
+          "rho": 0.534720412061145,
+          "pairwise": 0.7454764776839565
+        },
+        "chi25_study1/mad-at-disney/3": {
+          "n": 47,
+          "rho": 0.6394952112465949,
+          "pairwise": 0.8067567567567567
+        },
+        "chi25_study1/mad-at-disney/4": {
+          "n": 47,
+          "rho": 0.5947797788034312,
+          "pairwise": 0.7664739884393064
+        },
+        "chi25_study1/mad-at-disney/5": {
+          "n": 47,
+          "rho": 0.29960171609304287,
+          "pairwise": 0.6210762331838565
+        },
+        "chi25_study1/pajama-party/1": {
+          "n": 48,
+          "rho": -0.3899860908575578,
+          "pairwise": 0.31241830065359477
+        },
+        "chi25_study1/pajama-party/2": {
+          "n": 47,
+          "rho": 0.6853583625463008,
+          "pairwise": 0.7950236966824644
+        },
+        "chi25_study1/pajama-party/3": {
+          "n": 48,
+          "rho": 0.5355296733142197,
+          "pairwise": 0.7458432304038005
+        },
+        "chi25_study1/pajama-party/4": {
+          "n": 49,
+          "rho": 0.4001530602434439,
+          "pairwise": 0.6620762711864406
+        },
+        "chi25_study1/pajama-party/5": {
+          "n": 49,
+          "rho": 0.6887037026159261,
+          "pairwise": 0.8169014084507042
+        },
+        "chi25_study2/bartender/1": {
+          "n": 39,
+          "rho": 0.558189611710775,
+          "pairwise": 0.7388429752066116
+        },
+        "chi25_study2/bartender/2": {
+          "n": 39,
+          "rho": 0.5431975395611699,
+          "pairwise": 0.7418803418803419
+        },
+        "chi25_study2/bartender/3": {
+          "n": 39,
+          "rho": 0.45487368887226814,
+          "pairwise": 0.698943661971831
+        },
+        "chi25_study2/bartender/4": {
+          "n": 39,
+          "rho": 0.12432892707561627,
+          "pairwise": 0.5414551607445008
+        },
+        "chi25_study2/last-christmas/1": {
+          "n": 41,
+          "rho": 0.5943202725721017,
+          "pairwise": 0.7569659442724458
+        },
+        "chi25_study2/last-christmas/2": {
+          "n": 41,
+          "rho": 0.5108497505258877,
+          "pairwise": 0.7204301075268817
+        },
+        "chi25_study2/last-christmas/3": {
+          "n": 40,
+          "rho": 0.6099075226069619,
+          "pairwise": 0.7354260089686099
+        },
+        "chi25_study2/last-christmas/4": {
+          "n": 39,
+          "rho": 0.7504017377743293,
+          "pairwise": 0.8359511343804538
+        },
+        "chi25_study2/mad-at-disney/1": {
+          "n": 40,
+          "rho": 0.44789202955604884,
+          "pairwise": 0.708994708994709
+        },
+        "chi25_study2/mad-at-disney/2": {
+          "n": 40,
+          "rho": 0.5464404341342893,
+          "pairwise": 0.7551020408163265
+        },
+        "chi25_study2/mad-at-disney/3": {
+          "n": 40,
+          "rho": 0.4945895286824107,
+          "pairwise": 0.7269681742043551
+        },
+        "chi25_study2/mad-at-disney/4": {
+          "n": 40,
+          "rho": 0.6475049300079386,
+          "pairwise": 0.7923930269413629
+        },
+        "chi25_study2/mad-at-disney/5": {
+          "n": 40,
+          "rho": 0.4280128674199597,
+          "pairwise": 0.6886035313001605
+        },
+        "chi25_study2/pajama-party/1": {
+          "n": 41,
+          "rho": -0.4044265588572951,
+          "pairwise": 0.3322784810126582
+        },
+        "chi25_study2/pajama-party/2": {
+          "n": 41,
+          "rho": 0.36792510036922804,
+          "pairwise": 0.6572769953051644
+        },
+        "chi25_study2/pajama-party/3": {
+          "n": 41,
+          "rho": 0.7108318075468595,
+          "pairwise": 0.8087591240875912
+        },
+        "chi25_study2/pajama-party/4": {
+          "n": 41,
+          "rho": 0.5039350209073685,
+          "pairwise": 0.7228017883755589
+        },
+        "chi25_study2/pajama-party/5": {
+          "n": 41,
+          "rho": 0.5497023745420986,
+          "pairwise": 0.7367624810892587
+        }
+      }
+    },
+    "only:upper arms": {
+      "label": "Upper arms only",
+      "within_rho": 0.3336545623044963,
+      "pairwise": 0.6451116243264049,
+      "pooled_rho": 0.21035056466500146,
+      "ci95": {
+        "within_rho": [
+          0.24644977428573797,
+          0.40873977518186044
+        ],
+        "pairwise": [
+          0.6084947886133844,
+          0.6805544849511036
+        ],
+        "pooled_rho": [
+          0.1491607971501815,
+          0.26813328825091237
+        ]
+      },
+      "vs_baseline": {
+        "within_rho": {
+          "diff": -0.162129539817078,
+          "ci95": [
+            -0.2071179026122857,
+            -0.1057339884797768
+          ]
+        },
+        "pairwise": {
+          "diff": -0.07578479172012664,
+          "ci95": [
+            -0.09787344234263667,
+            -0.05095156611210471
+          ]
+        },
+        "pooled_rho": {
+          "diff": -0.23359022656799072,
+          "ci95": [
+            -0.2764156163140501,
+            -0.18405521513634862
+          ]
+        }
+      },
+      "informative_pairs": 23382,
+      "per_clip": {
+        "chi25_study1/last-christmas/1": {
+          "n": 51,
+          "rho": 0.08707382889032457,
+          "pairwise": 0.5339901477832513
+        },
+        "chi25_study1/last-christmas/2": {
+          "n": 50,
+          "rho": 0.5500952294736176,
+          "pairwise": 0.7356076759061834
+        },
+        "chi25_study1/last-christmas/3": {
+          "n": 49,
+          "rho": 0.23263713815414538,
+          "pairwise": 0.5993485342019544
+        },
+        "chi25_study1/last-christmas/4": {
+          "n": 49,
+          "rho": 0.10842129529733022,
+          "pairwise": 0.5451348182883939
+        },
+        "chi25_study1/mad-at-disney/1": {
+          "n": 47,
+          "rho": 0.023134971874382463,
+          "pairwise": 0.5162846803377563
+        },
+        "chi25_study1/mad-at-disney/2": {
+          "n": 47,
+          "rho": 0.3836663966674411,
+          "pairwise": 0.6706875753920386
+        },
+        "chi25_study1/mad-at-disney/3": {
+          "n": 47,
+          "rho": 0.3602586144805478,
+          "pairwise": 0.6702702702702703
+        },
+        "chi25_study1/mad-at-disney/4": {
+          "n": 47,
+          "rho": 0.386850569703451,
+          "pairwise": 0.6774566473988439
+        },
+        "chi25_study1/mad-at-disney/5": {
+          "n": 47,
+          "rho": 0.34977170760448134,
+          "pairwise": 0.6434977578475336
+        },
+        "chi25_study1/pajama-party/1": {
+          "n": 48,
+          "rho": 0.29019067794615433,
+          "pairwise": 0.6418300653594772
+        },
+        "chi25_study1/pajama-party/2": {
+          "n": 47,
+          "rho": 0.6828375593913009,
+          "pairwise": 0.7938388625592417
+        },
+        "chi25_study1/pajama-party/3": {
+          "n": 48,
+          "rho": 0.6813600161700164,
+          "pairwise": 0.8040380047505938
+        },
+        "chi25_study1/pajama-party/4": {
+          "n": 49,
+          "rho": 0.5648385088058804,
+          "pairwise": 0.7447033898305084
+        },
+        "chi25_study1/pajama-party/5": {
+          "n": 49,
+          "rho": 0.38600006200096537,
+          "pairwise": 0.656554712892741
+        },
+        "chi25_study2/bartender/1": {
+          "n": 39,
+          "rho": 0.47083972445029915,
+          "pairwise": 0.7024793388429752
+        },
+        "chi25_study2/bartender/2": {
+          "n": 39,
+          "rho": 0.3194849593381309,
+          "pairwise": 0.6222222222222222
+        },
+        "chi25_study2/bartender/3": {
+          "n": 39,
+          "rho": 0.1271327158238599,
+          "pairwise": 0.5492957746478874
+        },
+        "chi25_study2/bartender/4": {
+          "n": 39,
+          "rho": -0.07015032661193461,
+          "pairwise": 0.4619289340101523
+        },
+        "chi25_study2/last-christmas/1": {
+          "n": 41,
+          "rho": 0.17671170782475548,
+          "pairwise": 0.5773993808049536
+        },
+        "chi25_study2/last-christmas/2": {
+          "n": 41,
+          "rho": 0.5201068800656776,
+          "pairwise": 0.7142857142857143
+        },
+        "chi25_study2/last-christmas/3": {
+          "n": 40,
+          "rho": 0.4886304531826963,
+          "pairwise": 0.6980568011958147
+        },
+        "chi25_study2/last-christmas/4": {
+          "n": 39,
+          "rho": 0.25948373124773816,
+          "pairwise": 0.612565445026178
+        },
+        "chi25_study2/mad-at-disney/1": {
+          "n": 40,
+          "rho": 0.131594100910407,
+          "pairwise": 0.5555555555555556
+        },
+        "chi25_study2/mad-at-disney/2": {
+          "n": 40,
+          "rho": 0.6005366675886863,
+          "pairwise": 0.782312925170068
+        },
+        "chi25_study2/mad-at-disney/3": {
+          "n": 40,
+          "rho": 0.46340358795760844,
+          "pairwise": 0.7051926298157454
+        },
+        "chi25_study2/mad-at-disney/4": {
+          "n": 40,
+          "rho": -0.008489337580557003,
+          "pairwise": 0.48811410459587956
+        },
+        "chi25_study2/mad-at-disney/5": {
+          "n": 40,
+          "rho": -0.053743697153411235,
+          "pairwise": 0.48154093097913325
+        },
+        "chi25_study2/pajama-party/1": {
+          "n": 41,
+          "rho": 0.21746868018249896,
+          "pairwise": 0.5806962025316456
+        },
+        "chi25_study2/pajama-party/2": {
+          "n": 41,
+          "rho": 0.40494277876622997,
+          "pairwise": 0.6807511737089202
+        },
+        "chi25_study2/pajama-party/3": {
+          "n": 41,
+          "rho": 0.4971467174702496,
+          "pairwise": 0.6875912408759124
+        },
+        "chi25_study2/pajama-party/4": {
+          "n": 41,
+          "rho": 0.4880109247380961,
+          "pairwise": 0.7153502235469449
+        },
+        "chi25_study2/pajama-party/5": {
+          "n": 41,
+          "rho": 0.4620505152757048,
+          "pairwise": 0.697428139183056
+        }
+      }
+    },
+    "only:torso (0-3)": {
+      "label": "Torso only",
+      "within_rho": 0.1341721255459652,
+      "pairwise": 0.5607304764348644,
+      "pooled_rho": 0.15248922648711297,
+      "ci95": {
+        "within_rho": [
+          0.042366030099292615,
+          0.22421902878166924
+        ],
+        "pairwise": [
+          0.5211499069791149,
+          0.5996322643042896
+        ],
+        "pooled_rho": [
+          0.08586120111778969,
+          0.22262501894836273
+        ]
+      },
+      "vs_baseline": {
+        "within_rho": {
+          "diff": -0.3616119765756091,
+          "ci95": [
+            -0.4277920308314095,
+            -0.28032474809204727
+          ]
+        },
+        "pairwise": {
+          "diff": -0.16016593961166714,
+          "ci95": [
+            -0.1918054516840667,
+            -0.12755254834259935
+          ]
+        },
+        "pooled_rho": {
+          "diff": -0.2914515647458792,
+          "ci95": [
+            -0.34797456569800905,
+            -0.22390179797126059
+          ]
+        }
+      },
+      "informative_pairs": 23382,
+      "per_clip": {
+        "chi25_study1/last-christmas/1": {
+          "n": 51,
+          "rho": 0.2805815683483521,
+          "pairwise": 0.6187192118226601
+        },
+        "chi25_study1/last-christmas/2": {
+          "n": 50,
+          "rho": 0.19557046591753763,
+          "pairwise": 0.5842217484008528
+        },
+        "chi25_study1/last-christmas/3": {
+          "n": 49,
+          "rho": 0.5245687624969212,
+          "pairwise": 0.7242128121606949
+        },
+        "chi25_study1/last-christmas/4": {
+          "n": 49,
+          "rho": 0.3502549944580252,
+          "pairwise": 0.6518171160609613
+        },
+        "chi25_study1/mad-at-disney/1": {
+          "n": 47,
+          "rho": 0.12100908863828547,
+          "pairwise": 0.548854041013269
+        },
+        "chi25_study1/mad-at-disney/2": {
+          "n": 47,
+          "rho": 0.03462779772831433,
+          "pairwise": 0.5162846803377563
+        },
+        "chi25_study1/mad-at-disney/3": {
+          "n": 47,
+          "rho": 0.037177028314650556,
+          "pairwise": 0.522972972972973
+        },
+        "chi25_study1/mad-at-disney/4": {
+          "n": 47,
+          "rho": 0.2526298280946015,
+          "pairwise": 0.6011560693641619
+        },
+        "chi25_study1/mad-at-disney/5": {
+          "n": 47,
+          "rho": -0.07203441655175921,
+          "pairwise": 0.47197309417040356
+        },
+        "chi25_study1/pajama-party/1": {
+          "n": 48,
+          "rho": 0.11712550824273993,
+          "pairwise": 0.5568627450980392
+        },
+        "chi25_study1/pajama-party/2": {
+          "n": 47,
+          "rho": 0.4348985633602325,
+          "pairwise": 0.6848341232227488
+        },
+        "chi25_study1/pajama-party/3": {
+          "n": 48,
+          "rho": 0.22679644550635253,
+          "pairwise": 0.6068883610451307
+        },
+        "chi25_study1/pajama-party/4": {
+          "n": 49,
+          "rho": 0.12753400882611143,
+          "pairwise": 0.551906779661017
+        },
+        "chi25_study1/pajama-party/5": {
+          "n": 49,
+          "rho": 0.15876065067218212,
+          "pairwise": 0.5568797399783315
+        },
+        "chi25_study2/bartender/1": {
+          "n": 39,
+          "rho": 0.10879879196144678,
+          "pairwise": 0.5421487603305785
+        },
+        "chi25_study2/bartender/2": {
+          "n": 39,
+          "rho": 0.021932605904219513,
+          "pairwise": 0.5145299145299145
+        },
+        "chi25_study2/bartender/3": {
+          "n": 39,
+          "rho": 0.08528222811069872,
+          "pairwise": 0.5387323943661971
+        },
+        "chi25_study2/bartender/4": {
+          "n": 39,
+          "rho": -0.25283346883051433,
+          "pairwise": 0.38917089678510997
+        },
+        "chi25_study2/last-christmas/1": {
+          "n": 41,
+          "rho": 0.3338888050545176,
+          "pairwise": 0.6486068111455109
+        },
+        "chi25_study2/last-christmas/2": {
+          "n": 41,
+          "rho": 0.35590517453949944,
+          "pairwise": 0.6466973886328725
+        },
+        "chi25_study2/last-christmas/3": {
+          "n": 40,
+          "rho": -0.005521248058561541,
+          "pairwise": 0.5022421524663677
+        },
+        "chi25_study2/last-christmas/4": {
+          "n": 39,
+          "rho": 0.18594583170384474,
+          "pairwise": 0.5759162303664922
+        },
+        "chi25_study2/mad-at-disney/1": {
+          "n": 40,
+          "rho": 0.09087664367803891,
+          "pairwise": 0.5343915343915344
+        },
+        "chi25_study2/mad-at-disney/2": {
+          "n": 40,
+          "rho": -0.23898209462765285,
+          "pairwise": 0.3877551020408163
+        },
+        "chi25_study2/mad-at-disney/3": {
+          "n": 40,
+          "rho": -0.12182008095625879,
+          "pairwise": 0.4489112227805695
+        },
+        "chi25_study2/mad-at-disney/4": {
+          "n": 40,
+          "rho": 0.3428534745602226,
+          "pairwise": 0.6450079239302694
+        },
+        "chi25_study2/mad-at-disney/5": {
+          "n": 40,
+          "rho": -0.21303807880631478,
+          "pairwise": 0.40930979133226325
+        },
+        "chi25_study2/pajama-party/1": {
+          "n": 41,
+          "rho": -0.08229768121810639,
+          "pairwise": 0.46835443037974683
+        },
+        "chi25_study2/pajama-party/2": {
+          "n": 41,
+          "rho": -0.1986885609337863,
+          "pairwise": 0.41471048513302033
+        },
+        "chi25_study2/pajama-party/3": {
+          "n": 41,
+          "rho": 0.178574603146385,
+          "pairwise": 0.5678832116788322
+        },
+        "chi25_study2/pajama-party/4": {
+          "n": 41,
+          "rho": 0.286812653475772,
+          "pairwise": 0.6333830104321908
+        },
+        "chi25_study2/pajama-party/5": {
+          "n": 41,
+          "rho": 0.39327063795340184,
+          "pairwise": 0.6717095310136157
+        }
+      }
+    }
+  }
+}

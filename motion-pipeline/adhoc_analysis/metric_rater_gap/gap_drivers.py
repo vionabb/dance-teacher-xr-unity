@@ -181,7 +181,8 @@ def features(rows: list[dict]) -> pd.DataFrame:
             "H": s["human"],
             "M": m,
             "M_check": seg_score(e),
-            "rater_sd": float(np.std(s["raters"])),
+            # Some segments were scored by only one or two raters.
+            "rater_sd": float(np.std([r for r in s["raters"] if r is not None])),
             "frames": int(scored.sum()),
             "invalid_vector_frac": float(np.isnan(e[scored]).mean()),
             "pvis_mean": float(np.nanmean(s["pvis"][scored])),

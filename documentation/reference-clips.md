@@ -52,36 +52,55 @@ Rules for this page:
   [2026-11-20](../lab-log/2026-11-20-rater-perception-did-the-thing.md). Once
   per-clip move lists exist, they belong in each dance's section below.
 
-### Metric agreement per clip (Qijia2D, 2026-11-20)
+### Metric agreement per clip (Qijia2D, 2026-11-21)
 
 Spearman ρ between the Qijia2D segment score and the human rating, computed
-inside each clip. The mean rank gap is the metric's percentile minus the
-raters' percentile, pooled over all 743 queue segments; negative means the
-metric ranks the clip's performances lower than the raters do. Source:
+inside each clip, over all 1,397 rated segments after the rating re-join and
+the Study 2 segment-1 supplement. Pairwise is the share of same-clip pairs with
+different ratings that the metric orders the same way (ties count half). The
+mean rank gap is the metric's percentile minus the raters' percentile, pooled
+over all 1,397 segments; negative means the metric ranks the clip's
+performances lower than the raters do. Source:
+[2026-11-21](../lab-log/2026-11-21-within-clip-all-segments.md), which
+supersedes the 743-segment table of
 [2026-11-20](../lab-log/2026-11-20-metric-rater-gap-drivers.md). Observed.
 
-| Study · dance · clip | n | ρ within clip | Mean rank gap | Mean metric | Mean human |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| S1 · last-christmas · 1 | 45 | 0.32 | +25.8 | 4.27 | 3.93 |
-| S1 · last-christmas · 2 | 44 | 0.54 | +23.9 | 4.28 | 3.91 |
-| S1 · last-christmas · 3 | 43 | 0.61 | −3.3 | 4.06 | 3.98 |
-| S1 · last-christmas · 4 | 43 | 0.52 | +29.1 | 4.40 | 4.10 |
-| S1 · mad-at-disney · 1 | 40 | 0.59 | +1.9 | 4.12 | 4.10 |
-| S1 · mad-at-disney · 2 | 40 | 0.56 | −3.5 | 4.07 | 4.17 |
-| S1 · mad-at-disney · 3 | 40 | 0.58 | −0.1 | 4.14 | 4.25 |
-| S1 · mad-at-disney · 4 | 40 | 0.64 | +4.3 | 4.14 | 4.02 |
-| S1 · mad-at-disney · 5 | 40 | 0.40 | +14.4 | 4.13 | 3.70 |
-| S1 · pajama-party · 1 | 43 | **−0.24** | −14.3 | 4.00 | 3.78 |
-| S1 · pajama-party · 2 | 42 | 0.71 | +15.0 | 4.21 | 3.97 |
-| S1 · pajama-party · 3 | 43 | 0.68 | −26.8 | 3.89 | 4.19 |
-| S1 · pajama-party · 4 | 44 | 0.42 | −5.2 | 4.00 | 3.98 |
-| S1 · pajama-party · 5 | 44 | 0.61 | −5.5 | 4.06 | 4.03 |
-| S2 · pajama-party · 2 | 38 | 0.49 | +2.6 | 4.01 | 3.84 |
-| S2 · pajama-party · 3 | 38 | 0.69 | −27.6 | 3.65 | 3.72 |
-| S2 · pajama-party · 4 | 38 | 0.49 | −18.8 | 3.70 | 3.65 |
-| S2 · pajama-party · 5 | 38 | 0.63 | −19.1 | 3.80 | 3.63 |
+| Study · dance · clip | n | ρ within clip | Pairwise | Mean rank gap | Mean metric | Mean human |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| S1 · last-christmas · 1 | 51 | 0.38 | 0.66 | +26.9 | 4.27 | 3.85 |
+| S1 · last-christmas · 2 | 50 | 0.54 | 0.74 | +24.3 | 4.28 | 3.87 |
+| S1 · last-christmas · 3 | 49 | 0.63 | 0.78 | −2.9 | 4.05 | 3.87 |
+| S1 · last-christmas · 4 | 49 | 0.54 | 0.76 | +27.8 | 4.40 | 4.07 |
+| S1 · mad-at-disney · 1 | 47 | 0.58 | 0.76 | +2.6 | 4.12 | 4.05 |
+| S1 · mad-at-disney · 2 | 47 | 0.48 | 0.72 | −3.1 | 4.08 | 4.12 |
+| S1 · mad-at-disney · 3 | 47 | 0.60 | 0.80 | +2.2 | 4.14 | 4.12 |
+| S1 · mad-at-disney · 4 | 47 | 0.58 | 0.76 | +6.5 | 4.14 | 3.94 |
+| S1 · mad-at-disney · 5 | 47 | 0.36 | 0.65 | +12.5 | 4.13 | 3.68 |
+| S1 · pajama-party · 1 | 48 | **−0.23** | 0.39 | −15.6 | 3.99 | 3.76 |
+| S1 · pajama-party · 2 | 47 | 0.73 | 0.81 | +14.8 | 4.19 | 3.84 |
+| S1 · pajama-party · 3 | 48 | 0.73 | 0.85 | −27.9 | 3.86 | 4.03 |
+| S1 · pajama-party · 4 | 49 | 0.42 | 0.68 | −3.8 | 3.99 | 3.84 |
+| S1 · pajama-party · 5 | 49 | 0.64 | 0.79 | −5.2 | 4.05 | 3.91 |
+| S2 · bartender · 1 | 39 | 0.62 | 0.77 | −0.4 | 4.06 | 3.80 |
+| S2 · bartender · 2 | 39 | 0.50 | 0.71 | −7.9 | 4.01 | 3.92 |
+| S2 · bartender · 3 | 39 | 0.48 | 0.71 | −7.0 | 4.05 | 4.01 |
+| S2 · bartender · 4 | 39 | **0.11** | 0.54 | −23.6 | 3.77 | 3.72 |
+| S2 · last-christmas · 1 | 41 | 0.53 | 0.73 | +14.5 | 4.20 | 3.96 |
+| S2 · last-christmas · 2 | 41 | 0.57 | 0.75 | +13.5 | 4.17 | 3.86 |
+| S2 · last-christmas · 3 | 40 | 0.67 | 0.77 | −9.2 | 3.86 | 3.42 |
+| S2 · last-christmas · 4 | 39 | 0.82 | 0.88 | +18.7 | 4.21 | 3.62 |
+| S2 · mad-at-disney · 1 | 40 | 0.48 | 0.72 | −4.3 | 4.09 | 4.18 |
+| S2 · mad-at-disney · 2 | 40 | 0.59 | 0.78 | −21.1 | 3.87 | 4.07 |
+| S2 · mad-at-disney · 3 | 40 | 0.53 | 0.74 | +0.2 | 4.08 | 3.98 |
+| S2 · mad-at-disney · 4 | 40 | 0.59 | 0.77 | +4.3 | 4.09 | 3.77 |
+| S2 · mad-at-disney · 5 | 40 | 0.36 | 0.65 | +5.3 | 4.09 | 3.72 |
+| S2 · pajama-party · 1 | 41 | **−0.21** | 0.41 | +8.0 | 4.04 | 3.41 |
+| S2 · pajama-party · 2 | 41 | 0.37 | 0.66 | +4.3 | 4.03 | 3.72 |
+| S2 · pajama-party · 3 | 41 | 0.70 | 0.79 | −29.0 | 3.63 | 3.59 |
+| S2 · pajama-party · 4 | 41 | 0.51 | 0.73 | −19.9 | 3.67 | 3.52 |
+| S2 · pajama-party · 5 | 41 | 0.64 | 0.79 | −20.1 | 3.79 | 3.50 |
 
-With about 40 performances per clip, a single clip's ρ is noisy: its 95%
+With about 40–50 performances per clip, a single clip's ρ is noisy: its 95%
 interval is roughly ±0.25. Treat one clip's number as a pointer for review, not
 a result.
 
@@ -125,7 +144,11 @@ Observed 2026-11-20 in the hosted tables:
   clip 5. Observed (`lab-log/2026-11-06-rating-relevant-time-spans.md`).
 - The app bundle trims the end at 14.9 of 18.867 s, but validation does not
   use that trim. Observed (same entry).
-- In the review queue since the 2026-11-20 re-join (clips 2–4). Observed.
+- In the review queue since the 2026-11-20 re-join (clips 2–4) and the
+  2026-11-21 supplement (clip 1). Observed.
+- **Clip 4 has weak agreement, ρ = 0.11 (n = 39),** and the metric is much
+  harsher than the raters there (mean rank gap −23.6). Observed 2026-11-21. Not
+  yet reviewed; a candidate for the discrepancy queue.
 - Viona's notes: _(none yet)_
 
 ## last-christmas
@@ -135,7 +158,7 @@ Observed 2026-11-20 in the hosted tables:
 - Study 1: 175 rated segments in the queue before the re-join, plus 24 after
   it. Study 2: clips 2–4 joined the queue on 2026-11-20; clip 1 joined on
   2026-11-21 with all three raters. Observed.
-- Clip 1 has the weakest agreement for this dance (ρ = 0.32). Clips 1, 2 and 4
+- Clip 1 has the weakest agreement for this dance in Study 1 (ρ = 0.38). Clips 1, 2 and 4
   have large positive mean rank gaps: the metric is kinder than the raters on
   this dance in general. Observed. Inferred: this is a clip-level offset, not a
   per-performance problem.
@@ -150,9 +173,10 @@ Observed 2026-11-20 in the hosted tables:
   it. Study 2 clips 2–5 joined the queue on 2026-11-20 and clip 1
   on 2026-11-21.
   Observed.
-- This is the most consistent dance: clips 1–4 have ρ between 0.56 and 0.64.
-  Clip 5, the short last clip, is lower (0.40), and the metric is kinder there
-  (+14.4). Observed. Inferred: it may contain lead-out.
+- This is a consistent dance: clips 1–4 have ρ between 0.48 and 0.60 in both
+  studies. Clip 5, the short last clip, is lower in both (0.36 and 0.36), and
+  the metric is kinder there (+12.5 and +5.3). Observed 2026-11-21. Inferred:
+  it may contain lead-out.
 - Viona's notes: _(none yet)_
 
 ## pajama-party
@@ -163,11 +187,13 @@ Observed 2026-11-20 in the hosted tables:
 - Study 1: 216 rated segments in the queue before the re-join, plus 25 after
   it. Study 2: 152 (clips 2–5) before, plus 12 from the re-join and 41 for
   clip 1 from the 2026-11-21 supplement. Observed.
-- **Clip 1 (Study 1) has negative agreement, ρ = −0.24 (n = 43).** It is the
-  only clip with negative agreement. Inferred, not checked: this fits Viona's
-  lead-in hypothesis. It is the first clip to review in the discrepancy queue.
-- Clip 3 has a large negative rank gap in both studies (−26.8 and −27.6): the
+- **Clip 1 has negative agreement in both studies:** ρ = −0.23 in Study 1
+  (n = 48) and −0.21 in Study 2 (n = 41), with different participants. These
+  are the only negative clips. Observed 2026-11-21. Inferred, not checked:
+  the replication points at the clip itself and fits Viona's lead-in
+  hypothesis. It is the first clip to review in the discrepancy queue.
+- Clip 3 has a large negative rank gap in both studies (−27.9 and −29.0): the
   metric is harsher than the raters there, yet agreement within the clip is
-  high (0.68 and 0.69). Observed. Inferred: a hard move for the metric that the
+  high (0.73 and 0.70). Observed. Inferred: a hard move for the metric that the
   raters forgive, consistently across people.
 - Viona's notes: _(none yet)_
