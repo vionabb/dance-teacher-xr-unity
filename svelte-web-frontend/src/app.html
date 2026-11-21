@@ -3,7 +3,16 @@
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- Installable app (PWA): see documentation/pwa.md -->
+		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+		<meta name="theme-color" content="#3c64b1" />
+		<meta name="application-name" content="Dance Tutor" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content="Dance Tutor" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/pwa/apple-touch-icon.png" />
 
 		<!-- <script 
 		src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js"

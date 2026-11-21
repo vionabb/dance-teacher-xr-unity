@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#3c64b1" />
+		<title>Offline | Dance Tutor</title>
+		<style>
+			body {
+				margin: 0;
+				min-height: 100dvh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				background: #eff0eb;
+				color: #1f2937;
+				font-family: system-ui, sans-serif;
+				text-align: center;
+			}
+			main {
+				max-width: 22rem;
+				padding: 1.5rem;
+			}
+			img {
+				width: 72px;
+				height: 72px;
+				border-radius: 16px;
+			}
+			button,
+			a {
+				display: inline-block;
+				margin: 0.25rem;
+				padding: 0.65rem 1.1rem;
+				border-radius: 0.5rem;
+				border: 0;
+				font: inherit;
+				text-decoration: none;
+				cursor: pointer;
+			}
+			button {
+				background: #3c64b1;
+				color: #fff;
+			}
+			a {
+				background: #fff;
+				color: #3c64b1;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<img src="/pwa/icon-192.png" alt="" />
+			<h1>You're offline</h1>
+			<p>Dance Tutor needs a connection to load dances and research data.</p>
+			<button type="button" onclick="location.reload()">Try again</button>
+			<a href="/menu">Home</a>
+		</main>
+	</body>
+</html>

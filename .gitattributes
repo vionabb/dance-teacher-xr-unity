@@ -50,3 +50,7 @@ svelte-web-frontend/src/lib/data/bundle/*.json filter=lfs diff=lfs merge=lfs -te
 # *.asset merge=unityyamlmerge eol=lf
 # *.meta merge=unityyamlmerge eol=lf
 # *.controller merge=unityyamlmerge eol=lf
+
+# PWA icons are small, must ship with every deploy, and are regenerated from
+# static/pwa/icon.svg by scripts/pwa/render-icons.mjs: keep them as plain Git blobs.
+svelte-web-frontend/static/pwa/*.png -filter -diff -merge binary

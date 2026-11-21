@@ -12,6 +12,7 @@
 	import { invalidate } from '$app/navigation';
 	import Dialog from '$lib/elements/Dialog.svelte';
 	import { NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL } from '$env/static/public';
+	import { appHistory } from '$lib/pwa/standalone.svelte';
 
 	let showingSettings = $state(false);
 	async function toggleSettings(setValue: boolean | undefined = undefined) {
@@ -20,6 +21,14 @@
 	}
 
 	let { data, children } = $props();
+
+	const showResearchNavigation = $derived(
+		(data.hasResearchAccess || data.localResearchAccess) &&
+			(page.route.id?.startsWith('/research') || page.route.id?.startsWith('/metrics/'))
+	);
+	// In the installed app (PWA) the research bar carries Back, Home and the
+	// tools, so the main bar above it would only repeat them on a small screen.
+	const hideNavBar = $derived(appHistory.standalone && showResearchNavigation);
 	const supabase = $derived(data.supabase);
 
 	// Setting client as context is a convenient way to give non-route Svelte elements
@@ -51,18 +60,12 @@
 	setContext('supabase', supabase);
 
 	onMount(() => {
-		// Register service worker
-		if ('serviceWorker' in navigator) {
-			const serviceWorkerUrl = new URL('./../service-worker', import.meta.url);
-			navigator.serviceWorker
-				.register(serviceWorkerUrl)
-				.then((reg) => {
-					console.log('Service worker registered:', reg);
-				})
-				.catch((err) => {
-					console.error('Service worker registration failed:', err);
-				});
-		}
+		appHistory.init();
+
+		// SvelteKit registers src/service-worker.ts as /service-worker.js
+		// (kit.serviceWorker.register defaults to true). The previous manual
+		// registration bundled the worker source as a data: URL, which browsers
+		// refuse to register.
 
 		const { data: listener } = supabase.auth.onAuthStateChange(() => {
 			// Invalidate; root +layout.ts load will fetch fresh session & user
@@ -73,9 +76,11 @@
 	});
 </script>
 
-<NavBar on:settingsButtonClicked={() => toggleSettings()} settingsActive={showingSettings} />
-<div class="app-content" class:noNavBar={$navbarProps.collapsed}>
-	{#if (data.hasResearchAccess || data.localResearchAccess) && (page.route.id?.startsWith('/research') || page.route.id?.startsWith('/metrics/'))}
+{#if !hideNavBar}
+	<NavBar on:settingsButtonClicked={() => toggleSettings()} settingsActive={showingSettings} />
+{/if}
+<div class="app-content" class:noNavBar={hideNavBar || $navbarProps.collapsed}>
+	{#if showResearchNavigation}
 		<ResearchNavigation hosted={data.hasResearchAccess} local={data.localResearchAccess} />
 	{/if}
 	{#if page.route.id?.startsWith('/research')}
