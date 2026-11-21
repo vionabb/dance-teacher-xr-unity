@@ -16,8 +16,9 @@ The installed app has its own sign-in. On iOS its storage is separate from
 Safari's, so sign in once inside the installed app even if Safari is already
 signed in. Sign-in uses the in-app email/password form and same-origin
 redirects, so it never leaves the app window. A researcher with a
-`research_access` row sees the Research workspace on the home page exactly as in
-the browser; every `/research/**` and `/metrics/**` route is inside the manifest
+`research_access` row sees a **Research** button in the home page's bar
+exactly as in the browser, and every research page has a **Learner app** link
+back to dance practice; every `/research/**` and `/metrics/**` route is inside the manifest
 scope (`/`).
 
 Links in emails (password reset, sign-up confirmation) open in the phone's
@@ -71,8 +72,9 @@ browser chrome:
   there is nothing to go forward to). They sit at the left of the main blue bar
   on ordinary pages (not on Home or Login), next to each page's link up.
 - Research pages and metric inspectors use the same blue bar, a shade darker
-  and marked **Research**, with Back, Home, the current tool, a tools menu
-  (inline on wide screens) and Settings. The main bar is not shown above it.
+  and marked **Research**, with Back, **Learner app** (to `/menu`), the current
+  tool, a tools menu (inline on wide screens, whose first entry is also the
+  learner app) and Settings. The main bar is not shown above it.
 - File downloads (research materials, pose CSVs, discrepancy notes): in the
   installed app they go to the system share sheet (`src/lib/pwa/download.ts`),
   so a file never replaces the app window with a viewer that has no way back.
@@ -85,6 +87,26 @@ browser chrome:
 `src/lib/pwa/standalone.svelte.ts` detects the installed app (the
 `display-mode` media query, or `navigator.standalone` on iOS) and sets
 `data-standalone` on `<html>`.
+
+## Dances on the hosted site
+
+The learner menu lists rows of `motion_video`, each with segmentation trees in
+`motion_video_segmentation`. The media they point at is in the public buckets
+(`sourcevideos`, `thumbnails`, `pose2ddata`, `holisticdata`). `dances.json` and
+`dancetrees.json` (`svelte-web-frontend/src/lib/data/bundle/`) stay the source of
+truth for those rows.
+
+- Locally, `scripts/syncBundleData.js` writes the rows.
+- The hosted project got its learner tables later, from
+  `supabase/migrations/20261121203000_hosted_learner_tables.sql`. That file skips
+  the local catch-all storage read policy, because on hosted it would expose the
+  private `research-chi25` bucket.
+- To add or refresh dances on the hosted site, run
+  `node scripts/buildHostedLearnerSeed.mjs > seed.sql` from `svelte-web-frontend/`
+  and paste the output into the SQL editor.
+  - It adds only dances whose video is in `sourcevideos`, and skips rows that are
+    already there, so it is safe to run again.
+  - Its last query lists what it added and what it skipped.
 
 ## Verifying
 

@@ -134,20 +134,25 @@ try {
 		page.waitForURL(base + '/menu'),
 		page.getByRole('button', { name: 'Sign in', exact: true }).click()
 	]);
-	const tools = page.getByRole('navigation', { name: 'Research tools', exact: true });
+	// The learner home links a researcher to the research workspace.
+	const tools = page.getByRole('link', { name: /^Research( workspace)?$/ });
 	await tools.waitFor();
-	assert.equal(await tools.getByRole('link').count(), 5);
-	assert.equal(await tools.getByRole('link', { name: /Source records/ }).count(), 0);
+	assert.equal(await tools.getAttribute('href'), '/research/studies');
 	assert.match((await page.reload()).headers()['cache-control'], /private.*no-store/);
 	await tools.waitFor();
 	await page.screenshot({ path: `${output}/home-desktop.png`, fullPage: true });
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.screenshot({ path: `${output}/home-mobile.png`, fullPage: true });
 	assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-	await tools.getByRole('link', { name: /Performance analysis/ }).click();
-	await page.waitForURL(base + '/research');
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	await tools.click();
+	await page.waitForURL(base + '/research/studies');
 	const navigation = page.getByRole('navigation', { name: 'Research workspace', exact: true });
 	await navigation.waitFor();
+	assert.equal(await navigation.getByRole('link', { name: /Source records/ }).count(), 0);
+	await navigation.getByRole('link', { name: 'Performance analysis', exact: true }).click();
+	await page.waitForURL(base + '/research');
+	await page.setViewportSize({ width: 390, height: 844 });
 	for (const [label, path] of [
 		['Discrepancy review', '/research/discrepancy'],
 		['Research recordings', '/research/studies'],
@@ -184,7 +189,7 @@ try {
 		await activeTool.waitFor();
 		assert.equal(await activeTool.getAttribute('aria-current'), 'page');
 	}
-	await navigation.getByRole('link', { name: 'Home', exact: true }).click();
+	await navigation.getByRole('link', { name: 'Learner app', exact: true }).first().click();
 	await page.waitForURL(base + '/menu');
 	await tools.waitFor();
 	researchMember = false;
@@ -199,7 +204,7 @@ try {
 	await anonymousPage.goto(base + '/menu');
 	assert.equal(new URL(anonymousPage.url()).pathname, '/login');
 	assert.equal(
-		await anonymousPage.getByRole('navigation', { name: 'Research tools', exact: true }).count(),
+		await anonymousPage.getByRole('link', { name: /^Research( workspace)?$/ }).count(),
 		0
 	);
 	await anonymous.close();

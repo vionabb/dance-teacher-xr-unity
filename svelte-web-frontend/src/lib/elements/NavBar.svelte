@@ -7,6 +7,7 @@
 	import { writable } from 'svelte/store';
 	import { navigating, page } from '$app/stores';
 	import AppHistoryButtons from '$lib/elements/AppHistoryButtons.svelte';
+	import ResearchIcon from '$lib/elements/ResearchIcon.svelte';
 	import Icon from '@iconify/svelte';
 	import ProgressEllipses from '$lib/elements/ProgressEllipses.svelte';
 
@@ -37,6 +38,14 @@
 	// In-app Back (see AppHistoryButtons). Research routes carry it in
 	// ResearchNavigation instead; Home and Login need none.
 	$: routeId = $page.route.id ?? '';
+	// Researchers switch from the learner home to the research workspace here;
+	// the research bar's "Learner app" link brings them back.
+	$: researchHref =
+		routeId === '/menu' && $page.data.hasResearchAccess
+			? '/research/studies'
+			: routeId === '/menu' && $page.data.localResearchAccess
+				? '/research'
+				: null;
 	$: showAppHistory = !(
 		routeId === '/menu' ||
 		routeId === '/login' ||
@@ -82,7 +91,16 @@
 	</div>
 
 	<!-- Container for right-aligned content-->
-	<div class="flex-none">
+	<div class="flex flex-none items-center gap-2">
+		{#if researchHref}
+			<a
+				class="daisy-btn daisy-btn-sm gap-1.5 border-white/30 bg-white/15 text-white shadow-none hover:bg-white/25"
+				href={researchHref}
+				><ResearchIcon name="flask-conical" />Research<span class="hidden sm:inline">
+					workspace</span
+				></a
+			>
+		{/if}
 		{#if !$navbarProps.hideSettings}
 			<a
 				class="settings daisy-btn flex items-center justify-center"

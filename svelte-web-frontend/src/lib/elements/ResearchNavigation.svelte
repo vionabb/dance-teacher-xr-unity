@@ -6,13 +6,11 @@
 	import ResearchIcon, { type IconName } from './ResearchIcon.svelte';
 
 	let {
-		home = false,
 		hosted = false,
 		local = false,
 		current,
 		onsettings
 	}: {
-		home?: boolean;
 		hosted?: boolean;
 		local?: boolean;
 		/** Overrides the current path, for the dev UI harness. */
@@ -98,101 +96,91 @@
 	const activeLabel = $derived(links.find((link) => link.active)?.short ?? 'Workspace');
 </script>
 
-{#if home}
-	<section aria-labelledby="research-heading" class="mx-4 mb-8 space-y-3">
-		<h2 id="research-heading" class="text-xl font-semibold">Research workspace</h2>
-		<nav aria-label="Research tools" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-			{#each links as link (link.href)}
-				<a
-					href={resolve(link.href)}
-					class="daisy-card border-base-300 bg-base-100 hover:border-primary border transition-colors"
-				>
-					<div class="daisy-card-body gap-2 p-4">
-						<span class="text-primary flex items-center gap-2 font-semibold">
-							<ResearchIcon name={link.icon} />{link.label}
-						</span>
-						<p class="text-sm opacity-75">{link.description}</p>
-					</div>
-				</a>
-			{/each}
-		</nav>
-	</section>
-{:else}
-	<!--
+<!--
 		The research workspace uses the app's blue bar, tinted darker and marked
 		"Research". Phones list the tools in a menu; wide screens show them inline.
 	-->
-	<nav
-		aria-label="Research workspace"
-		class="research-bar daisy-navbar text-primary-content min-h-16 gap-0.5 px-1 sm:gap-2 sm:px-4"
-	>
-		<div class="flex flex-none items-center sm:gap-1">
-			<AppHistoryButtons />
-			<a
-				href={resolve('/menu')}
-				class="daisy-btn daisy-btn-ghost daisy-btn-sm max-sm:daisy-btn-square gap-1.5"
-				aria-label="Home"
+<nav
+	aria-label="Research workspace"
+	class="research-bar daisy-navbar text-primary-content relative z-40 min-h-16 gap-0.5 px-1 sm:gap-2 sm:px-4"
+>
+	<div class="flex flex-none items-center sm:gap-1">
+		<AppHistoryButtons />
+		<a
+			href={resolve('/menu')}
+			class="daisy-btn daisy-btn-ghost daisy-btn-sm max-sm:daisy-btn-square gap-1.5"
+			aria-label="Learner app"
+			title="Learner app"
+		>
+			<ResearchIcon name="house" /><span class="hidden sm:inline">Learner app</span>
+		</a>
+	</div>
+	<div class="flex min-w-0 flex-1 items-center gap-2">
+		<span
+			class="daisy-badge daisy-badge-sm shrink-0 border-white/30 bg-white/15 font-semibold tracking-wide text-white uppercase"
+			>Research</span
+		>
+		<span class="truncate text-base sm:text-lg lg:hidden">{activeLabel}</span>
+		<ul
+			class="daisy-menu daisy-menu-horizontal daisy-menu-sm hidden flex-nowrap gap-0.5 p-0 lg:flex"
+		>
+			{#each links as link (link.href)}
+				<li>
+					<a
+						href={resolve(link.href)}
+						title={link.description}
+						aria-current={link.active ? 'page' : undefined}
+						class={[
+							'gap-1.5 whitespace-nowrap',
+							link.active ? 'bg-white/20 font-semibold text-white' : 'text-white/80'
+						]}><ResearchIcon name={link.icon} />{link.label}</a
+					>
+				</li>
+			{/each}
+		</ul>
+	</div>
+	<div class="flex flex-none items-center gap-1">
+		<details bind:this={toolsMenu} class="daisy-dropdown daisy-dropdown-end lg:hidden">
+			<summary
+				class="daisy-btn daisy-btn-ghost daisy-btn-sm gap-1.5"
+				aria-label="Research tools menu"
+				><ResearchIcon name="list" /><span class="hidden sm:inline">Tools</span></summary
 			>
-				<ResearchIcon name="house" /><span class="hidden sm:inline">Home</span>
-			</a>
-		</div>
-		<div class="flex min-w-0 flex-1 items-center gap-2">
-			<span
-				class="daisy-badge daisy-badge-sm shrink-0 border-white/30 bg-white/15 font-semibold tracking-wide text-white uppercase"
-				>Research</span
-			>
-			<span class="truncate text-base sm:text-lg lg:hidden">{activeLabel}</span>
 			<ul
-				class="daisy-menu daisy-menu-horizontal daisy-menu-sm hidden flex-nowrap gap-0.5 p-0 lg:flex"
+				data-theme="research"
+				class="daisy-menu daisy-dropdown-content rounded-box border-base-300 bg-base-100 text-base-content z-50 mt-2 w-64 border p-2 shadow-lg"
 			>
+				<li>
+					<a href={resolve('/menu')} class="gap-2"
+						><ResearchIcon name="house" />Learner app<span class="text-base-content/60 text-xs"
+							>dance practice</span
+						></a
+					>
+				</li>
+				<li class="daisy-menu-title pt-2">Research tools</li>
 				{#each links as link (link.href)}
 					<li>
 						<a
 							href={resolve(link.href)}
+							title={link.description}
 							aria-current={link.active ? 'page' : undefined}
-							class={[
-								'gap-1.5 whitespace-nowrap',
-								link.active ? 'bg-white/20 font-semibold text-white' : 'text-white/80'
-							]}><ResearchIcon name={link.icon} />{link.label}</a
+							class={['gap-2', link.active && 'bg-primary/10 text-primary font-semibold']}
+							><ResearchIcon name={link.icon} />{link.label}</a
 						>
 					</li>
 				{/each}
 			</ul>
-		</div>
-		<div class="flex flex-none items-center gap-1">
-			<details bind:this={toolsMenu} class="daisy-dropdown daisy-dropdown-end lg:hidden">
-				<summary
-					class="daisy-btn daisy-btn-ghost daisy-btn-sm gap-1.5"
-					aria-label="Research tools menu"
-					><ResearchIcon name="list" /><span class="hidden sm:inline">Tools</span></summary
-				>
-				<ul
-					data-theme="research"
-					class="daisy-menu daisy-dropdown-content rounded-box border-base-300 bg-base-100 text-base-content z-50 mt-2 w-64 border p-2 shadow-lg"
-				>
-					{#each links as link (link.href)}
-						<li>
-							<a
-								href={resolve(link.href)}
-								aria-current={link.active ? 'page' : undefined}
-								class={['gap-2', link.active && 'bg-primary/10 text-primary font-semibold']}
-								><ResearchIcon name={link.icon} />{link.label}</a
-							>
-						</li>
-					{/each}
-				</ul>
-			</details>
-			{#if onsettings}
-				<button
-					type="button"
-					class="daisy-btn daisy-btn-ghost daisy-btn-sm daisy-btn-square"
-					aria-label="Settings"
-					onclick={onsettings}><ResearchIcon name="settings" /></button
-				>
-			{/if}
-		</div>
-	</nav>
-{/if}
+		</details>
+		{#if onsettings}
+			<button
+				type="button"
+				class="daisy-btn daisy-btn-ghost daisy-btn-sm daisy-btn-square"
+				aria-label="Settings"
+				onclick={onsettings}><ResearchIcon name="settings" /></button
+			>
+		{/if}
+	</div>
+</nav>
 
 <style>
 	/* The app bar's blue (--color-primary #3c64b1), a shade deeper for research. */
